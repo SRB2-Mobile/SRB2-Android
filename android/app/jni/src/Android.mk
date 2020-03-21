@@ -97,8 +97,8 @@ LOCAL_SRC_FILES := $(OBJDIR)/comptime.c \
 # and removed vid_copy.s because there is no ASM compiling here. At least for now.
 # Also, all of the SDL interface files are there.
 
-LOCAL_CFLAGS += -DANDROID \
-				-DHAVE_SDL -DHAVE_MIXER \
+LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
+				-DTOUCHINPUTS \
 				-DUNIXCOMMON -DLINUX \
 				-DDEBUGMODE -DLOGCAT -DDIRECTFULLSCREEN \
 				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE \

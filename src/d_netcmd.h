@@ -34,9 +34,14 @@ extern consvar_t cv_defaultskin2;
 #ifdef SEENAMES
 extern consvar_t cv_seenames, cv_allowseenames;
 #endif
+
 extern consvar_t cv_usemouse;
 extern consvar_t cv_usejoystick;
 extern consvar_t cv_usejoystick2;
+#if defined(__ANDROID__)
+extern consvar_t cv_useaccelerometer;
+#endif
+
 #ifdef LJOYSTICK
 extern consvar_t cv_joyport;
 extern consvar_t cv_joyport2;

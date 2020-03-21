@@ -15,6 +15,7 @@
 
 #include "doomdef.h"
 #include "g_game.h"
+#include "g_input.h"
 #include "r_local.h"
 #include "p_local.h"
 #include "f_finale.h"
@@ -1201,6 +1202,211 @@ static void ST_drawInput(void)
 		V_DrawThinString(x, y, hudinfo[HUD_LIVES].f|((leveltime & 4) ? V_YELLOWMAP : V_REDMAP), "BAD DEMO!!");
 }
 
+#ifdef TOUCHINPUTS
+static void ST_drawTouchInput(void)
+{
+	fixed_t dupx = vid.dupx*FRACUNIT; //FixedDiv(vid.dupx*FRACUNIT, FRACUNIT*2);
+	fixed_t dupy = vid.dupy*FRACUNIT; //FixedDiv(vid.dupy*FRACUNIT, FRACUNIT*2);
+	const INT32 flags = V_NOSCALESTART;
+	const INT32 accent = (stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
+	const INT32 shadow = vid.dupy;
+	INT32 col, offs;
+	INT32 base, ybase;
+	INT32 xslant, yslant;
+	INT32 udw;
+	INT32 i, j;
+
+	INT32 x = FixedMul(touch_dpad_x * FRACUNIT, dupx) / FRACUNIT;
+	INT32 y = FixedMul(touch_dpad_y * FRACUNIT, dupy) / FRACUNIT;
+	INT32 w = FixedMul(touch_dpad_w * FRACUNIT, dupx) / FRACUNIT;
+	INT32 h = FixedMul(touch_dpad_h * FRACUNIT, dupy) / FRACUNIT;
+
+	touchconfig_t *tleft = &touchconfig[gc_strafeleft];
+	touchconfig_t *tright = &touchconfig[gc_straferight];
+	touchconfig_t *tup = &touchconfig[gc_forward];
+	touchconfig_t *tdown = &touchconfig[gc_backward];
+
+	touchconfig_t *tjump = &touchconfig[gc_jump];
+	touchconfig_t *tspin = &touchconfig[gc_use];
+
+	if (stplyr->powers[pw_carry] == CR_NIGHTSMODE)
+		y -= FixedMul(16 * FRACUNIT, dupy) / FRACUNIT;
+
+	if (F_GetPromptHideHud(y))
+		return;
+
+#define CENTERPOS \
+	if (vid.height != BASEVIDHEIGHT * vid.dupy) \
+		y += (vid.height - (BASEVIDHEIGHT * vid.dupy)); \
+
+	// O backing
+	CENTERPOS;
+	V_DrawFill(x, y-1, w, h, flags|20);
+	V_DrawFill(x, y+h-1, w, shadow, flags|29);
+
+	if (vid.dupx == 1)
+		udw = 2;
+	else
+		udw = (vid.dupx * 3);
+
+#define THISMACRONEEDSANAME(touch) \
+	x = FixedMul(touch->x * FRACUNIT, dupx) / FRACUNIT; \
+	y = FixedMul(touch->y * FRACUNIT, dupy) / FRACUNIT; \
+	w = FixedMul(touch->w * FRACUNIT, dupx) / FRACUNIT; \
+	h = FixedMul(touch->h * FRACUNIT, dupy) / FRACUNIT; \
+	xslant = FixedMul((touch->w/2) * FRACUNIT, dupx) / FRACUNIT; \
+	yslant = FixedMul((touch->h/2) * FRACUNIT, dupy) / FRACUNIT; \
+	CENTERPOS;
+
+	// <
+	THISMACRONEEDSANAME(tleft);
+
+	base = (w - xslant);
+	ybase = (y + h) - vid.dupy;
+
+#define drawleftbutton(color, offset) \
+	V_DrawFill(x, y+offset, base+(vid.dupx), h, color|flags); \
+	for (i = 0; i < xslant; i++) \
+		V_DrawFill(x+base+i+(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color|flags);
+
+	if (stplyr->cmd.sidemove < 0)
+	{
+		col = accent;
+		offs = shadow;
+	}
+	else
+	{
+		col = 16;
+		offs = 0;
+		drawleftbutton(29, shadow);
+	}
+
+	drawleftbutton(col, offs);
+
+	// ^
+	THISMACRONEEDSANAME(tup);
+
+	yslant /= 2;
+	yslant += (vid.dupy * 2) + 1;
+
+	base = w;
+	ybase = (y + h) - vid.dupy;
+
+#define drawupbutton(color, offset) \
+	for (i = 0; i < yslant; i++) \
+		V_DrawFill(x+i, y+offset, 1, (h-yslant)+i, color|flags); \
+	ybase = (h-yslant)+i; \
+	V_DrawFill(x+i, y+offset, udw, ybase, color|flags); \
+	for (j = 0; j < yslant; j++) \
+		V_DrawFill(x+i+j+udw, y+offset, 1, (ybase-(j+1)), color|flags); \
+
+	if (stplyr->cmd.forwardmove > 0)
+	{
+		col = accent;
+		offs = shadow;
+	}
+	else
+	{
+		col = 16;
+		offs = 0;
+		drawupbutton(29, shadow);
+	}
+
+	drawupbutton(col, offs);
+
+	// >
+	THISMACRONEEDSANAME(tright);
+
+	base = (w - xslant);
+	ybase = (y + h) - vid.dupy;
+
+#define drawrightbutton(color, offset) \
+	V_DrawFill(x+base-(vid.dupx), y+offset, base+(vid.dupx), h, color|flags); \
+	for (i = 0; i < xslant; i++) \
+		V_DrawFill(x+(base-(vid.dupx))-i-(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color|flags);
+
+	if (stplyr->cmd.sidemove > 0)
+	{
+		col = accent;
+		offs = shadow;
+	}
+	else
+	{
+		col = 16;
+		offs = 0;
+		drawrightbutton(29, shadow);
+	}
+
+	drawrightbutton(col, offs);
+
+	// v
+	THISMACRONEEDSANAME(tdown);
+
+	yslant /= 2;
+	yslant += (vid.dupy * 2) + 1;
+
+	base = w;
+	ybase = (y + h);
+
+#define drawdownbutton(color, offset) \
+	for (i = 0; i < yslant; i++) \
+		V_DrawFill(x+i, (y+(yslant-i)) + offset, 1, (h-yslant)+i, color|flags); \
+	ybase = (h-yslant)+i; \
+	V_DrawFill(x+i, y+offset, udw, ybase, color|flags); \
+	for (j = 0; j < yslant; j++) \
+		V_DrawFill(x+i+j+udw, ((y+(yslant-i))+j) + 1 + offset, 1, (ybase-(j+1)), color|flags);
+
+	if (stplyr->cmd.forwardmove < 0)
+	{
+		col = accent;
+		offs = shadow;
+	}
+	else
+	{
+		col = 16;
+		offs = 0;
+		drawdownbutton(29, shadow);
+	}
+
+	drawdownbutton(col, offs);
+
+#undef CENTERPOS
+#define CENTERPOS \
+	if (vid.width != BASEVIDWIDTH * vid.dupx) \
+		x += (vid.width - (BASEVIDWIDTH * vid.dupx)); \
+	if (vid.height != BASEVIDHEIGHT * vid.dupy) \
+		y += (vid.height - (BASEVIDHEIGHT * vid.dupy)); \
+
+#define drawbutt(control, butt, symb) \
+	THISMACRONEEDSANAME(control); \
+	if (stplyr->cmd.buttons & butt) \
+	{ \
+		col = accent; \
+		offs = shadow; \
+	} \
+	else \
+	{ \
+		col = 16; \
+		offs = 0; \
+		V_DrawFill(x, y + h, w, shadow, 29|flags); \
+	} \
+	V_DrawFill(x, y + offs, w, h, col|flags); \
+	V_DrawCharacter((x + (w / 2)) - ((8*vid.dupx) / 2), (y + (h / 2)) - ((8*vid.dupx) / 2) + offs, symb|flags, false);
+
+	drawbutt(tjump, BT_JUMP, 'J');
+	drawbutt(tspin, BT_USE,  'S');
+
+#undef drawbutt
+#undef drawdownbutton
+#undef drawrightbutton
+#undef drawupbutton
+#undef drawleftbutton
+#undef THISMACRONEEDSANAME
+#undef CENTERPOS
+
+}
+#endif
+
 static patch_t *lt_patches[3];
 static INT32 lt_scroll = 0;
 static INT32 lt_mom = 0;
@@ -1444,7 +1650,7 @@ static void ST_drawPowerupHUD(void)
 
 	if (stplyr->spectator || stplyr->playerstate != PST_LIVE)
 		return;
-	
+
 // ---------
 // Finish icon
 // ---------
@@ -2816,6 +3022,10 @@ static void ST_overlayDrawer(void)
 
 	if (modeattacking && !(demoplayback && hu_showscores))
 		ST_drawInput();
+#ifdef TOUCHINPUTS
+	else
+		ST_drawTouchInput();
+#endif
 
 	ST_drawDebugInfo();
 }

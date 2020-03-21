@@ -22,6 +22,10 @@ typedef enum
 {
 	ev_keydown,
 	ev_keyup,
+#ifdef TOUCHINPUTS
+	ev_touchdown,
+	ev_touchup,
+#endif
 	ev_console,
 	ev_mouse,
 	ev_joystick,

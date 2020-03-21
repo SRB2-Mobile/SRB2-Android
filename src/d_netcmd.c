@@ -250,6 +250,11 @@ consvar_t cv_usejoystick = {"use_gamepad", "1", CV_SAVE|CV_CALL, usejoystick_con
 	I_InitJoystick, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_usejoystick2 = {"use_gamepad2", "2", CV_SAVE|CV_CALL, usejoystick_cons_t,
 	I_InitJoystick2, 0, NULL, NULL, 0, 0, NULL};
+
+#if defined(__ANDROID__)
+consvar_t cv_useaccelerometer = {"use_accelerometer", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+#endif
+
 #if (defined (LJOYSTICK) || defined (HAVE_SDL))
 #ifdef LJOYSTICK
 consvar_t cv_joyport = {"padport", "/dev/js0", CV_SAVE, joyport_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -817,6 +822,10 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_usejoystick);
 	CV_RegisterVar(&cv_usejoystick2);
+#if defined(__ANDROID__)
+	CV_RegisterVar(&cv_useaccelerometer);
+#endif
+
 #ifdef LJOYSTICK
 	CV_RegisterVar(&cv_joyport);
 	CV_RegisterVar(&cv_joyport2);

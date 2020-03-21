@@ -1184,6 +1184,11 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		G_CopyTiccmd(cmd, I_BaseTiccmd2(), 1); // empty, or external driver
 	}
 
+#if defined(__ANDROID__)
+	if (!cv_useaccelerometer.value)
+		usejoystick = 0;
+#endif
+
 	strafeisturn = controlstyle == CS_SIMPLE && ticcmd_centerviewdown[forplayer] &&
 		((cv_cam_lockedinput[forplayer].value && !ticcmd_ztargetfocus[forplayer]) || (player->pflags & PF_STARTDASH)) &&
 		!player->climbing && player->powers[pw_carry] != CR_MINECART;

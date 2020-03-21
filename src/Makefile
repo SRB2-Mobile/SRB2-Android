@@ -364,6 +364,10 @@ ifdef PACKETDROP
 	OPTS+=-DPACKETDROP
 endif
 
+ifdef TOUCHINPUTS
+	OPTS+=-DTOUCHINPUTS
+endif
+
 ifdef DEBUGMODE
 
 	# build with debugging information

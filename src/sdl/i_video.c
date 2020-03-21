@@ -69,6 +69,7 @@
 #include "../st_stuff.h"
 #include "../hu_stuff.h"
 #include "../g_game.h"
+#include "../g_input.h"
 #include "../i_video.h"
 #include "../console.h"
 #include "../command.h"
@@ -356,6 +357,11 @@ static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 		case SDL_SCANCODE_RALT:   return KEY_RALT;
 		case SDL_SCANCODE_LGUI:   return KEY_LEFTWIN;
 		case SDL_SCANCODE_RGUI:   return KEY_RIGHTWIN;
+
+#if defined(__ANDROID__)
+		case SDL_SCANCODE_AC_BACK:        return KEY_ESCAPE;
+#endif
+
 		default:                  break;
 	}
 #ifdef HWRENDER
@@ -877,6 +883,61 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 	if (event.type != ev_console) D_PostEvent(&event);
 }
 
+#ifdef TOUCHINPUTS
+// Lactozilla: Android touch inputs
+static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
+{
+	float touchx = evt.x;
+	float touchy = evt.y;
+
+	INT32 screenx = -1;
+	INT32 screeny = -1;
+
+	if (touchx >= 0.0 && touchx <= 1.0)
+		screenx = touchx * BASEVIDWIDTH;
+	if (touchy >= 0.0 && touchy <= 1.0)
+		screeny = touchy * BASEVIDHEIGHT;
+
+#if defined(LOGCAT)
+	if (screenx != -1 && screeny != -1)
+		CONS_Printf("YAYYYY!!!!! x %d y %d %d %d\n", screenx, screeny, evt.fingerId, evt.touchId);
+
+	if (evt.type == SDL_FINGERMOTION)
+		CONS_Printf("Finger motion\n");
+	else if (evt.type == SDL_FINGERUP)
+		CONS_Printf("Finger up\n");
+	else if (evt.type == SDL_FINGERDOWN)
+		CONS_Printf("Finger down\n");
+#endif
+
+	if (evt.type == SDL_FINGERDOWN || evt.type == SDL_FINGERUP)
+	{
+		event_t event;
+		switch (gamestate)
+		{
+			case GS_LEVEL:
+				if (menuactive || promptactive)
+				{
+					event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
+					event.data1 = KEY_SPACE;
+				}
+				else
+				{
+					event.type = (evt.type == SDL_FINGERDOWN) ? ev_touchdown : ev_touchup;
+					event.data1 = screenx;
+					event.data2 = screeny;
+				}
+				break;
+			default:
+				event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
+				event.data1 = KEY_ENTER;
+				break;
+		}
+		D_PostEvent(&event);
+	}
+}
+#endif
+
 
 
 void I_GetEvent(void)
@@ -919,6 +980,13 @@ void I_GetEvent(void)
 			case SDL_JOYAXISMOTION:
 				Impl_HandleJoystickAxisEvent(evt.jaxis);
 				break;
+#ifdef TOUCHINPUTS
+			case SDL_FINGERMOTION:
+			case SDL_FINGERDOWN:
+			case SDL_FINGERUP:
+				Impl_HandleTouchEvent(evt.tfinger);
+				break;
+#endif
 #if 0
 			case SDL_JOYHATMOTION:
 				Impl_HandleJoystickHatEvent(evt.jhat)
