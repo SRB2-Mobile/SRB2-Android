@@ -13,6 +13,7 @@
 #include "doomdef.h"
 #include "d_main.h" // for srb2home
 #include "g_game.h"
+#include "s_sound.h"
 #include "sounds.h"
 #include "info.h"
 #include "d_think.h"
@@ -7478,7 +7479,7 @@ static const char *const STATE_LIST[] = { // array length left dynamic for sanit
 
 	// Got Flag Sign
 	"S_GOTFLAG",
-	
+
 	// Finish flag
 	"S_FINISHFLAG",
 

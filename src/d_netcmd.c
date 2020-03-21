@@ -3490,6 +3490,8 @@ static void Command_Version_f(void)
 	// Would be nice to use SDL_GetPlatform for this
 #if defined (_WIN32) || defined (_WIN64)
 	CONS_Printf("Windows ");
+#elif defined(__ANDROID__)
+	CONS_Printf("Android");
 #elif defined(__linux__)
 	CONS_Printf("Linux ");
 #elif defined(MACOSX)
@@ -3753,11 +3755,11 @@ static void ExitMove_OnChange(void)
 			{
 				if (players[i].mo->target && players[i].mo->target->type == MT_SIGN)
 					P_SetTarget(&players[i].mo->target, NULL);
-				
+
 				if (players[i].pflags & PF_FINISHED)
 					P_GiveFinishFlags(&players[i]);
 			}
-			
+
 		CONS_Printf(M_GetText("Players can now move after completing the level.\n"));
 	}
 	else

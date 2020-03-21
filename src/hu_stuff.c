@@ -27,6 +27,8 @@
 #include "i_video.h"
 #include "i_system.h"
 
+#include "s_sound.h"
+
 #include "st_stuff.h" // ST_HEIGHT
 #include "r_local.h"
 

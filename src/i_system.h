@@ -276,6 +276,11 @@ const CPUInfoFlags *I_CPUInfo(void);
 */
 const char *I_LocateWad(void);
 
+/**	\brief Location of the application's storage (Android)
+		\return path to the external storage
+*/
+const char *I_StorageLocation(void);
+
 /**	\brief First Joystick's events
 */
 void I_GetJoystickEvents(void);

@@ -28,7 +28,7 @@
  #include <stdlib.h>
 #else
  #ifndef HAVE_MEMCPY
-  #if !(defined (_WIN32) && !defined (__CYGWIN__)) && !defined (__APPLE__)
+  #if !(defined (_WIN32) && !defined (__CYGWIN__)) && !defined (__APPLE__) && !defined (__ANDROID__)
    #define memcpy(d, s, n) bcopy ((s), (d), (n))
   #endif
  #endif

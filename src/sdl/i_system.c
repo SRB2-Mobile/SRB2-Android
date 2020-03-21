@@ -719,6 +719,10 @@ void I_OutputMsg(const char *fmt, ...)
 	OutputDebugStringA(txt);
 #endif
 
+#if defined (__ANDROID__)
+	SDL_Log("%s", txt);
+#endif
+
 	len = strlen(txt);
 
 #ifdef LOGMESSAGES
@@ -2204,16 +2208,14 @@ static void I_Fork(void)
 		case 0:
 			break;
 		default:
+#ifdef LOGMESSAGES
 			if (logstream)
 				fclose(logstream);/* the child has this */
 
 			c = wait(&status);
 
-#ifdef LOGMESSAGES
 			/* By the way, exit closes files. */
 			logstream = fopen(logfilename, "at");
-#else
-			logstream = 0;
 #endif
 
 			if (c == -1)
@@ -2810,6 +2812,15 @@ static const char *locateWad(void)
 #endif
 #endif
 
+#ifdef __ANDROID__
+	strcpy(returnWadPath, SDL_AndroidGetExternalStoragePath());
+	I_OutputMsg(",%s", returnWadPath);
+	if (isWadPathOk(returnWadPath))
+	{
+		return returnWadPath;
+	}
+#endif
+
 #ifdef __APPLE__
 	OSX_GetResourcesPath(returnWadPath);
 	I_OutputMsg(",%s", returnWadPath);
@@ -2916,6 +2927,15 @@ const char *I_LocateWad(void)
 #endif
 	}
 	return waddir;
+}
+
+const char *I_StorageLocation(void)
+{
+#ifdef __ANDROID__
+	return SDL_AndroidGetExternalStoragePath();
+#else
+	return NULL;
+#endif
 }
 
 #ifdef __linux__
