@@ -4,8 +4,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
-    android:versionCode="1"
-    android:versionName="1.0"
+    android:versionCode="222"
+    android:versionName="2.2.2"
     android:installLocation="auto">
 
     <!-- OpenGL ES 2.0 -->
