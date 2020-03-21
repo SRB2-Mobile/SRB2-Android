@@ -41,8 +41,21 @@
 // and for all at the maximum size.
 #define MAXVIDWIDTH 1920 // don't set this too high because actually
 #define MAXVIDHEIGHT 1200 // lots of tables are allocated with the MAX size.
-#define BASEVIDWIDTH 320 // NEVER CHANGE THIS! This is the original
-#define BASEVIDHEIGHT 200 // resolution of the graphics.
+
+// NEVER CHANGE THIS! This is the original resolution of the graphics.
+#define BASEVIDWIDTH 320
+#define BASEVIDHEIGHT 200
+
+// Lactozilla: Default screen resolution,
+// as per the cv_scr_width and cv_scr_height CVARs.
+#if !defined(__ANDROID__)
+#define CONFIGVIDWIDTH "1280"
+#define CONFIGVIDHEIGHT "800"
+#else
+// In an Android build, the default resolution is 640x400
+#define CONFIGVIDWIDTH "640"
+#define CONFIGVIDHEIGHT "400"
+#endif
 
 // global video state
 typedef struct viddef_s
