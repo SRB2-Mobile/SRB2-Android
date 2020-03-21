@@ -719,7 +719,7 @@ void I_OutputMsg(const char *fmt, ...)
 	OutputDebugStringA(txt);
 #endif
 
-#if defined (__ANDROID__)
+#if defined (__ANDROID__) && defined (LOGCAT)
 	SDL_Log("%s", txt);
 #endif
 
