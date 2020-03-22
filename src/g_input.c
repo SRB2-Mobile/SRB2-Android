@@ -904,7 +904,7 @@ static void G_DefineTouchGameControls(void)
 	offs += bottomalign;
 
 	// clear all
-	memset(touchcontrols, 0x00, sizeof(num_gamecontrols) * NUMKEYS);
+	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
 
 	if (touch_dpad_tiny)
 	{
@@ -985,7 +985,7 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_straferight].h = 28;
 
 		// Spin
-		touchcontrols[gc_use].x = 232 + rightalign;
+		touchcontrols[gc_use].x = (232 + rightalign) - 12;
 		touchcontrols[gc_use].y = 148 + offs;
 		touchcontrols[gc_use].w = 32;
 		touchcontrols[gc_use].h = 32;

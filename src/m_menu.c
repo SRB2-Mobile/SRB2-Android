@@ -1053,6 +1053,13 @@ static menuitem_t OP_P1ControlsMenu[] =
 
 	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake,  70},
 	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup1PPlaystyleMenu, 80},
+
+#ifdef TOUCHINPUTS
+	{IT_STRING  | IT_CVAR, NULL, "Tiny controls",       &cv_dpadtiny,          100},
+	{IT_STRING  | IT_CVAR, NULL, "Use d-pad in menus",  &cv_menudpad,          110},
+	{IT_STRING  | IT_CVAR, NULL, "Allow menu gestures", &cv_menuallowgestures, 120},
+	{IT_STRING  | IT_CVAR, NULL, "Force menu gestures", &cv_menugestures,      130},
+#endif
 };
 
 static menuitem_t OP_P2ControlsMenu[] =
