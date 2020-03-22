@@ -941,7 +941,7 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	// outside the screen
 	if (screenx == -1 || screeny == -1)
 		return;
-#if defined(LOGCAT)
+#if 0
 	else
 	{
 		const char *fingertype = "???";
