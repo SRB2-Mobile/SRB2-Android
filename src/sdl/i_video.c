@@ -780,6 +780,20 @@ static void Impl_HandleMouseWheelEvent(SDL_MouseWheelEvent evt)
 	}
 }
 
+#if defined(__ANDROID__)
+static boolean IsJoystickAccelerometer(SDL_Joystick *joy)
+{
+	return (!strcmp(SDL_JoystickName(joy), "Android Accelerometer"));
+}
+
+static boolean CanUseAccelerometer(SDL_Joystick *joy)
+{
+	if (IsJoystickAccelerometer(joy))
+		return (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL));
+	return true;
+}
+#endif
+
 static void Impl_HandleJoystickAxisEvent(SDL_JoyAxisEvent evt)
 {
 	event_t event;
@@ -795,16 +809,26 @@ static void Impl_HandleJoystickAxisEvent(SDL_JoyAxisEvent evt)
 	if (evt.which == joyid[0])
 	{
 		event.type = ev_joystick;
+#if defined(__ANDROID__)
+		if (!CanUseAccelerometer(JoyInfo.dev))
+			return;
+#endif
 	}
 	else if (evt.which == joyid[1])
 	{
 		event.type = ev_joystick2;
+#if defined(__ANDROID__)
+		if (!CanUseAccelerometer(JoyInfo2.dev))
+			return;
+#endif
 	}
-	else return;
+	else
+		return;
+
 	//axis
 	if (evt.axis > JOYAXISSET*2)
 		return;
-	//vaule
+	//value
 	if (evt.axis%2)
 	{
 		event.data1 = evt.axis / 2;

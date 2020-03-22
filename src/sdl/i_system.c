@@ -1524,6 +1524,9 @@ void I_InitJoystick2(void)
 #ifdef TOUCHINPUTS
 void I_InitTouchScreen(void)
 {
+	if (M_CheckParm("-noaccelerometer"))
+		SDL_SetHintWithPriority("SDL_HINT_ACCELEROMETER_AS_JOYSTICK", "0", SDL_HINT_OVERRIDE);
+
 	// Lactozilla: The touch screen depends on the joystick system.
 	if (SDL_WasInit(SDL_INIT_JOYSTICK) == 0)
 	{
