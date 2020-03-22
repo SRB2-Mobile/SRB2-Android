@@ -1062,7 +1062,7 @@ static void G_DefineTouchNavigation(void)
 	}
 	else
 	{
-		touchnavigation[KEY_ENTER].x = (BASEVIDWIDTH - touchnavigation[KEY_ENTER].w - left);
+		touchnavigation[KEY_ENTER].x = ((vid.width / vid.dupx) - touchnavigation[KEY_ENTER].w - left);
 		touchnavigation[KEY_ENTER].y = touchnavigation[KEY_ESCAPE].y;
 	}
 }
