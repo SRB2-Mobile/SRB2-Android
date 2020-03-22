@@ -206,9 +206,10 @@ static INT32 sparklloop;
 // PROMPT STATE
 //
 boolean promptactive = false;
+boolean promptblockcontrols = false;
+
 static mobj_t *promptmo;
 static INT16 promptpostexectag;
-static boolean promptblockcontrols;
 static char *promptpagetext = NULL;
 static INT32 callpromptnum = INT32_MAX;
 static INT32 callpagenum = INT32_MAX;
@@ -4311,6 +4312,10 @@ void F_EndTextPrompt(boolean forceexec, boolean noexec)
 	promptactive = false;
 	callpromptnum = callpagenum = callplayer = INT32_MAX;
 
+#ifdef TOUCHINPUTS
+	G_DefineTouchControls();
+#endif
+
 	if (promptwasactive)
 	{
 		if (promptmo && promptmo->player && promptblockcontrols)
@@ -4403,6 +4408,11 @@ void F_StartTextPrompt(INT32 promptnum, INT32 pagenum, mobj_t *mo, UINT16 postex
 				}
 			}
 		}
+
+#ifdef TOUCHINPUTS
+		G_DefineTouchControls();
+		memset(gamekeydown, 0, sizeof (gamekeydown)); // No, this is not a hack at all. I don't know what you're talking about.
+#endif
 	}
 	else
 		F_EndTextPrompt(true, false); // run the post-effects immediately

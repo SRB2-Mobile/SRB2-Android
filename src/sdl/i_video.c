@@ -927,9 +927,9 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	INT32 screeny = -1;
 
 	if (touchx >= 0.0 && touchx <= 1.0)
-		screenx = touchx * BASEVIDWIDTH;
+		screenx = touchx * vid.width;
 	if (touchy >= 0.0 && touchy <= 1.0)
-		screeny = touchy * BASEVIDHEIGHT;
+		screeny = touchy * vid.height;
 
 	finger = (INT32)evt.fingerId;
 	if (finger >= NUMTOUCHFINGERS)
@@ -955,40 +955,37 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	}
 #endif
 
-	switch (gamestate)
+	if ((evt.type != SDL_FINGERMOTION) // ignore finger motion events here
+	&& ((gamestate == GS_TITLESCREEN && (!menuactive)) || promptblockcontrols
+	|| (gamestate == GS_INTRO || gamestate == GS_CREDITS || gamestate == GS_CUTSCENE)
+	|| (gamestate == GS_INTERMISSION)))
 	{
-		case GS_LEVEL:
-			if (menuactive || promptactive)
-			{
-				event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
-				event.data1 = KEY_SPACE;
-			}
-			else
-			{
-				switch (evt.type)
-				{
-					case SDL_FINGERMOTION:
-						event.type = ev_touchmotion;
-						break;
-					case SDL_FINGERDOWN:
-						event.type = ev_touchdown;
-						break;
-					case SDL_FINGERUP:
-						event.type = ev_touchup;
-						break;
-					default:
-						// Don't generate any event.
-						return;
-				}
-				event.data1 = screenx;
-				event.data2 = screeny;
-				event.data3 = finger;
-			}
-			break;
-		default:
-			event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
-			event.data1 = KEY_ENTER;
-			break;
+		INT32 key = ((gamestate == GS_INTERMISSION) ? gamecontrol[gc_use][0] : KEY_ENTER);
+		if (promptblockcontrols) // tutorial prompt
+			key = gamecontrol[gc_jump][0];
+		event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
+		event.data1 = key;
+	}
+	else
+	{
+		switch (evt.type)
+		{
+			case SDL_FINGERMOTION:
+				event.type = ev_touchmotion;
+				break;
+			case SDL_FINGERDOWN:
+				event.type = ev_touchdown;
+				break;
+			case SDL_FINGERUP:
+				event.type = ev_touchup;
+				break;
+			default:
+				// Don't generate any event.
+				return;
+		}
+		event.data1 = screenx;
+		event.data2 = screeny;
+		event.data3 = finger;
 	}
 	D_PostEvent(&event);
 }

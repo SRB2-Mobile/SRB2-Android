@@ -59,6 +59,7 @@ extern INT32 pausedelay;
 extern boolean pausebreakkey;
 
 extern boolean promptactive;
+extern boolean promptblockcontrols;
 
 extern consvar_t cv_pauseifunfocused;
 

@@ -954,6 +954,10 @@ void R_ExecuteSetViewSize(void)
 #endif
 
 	am_recalc = true;
+
+#ifdef TOUCHINPUTS
+	G_UpdateTouchControls();
+#endif
 }
 
 //

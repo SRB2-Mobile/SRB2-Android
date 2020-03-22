@@ -18,6 +18,7 @@
 #include "d_event.h"
 #include "d_player.h"
 #include "r_defs.h"
+#include "g_input.h"
 
 //
 // STATUS BAR
@@ -54,6 +55,19 @@ void ST_drawTitleCard(void);
 void ST_preDrawTitleCard(void);
 void ST_preLevelTitleCardDrawer(void);
 void ST_drawWipeTitleCard(void);
+
+// Touch screen inputs
+#ifdef TOUCHINPUTS
+void ST_drawTouchGameInput(void);
+void ST_drawTouchMenuInput(void);
+void ST_drawTouchDPad(
+	INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh,
+	touchconfig_t *tleft, boolean moveleft,
+	touchconfig_t *tright, boolean moveright,
+	touchconfig_t *tup, boolean moveup,
+	touchconfig_t *tdown, boolean movedown,
+	boolean backing, INT32 flags, INT32 accent);
+#endif
 
 extern tic_t lt_ticker, lt_lasttic;
 extern tic_t lt_exitticker, lt_endtime;
