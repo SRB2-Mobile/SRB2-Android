@@ -52,9 +52,9 @@
 #define CONFIGVIDWIDTH "1280"
 #define CONFIGVIDHEIGHT "800"
 #else
-// In an Android build, the default resolution is 640x400
-#define CONFIGVIDWIDTH "640"
-#define CONFIGVIDHEIGHT "400"
+// In an Android build, the default resolution is 320x200
+#define CONFIGVIDWIDTH "320"
+#define CONFIGVIDHEIGHT "200"
 #endif
 
 // global video state
