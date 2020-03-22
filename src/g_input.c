@@ -60,11 +60,13 @@ INT32 touchnav_dpad_x, touchnav_dpad_y, touchnav_dpad_w, touchnav_dpad_h;
 boolean touch_dpad_tiny;
 boolean touch_dpad_menu;
 boolean touch_menu_gestures;
+boolean touch_menu_allowgestures;
 
 // Console variables for the touch screen
 consvar_t cv_dpadtiny = {"touch_dpad_tiny", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_menudpad = {"touch_dpad_menu", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_menugestures = {"touch_menu_gestures", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_menuallowgestures = {"touch_menu_allowgestures", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 // two key codes (or virtual key) per game control
@@ -191,6 +193,10 @@ void G_MapEventsToControls(event_t *ev)
 				touchconfig_t *butt = &touchcontrols[i];
 				INT32 x = ev->data1;
 				INT32 y = ev->data2;
+
+				// Ignore undefined buttons
+				if (!butt->w)
+					continue;
 
 				// In a touch motion event, simulate a key up event by clearing gamekeydown.
 				// This is done so that the buttons that are down don't 'stick'
@@ -858,6 +864,7 @@ void G_DefineDefaultControls(void)
 	CV_RegisterVar(&cv_dpadtiny);
 	CV_RegisterVar(&cv_menudpad);
 	CV_RegisterVar(&cv_menugestures);
+	CV_RegisterVar(&cv_menuallowgestures);
 	G_UpdateTouchControls();
 #endif
 }
@@ -867,6 +874,7 @@ void G_DefineDefaultControls(void)
 void G_UpdateTouchSettings(void)
 {
 	touch_menu_gestures = !!cv_menugestures.value;
+	touch_menu_allowgestures = !!cv_menuallowgestures.value;
 	G_UpdateMenuTouchNavigation();
 }
 
@@ -894,6 +902,9 @@ static void G_DefineTouchGameControls(void)
 		bottomalign = (vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy;
 
 	offs += bottomalign;
+
+	// clear all
+	memset(touchcontrols, 0x00, sizeof(num_gamecontrols) * NUMKEYS);
 
 	if (touch_dpad_tiny)
 	{
@@ -1003,6 +1014,9 @@ static void G_DefineTouchNavigation(void)
 	touchnav_dpad_y = 12;
 	touchnav_dpad_w = 32;
 	touchnav_dpad_h = 32;
+
+	// clear all
+	memset(touchnavigation, 0x00, sizeof(touchconfig_t) * NUMKEYS);
 
 	// Up
 	touchnavigation[KEY_UPARROW].x = touchnav_dpad_x + 8;

@@ -159,11 +159,13 @@ extern INT32 touchnav_dpad_x, touchnav_dpad_y, touchnav_dpad_w, touchnav_dpad_h;
 extern boolean touch_dpad_tiny;
 extern boolean touch_dpad_menu;
 extern boolean touch_menu_gestures;
+extern boolean touch_menu_allowgestures;
 
 // Console variables for the touch screen
 extern consvar_t cv_dpadtiny;
 extern consvar_t cv_menudpad;
 extern consvar_t cv_menugestures;
+extern consvar_t cv_menuallowgestures;
 #endif
 
 // two key codes (or virtual key) per game control

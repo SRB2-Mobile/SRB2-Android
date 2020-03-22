@@ -3314,6 +3314,10 @@ boolean M_Responder(event_t *ev)
 				{
 					touchconfig_t *butt = &touchnavigation[i];
 
+					// Ignore undefined buttons
+					if (!butt->w)
+						continue;
+
 					// Ignore d-pad if disabled
 					if (!touch_dpad_menu && butt->dpad)
 						continue;
@@ -3931,6 +3935,8 @@ boolean M_MouseNeeded(void)
 #ifdef TOUCHINPUTS
 boolean M_ForceGestures(void)
 {
+	if (!touch_menu_allowgestures)
+		return false;
 	return ((currentMenu == &SP_LoadDef) || (currentMenu == &SP_PlayerDef));
 }
 
