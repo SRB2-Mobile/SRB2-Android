@@ -385,16 +385,20 @@ static boolean IgnoreMouse(void)
 
 static void SDLdoGrabMouse(void)
 {
+#if !defined(__ANDROID__)
 	SDL_ShowCursor(SDL_DISABLE);
 	SDL_SetWindowGrab(window, SDL_TRUE);
+#endif
 	if (SDL_SetRelativeMouseMode(SDL_TRUE) == 0) // already warps mouse if successful
 		wrapmouseok = SDL_TRUE; // TODO: is wrapmouseok or HalfWarpMouse needed anymore?
 }
 
 static void SDLdoUngrabMouse(void)
 {
+#if !defined(__ANDROID__)
 	SDL_ShowCursor(SDL_ENABLE);
 	SDL_SetWindowGrab(window, SDL_FALSE);
+#endif
 	wrapmouseok = SDL_FALSE;
 	SDL_SetRelativeMouseMode(SDL_FALSE);
 }
@@ -683,7 +687,9 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 			{
 				mousemovex +=  evt.xrel;
 				mousemovey += -evt.yrel;
+#if !defined(__ANDROID__)
 				SDL_SetWindowGrab(window, SDL_TRUE);
+#endif
 			}
 			firstmove = false;
 			return;
