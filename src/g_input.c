@@ -44,6 +44,7 @@ UINT8 gamekeydown[NUMINPUTS];
 
 // Lactozilla: Touch input buttons
 #ifdef TOUCHINPUTS
+UINT8 touchfingers[NUMTOUCHFINGERS];
 touchconfig_t touchconfig[num_gamecontrols];
 #endif
 
@@ -118,6 +119,9 @@ void G_MapEventsToControls(event_t *ev)
 {
 	INT32 i;
 	UINT8 flag;
+#ifdef TOUCHINPUTS
+	INT32 gc;
+#endif
 
 	switch (ev->type)
 	{
@@ -146,23 +150,42 @@ void G_MapEventsToControls(event_t *ev)
 
 #ifdef TOUCHINPUTS
 		case ev_touchdown:
+		case ev_touchmotion:
+			// Lactozilla: Find every on-screen button and
+			// check if they are below your finger.
+			// ev->data3 is the finger's ID.
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				INT32 x = ev->data1;
 				INT32 y = ev->data2;
 				touchconfig_t *butt = &touchconfig[i];
+
+				// In a touch motion event, simulate a key up event by clearing gamekeydown.
+				// This is done so that the buttons that are down don't 'stick'
+				// if you move your finger from a button to another.
+				gc = ev->data3; // the finger ID
+				if (ev->type == ev_touchmotion && touchfingers[gc])
+				{
+					// Let go of this button.
+					gamekeydown[touchfingers[ev->data3]] = 0;
+					touchfingers[ev->data3] = 0;
+				}
+
+				// Check if your finger touches this button.
 				if (x >= butt->x && x <= butt->x + butt->w && y >= butt->y && y <= butt->y + butt->h)
 				{
-					gamekeydown[gamecontrol[i][0]] = 1;
+					gc = gamecontrol[i][0];
+					touchfingers[ev->data3] = gc;
+					gamekeydown[gc] = 1;
 					break;
 				}
 			}
 			break;
 
 		case ev_touchup:
-			// lol
-			for (i = 0; i < num_gamecontrols; i++)
-				gamekeydown[gamecontrol[i][0]] = 0;
+			// Let go of this button.
+			gamekeydown[touchfingers[ev->data3]] = 0;
+			touchfingers[ev->data3] = 0;
 			break;
 #endif
 
@@ -201,8 +224,6 @@ void G_MapEventsToControls(event_t *ev)
 		default:
 			break;
 	}
-
-#undef THISMACRONEEDSANAME
 
 	// ALWAYS check for mouse & joystick double-clicks even if no mouse event
 	for (i = 0; i < MOUSEBUTTONS; i++)

@@ -887,6 +887,9 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 // Lactozilla: Android touch inputs
 static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 {
+	event_t event;
+	INT32 finger;
+
 	float touchx = evt.x;
 	float touchy = evt.y;
 
@@ -898,47 +901,68 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	if (touchy >= 0.0 && touchy <= 1.0)
 		screeny = touchy * BASEVIDHEIGHT;
 
-#if defined(LOGCAT)
-	if (screenx != -1 && screeny != -1)
-		CONS_Printf("YAYYYY!!!!! x %d y %d %d %d\n", screenx, screeny, evt.fingerId, evt.touchId);
+	finger = (INT32)evt.fingerId;
+	if (finger >= NUMTOUCHFINGERS)
+	{
+		CONS_Alert(CONS_NOTICE, "More than %d fingers not supported, please only use up to two hands or paws\n", NUMTOUCHFINGERS);
+		return;
+	}
 
-	if (evt.type == SDL_FINGERMOTION)
-		CONS_Printf("Finger motion\n");
-	else if (evt.type == SDL_FINGERUP)
-		CONS_Printf("Finger up\n");
-	else if (evt.type == SDL_FINGERDOWN)
-		CONS_Printf("Finger down\n");
+	// outside the screen
+	if (screenx == -1 || screeny == -1)
+		return;
+#if defined(LOGCAT)
+	else
+	{
+		const char *fingertype = "???";
+		if (evt.type == SDL_FINGERMOTION)
+			fingertype = "Finger motion";
+		else if (evt.type == SDL_FINGERUP)
+			fingertype = "Finger up";
+		else if (evt.type == SDL_FINGERDOWN)
+			fingertype = "Finger down";
+		CONS_Printf("%s: x %d y %d fingerid %d touchid %d\n", fingertype, screenx, screeny, finger, (int)evt.touchId);
+	}
 #endif
 
-	if (evt.type == SDL_FINGERDOWN || evt.type == SDL_FINGERUP)
+	switch (gamestate)
 	{
-		event_t event;
-		switch (gamestate)
-		{
-			case GS_LEVEL:
-				if (menuactive || promptactive)
-				{
-					event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
-					event.data1 = KEY_SPACE;
-				}
-				else
-				{
-					event.type = (evt.type == SDL_FINGERDOWN) ? ev_touchdown : ev_touchup;
-					event.data1 = screenx;
-					event.data2 = screeny;
-				}
-				break;
-			default:
+		case GS_LEVEL:
+			if (menuactive || promptactive)
+			{
 				event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
-				event.data1 = KEY_ENTER;
-				break;
-		}
-		D_PostEvent(&event);
+				event.data1 = KEY_SPACE;
+			}
+			else
+			{
+				switch (evt.type)
+				{
+					case SDL_FINGERMOTION:
+						event.type = ev_touchmotion;
+						break;
+					case SDL_FINGERDOWN:
+						event.type = ev_touchdown;
+						break;
+					case SDL_FINGERUP:
+						event.type = ev_touchup;
+						break;
+					default:
+						// Don't generate any event.
+						return;
+				}
+				event.data1 = screenx;
+				event.data2 = screeny;
+				event.data3 = finger;
+			}
+			break;
+		default:
+			event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
+			event.data1 = KEY_ENTER;
+			break;
 	}
+	D_PostEvent(&event);
 }
 #endif
-
-
 
 void I_GetEvent(void)
 {

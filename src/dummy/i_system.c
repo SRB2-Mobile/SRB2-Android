@@ -63,6 +63,10 @@ void I_InitJoystick(void){}
 
 void I_InitJoystick2(void){}
 
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void) {}
+#endif
+
 INT32 I_NumJoys(void)
 {
 	return 0;

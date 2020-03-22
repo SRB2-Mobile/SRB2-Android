@@ -523,6 +523,10 @@ void I_InitJoystick2 (void)
 	}
 }
 
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void) {}
+#endif
+
 //added:18-02-98: put an error message (with format) on stderr
 void I_OutputMsg (const char *error, ...)
 {

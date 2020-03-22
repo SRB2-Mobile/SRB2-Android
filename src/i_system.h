@@ -160,6 +160,12 @@ void I_InitJoystick2(void);
 */
 INT32 I_NumJoys(void);
 
+/**	\brief to startup the touch screen
+*/
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void);
+#endif
+
 /**	\brief	The *I_GetJoyName function
 
 	\param	joyindex	which joystick

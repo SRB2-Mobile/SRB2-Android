@@ -635,6 +635,11 @@ void D_SRB2Loop(void)
 	I_DoStartupMouse();
 #endif
 
+#ifdef TOUCHINPUTS
+	CONS_Printf("I_InitTouchScreen()...\n");
+	I_InitTouchScreen();
+#endif
+
 	oldentertics = I_GetTime();
 
 	// end of loading screen: CONS_Printf() will no more call FinishUpdate()

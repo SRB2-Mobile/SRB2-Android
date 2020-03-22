@@ -1518,6 +1518,21 @@ void I_InitJoystick2(void)
 		SDL_JoystickClose(newjoy);
 }
 
+//
+// I_InitTouchScreen
+//
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void)
+{
+	// Lactozilla: The touch screen depends on the joystick system.
+	if (SDL_WasInit(SDL_INIT_JOYSTICK) == 0)
+	{
+		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == -1)
+			CONS_Printf(M_GetText("Couldn't initialize the touch screen: %s\n"), SDL_GetError());
+	}
+}
+#endif
+
 static void I_ShutdownInput(void)
 {
 	// Yes, the name is misleading: these send neutral events to

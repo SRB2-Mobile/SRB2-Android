@@ -132,8 +132,11 @@ typedef struct
 	INT32 x, y;
 	INT32 w, h;
 } touchconfig_t;
-
 extern touchconfig_t touchconfig[num_gamecontrols];
+
+#define NUMTOUCHFINGERS 20
+extern UINT8 touchfingers[NUMTOUCHFINGERS];
+
 extern INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 extern boolean touch_dpad_tiny;
 #endif

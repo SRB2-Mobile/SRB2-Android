@@ -3033,6 +3033,10 @@ const char *I_GetJoyName(INT32 joyindex)
 	return joyname;
 }
 
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void) {}
+#endif
+
 #ifndef NOMUMBLE
 // Best Mumble positional audio settings:
 // Minimum distance 3.0 m

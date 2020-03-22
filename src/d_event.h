@@ -23,6 +23,7 @@ typedef enum
 	ev_keydown,
 	ev_keyup,
 #ifdef TOUCHINPUTS
+	ev_touchmotion,
 	ev_touchdown,
 	ev_touchup,
 #endif
