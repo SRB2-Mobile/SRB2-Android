@@ -59,10 +59,18 @@ INT32 touchnav_dpad_x, touchnav_dpad_y, touchnav_dpad_w, touchnav_dpad_h;
 // Touch screen settings
 boolean touch_dpad_tiny;
 boolean touch_dpad_menu;
+boolean touch_camera;
 
 // Console variables for the touch screen
 consvar_t cv_dpadtiny = {"touch_dpad_tiny", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_menudpad = {"touch_dpad_menu", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+
+// Touch screen sensitivity
+#define MAXTOUCHSENSITIVITY 100 // sensitivity steps
+static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
+consvar_t cv_touchsens = {"touchsens", "40", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchysens = {"touchysens", "45", CV_SAVE, mousesens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 // two key codes (or virtual key) per game control
@@ -149,8 +157,13 @@ void G_MapEventsToControls(event_t *ev)
 {
 	INT32 i;
 	UINT8 flag;
+
 #ifdef TOUCHINPUTS
+	INT32 x = ev->data1;
+	INT32 y = ev->data2;
+	INT32 finger = ev->data3;
 	INT32 gc;
+	boolean foundbutton = false;
 #endif
 
 	switch (ev->type)
@@ -181,14 +194,16 @@ void G_MapEventsToControls(event_t *ev)
 #ifdef TOUCHINPUTS
 		case ev_touchdown:
 		case ev_touchmotion:
+			// Ignore when the menu, console, or chat window are open
+			if (menuactive || CON_Ready() || chat_on)
+				break;
+
 			// Lactozilla: Find every on-screen button and
 			// check if they are below your finger.
 			// ev->data3 is the finger's ID.
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				touchconfig_t *butt = &touchcontrols[i];
-				INT32 x = ev->data1;
-				INT32 y = ev->data2;
 
 				// Ignore undefined buttons
 				if (!butt->w)
@@ -197,31 +212,70 @@ void G_MapEventsToControls(event_t *ev)
 				// In a touch motion event, simulate a key up event by clearing gamekeydown.
 				// This is done so that the buttons that are down don't 'stick'
 				// if you move your finger from a button to another.
-				gc = ev->data3; // the finger ID
-				if (ev->type == ev_touchmotion && touchfingers[gc].gamecontrol)
+				gc = finger; // the finger ID
+				if (ev->type == ev_touchmotion && touchfingers[gc].u.gamecontrol)
 				{
 					// Let go of this button.
-					gamekeydown[touchfingers[ev->data3].gamecontrol] = 0;
-					touchfingers[ev->data3].gamecontrol = 0;
+					gamekeydown[touchfingers[finger].u.gamecontrol] = 0;
+					touchfingers[finger].u.gamecontrol = 0;
 				}
 
 				// Check if your finger touches this button.
 				if (G_FingerTouchesButton(x, y, butt))
 				{
+					foundbutton = true;
 					gc = gamecontrol[i][0];
-					touchfingers[ev->data3].x = x;
-					touchfingers[ev->data3].y = y;
-					touchfingers[ev->data3].gamecontrol = gc;
+					touchfingers[finger].x = x;
+					touchfingers[finger].y = y;
+					touchfingers[finger].u.gamecontrol = gc;
 					gamekeydown[gc] = 1;
 					break;
+				}
+			}
+
+			// Check if your finger touches the d-pad area.
+			if (!foundbutton)
+			{
+				touchconfig_t dpad;
+				dpad.x = touch_dpad_x;
+				dpad.y = touch_dpad_y;
+				dpad.w = touch_dpad_w;
+				dpad.h = touch_dpad_h;
+				if (G_FingerTouchesButton(x, y, &dpad))
+					break;
+			}
+
+			// Pretend the finger is moving the camera.
+			if (touch_camera && (!foundbutton))
+			{
+				if (ev->type == ev_touchmotion && touchfingers[finger].type.mouse)
+				{
+					INT32 dx = ev->extradata[0];
+					INT32 dy = ev->extradata[1];
+
+					touchfingers[finger].x = x;
+					touchfingers[finger].y = y;
+
+					mousex = (INT32)(dx*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
+					mousey = (INT32)(dy*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
+					mlooky = (INT32)(dy*((cv_touchysens.value*cv_touchsens.value)/110.0f + 0.1f));
+				}
+				else
+				{
+					touchfingers[finger].x = x;
+					touchfingers[finger].y = y;
+					touchfingers[finger].type.mouse = 1;
+					touchfingers[finger].u.gamecontrol = -1;
 				}
 			}
 			break;
 
 		case ev_touchup:
 			// Let go of this button.
-			gamekeydown[touchfingers[ev->data3].gamecontrol] = 0;
-			touchfingers[ev->data3].gamecontrol = 0;
+			if (touchfingers[finger].u.gamecontrol >= 0)
+				gamekeydown[touchfingers[finger].u.gamecontrol] = 0;
+			touchfingers[finger].u.gamecontrol = 0;
+			touchfingers[finger].type.mouse = 0;
 			break;
 #endif
 
@@ -859,6 +913,7 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 	CV_RegisterVar(&cv_dpadtiny);
 	CV_RegisterVar(&cv_menudpad);
+	CV_RegisterVar(&cv_touchcamera);
 	G_UpdateTouchControls();
 #endif
 }
@@ -867,6 +922,7 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 void G_UpdateTouchSettings(void)
 {
+	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	G_UpdateMenuTouchNavigation();
 }
 

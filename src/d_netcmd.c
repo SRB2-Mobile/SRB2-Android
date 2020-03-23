@@ -809,6 +809,11 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_controlperkey);
 
+#if defined(__ANDROID__)
+	// Disable the mouse
+	cv_usemouse.defaultvalue = "Off";
+#endif
+
 	CV_RegisterVar(&cv_usemouse);
 	CV_RegisterVar(&cv_usemouse2);
 	CV_RegisterVar(&cv_invertmouse);
@@ -819,6 +824,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_mouseysens2);
 	CV_RegisterVar(&cv_mousemove);
 	CV_RegisterVar(&cv_mousemove2);
+
+#ifdef TOUCHINPUTS
+	CV_RegisterVar(&cv_touchysens);
+	CV_RegisterVar(&cv_touchsens);
+#endif
 
 	CV_RegisterVar(&cv_usejoystick);
 	CV_RegisterVar(&cv_usejoystick2);

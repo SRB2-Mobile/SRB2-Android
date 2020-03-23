@@ -301,6 +301,11 @@ menu_t OP_P1ControlsDef, OP_P2ControlsDef, OP_MouseOptionsDef;
 menu_t OP_Mouse2OptionsDef, OP_Joystick1Def, OP_Joystick2Def;
 menu_t OP_CameraOptionsDef, OP_Camera2OptionsDef;
 menu_t OP_PlaystyleDef;
+
+#ifdef TOUCHINPUTS
+menu_t OP_TouchOptionsDef;
+#endif
+
 static void M_VideoModeMenu(INT32 choice);
 static void M_Setup1PControlsMenu(INT32 choice);
 static void M_Setup2PControlsMenu(INT32 choice);
@@ -1055,8 +1060,7 @@ static menuitem_t OP_P1ControlsMenu[] =
 	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup1PPlaystyleMenu, 80},
 
 #ifdef TOUCHINPUTS
-	{IT_STRING  | IT_CVAR, NULL, "Tiny controls",       &cv_dpadtiny,          100},
-	{IT_STRING  | IT_CVAR, NULL, "Use d-pad in menus",  &cv_menudpad,          110},
+	{IT_SUBMENU | IT_STRING, NULL, "Touch Screen Options...", &OP_TouchOptionsDef, 100},
 #endif
 };
 
@@ -1194,6 +1198,23 @@ static menuitem_t OP_Mouse2OptionsMenu[] =
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
 	                      NULL, "Mouse Y Sensitivity",    &cv_mouseysens2,      80},
 };
+
+#ifdef TOUCHINPUTS
+static menuitem_t OP_TouchOptionsMenu[] =
+{
+	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_dpadtiny,       10},
+	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    20},
+	{IT_STRING | IT_CVAR, NULL, "Use d-pad in menus",     &cv_menudpad,       30},
+
+	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 50},
+	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  60},
+
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      80},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     90},
+};
+#endif
 
 static menuitem_t OP_CameraOptionsMenu[] =
 {
@@ -2063,6 +2084,12 @@ menu_t OP_JoystickSetDef =
 	0,
 	NULL
 };
+
+#ifdef TOUCHINPUTS
+menu_t OP_TouchOptionsDef = DEFAULTMENUSTYLE(
+	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_TOUCHSCREEN << 12),
+	"M_CONTRO", OP_TouchOptionsMenu, &OP_P1ControlsDef, 35, 30);
+#endif
 
 menu_t OP_CameraOptionsDef = {
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_P1CAMERA << 12),
@@ -3360,21 +3387,21 @@ boolean M_Responder(event_t *ev)
 				if (x < sides || x >= (vid.width - sides))
 				{
 					if (x >= (vid.width / 2))
-						touchfingers[finger].input = KEY_RIGHTARROW;
+						touchfingers[finger].u.keyinput = KEY_RIGHTARROW;
 					else
-						touchfingers[finger].input = KEY_LEFTARROW;
+						touchfingers[finger].u.keyinput = KEY_LEFTARROW;
 				}
 				else
 				{
 					// Handle vertical input
 					if (y >= (vid.height / 2))
-						touchfingers[finger].input = KEY_DOWNARROW;
+						touchfingers[finger].u.keyinput = KEY_DOWNARROW;
 					else
-						touchfingers[finger].input = KEY_UPARROW;
+						touchfingers[finger].u.keyinput = KEY_UPARROW;
 				}
 
 				// finger down
-				touchfingers[finger].down = 1;
+				touchfingers[finger].type.menu = true;
 				touchfingers[finger].x = x;
 				touchfingers[finger].y = y;
 			}
@@ -3382,9 +3409,9 @@ boolean M_Responder(event_t *ev)
 		else if (ev->type == ev_touchup)
 		{
 			INT32 finger = ev->data3;
-			if (touchfingers[finger].down)
-				ch = touchfingers[finger].input;
-			touchfingers[finger].down = 0;
+			if (touchfingers[finger].type.menu)
+				ch = touchfingers[finger].u.keyinput;
+			touchfingers[finger].type.menu = false;
 		}
 #endif
 		else if (ev->type == ev_keyup) // Preserve event for other responders
@@ -3833,6 +3860,8 @@ void M_StartControlPanel(void)
 //
 void M_UpdateTouchScreenNavigation(void)
 {
+	memset(touchfingers, 0x00, sizeof(touchfinger_t) * NUMTOUCHFINGERS); // clear all fingers
+	memset(gamekeydown, 0x00, sizeof (gamekeydown)); // clear all keys
 	G_UpdateTouchControls();
 }
 

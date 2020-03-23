@@ -930,7 +930,7 @@ void I_ShutdownJoystick(void)
 
 void I_GetJoystickEvents(void)
 {
-	static event_t event = {0,0,0,0};
+	static event_t event = {0,0,0,0,{0,0}};
 	INT32 i = 0;
 	UINT64 joyhats = 0;
 #if 0
@@ -1200,7 +1200,7 @@ void I_ShutdownJoystick2(void)
 
 void I_GetJoystick2Events(void)
 {
-	static event_t event = {0,0,0,0};
+	static event_t event = {0,0,0,0,{0,0}};
 	INT32 i = 0;
 	UINT64 joyhats = 0;
 #if 0
