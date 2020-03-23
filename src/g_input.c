@@ -59,14 +59,10 @@ INT32 touchnav_dpad_x, touchnav_dpad_y, touchnav_dpad_w, touchnav_dpad_h;
 // Touch screen settings
 boolean touch_dpad_tiny;
 boolean touch_dpad_menu;
-boolean touch_menu_gestures;
-boolean touch_menu_allowgestures;
 
 // Console variables for the touch screen
 consvar_t cv_dpadtiny = {"touch_dpad_tiny", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_menudpad = {"touch_dpad_menu", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_menugestures = {"touch_menu_gestures", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_menuallowgestures = {"touch_menu_allowgestures", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 // two key codes (or virtual key) per game control
@@ -863,8 +859,6 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 	CV_RegisterVar(&cv_dpadtiny);
 	CV_RegisterVar(&cv_menudpad);
-	CV_RegisterVar(&cv_menugestures);
-	CV_RegisterVar(&cv_menuallowgestures);
 	G_UpdateTouchControls();
 #endif
 }
@@ -873,15 +867,13 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 void G_UpdateTouchSettings(void)
 {
-	touch_menu_gestures = !!cv_menugestures.value;
-	touch_menu_allowgestures = !!cv_menuallowgestures.value;
 	G_UpdateMenuTouchNavigation();
 }
 
 void G_UpdateMenuTouchNavigation(void)
 {
 	touch_dpad_tiny = !!cv_dpadtiny.value;
-	touch_dpad_menu = ((!touch_menu_gestures) ? (!!cv_menudpad.value) : false);
+	touch_dpad_menu = !!cv_menudpad.value;
 }
 
 void G_UpdateTouchControls(void)

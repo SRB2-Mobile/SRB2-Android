@@ -329,10 +329,6 @@ boolean M_MouseNeeded(void);
 #ifdef TOUCHINPUTS
 void M_UpdateTouchScreenNavigation(void);
 INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
-
-boolean M_ForceGestures(void);
-INT32 M_InvertHorizontalGesture(void);
-INT32 M_InvertVerticalGesture(void);
 #endif
 
 extern menu_t *currentMenu;

@@ -1057,8 +1057,6 @@ static menuitem_t OP_P1ControlsMenu[] =
 #ifdef TOUCHINPUTS
 	{IT_STRING  | IT_CVAR, NULL, "Tiny controls",       &cv_dpadtiny,          100},
 	{IT_STRING  | IT_CVAR, NULL, "Use d-pad in menus",  &cv_menudpad,          110},
-	{IT_STRING  | IT_CVAR, NULL, "Allow menu gestures", &cv_menuallowgestures, 120},
-	{IT_STRING  | IT_CVAR, NULL, "Force menu gestures", &cv_menugestures,      130},
 #endif
 };
 
@@ -3324,11 +3322,10 @@ boolean M_Responder(event_t *ev)
 			INT32 x = ev->data1;
 			INT32 y = ev->data2;
 			INT32 finger = ev->data3;
-			boolean handled = false;
+			boolean button = false;
 
 			// Check for any buttons first
-			boolean touchmotion = (ev->type == ev_touchmotion);
-			if (!touchmotion) // Ignore motion events
+			if (ev->type != ev_touchmotion) // Ignore motion events
 			{
 				INT32 i;
 				for (i = 0; i < NUMKEYS; i++)
@@ -3346,79 +3343,47 @@ boolean M_Responder(event_t *ev)
 					// Check if your finger touches this button.
 					if (G_FingerTouchesButton(x, y, butt))
 					{
-						handled = true;
 						ch = i;
+						button = true;
 						break;
 					}
 				}
 			}
 
-			if (touchmotion && touch_menu_gestures && (joywait < I_GetTime()) && (!handled))
+			// Handle screen regions
+			if (ev->type == ev_touchdown && (!button) && (!touch_dpad_menu))
 			{
-				INT32 xthreshold = 8 * vid.dupx;
-				INT32 ythreshold = 8 * vid.dupy;
-				INT32 dx = (x - touchfingers[finger].x);
-				INT32 dy = (y - touchfingers[finger].y);
+				// 1/4 of the screen
+				INT32 sides = (vid.width / 4);
 
-				// up / down
-				dy *= M_InvertVerticalGesture();
-				if (dy < -ythreshold)
-					ch = KEY_UPARROW;
-				else if (dy > ythreshold)
-					ch = KEY_DOWNARROW;
+				// Handle horizontal input
+				if (x < sides || x >= (vid.width - sides))
+				{
+					if (x >= (vid.width / 2))
+						touchfingers[finger].input = KEY_RIGHTARROW;
+					else
+						touchfingers[finger].input = KEY_LEFTARROW;
+				}
+				else
+				{
+					// Handle vertical input
+					if (y >= (vid.height / 2))
+						touchfingers[finger].input = KEY_DOWNARROW;
+					else
+						touchfingers[finger].input = KEY_UPARROW;
+				}
 
-				// left / right
-				dx *= M_InvertHorizontalGesture();
-				if (dx < -xthreshold)
-					ch = KEY_LEFTARROW;
-				else if (dx > xthreshold)
-					ch = KEY_RIGHTARROW;
-
-				touchfingers[finger].down = 2;
-				touchfingers[finger].x = x;
-				touchfingers[finger].y = y;
-				joywait = I_GetTime() + NEWTICRATE/7;
-			}
-			else if (ev->type == ev_touchdown && (!handled)) // handles the lack of gestures
-			{
+				// finger down
 				touchfingers[finger].down = 1;
 				touchfingers[finger].x = x;
 				touchfingers[finger].y = y;
-
-				// Handle screen regions
-				if (!touch_menu_gestures && (!touch_dpad_menu))
-				{
-					INT32 sides = (vid.width / 4);
-
-					// Handle horizontal input
-					if (x < sides || x >= (vid.width - sides))
-					{
-						if (x >= (vid.width / 2))
-							touchfingers[finger].input = KEY_RIGHTARROW;
-						else
-							touchfingers[finger].input = KEY_LEFTARROW;
-					}
-					else
-					{
-						// Handle vertical input
-						if (y >= (vid.height / 2))
-							touchfingers[finger].input = KEY_DOWNARROW;
-						else
-							touchfingers[finger].input = KEY_UPARROW;
-					}
-				}
 			}
 		}
 		else if (ev->type == ev_touchup)
 		{
 			INT32 finger = ev->data3;
-			if (touchfingers[finger].down == 1)
-			{
-				if (touch_menu_gestures)
-					ch = KEY_ENTER;
-				else
-					ch = touchfingers[finger].input;
-			}
+			if (touchfingers[finger].down)
+				ch = touchfingers[finger].input;
 			touchfingers[finger].down = 0;
 		}
 #endif
@@ -3868,14 +3833,7 @@ void M_StartControlPanel(void)
 //
 void M_UpdateTouchScreenNavigation(void)
 {
-	G_UpdateTouchSettings();
-
-	// Menu forces gestures
-	if (M_ForceGestures())
-		touch_menu_gestures = true;
-
-	G_UpdateMenuTouchNavigation();
-	G_DefineTouchControls();
+	G_UpdateTouchControls();
 }
 
 //
@@ -3985,30 +3943,6 @@ boolean M_MouseNeeded(void)
 {
 	return (currentMenu == &MessageDef && currentMenu->prevMenu == &OP_ChangeControlsDef);
 }
-
-// Yeah, me too
-#ifdef TOUCHINPUTS
-boolean M_ForceGestures(void)
-{
-	if (!touch_menu_allowgestures)
-		return false;
-	return ((currentMenu == &SP_LoadDef) || (currentMenu == &SP_PlayerDef));
-}
-
-INT32 M_InvertHorizontalGesture(void)
-{
-	if (currentMenu == &SP_LoadDef)
-		return -1;
-	return 1;
-}
-
-INT32 M_InvertVerticalGesture(void)
-{
-	if (currentMenu == &SP_PlayerDef)
-		return -1;
-	return 1;
-}
-#endif
 
 //
 // M_Ticker
