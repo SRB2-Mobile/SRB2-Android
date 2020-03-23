@@ -160,12 +160,6 @@ void I_InitJoystick2(void);
 */
 INT32 I_NumJoys(void);
 
-/**	\brief to startup the touch screen
-*/
-#ifdef TOUCHINPUTS
-void I_InitTouchScreen(void);
-#endif
-
 /**	\brief	The *I_GetJoyName function
 
 	\param	joyindex	which joystick
@@ -173,6 +167,24 @@ void I_InitTouchScreen(void);
 	\return	joystick name
 */
 const char *I_GetJoyName(INT32 joyindex);
+
+/**	\brief to startup the touch screen
+*/
+#ifdef TOUCHINPUTS
+void I_InitTouchScreen(void);
+
+/**	\brief show the on-screen keyboard
+*/
+void I_RaiseScreenKeyboard(char *buffer, size_t length);
+
+/**	\brief returns the status of the on-screen keyboard
+*/
+boolean I_KeyboardOnScreen(void);
+
+/**	\brief close the on-screen keyboard
+*/
+void I_CloseScreenKeyboard(void);
+#endif
 
 #ifndef NOMUMBLE
 #include "p_mobj.h" // mobj_t

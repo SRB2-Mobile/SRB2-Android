@@ -917,8 +917,8 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 	if (event.type != ev_console) D_PostEvent(&event);
 }
 
-#ifdef TOUCHINPUTS
 // Lactozilla: Android touch inputs
+#ifdef TOUCHINPUTS
 static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 {
 	event_t event;
@@ -993,6 +993,36 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	}
 	D_PostEvent(&event);
 }
+
+// Lactozilla: Android text input
+static char *textinputbuffer = NULL;
+static size_t textbufferlength = 0;
+
+static void Impl_HandleTextInput(SDL_TextInputEvent evt)
+{
+	char *text;
+	size_t length, i;
+
+	if (textinputbuffer == NULL)
+		return;
+
+	text = evt.text;
+	length = strlen(text);
+
+	for (i = 0; i < length; i++)
+	{
+		char thischar = text[i];
+		if (thischar >= 32 && thischar <= 127)
+		{
+			char cat[2];
+			cat[0] = thischar;
+			cat[1] = '\0';
+			strcat(textinputbuffer, cat);
+		}
+		if (strlen(textinputbuffer) >= textbufferlength)
+			break;
+	}
+}
 #endif
 
 void I_GetEvent(void)
@@ -1040,6 +1070,9 @@ void I_GetEvent(void)
 			case SDL_FINGERDOWN:
 			case SDL_FINGERUP:
 				Impl_HandleTouchEvent(evt.tfinger);
+				break;
+			case SDL_TEXTINPUT:
+				Impl_HandleTextInput(evt.text);
 				break;
 #endif
 #if 0
@@ -1225,6 +1258,27 @@ void I_StartupMouse(void)
 	else
 		SDLdoUngrabMouse();
 }
+
+#ifdef TOUCHINPUTS
+void I_RaiseScreenKeyboard(char *buffer, size_t length)
+{
+	textinputbuffer = buffer;
+	textbufferlength = length;
+	SDL_StartTextInput();
+}
+
+boolean I_KeyboardOnScreen(void)
+{
+	return ((SDL_IsTextInputActive() == SDL_TRUE) ? true : false);
+}
+
+void I_CloseScreenKeyboard(void)
+{
+	textinputbuffer = NULL;
+	textbufferlength = 0;
+	SDL_StopTextInput();
+}
+#endif
 
 //
 // I_OsPolling

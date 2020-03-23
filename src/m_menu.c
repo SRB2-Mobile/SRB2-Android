@@ -3096,7 +3096,21 @@ static boolean M_ChangeStringCvar(INT32 choice)
 				CV_Set(cv, buf);
 			}
 			return true;
+#ifdef TOUCHINPUTS
+		case KEY_ENTER:
+			// Handle the on-screen keyboard
+			{
+				INT32 handled = M_HandleTouchScreenKeyboard(cv->zstring, MAXSTRINGLENGTH);
+				if (handled == -1) // closed
+					CV_Set(cv, cv->zstring);
+			}
+			return true;
+#endif
 		default:
+#ifdef TOUCHINPUTS
+			if (I_KeyboardOnScreen())
+				return true;
+#endif
 			if (choice >= 32 && choice <= 127)
 			{
 				len = strlen(cv->string);
@@ -3837,16 +3851,22 @@ void M_StartControlPanel(void)
 	}
 
 	CON_ToggleOff(); // move away console
+
 #ifdef TOUCHINPUTS
-	M_UpdateTouchNavigation(); // update touch screen navigation
+	// update touch screen navigation
+	M_UpdateTouchScreenNavigation();
+
+	// if the keyboard is still open for some reason??
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
 #endif
 }
 
-//
-// M_UpdateTouchNavigation
-//
 #ifdef TOUCHINPUTS
-void M_UpdateTouchNavigation(void)
+//
+// M_UpdateTouchScreenNavigation
+//
+void M_UpdateTouchScreenNavigation(void)
 {
 	G_UpdateTouchSettings();
 
@@ -3856,6 +3876,24 @@ void M_UpdateTouchNavigation(void)
 
 	G_UpdateMenuTouchNavigation();
 	G_DefineTouchControls();
+}
+
+//
+// M_HandleTouchScreenKeyboard
+//
+INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length)
+{
+	if (!I_KeyboardOnScreen())
+	{
+		I_RaiseScreenKeyboard(buffer, length);
+		return 1;
+	}
+	else
+	{
+		I_CloseScreenKeyboard();
+		return -1;
+	}
+	return 0;
 }
 #endif
 
@@ -3879,6 +3917,12 @@ void M_ClearMenus(boolean callexitmenufunc)
 	hidetitlemap = false;
 
 	I_UpdateMouseGrab();
+
+#ifdef TOUCHINPUTS
+	// if the keyboard is still open for some reason??
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+#endif
 }
 
 void M_EndModeAttackRun(void)
@@ -3925,7 +3969,12 @@ void M_SetupNextMenu(menu_t *menudef)
 	}
 
 #ifdef TOUCHINPUTS
-	M_UpdateTouchNavigation();
+	// update touch screen navigation
+	M_UpdateTouchScreenNavigation();
+
+	// if the keyboard is still open for some reason??
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
 #endif
 
 	hidetitlemap = false;
@@ -11392,6 +11441,12 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			break;
 
 		case KEY_ENTER:
+#ifdef TOUCHINPUTS
+			// Handle the on-screen keyboard
+			if (itemOn == 0)
+				M_HandleTouchScreenKeyboard(setupm_name, MAXPLAYERNAME);
+			else
+#endif
 			if (itemOn == 3
 			&& (R_SkinAvailable(setupm_cvdefaultskin->string) != setupm_fakeskin
 			|| setupm_cvdefaultcolor->value != setupm_fakecolor))
@@ -11444,7 +11499,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 				}
 			}
 			break;
-			break;
 
 		case KEY_DEL:
 			if (itemOn == 0 && (l = strlen(setupm_name))!=0)
@@ -11455,6 +11509,10 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			break;
 
 		default:
+#ifdef TOUCHINPUTS
+			if (I_KeyboardOnScreen())
+				break;
+#endif
 			if (itemOn != 0 || choice < 32 || choice > 127)
 				break;
 			S_StartSound(NULL,sfx_menu1); // Tails
