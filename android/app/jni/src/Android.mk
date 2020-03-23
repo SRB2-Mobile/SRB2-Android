@@ -7,6 +7,7 @@ LOCAL_MODULE := main
 SDL_PATH := ../../../../SDL
 
 OBJDIR := ../../../../src/
+JNIDIR := .
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include
 
@@ -82,27 +83,67 @@ LOCAL_SRC_FILES := $(OBJDIR)/comptime.c \
 			$(OBJDIR)/i_tcp.c    \
 			$(OBJDIR)/lzf.c      \
 			$(OBJDIR)/b_bot.c    \
-			$(OBJDIR)/md5.c      \
-			$(OBJDIR)/sdl/i_cdmus.c  \
-			$(OBJDIR)/sdl/i_net.c    \
-			$(OBJDIR)/sdl/i_video.c  \
-			$(OBJDIR)/sdl/i_system.c \
-			$(OBJDIR)/sdl/mixer_sound.c\
-			$(OBJDIR)/sdl/dosstr.c   \
-			$(OBJDIR)/sdl/endtxt.c   \
-			$(OBJDIR)/sdl/hwsym_sdl.c\
-			$(OBJDIR)/sdl/SDL_main/SDL_android_main.c\
+			$(OBJDIR)/md5.c
 
-# Lactozilla: I added md5.c in this list because the Makefile did it differently,
-# and removed vid_copy.s because there is no ASM compiling here. At least for now.
-# Also, all of the SDL interface files are there.
+# Include the SDL2 interface files.
+SDL2_SOURCE := ../../../../src/sdl/
+LOCAL_SRC_FILES += $(SDL2_SOURCE)/i_cdmus.c  \
+			$(SDL2_SOURCE)/i_net.c    \
+			$(SDL2_SOURCE)/i_video.c  \
+			$(SDL2_SOURCE)/i_system.c \
+			$(SDL2_SOURCE)/mixer_sound.c\
+			$(SDL2_SOURCE)/dosstr.c   \
+			$(SDL2_SOURCE)/endtxt.c   \
+			$(SDL2_SOURCE)/hwsym_sdl.c\
+			$(SDL2_SOURCE)/SDL_main/SDL_android_main.c
+
+# Include Lua.
+LUA_SOURCE := ../../../../src/blua/
+LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
+	$(OBJDIR)/lua_baselib.c \
+	$(OBJDIR)/lua_mathlib.c \
+	$(OBJDIR)/lua_hooklib.c \
+	$(OBJDIR)/lua_consolelib.c \
+	$(OBJDIR)/lua_infolib.c \
+	$(OBJDIR)/lua_mobjlib.c \
+	$(OBJDIR)/lua_playerlib.c \
+	$(OBJDIR)/lua_skinlib.c \
+	$(OBJDIR)/lua_thinkerlib.c \
+	$(OBJDIR)/lua_maplib.c \
+	$(OBJDIR)/lua_blockmaplib.c \
+	$(OBJDIR)/lua_hudlib.c \
+	$(LUA_SOURCE)/lapi.c \
+	$(LUA_SOURCE)/lbaselib.c \
+	$(LUA_SOURCE)/ldo.c \
+	$(LUA_SOURCE)/lfunc.c \
+	$(LUA_SOURCE)/linit.c \
+	$(LUA_SOURCE)/llex.c \
+	$(LUA_SOURCE)/lmem.c \
+	$(LUA_SOURCE)/lobject.c \
+	$(LUA_SOURCE)/lstate.c \
+	$(LUA_SOURCE)/lstrlib.c \
+	$(LUA_SOURCE)/ltablib.c \
+	$(LUA_SOURCE)/lundump.c \
+	$(LUA_SOURCE)/lzio.c \
+	$(LUA_SOURCE)/lauxlib.c \
+	$(LUA_SOURCE)/lcode.c \
+	$(LUA_SOURCE)/ldebug.c \
+	$(LUA_SOURCE)/ldump.c \
+	$(LUA_SOURCE)/lgc.c \
+	$(LUA_SOURCE)/lopcodes.c \
+	$(LUA_SOURCE)/lparser.c \
+	$(LUA_SOURCE)/lstring.c \
+	$(LUA_SOURCE)/ltable.c \
+	$(LUA_SOURCE)/ltm.c \
+	$(LUA_SOURCE)/lvm.c \
+	$(JNIDIR)/localeconv.c
 
 LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
 				-DTOUCHINPUTS \
 				-DUNIXCOMMON -DLINUX \
 				-DDEBUGMODE -DLOGCAT -DDIRECTFULLSCREEN \
-				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE \
-				-DHAVE_ZLIB
+				-DHAVE_ZLIB -DHAVE_BLUA \
+				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE
 
 LOCAL_SHARED_LIBRARIES := SDL2 \
 	SDL2_mixer
