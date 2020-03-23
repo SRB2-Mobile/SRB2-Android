@@ -1145,6 +1145,11 @@ void D_SRB2Main(void)
 		configfile[sizeof configfile - 1] = '\0';
 	}
 
+#if defined(__ANDROID__)
+	// Lactozilla: Create the home directory
+	I_mkdir(srb2home, 0755);
+#endif
+
 	// Create addons dir
 	snprintf(addonsdir, sizeof addonsdir, "%s%s%s", srb2home, PATHSEP, "addons");
 	I_mkdir(addonsdir, 0755);
