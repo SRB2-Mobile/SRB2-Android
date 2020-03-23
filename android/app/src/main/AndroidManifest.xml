@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Replace com.test.game with the identifier of your game below, e.g.
-     com.gamemaker.game
--->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
     android:versionCode="222"
@@ -38,7 +35,7 @@
         android:name="android.hardware.microphone"
         android:required="false" /> -->
 
-    <!-- Lactozilla: Do I need this permission? -->
+    <!-- Allow reading the external storage -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <!-- Allow writing to external storage -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -47,19 +44,16 @@
     <!-- Allow access to the vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Lactozilla: Network access -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- if you want to capture audio, uncomment this. -->
     <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
 
-    <!-- Create a Java class extending SDLActivity and place it in a
-         directory under app/src/main/java matching the package, e.g. app/src/main/java/com/gamemaker/game/MyGame.java
- 
-         then replace "SDLActivity" with the name of your class (e.g. "MyGame")
-         in the XML below.
-
-         An example Java class can be found in README-android.md
-    -->
     <application android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
+        android:isGame="true"
         android:allowBackup="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
         android:hardwareAccelerated="true" >
@@ -72,6 +66,7 @@
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"
+            android:hardwareAccelerated="true"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             >
             <intent-filter>
