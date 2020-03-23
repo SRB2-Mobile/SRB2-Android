@@ -1204,15 +1204,14 @@ static menuitem_t OP_TouchOptionsMenu[] =
 {
 	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_dpadtiny,       10},
 	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    20},
-	{IT_STRING | IT_CVAR, NULL, "Use d-pad in menus",     &cv_menudpad,       30},
 
-	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 50},
-	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  60},
+	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 40},
+	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  50},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      80},
+	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      70},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     90},
+	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     80},
 };
 #endif
 
@@ -3363,22 +3362,19 @@ boolean M_Responder(event_t *ev)
 					if (!butt->w)
 						continue;
 
-					// Ignore d-pad if disabled
-					if (!touch_dpad_menu && butt->dpad)
-						continue;
-
 					// Check if your finger touches this button.
 					if (G_FingerTouchesButton(x, y, butt))
 					{
 						ch = i;
 						button = true;
+						butt->pressed = I_GetTime() + (TICRATE/3);
 						break;
 					}
 				}
 			}
 
 			// Handle screen regions
-			if (ev->type == ev_touchdown && (!button) && (!touch_dpad_menu))
+			if (ev->type == ev_touchdown && (!button))
 			{
 				// 1/4 of the screen
 				INT32 sides = (vid.width / 4);
