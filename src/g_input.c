@@ -13,12 +13,20 @@
 
 #include "doomdef.h"
 #include "doomstat.h"
+#include "m_menu.h"
+#include "p_tick.h"
 #include "g_game.h"
 #include "g_input.h"
 #include "keys.h"
 #include "hu_stuff.h" // need HUFONT start & end
+#include "st_stuff.h"
 #include "d_net.h"
 #include "console.h"
+#include "i_system.h"
+
+#ifdef HAVE_BLUA
+#include "lua_hook.h"
+#endif
 
 #define MAXMOUSESENSITIVITY 100 // sensitivity steps
 
@@ -200,9 +208,18 @@ void G_MapEventsToControls(event_t *ev)
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				touchconfig_t *butt = &touchcontrols[i];
+				tic_t keydowntime;
+
+				// Ignore camera movement
+				if (touchfingers[finger].type.mouse)
+					break;
 
 				// Ignore undefined buttons
 				if (!butt->w)
+					continue;
+
+				// Ignore hidden buttons
+				if (butt->hidden)
 					continue;
 
 				// In a touch motion event, simulate a key up event by clearing gamekeydown.
@@ -216,21 +233,69 @@ void G_MapEventsToControls(event_t *ev)
 					touchfingers[finger].u.gamecontrol = 0;
 				}
 
+				keydowntime = I_GetTime() + (TICRATE/10);
+
 				// Check if your finger touches this button.
 				if (G_FingerTouchesButton(x, y, butt))
 				{
-					foundbutton = true;
 					gc = gamecontrol[i][0];
+					foundbutton = true;
+
+					// Handle menu button
+					if (i == gc_systemmenu)
+						M_StartControlPanel();
+					// Handle console button
+					else if (i == gc_console)
+					{
+						// Emit console key event
+						event_t event;
+						event.data1 = ev_console;
+						CON_Responder(&event);
+					}
+					// Handle pause button
+					else if (i == gc_pause)
+					{
+						if (G_HandlePauseKey(true))
+							butt->pressed = keydowntime;
+					}
+					// Handle spy mode
+					else if (i == gc_viewpoint)
+					{
+						if (G_HandleSpyMode())
+							butt->pressed = keydowntime;
+					}
+					// Handle talk buttons
+					else if (i == gc_talkkey || i == gc_teamkey)
+					{
+						// Raise the screen keyboard if not muted
+						boolean raise = (!CHAT_MUTE);
+
+						// Only raise the screen keyboard in team games
+						// if you're assigned to any team
+						if (raise && (i == gc_teamkey))
+							raise = (players[consoleplayer].ctfteam != 0);
+
+						// Do it (works with console chat)
+						if (raise)
+						{
+							if (!HU_IsChatOpen())
+								HU_OpenChat();
+							else
+								HU_CloseChat();
+						}
+					}
+					else
+						gamekeydown[gc] = 1;
+
 					touchfingers[finger].x = x;
 					touchfingers[finger].y = y;
 					touchfingers[finger].u.gamecontrol = gc;
-					gamekeydown[gc] = 1;
 					break;
 				}
 			}
 
 			// Check if your finger touches the d-pad area.
-			if (!foundbutton)
+			if (!foundbutton && (ev->type != ev_touchmotion))
 			{
 				touchconfig_t dpad;
 				dpad.x = touch_dpad_x;
@@ -364,6 +429,111 @@ static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt)
 			dt->state = 0;
 		}
 	}
+	return false;
+}
+
+boolean G_HandlePauseKey(boolean ispausebreak)
+{
+	if (modeattacking && !demoplayback && (gamestate == GS_LEVEL))
+	{
+		pausebreakkey = ispausebreak;
+		if (menuactive || pausedelay < 0 || leveltime < 2)
+			return true;
+
+		if (pausedelay < 1+(NEWTICRATE/2))
+			pausedelay = 1+(NEWTICRATE/2);
+		else if (++pausedelay > 1+(NEWTICRATE/2)+(NEWTICRATE/3))
+		{
+			G_SetModeAttackRetryFlag();
+			return true;
+		}
+		pausedelay++; // counteract subsequent subtraction this frame
+	}
+	else
+	{
+		INT32 oldpausedelay = pausedelay;
+		pausedelay = (NEWTICRATE/7);
+		if (!oldpausedelay)
+		{
+			// command will handle all the checks for us
+			COM_ImmedExecute("pause");
+			return true;
+		}
+	}
+
+	return false;
+}
+
+boolean G_HandleSpyMode(void)
+{
+	// ViewpointSwitch Lua hook.
+#ifdef HAVE_BLUA
+	UINT8 canSwitchView = 0;
+#endif
+
+	if (splitscreen || !netgame)
+		displayplayer = consoleplayer;
+	else
+	{
+		// spy mode
+		do
+		{
+			displayplayer++;
+			if (displayplayer == MAXPLAYERS)
+				displayplayer = 0;
+
+			if (!playeringame[displayplayer])
+				continue;
+
+#ifdef HAVE_BLUA
+			// Call ViewpointSwitch hooks here.
+			canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[displayplayer], false);
+			if (canSwitchView == 1) // Set viewpoint to this player
+				break;
+			else if (canSwitchView == 2) // Skip this player
+				continue;
+#endif
+
+			if (players[displayplayer].spectator)
+				continue;
+
+			if (G_GametypeHasTeams())
+			{
+				if (players[consoleplayer].ctfteam
+				 && players[displayplayer].ctfteam != players[consoleplayer].ctfteam)
+					continue;
+			}
+			else if (gametype == GT_HIDEANDSEEK)
+			{
+				if (players[consoleplayer].pflags & PF_TAGIT)
+					continue;
+			}
+			// Other Tag-based gametypes?
+			else if (G_TagGametype())
+			{
+				if (!players[consoleplayer].spectator
+				 && (players[consoleplayer].pflags & PF_TAGIT) != (players[displayplayer].pflags & PF_TAGIT))
+					continue;
+			}
+			else if (G_GametypeHasSpectators() && G_RingSlingerGametype())
+			{
+				if (!players[consoleplayer].spectator)
+					continue;
+			}
+
+			break;
+		} while (displayplayer != consoleplayer);
+
+		// change statusbar also if playing back demo
+		if (singledemo)
+			ST_changeDemoView();
+
+		// tell who's the view
+		CONS_Printf(M_GetText("Viewpoint: %s\n"), player_names[displayplayer]);
+
+		return true;
+	}
+
 	return false;
 }
 
@@ -929,12 +1099,10 @@ void G_UpdateTouchControls(void)
 
 static void G_DefineTouchGameControls(void)
 {
+	INT32 corneroffset = 4;
 	INT32 offs = (promptactive ? -16 : 0) * vid.dupy;
-	INT32 rightalign = 0;
 	INT32 bottomalign = 0;
 
-	if (vid.width != BASEVIDWIDTH * vid.dupx)
-		rightalign = (vid.width - (BASEVIDWIDTH * vid.dupx)) / vid.dupx;
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
 		bottomalign = (vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy;
 
@@ -974,17 +1142,17 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_straferight].w = 16;
 		touchcontrols[gc_straferight].h = 14;
 
-		// Spin
-		touchcontrols[gc_use].x = 232 + rightalign;
-		touchcontrols[gc_use].y = 148 + offs;
-		touchcontrols[gc_use].w = 24;
-		touchcontrols[gc_use].h = 24;
-
 		// Jump
-		touchcontrols[gc_jump].x = (touchcontrols[gc_use].x + touchcontrols[gc_use].w + 12);
-		touchcontrols[gc_jump].y = touchcontrols[gc_use].y;
 		touchcontrols[gc_jump].w = 24;
 		touchcontrols[gc_jump].h = 24;
+		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
+		touchcontrols[gc_jump].y = 148 + offs;
+
+		// Spin
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_jump].w - 16);
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y;
+		touchcontrols[gc_use].w = 24;
+		touchcontrols[gc_use].h = 24;
 	}
 	else
 	{
@@ -1021,17 +1189,70 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_straferight].w = 32;
 		touchcontrols[gc_straferight].h = 28;
 
-		// Spin
-		touchcontrols[gc_use].x = (232 + rightalign) - 12;
-		touchcontrols[gc_use].y = 148 + offs;
-		touchcontrols[gc_use].w = 32;
-		touchcontrols[gc_use].h = 32;
-
 		// Jump
-		touchcontrols[gc_jump].x = (touchcontrols[gc_use].x + touchcontrols[gc_use].w + 16);
-		touchcontrols[gc_jump].y = touchcontrols[gc_use].y;
 		touchcontrols[gc_jump].w = 32;
 		touchcontrols[gc_jump].h = 32;
+		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
+		touchcontrols[gc_jump].y = 148 + offs;
+
+		// Spin
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_jump].w - 16);
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y;
+		touchcontrols[gc_use].w = 32;
+		touchcontrols[gc_use].h = 32;
+	}
+
+	offs = 8;
+
+	// Menu
+	touchcontrols[gc_systemmenu].w = 24;
+	touchcontrols[gc_systemmenu].h = 24;
+	touchcontrols[gc_systemmenu].x = ((vid.width / vid.dupx) - touchcontrols[gc_systemmenu].w - corneroffset);
+	touchcontrols[gc_systemmenu].y = corneroffset;
+
+	// Pause
+	touchcontrols[gc_pause].x = touchcontrols[gc_systemmenu].x;
+	touchcontrols[gc_pause].w = 24;
+	touchcontrols[gc_pause].h = 24;
+	if (cv_pause.value || server || (IsPlayerAdmin(consoleplayer)))
+	{
+		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + 4);
+		touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
+	}
+	else
+		touchcontrols[gc_pause].hidden = true;
+
+	// Spy mode
+	if (netgame)
+	{
+		touchcontrols[gc_viewpoint].w = 32;
+		touchcontrols[gc_viewpoint].h = 24;
+		touchcontrols[gc_viewpoint].x = touchcontrols[gc_systemmenu].x - touchcontrols[gc_viewpoint].w - 4;
+		touchcontrols[gc_viewpoint].y = touchcontrols[gc_systemmenu].y;
+		touchcontrols[gc_viewpoint].hidden = false;
+	}
+	else
+		touchcontrols[gc_viewpoint].hidden = true;
+
+	// Talk key and team talk key
+	touchcontrols[gc_talkkey].hidden = true;
+	touchcontrols[gc_teamkey].hidden = true;
+	if (netgame && !CHAT_MUTE)
+	{
+		touchcontrols[gc_talkkey].w = 24;
+		touchcontrols[gc_talkkey].h = 24;
+		touchcontrols[gc_talkkey].x = ((vid.width / vid.dupx) - touchcontrols[gc_talkkey].w - corneroffset);
+		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);;
+		touchcontrols[gc_talkkey].hidden = false;
+
+		if (players[consoleplayer].ctfteam)
+		{
+			touchcontrols[gc_teamkey].w = 24;
+			touchcontrols[gc_teamkey].h = 24;
+			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
+			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
+			touchcontrols[gc_teamkey].hidden = false;
+		}
 	}
 
 	touchcontrols[gc_forward].dpad = true;
@@ -1042,22 +1263,34 @@ static void G_DefineTouchGameControls(void)
 
 static void G_DefineTouchNavigation(void)
 {
-	INT32 left = 4;
+	INT32 corneroffset = 4;
 
 	// clear all
 	memset(touchnavigation, 0x00, sizeof(touchconfig_t) * NUMKEYS);
 
 	// Back
-	touchnavigation[KEY_ESCAPE].x = left;
-	touchnavigation[KEY_ESCAPE].y = 4;
+	touchnavigation[KEY_ESCAPE].x = corneroffset;
+	touchnavigation[KEY_ESCAPE].y = corneroffset;
 	touchnavigation[KEY_ESCAPE].w = 24;
 	touchnavigation[KEY_ESCAPE].h = 24;
 
 	// Confirm
 	touchnavigation[KEY_ENTER].w = 24;
 	touchnavigation[KEY_ENTER].h = 24;
-	touchnavigation[KEY_ENTER].x = ((vid.width / vid.dupx) - touchnavigation[KEY_ENTER].w - left);
-	touchnavigation[KEY_ENTER].y = touchnavigation[KEY_ESCAPE].y;
+	touchnavigation[KEY_ENTER].x = ((vid.width / vid.dupx) - touchnavigation[KEY_ENTER].w - corneroffset);
+	touchnavigation[KEY_ENTER].y = corneroffset;
+
+	// Console
+	if (modeattacking || metalrecording)
+		touchnavigation[KEY_CONSOLE].hidden = true;
+	else
+	{
+		touchnavigation[KEY_CONSOLE].x = corneroffset;
+		touchnavigation[KEY_CONSOLE].y = touchnavigation[KEY_ENTER].y + touchnavigation[KEY_ENTER].h + 8;
+		touchnavigation[KEY_CONSOLE].w = 24;
+		touchnavigation[KEY_CONSOLE].h = 24;
+		touchnavigation[KEY_CONSOLE].hidden = false;
+	}
 }
 
 void G_DefineTouchButtons(void)

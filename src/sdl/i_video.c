@@ -1010,17 +1010,24 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 // Lactozilla: Android text input
 static char *textinputbuffer = NULL;
 static size_t textbufferlength = 0;
+static void (*textinputcallback)(char *, size_t);
 
 static void Impl_HandleTextInput(SDL_TextInputEvent evt)
 {
 	char *text;
 	size_t length, i;
 
-	if (textinputbuffer == NULL)
-		return;
-
 	text = evt.text;
 	length = strlen(text);
+
+	if (textinputcallback != NULL)
+	{
+		textinputcallback(text, length);
+		return;
+	}
+
+	if (textinputbuffer == NULL)
+		return;
 
 	for (i = 0; i < length; i++)
 	{
@@ -1277,7 +1284,13 @@ void I_RaiseScreenKeyboard(char *buffer, size_t length)
 {
 	textinputbuffer = buffer;
 	textbufferlength = length;
+	textinputcallback = NULL;
 	SDL_StartTextInput();
+}
+
+void I_ScreenKeyboardCallback(void (*callback)(char *, size_t))
+{
+	textinputcallback = callback;
 }
 
 boolean I_KeyboardOnScreen(void)
@@ -1289,6 +1302,7 @@ void I_CloseScreenKeyboard(void)
 {
 	textinputbuffer = NULL;
 	textbufferlength = 0;
+	textinputcallback = NULL;
 	SDL_StopTextInput();
 }
 #endif

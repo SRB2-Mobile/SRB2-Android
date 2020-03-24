@@ -1204,7 +1204,7 @@ static void ST_drawInput(void)
 
 #ifdef TOUCHINPUTS
 
-#define SCALEBUTTONS(touch) \
+#define SCALEBUTTON(touch) \
 	x = FixedMul(touch->x * FRACUNIT, dupx) / FRACUNIT; \
 	y = FixedMul(touch->y * FRACUNIT, dupy) / FRACUNIT; \
 	w = FixedMul(touch->w * FRACUNIT, dupx) / FRACUNIT; \
@@ -1228,8 +1228,8 @@ void ST_drawTouchDPad(
 	INT32 udw;
 	INT32 i, j;
 
-#define THISMACRONEEDSANAME(touch) \
-	SCALEBUTTONS(touch); \
+#define SCALEPAD(touch) \
+	SCALEBUTTON(touch); \
 	xslant = FixedMul((touch->w/2) * FRACUNIT, dupx) / FRACUNIT; \
 	yslant = FixedMul((touch->h/2) * FRACUNIT, dupy) / FRACUNIT; \
 
@@ -1250,7 +1250,7 @@ void ST_drawTouchDPad(
 		udw = (vid.dupx * 3);
 
 	// <
-	THISMACRONEEDSANAME(tleft);
+	SCALEPAD(tleft);
 
 	base = (w - xslant);
 	ybase = (y + h) - vid.dupy;
@@ -1275,7 +1275,7 @@ void ST_drawTouchDPad(
 	drawleftbutton(col, offs);
 
 	// ^
-	THISMACRONEEDSANAME(tup);
+	SCALEPAD(tup);
 
 	yslant /= 2;
 	yslant += (vid.dupy * 2) + 1;
@@ -1306,7 +1306,7 @@ void ST_drawTouchDPad(
 	drawupbutton(col, offs);
 
 	// >
-	THISMACRONEEDSANAME(tright);
+	SCALEPAD(tright);
 
 	base = (w - xslant);
 	ybase = (y + h) - vid.dupy;
@@ -1331,7 +1331,7 @@ void ST_drawTouchDPad(
 	drawrightbutton(col, offs);
 
 	// v
-	THISMACRONEEDSANAME(tdown);
+	SCALEPAD(tdown);
 
 	yslant /= 2;
 	yslant += (vid.dupy * 2) + 1;
@@ -1365,7 +1365,7 @@ void ST_drawTouchDPad(
 #undef drawrightbutton
 #undef drawupbutton
 #undef drawleftbutton
-#undef THISMACRONEEDSANAME
+#undef SCALEPAD
 }
 
 void ST_drawTouchGameInput(void)
@@ -1383,9 +1383,6 @@ void ST_drawTouchGameInput(void)
 	touchconfig_t *tup = &touchcontrols[gc_forward];
 	touchconfig_t *tdown = &touchcontrols[gc_backward];
 
-	touchconfig_t *tjump = &touchcontrols[gc_jump];
-	touchconfig_t *tspin = &touchcontrols[gc_use];
-
 	if (!G_InGameInput())
 		return;
 
@@ -1401,26 +1398,56 @@ void ST_drawTouchGameInput(void)
 		tdown, (stplyr->cmd.forwardmove < 0),
 		true, flags, accent);
 
-#define drawbutt(control, butt, symb) \
-	SCALEBUTTONS(control); \
-	if (stplyr->cmd.buttons & butt) \
-	{ \
-		col = accent; \
-		offs = shadow; \
-	} \
-	else \
-	{ \
-		col = 16; \
-		offs = 0; \
-		V_DrawFill(x, y + h, w, shadow, 29|flags); \
-	} \
-	V_DrawFill(x, y + offs, w, h, col|flags); \
-	V_DrawCharacter((x + (w / 2)) - ((8*vid.dupx) / 2), (y + (h / 2)) - ((8*vid.dupx) / 2) + offs, symb|flags, false);
+#define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
+#define drawbutton(gctype, butt, symb, strxoffs, stryoffs, keycol) { \
+	touchconfig_t *control = &touchcontrols[gctype]; \
+	if (!control->hidden) { \
+		SCALEBUTTON(control); \
+		if ((butt != 0 && (stplyr->cmd.buttons & butt)) \
+		|| control->pressed > I_GetTime()) \
+		{ \
+			col = accent; \
+			offs = shadow; \
+		} \
+		else \
+		{ \
+			col = keycol; \
+			offs = 0; \
+			V_DrawFill(x, y + h, w, shadow, 29|flags); \
+		} \
+		V_DrawFill(x, y + offs, w, h, col|flags); \
+		V_DrawString((x + (w / 2)) - ((V_StringWidth(symb, flags)*vid.dupx) / 2) + strxoffs, \
+					((y + (h / 2)) - ((8*vid.dupy) / 2) + offs) + stryoffs, \
+					flags, symb); \
+		} \
+	}
 
-	drawbutt(tjump, BT_JUMP, 'J');
-	drawbutt(tspin, BT_USE,  'S');
+#define drawbutt(gctype, butt, symb) drawbutton(gctype, butt, symb, 0, 0, DEFAULTKEYCOL)
+#define drawcolbutt(gctype, butt, symb, col) drawbutton(gctype, butt, symb, 0, 0, col)
+#define drawoffsbutt(gctype, butt, symb, xoffs, yoffs) drawbutton(gctype, butt, symb, xoffs, yoffs, DEFAULTKEYCOL)
 
+	// Jump and spin
+	drawbutt(gc_jump,  BT_JUMP, "J");
+	drawbutt(gc_use,   BT_USE,  "S");
+
+	// Control panel
+	drawbutt(gc_systemmenu, 0, "\x018"); // <>
+
+	// Pause
+	drawbutt(gc_pause,      0, (paused ? "\x1D" : "II"));
+
+	// Switch viewpoint
+	drawbutt(gc_viewpoint, 0, "F12");
+
+	// Talk key and team talk key
+	drawoffsbutt(gc_talkkey, 0, "...", 1, -1);
+	drawbutton  (gc_teamkey, 0, "...", 1, -1, accent);
+
+#undef drawoffsbutt
+#undef drawcolbutt
 #undef drawbutt
+#undef drawbutton
+#undef DEFAULTKEYCOL
 }
 
 void ST_drawTouchMenuInput(void)
@@ -1430,39 +1457,42 @@ void ST_drawTouchMenuInput(void)
 	const INT32 flags = V_NOSCALESTART;
 	const INT32 accent = Color_Index[(cv_playercolor.value)-1][4];
 	const INT32 shadow = vid.dupy;
+	touchconfig_t *control;
 	INT32 col, offs;
 	INT32 x, y, w, h;
 	patch_t *font;
 
-	touchconfig_t *tback = &touchnavigation[KEY_ESCAPE];
-	touchconfig_t *tconfirm = &touchnavigation[KEY_ENTER];
-
-#define drawbutt(control, symb) \
-	SCALEBUTTONS(control); \
-	if (control->pressed > I_GetTime()) \
+#define drawbutt(keyname, symb) \
+	control = &touchnavigation[keyname]; \
+	if (!control->hidden) \
 	{ \
-		col = accent; \
-		offs = shadow; \
-	} \
-	else \
-	{ \
-		col = 16; \
-		offs = 0; \
-		V_DrawFill(x, y + h, w, shadow, 29|flags); \
-	} \
-	font = hu_font[toupper(symb) - HU_FONTSTART]; \
-	V_DrawFill(x, y + offs, w, h, col|flags); \
-	V_DrawCharacter((x + (w / 2)) - ((SHORT(font->width)*vid.dupx) / 2), \
-					(y + (h / 2)) - ((SHORT(font->height)*vid.dupx) / 2) + offs, \
-					symb|flags, false);
+		SCALEBUTTON(control); \
+		if (control->pressed > I_GetTime()) \
+		{ \
+			col = accent; \
+			offs = shadow; \
+		} \
+		else \
+		{ \
+			col = 16; \
+			offs = 0; \
+			V_DrawFill(x, y + h, w, shadow, 29|flags); \
+		} \
+		font = hu_font[toupper(symb) - HU_FONTSTART]; \
+		V_DrawFill(x, y + offs, w, h, col|flags); \
+		V_DrawCharacter((x + (w / 2)) - ((SHORT(font->width)*vid.dupx) / 2), \
+						(y + (h / 2)) - ((SHORT(font->height)*vid.dupx) / 2) + offs, \
+						symb|flags, false); \
+	}
 
-	drawbutt(tback, '>');
-	drawbutt(tconfirm, '<');
+	drawbutt(KEY_ESCAPE, 0x1C); // left arrow
+	drawbutt(KEY_ENTER, 0x1D); // right arrow
+	drawbutt(KEY_CONSOLE, '$');
 
 #undef drawbutt
 }
 
-#undef SCALEBUTTONS
+#undef SCALEBUTTON
 #endif
 
 static patch_t *lt_patches[3];
@@ -3081,7 +3111,7 @@ static void ST_overlayDrawer(void)
 	if (modeattacking && !(demoplayback && hu_showscores))
 		ST_drawInput();
 #ifdef TOUCHINPUTS
-	else
+	else if (stplyr == &players[consoleplayer])
 		ST_drawTouchGameInput();
 #endif
 

@@ -517,6 +517,10 @@ extern boolean capslock;
 // i_system.c, replace getchar() once the keyboard has been appropriated
 INT32 I_GetKey(void);
 
+#ifdef TOUCHINPUTS
+void I_GetFinger(INT32 *x, INT32 *y);
+#endif
+
 #ifndef min // Double-Check with WATTCP-32's cdefs.h
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 #endif

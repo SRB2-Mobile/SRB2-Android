@@ -177,6 +177,10 @@ void I_InitTouchScreen(void);
 */
 void I_RaiseScreenKeyboard(char *buffer, size_t length);
 
+/**	\brief set a callback for text input events
+*/
+void I_ScreenKeyboardCallback(void (*callback)(char *, size_t));
+
 /**	\brief returns the status of the on-screen keyboard
 */
 boolean I_KeyboardOnScreen(void);

@@ -100,6 +100,10 @@ static void CON_ChangeHeight(void);
 static void CONS_hudlines_Change(void);
 static void CONS_backcolor_Change(void);
 
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+static void CON_ScreenKeyboardInput(char *text, size_t length);
+#endif
+
 //======================================================================
 //                   CONSOLE VARS AND COMMANDS
 //======================================================================
@@ -401,6 +405,10 @@ void CON_Init(void)
 	con_destlines = vid.height;
 	con_curlines = vid.height;
 
+#if defined(__ANDROID__)
+	// Lactozilla: Change the default console height for Android
+	cons_height.defaultvalue = "40";
+#endif
 
 	if (!dedicated)
 	{
@@ -602,6 +610,11 @@ boolean CON_Ready(void)
 	return consoleready;
 }
 
+void CON_Toggle(void)
+{
+	consoletoggle = true;
+}
+
 // Console ticker: handles console move in/out, cursor blinking
 //
 void CON_Ticker(void)
@@ -612,6 +625,12 @@ void CON_Ticker(void)
 	// cursor blinking
 	con_tick++;
 	con_tick &= 7;
+
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+	// Lactozilla: Close the console, if the screen keyboard is not visible
+	if (consoleready && (!I_KeyboardOnScreen()))
+		consoletoggle = true;
+#endif
 
 	// console key was pushed
 	if (consoletoggle)
@@ -626,7 +645,12 @@ void CON_Ticker(void)
 			I_UpdateMouseGrab();
 		}
 		else
+		{
 			CON_ChangeHeight();
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+			con_scrollup = 0;
+#endif
+		}
 	}
 
 	// console movement
@@ -647,7 +671,17 @@ void CON_Ticker(void)
 
 	// check if console ready for prompt
 	if (con_destlines >= minheight)
+	{
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+		// Lactozilla: Raise the screen keyboard
+		if (!I_KeyboardOnScreen())
+		{
+			I_RaiseScreenKeyboard(NULL, 0);
+			I_ScreenKeyboardCallback(CON_ScreenKeyboardInput);
+		}
+#endif
 		consoleready = true;
+	}
 	else
 		consoleready = false;
 
@@ -735,6 +769,14 @@ static void CON_InputDelChar(void)
 	inputlines[inputline][--input_len] = 0;
 	input_sel = --input_cur;
 }
+
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+static void CON_ScreenKeyboardInput(char *text, size_t length)
+{
+	(void)length;
+	CON_InputAddString(text);
+}
+#endif
 
 //
 // ----
@@ -917,7 +959,7 @@ boolean CON_Responder(event_t *ev)
 
 		// ...why shouldn't it eat the key? if it doesn't, it just means you
 		// can control Sonic from the console, which is silly
-		return true;//return false;
+		return true;
 	}
 
 	// command completion forward (tab) and backward (shift-tab)
@@ -1080,6 +1122,12 @@ boolean CON_Responder(event_t *ev)
 			CON_InputSetString(inputlines[inputhist]);
 		return true;
 	}
+
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+	// Inputs handled elsewhere
+	if (I_KeyboardOnScreen())
+		return true;
+#endif
 
 	// allow people to use keypad in console (good for typing IP addresses) - Calum
 	if (key >= KEY_KEYPAD7 && key <= KEY_KPADDEL)

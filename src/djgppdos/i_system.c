@@ -1480,6 +1480,14 @@ INT32 I_GetKey (void)
 	return rc;
 }
 
+#ifdef TOUCHEVENTS
+void I_GetFinger(INT32 *x, INT32 *y)
+{
+	(void)x;
+	(void)y;
+}
+#endif
+
 /* Keyboard handler stuff */
 static _go32_dpmi_seginfo oldkeyinfo,newkeyinfo;
 

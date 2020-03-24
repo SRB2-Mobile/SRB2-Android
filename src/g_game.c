@@ -2052,73 +2052,8 @@ boolean G_Responder(event_t *ev)
 	if (gamestate == GS_LEVEL && ev->type == ev_keydown
 		&& (ev->data1 == KEY_F12 || ev->data1 == gamecontrol[gc_viewpoint][0] || ev->data1 == gamecontrol[gc_viewpoint][1]))
 	{
-		// ViewpointSwitch Lua hook.
-#ifdef HAVE_BLUA
-		UINT8 canSwitchView = 0;
-#endif
-
-		if (splitscreen || !netgame)
-			displayplayer = consoleplayer;
-		else
-		{
-			// spy mode
-			do
-			{
-				displayplayer++;
-				if (displayplayer == MAXPLAYERS)
-					displayplayer = 0;
-
-				if (!playeringame[displayplayer])
-					continue;
-
-#ifdef HAVE_BLUA
-				// Call ViewpointSwitch hooks here.
-				canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[displayplayer], false);
-				if (canSwitchView == 1) // Set viewpoint to this player
-					break;
-				else if (canSwitchView == 2) // Skip this player
-					continue;
-#endif
-
-				if (players[displayplayer].spectator)
-					continue;
-
-				if (G_GametypeHasTeams())
-				{
-					if (players[consoleplayer].ctfteam
-					 && players[displayplayer].ctfteam != players[consoleplayer].ctfteam)
-						continue;
-				}
-				else if (gametype == GT_HIDEANDSEEK)
-				{
-					if (players[consoleplayer].pflags & PF_TAGIT)
-						continue;
-				}
-				// Other Tag-based gametypes?
-				else if (G_TagGametype())
-				{
-					if (!players[consoleplayer].spectator
-					 && (players[consoleplayer].pflags & PF_TAGIT) != (players[displayplayer].pflags & PF_TAGIT))
-						continue;
-				}
-				else if (G_GametypeHasSpectators() && G_RingSlingerGametype())
-				{
-					if (!players[consoleplayer].spectator)
-						continue;
-				}
-
-				break;
-			} while (displayplayer != consoleplayer);
-
-			// change statusbar also if playing back demo
-			if (singledemo)
-				ST_changeDemoView();
-
-			// tell who's the view
-			CONS_Printf(M_GetText("Viewpoint: %s\n"), player_names[displayplayer]);
-
+		if (G_HandleSpyMode())
 			return true;
-		}
 	}
 
 	// update keys current state
@@ -2131,32 +2066,8 @@ boolean G_Responder(event_t *ev)
 				|| ev->data1 == gamecontrol[gc_pause][1]
 				|| ev->data1 == KEY_PAUSE)
 			{
-				if (modeattacking && !demoplayback && (gamestate == GS_LEVEL))
-				{
-					pausebreakkey = (ev->data1 == KEY_PAUSE);
-					if (menuactive || pausedelay < 0 || leveltime < 2)
-						return true;
-
-					if (pausedelay < 1+(NEWTICRATE/2))
-						pausedelay = 1+(NEWTICRATE/2);
-					else if (++pausedelay > 1+(NEWTICRATE/2)+(NEWTICRATE/3))
-					{
-						G_SetModeAttackRetryFlag();
-						return true;
-					}
-					pausedelay++; // counteract subsequent subtraction this frame
-				}
-				else
-				{
-					INT32 oldpausedelay = pausedelay;
-					pausedelay = (NEWTICRATE/7);
-					if (!oldpausedelay)
-					{
-						// command will handle all the checks for us
-						COM_ImmedExecute("pause");
-						return true;
-					}
-				}
+				if (G_HandlePauseKey(ev->data1 == KEY_PAUSE))
+					return true;
 			}
 			if (ev->data1 == gamecontrol[gc_camtoggle][0]
 				|| ev->data1 == gamecontrol[gc_camtoggle][1])
@@ -2883,6 +2794,11 @@ void G_DoReborn(INT32 playernum)
 
 	// Make sure objectplace is OFF when you first start the level!
 	OP_ResetObjectplace();
+
+#ifdef TOUCHINPUTS
+	if (playernum == consoleplayer)
+		G_UpdateTouchControls();
+#endif
 
 	if (player->bot && playernum != consoleplayer)
 	{ // Bots respawn next to their master.
@@ -4310,12 +4226,12 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (strcmp((const char *)save_p, (const char *)vcheck))
 	{
 #ifdef SAVEGAME_OTHERVERSIONS
-		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n(Press 'Y' to confirm)\n"),
+		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),
 		               M_ForceLoadGameResponse, MM_YESNO);
 		//Freeing done by the callback function of the above message
 #else
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Save game from different version\n\nPress ESC\n"), NULL, MM_NOTHING);
+		M_StartMessage(M_GetText("Save game from different version\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;
@@ -4337,7 +4253,7 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (!P_LoadGame(mapoverride))
 	{
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Savegame file corrupted\n\nPress ESC\n"), NULL, MM_NOTHING);
+		M_StartMessage(M_GetText("Savegame file corrupted\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;
@@ -7372,6 +7288,9 @@ boolean G_CheckDemoStatus(void)
 void G_SetGamestate(gamestate_t newstate)
 {
 	gamestate = newstate;
+#ifdef TOUCHINPUTS
+	G_UpdateTouchControls();
+#endif
 }
 
 /* These functions handle the exitgame flag. Before, when the user

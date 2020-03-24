@@ -282,6 +282,15 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_HEADER      (IT_SPACE  +IT_HEADERTEXT)
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
 
+// "Press ESC" message
+#ifdef TOUCHINPUTS
+#define PRESS_Y_MESSAGE   "Tap 'Confirm'"
+#define PRESS_ESC_MESSAGE "Tap anywhere\n"
+#else
+#define PRESS_Y_MESSAGE   "Press 'Y'"
+#define PRESS_ESC_MESSAGE "Press ESC\n"
+#endif
+
 #define MAXSTRINGLENGTH 32
 
 typedef union

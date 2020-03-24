@@ -102,6 +102,14 @@ INT32 I_GetKey(void)
 	return 0;
 }
 
+#ifdef TOUCHINPUTS
+void I_GetFinger(INT32 *x, INT32 *y)
+{
+	(void)x;
+	(void)y;
+}
+#endif
+
 void I_StartupTimer(void){}
 
 void I_AddExitFunc(void (*func)())

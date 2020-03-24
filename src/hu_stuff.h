@@ -73,6 +73,10 @@ typedef struct
 #define OLD_MUTE (OLDCHAT && cv_mute.value && !(server || IsPlayerAdmin(consoleplayer)))	// this is used to prevent oldchat from opening when muted.
 
 // some functions
+void HU_OpenChat(void);
+void HU_CloseChat(void);
+boolean HU_IsChatOpen(void);
+
 void HU_AddChatText(const char *text, boolean playsound);
 
 // set true when entering a chat message

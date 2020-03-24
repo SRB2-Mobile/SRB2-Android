@@ -1167,17 +1167,24 @@ static inline void CL_DrawConnectionStatus(void)
 
 	// Draw the bottom box.
 	M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-24-8, 32, 1);
+#ifndef TOUCHINPUTS
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-24, V_YELLOWMAP, "Press ESC to abort");
+#endif
 
 	if (cl_mode != CL_DOWNLOADFILES)
 	{
+		INT32 top = BASEVIDHEIGHT-24;
 		INT32 i, animtime = ((ccstime / 4) & 15) + 16;
 		UINT8 palstart = (cl_mode == CL_SEARCHING) ? 32 : 96;
-		// 15 pal entries total.
 		const char *cltext;
 
+		// 15 pal entries total.
 		for (i = 0; i < 16; ++i)
 			V_DrawFill((BASEVIDWIDTH/2-128) + (i * 16), BASEVIDHEIGHT-24, 16, 8, palstart + ((animtime - i) & 15));
+
+#ifdef TOUCHINPUTS
+		top += 16;
+#endif
 
 		switch (cl_mode)
 		{
@@ -1187,9 +1194,9 @@ static inline void CL_DrawConnectionStatus(void)
 				{
 					cltext = M_GetText("Downloading game state...");
 					Net_GetNetStat();
-					V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE,
+					V_DrawString(BASEVIDWIDTH/2-128, top, V_20TRANS|V_MONOSPACE,
 						va(" %4uK",fileneeded[lastfilenum].currentsize>>10));
-					V_DrawRightAlignedString(BASEVIDWIDTH/2+128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE,
+					V_DrawRightAlignedString(BASEVIDWIDTH/2+128, top, V_20TRANS|V_MONOSPACE,
 						va("%3.1fK/s ", ((double)getbps)/1024));
 				}
 				else
@@ -1204,7 +1211,7 @@ static inline void CL_DrawConnectionStatus(void)
 				cltext = M_GetText("Connecting to server...");
 				break;
 		}
-		V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-32, V_YELLOWMAP, cltext);
+		V_DrawCenteredString(BASEVIDWIDTH/2, top-32, V_YELLOWMAP, cltext);
 	}
 	else
 	{
@@ -1249,6 +1256,17 @@ static inline void CL_DrawConnectionStatus(void)
 			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-32, V_YELLOWMAP,
 				M_GetText("Waiting to download files..."));
 	}
+
+#ifdef TOUCHINPUTS
+	// Touch input
+	{
+		INT32 i;
+		for (i = 0; i < NUMKEYS; i++)
+			touchnavigation[i].hidden = true;
+		touchnavigation[KEY_ESCAPE].hidden = false;
+		ST_drawTouchMenuInput();
+	}
+#endif
 }
 #endif
 
@@ -1868,7 +1886,7 @@ static boolean CL_ServerConnectionSearchTicker(boolean viams, tic_t *asksent)
 			D_QuitNetGame();
 			CL_Reset();
 			D_StartTitle();
-			M_StartMessage(va(M_GetText("Maximum players reached: %d\n\nPress ESC\n"), serverlist[i].info.maxplayer), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("Maximum players reached: %d\n\n" PRESS_ESC_MESSAGE), serverlist[i].info.maxplayer), NULL, MM_NOTHING);
 			return false;
 		}
 
@@ -1887,7 +1905,7 @@ static boolean CL_ServerConnectionSearchTicker(boolean viams, tic_t *asksent)
 					"You have too many WAD files loaded\n"
 					"to add ones the server is using.\n"
 					"Please restart SRB2 before connecting.\n\n"
-					"Press ESC\n"
+					PRESS_ESC_MESSAGE
 				), NULL, MM_NOTHING);
 				return false;
 			}
@@ -1902,7 +1920,7 @@ static boolean CL_ServerConnectionSearchTicker(boolean viams, tic_t *asksent)
 					"your file list does not match\n"
 					"the server's file list.\n"
 					"Please restart SRB2 before connecting.\n\n"
-					"Press ESC\n"
+					PRESS_ESC_MESSAGE
 				), NULL, MM_NOTHING);
 				return false;
 			}
@@ -1923,7 +1941,7 @@ static boolean CL_ServerConnectionSearchTicker(boolean viams, tic_t *asksent)
 						"that you are missing from the server.\n\n"
 						"See the console or log file for\n"
 						"more details.\n\n"
-						"Press ESC\n"
+						PRESS_ESC_MESSAGE
 					), NULL, MM_NOTHING);
 					return false;
 				}
@@ -2039,17 +2057,26 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 	// Call it only once by tic
 	if (*oldtic != I_GetTime())
 	{
+#ifndef TOUCHINPUTS
 		INT32 key;
 
 		I_OsPolling();
 		key = I_GetKey();
 		if (key == KEY_ESCAPE || key == KEY_JOY1+1)
+#else
+		INT32 x = -1, y = -1;
+		I_OsPolling();
+		I_GetFinger(&x, &y);
+		if ((x != -1 && y != -1) && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ESCAPE]))
+#endif
 		{
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
-//				M_StartMessage(M_GetText("Network game synchronization aborted.\n\nPress ESC\n"), NULL, MM_NOTHING);
 			D_QuitNetGame();
 			CL_Reset();
 			D_StartTitle();
+#if defined(__ANDROID__)
+			M_StartMessage(M_GetText("Network game synchronization aborted.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+#endif
 			return false;
 		}
 
@@ -3004,17 +3031,17 @@ static void Got_KickCmd(UINT8 **p, INT32 playernum)
 		CL_Reset();
 		D_StartTitle();
 		if (msg == KICK_MSG_CON_FAIL)
-			M_StartMessage(M_GetText("Server closed connection\n(synch failure)\nPress ESC\n"), NULL, MM_NOTHING);
+			M_StartMessage(M_GetText("Server closed connection\n(synch failure)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_PING_HIGH)
-			M_StartMessage(M_GetText("Server closed connection\n(Broke ping limit)\nPress ESC\n"), NULL, MM_NOTHING);
+			M_StartMessage(M_GetText("Server closed connection\n(Broke ping limit)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_BANNED)
-			M_StartMessage(M_GetText("You have been banned by the server\n\nPress ESC\n"), NULL, MM_NOTHING);
+			M_StartMessage(M_GetText("You have been banned by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_CUSTOM_KICK)
-			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\nPress ESC\n"), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_CUSTOM_BAN)
-			M_StartMessage(va(M_GetText("You have been banned\n(%s)\nPress ESC\n"), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been banned\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
 		else
-			M_StartMessage(M_GetText("You have been kicked by the server\n\nPress ESC\n"), NULL, MM_NOTHING);
+			M_StartMessage(M_GetText("You have been kicked by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 	}
 	else if (keepbody)
 	{
@@ -3688,7 +3715,7 @@ static void HandleShutdown(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server has shutdown\n\nPress Esc\n"), NULL, MM_NOTHING);
+	M_StartMessage(M_GetText("Server has shutdown\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 }
 
 /** Called when a PT_NODETIMEOUT packet is received
@@ -3702,7 +3729,7 @@ static void HandleTimeout(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server Timeout\n\nPress Esc\n"), NULL, MM_NOTHING);
+	M_StartMessage(M_GetText("Server Timeout\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
 }
 
 #ifndef NONET
