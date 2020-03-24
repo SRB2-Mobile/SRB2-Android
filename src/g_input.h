@@ -122,6 +122,28 @@ extern INT32 mouse2x, mouse2y, mlook2y;
 
 extern INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
 
+#ifdef TOUCHINPUTS
+extern float touchjoyxmove, touchjoyymove;
+#define TOUCHJOYEXTENDX (touch_dpad_w / 2)
+#define TOUCHJOYEXTENDY (touch_dpad_h / 2)
+#endif
+
+typedef enum
+{
+	AXISNONE = 0,
+	AXISTURN,
+	AXISMOVE,
+	AXISLOOK,
+	AXISSTRAFE,
+
+	AXISDIGITAL, // axes below this use digital deadzone
+
+	AXISJUMP,
+	AXISSPIN,
+	AXISFIRE,
+	AXISFIRENORMAL,
+} axis_input_e;
+
 // current state of the keys: true if pushed
 extern UINT8 gamekeydown[NUMINPUTS];
 
@@ -144,6 +166,7 @@ typedef struct
 	union {
 		boolean menu;
 		INT32 mouse;
+		INT32 joystick;
 	} type;
 } touchfinger_t;
 extern touchfinger_t touchfingers[NUMTOUCHFINGERS];
@@ -165,11 +188,28 @@ extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
 // Input variables
 extern INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 
+// Touch movement style
+typedef enum
+{
+	tms_dpad,
+	tms_joystick,
+	num_touchmovementstyles
+} touchmovementstyle_e;
+
+// Finger motion type
+enum
+{
+	FINGERMOTION_JOYSTICK = 1,
+	FINGERMOTION_MOUSE = 2,
+};
+
 // Touch screen settings
+extern touchmovementstyle_e touch_movementstyle;
 extern boolean touch_dpad_tiny;
 extern boolean touch_camera;
 
 // Console variables for the touch screen
+extern consvar_t cv_dpadstyle;
 extern consvar_t cv_dpadtiny;
 extern consvar_t cv_touchcamera;
 
@@ -232,6 +272,9 @@ void G_DefineTouchButtons(void);
 
 // Check if the finger (x, y) is touching the specified button (butt)
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt);
+
+// Check if the gamecontrol is a player control key
+boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
 #endif
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen);

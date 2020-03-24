@@ -14,6 +14,7 @@
 #include "doomdef.h"
 #include "doomstat.h"
 #include "m_menu.h"
+#include "m_misc.h"
 #include "p_tick.h"
 #include "g_game.h"
 #include "g_input.h"
@@ -47,6 +48,9 @@ INT32 mouse2x, mouse2y, mlook2y;
 
 // joystick values are repeated
 INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
+#ifdef TOUCHINPUTS
+float touchjoyxmove, touchjoyymove;
+#endif
 
 // current state of the keys: true if pushed
 UINT8 gamekeydown[NUMINPUTS];
@@ -63,11 +67,15 @@ touchconfig_t touchnavigation[NUMKEYS];
 INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 
 // Touch screen settings
+touchmovementstyle_e touch_movementstyle;
 boolean touch_dpad_tiny;
 boolean touch_camera;
 
 // Console variables for the touch screen
-consvar_t cv_dpadtiny = {"touch_dpad_tiny", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+static CV_PossibleValue_t dpadstyle_cons_t[] = {{tms_dpad, "D-Pad"}, {tms_joystick, "Joystick"}, {0, NULL}};
+
+consvar_t cv_dpadstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, dpadstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_dpadtiny = {"touch_dpad_tiny", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 // Touch screen sensitivity
@@ -148,6 +156,26 @@ boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
 	INT32 th = FixedMul(butt->h * FRACUNIT, dupy) / FRACUNIT;
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
+
+boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol)
+{
+	switch (gamecontrol)
+	{
+		case gc_talkkey:
+		case gc_teamkey:
+		case gc_scores:
+		case gc_console:
+		case gc_pause:
+		case gc_systemmenu:
+		case gc_screenshot:
+		case gc_recordgif:
+		case gc_viewpoint:
+			return false;
+		default:
+			break;
+	}
+	return true;
+}
 #endif
 
 //
@@ -165,7 +193,7 @@ void G_MapEventsToControls(event_t *ev)
 #ifdef TOUCHINPUTS
 	INT32 x = ev->data1;
 	INT32 y = ev->data2;
-	INT32 finger = ev->data3;
+	touchfinger_t *finger = &touchfingers[ev->data3]; // ev->data3 is the finger's ID.
 	INT32 gc;
 	boolean foundbutton = false;
 #endif
@@ -200,18 +228,20 @@ void G_MapEventsToControls(event_t *ev)
 		case ev_touchmotion:
 			// Ignore when the menu, console, or chat window are open
 			if (!G_InGameInput())
+			{
+				touchjoyxmove = touchjoyymove = 0.0f;
 				break;
+			}
 
 			// Lactozilla: Find every on-screen button and
 			// check if they are below your finger.
-			// ev->data3 is the finger's ID.
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				touchconfig_t *butt = &touchcontrols[i];
 				tic_t keydowntime;
 
-				// Ignore camera movement
-				if (touchfingers[finger].type.mouse)
+				// Ignore camera and joystick movement
+				if (finger->type.mouse)
 					break;
 
 				// Ignore undefined buttons
@@ -222,74 +252,82 @@ void G_MapEventsToControls(event_t *ev)
 				if (butt->hidden)
 					continue;
 
+				// Ignore mismatching movement styles
+				if ((touch_movementstyle != tms_dpad) && butt->dpad)
+					continue;
+
 				// In a touch motion event, simulate a key up event by clearing gamekeydown.
 				// This is done so that the buttons that are down don't 'stick'
 				// if you move your finger from a button to another.
-				gc = finger; // the finger ID
-				if (ev->type == ev_touchmotion && touchfingers[gc].u.gamecontrol)
+				gc = finger->u.gamecontrol;
+				if (ev->type == ev_touchmotion && (gc > gc_null) && G_TouchButtonIsPlayerControl(gc))
 				{
 					// Let go of this button.
-					gamekeydown[touchfingers[finger].u.gamecontrol] = 0;
-					touchfingers[finger].u.gamecontrol = 0;
+					gamekeydown[gamecontrol[gc][0]] = 0;
+					finger->u.gamecontrol = gc_null;
 				}
 
+				gc = gamecontrol[i][0];
 				keydowntime = I_GetTime() + (TICRATE/10);
 
 				// Check if your finger touches this button.
-				if (G_FingerTouchesButton(x, y, butt))
+				if (G_FingerTouchesButton(x, y, butt) && (!gamekeydown[gc]))
 				{
-					gc = gamecontrol[i][0];
 					foundbutton = true;
 
-					// Handle menu button
-					if (i == gc_systemmenu)
-						M_StartControlPanel();
-					// Handle console button
-					else if (i == gc_console)
+					if (!G_TouchButtonIsPlayerControl(i))
 					{
-						// Emit console key event
-						event_t event;
-						event.data1 = ev_console;
-						CON_Responder(&event);
-					}
-					// Handle pause button
-					else if (i == gc_pause)
-					{
-						if (G_HandlePauseKey(true))
-							butt->pressed = keydowntime;
-					}
-					// Handle spy mode
-					else if (i == gc_viewpoint)
-					{
-						if (G_HandleSpyMode())
-							butt->pressed = keydowntime;
-					}
-					// Handle talk buttons
-					else if (i == gc_talkkey || i == gc_teamkey)
-					{
-						// Raise the screen keyboard if not muted
-						boolean raise = (!CHAT_MUTE);
-
-						// Only raise the screen keyboard in team games
-						// if you're assigned to any team
-						if (raise && (i == gc_teamkey))
-							raise = (players[consoleplayer].ctfteam != 0);
-
-						// Do it (works with console chat)
-						if (raise)
+						// Handle menu button
+						if (i == gc_systemmenu)
+							M_StartControlPanel();
+						// Handle console button
+						else if (i == gc_console)
+							CON_Toggle();
+						// Handle pause button
+						else if (i == gc_pause)
 						{
-							if (!HU_IsChatOpen())
-								HU_OpenChat();
-							else
-								HU_CloseChat();
+							if (G_HandlePauseKey(true))
+								butt->pressed = keydowntime;
+						}
+						// Handle spy mode
+						else if (i == gc_viewpoint)
+						{
+							if (G_HandleSpyMode())
+								butt->pressed = keydowntime;
+						}
+						// Handle movie mode
+						else if (i == gc_recordgif)
+						{
+							((moviemode) ? M_StopMovie : M_StartMovie)();
+							butt->pressed = keydowntime;
+						}
+						// Handle talk buttons
+						else if (i == gc_talkkey || i == gc_teamkey)
+						{
+							// Raise the screen keyboard if not muted
+							boolean raise = (!CHAT_MUTE);
+
+							// Only raise the screen keyboard in team games
+							// if you're assigned to any team
+							if (raise && (i == gc_teamkey))
+								raise = (players[consoleplayer].ctfteam != 0);
+
+							// Do it (works with console chat)
+							if (raise)
+							{
+								if (!HU_IsChatOpen())
+									HU_OpenChat();
+								else
+									HU_CloseChat();
+							}
 						}
 					}
 					else
 						gamekeydown[gc] = 1;
 
-					touchfingers[finger].x = x;
-					touchfingers[finger].y = y;
-					touchfingers[finger].u.gamecontrol = gc;
+					finger->x = x;
+					finger->y = y;
+					finger->u.gamecontrol = i;
 					break;
 				}
 			}
@@ -303,40 +341,71 @@ void G_MapEventsToControls(event_t *ev)
 				dpad.w = touch_dpad_w;
 				dpad.h = touch_dpad_h;
 				if (G_FingerTouchesButton(x, y, &dpad))
+				{
+					// Joystick
+					if (touch_movementstyle == tms_joystick)
+					{
+						finger->x = x;
+						finger->y = y;
+						finger->type.joystick = FINGERMOTION_JOYSTICK;
+						finger->u.gamecontrol = -1;
+						foundbutton = true;
+					}
 					break;
+				}
 			}
 
-			// Pretend the finger is moving the camera.
+			// The finger is moving either the joystick or the camera.
 			if (touch_camera && (!foundbutton))
 			{
-				if (ev->type == ev_touchmotion && touchfingers[finger].type.mouse)
+				INT32 dx = ev->extradata[0];
+				INT32 dy = ev->extradata[1];
+
+				if (ev->type == ev_touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
-					INT32 dx = ev->extradata[0];
-					INT32 dy = ev->extradata[1];
+					INT32 movex = (INT32)(dx*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
+					INT32 movey = (INT32)(dy*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
 
-					touchfingers[finger].x = x;
-					touchfingers[finger].y = y;
+					// Joystick
+					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
+					{
+						//touchjoyxmove += movex;
+						//touchjoyymove -= movey;
+						dx = x - (touch_dpad_x + (touch_dpad_w / 2));
+						dy = y - (touch_dpad_y + (touch_dpad_h / 2));
+						touchjoyxmove = ((float)dx / (float)TOUCHJOYEXTENDX);
+						touchjoyymove = ((float)dy / (float)TOUCHJOYEXTENDY);
+					}
+					// Mouse
+					else if (finger->type.mouse == FINGERMOTION_MOUSE)
+					{
+						mousex = movex;
+						mousey = movey;
+						mlooky = (INT32)(dy*((cv_touchysens.value*cv_touchsens.value)/110.0f + 0.1f));
+					}
 
-					mousex = (INT32)(dx*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
-					mousey = (INT32)(dy*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
-					mlooky = (INT32)(dy*((cv_touchysens.value*cv_touchsens.value)/110.0f + 0.1f));
+					finger->x = x;
+					finger->y = y;
 				}
 				else
 				{
-					touchfingers[finger].x = x;
-					touchfingers[finger].y = y;
-					touchfingers[finger].type.mouse = 1;
-					touchfingers[finger].u.gamecontrol = -1;
+					finger->x = x;
+					finger->y = y;
+					finger->type.mouse = FINGERMOTION_MOUSE;
+					finger->u.gamecontrol = gc_null;
 				}
 			}
 			break;
 
 		case ev_touchup:
 			// Let go of this button.
-			if (touchfingers[finger].u.gamecontrol >= 0)
-				gamekeydown[touchfingers[finger].u.gamecontrol] = 0;
-			touchfingers[finger].u.gamecontrol = 0;
-			touchfingers[finger].type.mouse = 0;
+			gc = finger->u.gamecontrol;
+			if (gc > gc_null)
+				gamekeydown[gamecontrol[gc][0]] = gc_null;
+			finger->u.gamecontrol = gc_null;
+			if (finger->type.joystick == FINGERMOTION_JOYSTICK)
+				touchjoyxmove = touchjoyymove = 0.0f;
+			finger->type.mouse = 0; // Remember that this is an union!
 			break;
 #endif
 
@@ -1077,6 +1146,7 @@ void G_DefineDefaultControls(void)
 	}
 
 #ifdef TOUCHINPUTS
+	CV_RegisterVar(&cv_dpadstyle);
 	CV_RegisterVar(&cv_dpadtiny);
 	CV_RegisterVar(&cv_touchcamera);
 	G_UpdateTouchControls();
@@ -1087,6 +1157,7 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 void G_SetupTouchSettings(void)
 {
+	touch_movementstyle = cv_dpadstyle.value;
 	touch_dpad_tiny = !!cv_dpadtiny.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 }
@@ -1118,6 +1189,12 @@ static void G_DefineTouchGameControls(void)
 		touch_dpad_w = 32;
 		touch_dpad_h = 32;
 
+		if (touch_movementstyle == tms_joystick)
+		{
+			touch_dpad_x -= 4;
+			touch_dpad_y += 8;
+		}
+
 		// Up
 		touchcontrols[gc_forward].x = touch_dpad_x + 8;
 		touchcontrols[gc_forward].y = touch_dpad_y - 8;
@@ -1143,16 +1220,16 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_straferight].h = 14;
 
 		// Jump
-		touchcontrols[gc_jump].w = 24;
-		touchcontrols[gc_jump].h = 24;
+		touchcontrols[gc_jump].w = 40;
+		touchcontrols[gc_jump].h = 32;
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = 148 + offs;
+		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs;
 
 		// Spin
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_jump].w - 16);
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y;
-		touchcontrols[gc_use].w = 24;
+		touchcontrols[gc_use].w = 32;
 		touchcontrols[gc_use].h = 24;
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 8;
 	}
 	else
 	{
@@ -1162,6 +1239,12 @@ static void G_DefineTouchGameControls(void)
 		touch_dpad_y = 92 + offs;
 		touch_dpad_w = 64;
 		touch_dpad_h = 64;
+
+		if (touch_movementstyle == tms_joystick)
+		{
+			touch_dpad_x -= 12;
+			touch_dpad_y += 16;
+		}
 
 		x = (touch_dpad_x + touch_dpad_w) - (touch_dpad_w / 2);
 
@@ -1190,16 +1273,16 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_straferight].h = 28;
 
 		// Jump
-		touchcontrols[gc_jump].w = 32;
-		touchcontrols[gc_jump].h = 32;
+		touchcontrols[gc_jump].w = 48;
+		touchcontrols[gc_jump].h = 48;
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = 148 + offs;
+		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs;
 
 		// Spin
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_jump].w - 16);
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y;
 		touchcontrols[gc_use].w = 32;
 		touchcontrols[gc_use].h = 32;
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 12;
 	}
 
 	offs = 8;
@@ -1223,16 +1306,22 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_pause].hidden = true;
 
 	// Spy mode
+	touchcontrols[gc_viewpoint].hidden = true;
+	touchcontrols[gc_viewpoint].x = touchcontrols[gc_pause].x;
+	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
 	if (netgame)
 	{
 		touchcontrols[gc_viewpoint].w = 32;
 		touchcontrols[gc_viewpoint].h = 24;
-		touchcontrols[gc_viewpoint].x = touchcontrols[gc_systemmenu].x - touchcontrols[gc_viewpoint].w - 4;
-		touchcontrols[gc_viewpoint].y = touchcontrols[gc_systemmenu].y;
+		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + 4);
 		touchcontrols[gc_viewpoint].hidden = false;
 	}
-	else
-		touchcontrols[gc_viewpoint].hidden = true;
+
+	// Movie mode
+	touchcontrols[gc_recordgif].w = 32;
+	touchcontrols[gc_recordgif].h = 24;
+	touchcontrols[gc_recordgif].x = touchcontrols[gc_viewpoint].x - touchcontrols[gc_recordgif].w - 4;
+	touchcontrols[gc_recordgif].y = touchcontrols[gc_viewpoint].y;
 
 	// Talk key and team talk key
 	touchcontrols[gc_talkkey].hidden = true;

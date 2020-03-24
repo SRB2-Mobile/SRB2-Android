@@ -67,6 +67,7 @@ void ST_drawTouchDPad(
 	touchconfig_t *tup, boolean moveup,
 	touchconfig_t *tdown, boolean movedown,
 	boolean backing, INT32 flags, INT32 accent);
+void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, INT32 flags, boolean cursor);
 #endif
 
 extern tic_t lt_ticker, lt_lasttic;

@@ -1523,10 +1523,16 @@ void R_RegisterEngineStuff(void)
 	if (dedicated)
 		return;
 
-	CV_RegisterVar(&cv_translucency);
+#if defined(__ANDROID__)
+	// Lactozilla: Change the default draw distance for Android
+	cv_drawdist.defaultvalue = "1536";
+#endif
+
 	CV_RegisterVar(&cv_drawdist);
 	CV_RegisterVar(&cv_drawdist_nights);
 	CV_RegisterVar(&cv_drawdist_precip);
+
+	CV_RegisterVar(&cv_translucency);
 	CV_RegisterVar(&cv_fov);
 
 	CV_RegisterVar(&cv_chasecam);

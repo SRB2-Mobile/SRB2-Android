@@ -645,12 +645,11 @@ void CON_Ticker(void)
 			I_UpdateMouseGrab();
 		}
 		else
-		{
 			CON_ChangeHeight();
+
 #if (defined(__ANDROID__) && defined(TOUCHINPUTS))
-			con_scrollup = 0;
+		con_scrollup = 0;
 #endif
-		}
 	}
 
 	// console movement

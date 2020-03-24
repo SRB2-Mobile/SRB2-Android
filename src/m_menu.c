@@ -1202,16 +1202,17 @@ static menuitem_t OP_Mouse2OptionsMenu[] =
 #ifdef TOUCHINPUTS
 static menuitem_t OP_TouchOptionsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_dpadtiny,       10},
-	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    20},
+	{IT_STRING | IT_CVAR, NULL, "Movement style",         &cv_dpadstyle,      10},
+	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_dpadtiny,       20},
+	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    30},
 
-	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 40},
-	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  50},
+	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 50},
+	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  60},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      70},
+	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      80},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     80},
+	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     90},
 };
 #endif
 
@@ -3383,10 +3384,10 @@ boolean M_Responder(event_t *ev)
 				}
 			}
 
-			// Finger didn't tap any burron
+			// Finger didn't tap any button
 			if (ev->type == ev_touchdown && (!button))
 			{
-				// Tap anywhere to end the messatge
+				// Tap anywhere to end the message
 				if (routine == M_StopMessage)
 					touchfingers[finger].u.keyinput = KEY_ENTER;
 				else // Handle screen regions

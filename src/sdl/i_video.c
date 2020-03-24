@@ -799,8 +799,8 @@ static boolean IsJoystickAccelerometer(SDL_Joystick *joy)
 static boolean CanUseAccelerometer(SDL_Joystick *joy)
 {
 	if (IsJoystickAccelerometer(joy))
-		return (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL));
-	return true;
+		return (cv_useaccelerometer.value && (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL)));
+	return true; // if not an accelerometer then return true
 }
 #endif
 

@@ -454,22 +454,6 @@ consvar_t cv_cam_lockonboss[2] = {
 	{"cam2_lockaimassist", "Bosses", CV_SAVE, lockedassist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
 };
 
-typedef enum
-{
-	AXISNONE = 0,
-	AXISTURN,
-	AXISMOVE,
-	AXISLOOK,
-	AXISSTRAFE,
-
-	AXISDIGITAL, // axes below this use digital deadzone
-
-	AXISJUMP,
-	AXISSPIN,
-	AXISFIRE,
-	AXISFIRENORMAL,
-} axis_input_e;
-
 consvar_t cv_turnaxis = {"joyaxis_turn", "X-Rudder", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_moveaxis = {"joyaxis_move", "Y-Axis", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_sideaxis = {"joyaxis_side", "X-Axis", CV_SAVE, joyaxis_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -924,6 +908,18 @@ static INT32 JoyAxis(axis_input_e axissel)
 			return 0;
 	}
 
+#ifdef TOUCHINPUTS
+	if (FLOAT_TO_FIXED(touchjoyxmove) || FLOAT_TO_FIXED(touchjoyymove)) // Touch screen joystick
+	{
+		if (axissel == AXISMOVE)
+			return (INT32)(touchjoyymove * JOYAXISRANGE);
+		else if (axissel == AXISSTRAFE)
+			return (INT32)(touchjoyxmove * JOYAXISRANGE);
+		else
+			return 0;
+	}
+#endif
+
 	if (axisval < 0) //odd -axises
 	{
 		axisval = -axisval;
@@ -1184,11 +1180,6 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		G_CopyTiccmd(cmd, I_BaseTiccmd2(), 1); // empty, or external driver
 	}
 
-#if defined(__ANDROID__)
-	if (!cv_useaccelerometer.value)
-		usejoystick = 0;
-#endif
-
 	strafeisturn = controlstyle == CS_SIMPLE && ticcmd_centerviewdown[forplayer] &&
 		((cv_cam_lockedinput[forplayer].value && !ticcmd_ztargetfocus[forplayer]) || (player->pflags & PF_STARTDASH)) &&
 		!player->climbing && player->powers[pw_carry] != CR_MINECART;
@@ -1223,6 +1214,15 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		((chasecam && !player->spectator) ? chasefreelook : alwaysfreelook);
 	analogjoystickmove = usejoystick && !Joystick.bGamepadStyle;
 	gamepadjoystickmove = usejoystick && Joystick.bGamepadStyle;
+
+#ifdef TOUCHINPUTS
+	if (touch_movementstyle == tms_joystick)
+	{
+		usejoystick = 1;
+		analogjoystickmove = true;
+		gamepadjoystickmove = false;
+	}
+#endif
 
 	thisjoyaiming = (chasecam && !player->spectator) ? chasefreelook : alwaysfreelook;
 
@@ -1872,6 +1872,9 @@ void G_DoLoadLevel(boolean resetplayer)
 	{
 		joyxmove[i] = joyymove[i] = 0;
 		joy2xmove[i] = joy2ymove[i] = 0;
+#ifdef TOUCHINPUTS
+		touchjoyxmove = touchjoyymove = 0.0f;
+#endif
 	}
 	mousex = mousey = 0;
 	mouse2x = mouse2y = 0;
@@ -2920,6 +2923,9 @@ void G_DoReborn(INT32 playernum)
 			{
 				joyxmove[i] = joyymove[i] = 0;
 				joy2xmove[i] = joy2ymove[i] = 0;
+#ifdef TOUCHINPUTS
+				touchjoyxmove = touchjoyymove = 0.0f;
+#endif
 			}
 			mousex = mousey = 0;
 			mouse2x = mouse2y = 0;

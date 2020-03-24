@@ -845,6 +845,12 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_joyscale);
 	CV_RegisterVar(&cv_joyscale2);
 
+#ifdef TOUCHINPUTS
+	// Lactozilla: Configure the Simple playstyle as the default
+	cv_analog[0].defaultvalue = "On";
+	cv_useranalog[0].defaultvalue = "On";
+#endif
+
 	// Analog Control
 	CV_RegisterVar(&cv_analog[0]);
 	CV_RegisterVar(&cv_analog[1]);
