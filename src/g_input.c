@@ -146,14 +146,18 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
 #ifdef TOUCHINPUTS
+void G_ScaleDPadCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h)
+{
+	*x = FixedMul((*x) * FRACUNIT, vid.dupx * FRACUNIT) / FRACUNIT;
+	*y = FixedMul((*y) * FRACUNIT, vid.dupy * FRACUNIT) / FRACUNIT;
+	*w = FixedMul((*w) * FRACUNIT, vid.dupx * FRACUNIT) / FRACUNIT;
+	*h = FixedMul((*h) * FRACUNIT, vid.dupy * FRACUNIT) / FRACUNIT;
+}
+
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
 {
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
-	INT32 tx = FixedMul(butt->x * FRACUNIT, dupx) / FRACUNIT;
-	INT32 ty = FixedMul(butt->y * FRACUNIT, dupy) / FRACUNIT;
-	INT32 tw = FixedMul(butt->w * FRACUNIT, dupx) / FRACUNIT;
-	INT32 th = FixedMul(butt->h * FRACUNIT, dupy) / FRACUNIT;
+	INT32 tx = butt->x, ty = butt->y, tw = butt->w, th = butt->h;
+	G_ScaleDPadCoords(&tx, &ty, &tw, &th);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
@@ -369,10 +373,10 @@ void G_MapEventsToControls(event_t *ev)
 					// Joystick
 					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
 					{
-						//touchjoyxmove += movex;
-						//touchjoyymove -= movey;
-						dx = x - (touch_dpad_x + (touch_dpad_w / 2));
-						dy = y - (touch_dpad_y + (touch_dpad_h / 2));
+						INT32 padx = touch_dpad_x, pady = touch_dpad_y, padw = touch_dpad_w, padh = touch_dpad_h;
+						G_ScaleDPadCoords(&padx, &pady, &padw, &padh);
+						dx = x - (padx + (padw / 2));
+						dy = y - (pady + (padh / 2));
 						touchjoyxmove = ((float)dx / (float)TOUCHJOYEXTENDX);
 						touchjoyymove = ((float)dy / (float)TOUCHJOYEXTENDY);
 					}
@@ -1177,15 +1181,13 @@ static void G_DefineTouchGameControls(void)
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
 		bottomalign = (vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy;
 
-	offs += bottomalign;
-
 	// clear all
 	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
 
 	if (touch_dpad_tiny)
 	{
 		touch_dpad_x = 24;
-		touch_dpad_y = 128 + offs;
+		touch_dpad_y = 128 + (offs + bottomalign);
 		touch_dpad_w = 32;
 		touch_dpad_h = 32;
 
@@ -1236,7 +1238,7 @@ static void G_DefineTouchGameControls(void)
 		INT32 x;
 
 		touch_dpad_x = 24;
-		touch_dpad_y = 92 + offs;
+		touch_dpad_y = 92 + (offs + bottomalign);
 		touch_dpad_w = 64;
 		touch_dpad_h = 64;
 

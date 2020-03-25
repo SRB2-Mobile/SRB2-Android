@@ -122,12 +122,6 @@ extern INT32 mouse2x, mouse2y, mlook2y;
 
 extern INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
 
-#ifdef TOUCHINPUTS
-extern float touchjoyxmove, touchjoyymove;
-#define TOUCHJOYEXTENDX (touch_dpad_w / 2)
-#define TOUCHJOYEXTENDY (touch_dpad_h / 2)
-#endif
-
 typedef enum
 {
 	AXISNONE = 0,
@@ -215,6 +209,11 @@ extern consvar_t cv_touchcamera;
 
 // Touch screen sensitivity
 extern consvar_t cv_touchsens, cv_touchysens;
+
+// Screen joystick movement
+#define TOUCHJOYEXTENDX (touch_dpad_w / 2)
+#define TOUCHJOYEXTENDY (touch_dpad_h / 2)
+extern float touchjoyxmove, touchjoyymove;
 #endif
 
 // two key codes (or virtual key) per game control
@@ -275,6 +274,9 @@ boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt);
 
 // Check if the gamecontrol is a player control key
 boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
+
+// Scale a d-pad
+void G_ScaleDPadCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h);
 #endif
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen);
