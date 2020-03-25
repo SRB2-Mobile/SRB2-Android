@@ -195,9 +195,9 @@ void G_MapEventsToControls(event_t *ev)
 	UINT8 flag;
 
 #ifdef TOUCHINPUTS
-	INT32 x = ev->data1;
-	INT32 y = ev->data2;
-	touchfinger_t *finger = &touchfingers[ev->data3]; // ev->data3 is the finger's ID.
+	INT32 x = ev->x;
+	INT32 y = ev->y;
+	touchfinger_t *finger = &touchfingers[ev->key];
 	INT32 gc;
 	boolean foundbutton = false;
 #endif
@@ -205,24 +205,24 @@ void G_MapEventsToControls(event_t *ev)
 	switch (ev->type)
 	{
 		case ev_keydown:
-			if (ev->data1 < NUMINPUTS)
-				gamekeydown[ev->data1] = 1;
+			if (ev->key < NUMINPUTS)
+				gamekeydown[ev->key] = 1;
 #ifdef PARANOIA
 			else
 			{
-				CONS_Debug(DBG_GAMELOGIC, "Bad downkey input %d\n",ev->data1);
+				CONS_Debug(DBG_GAMELOGIC, "Bad downkey input %d\n",ev->key);
 			}
 
 #endif
 			break;
 
 		case ev_keyup:
-			if (ev->data1 < NUMINPUTS)
-				gamekeydown[ev->data1] = 0;
+			if (ev->key < NUMINPUTS)
+				gamekeydown[ev->key] = 0;
 #ifdef PARANOIA
 			else
 			{
-				CONS_Debug(DBG_GAMELOGIC, "Bad upkey input %d\n",ev->data1);
+				CONS_Debug(DBG_GAMELOGIC, "Bad upkey input %d\n",ev->key);
 			}
 #endif
 			break;
@@ -331,6 +331,7 @@ void G_MapEventsToControls(event_t *ev)
 
 					finger->x = x;
 					finger->y = y;
+					finger->pressure = ev->pressure;
 					finger->u.gamecontrol = i;
 					break;
 				}
@@ -351,6 +352,7 @@ void G_MapEventsToControls(event_t *ev)
 					{
 						finger->x = x;
 						finger->y = y;
+						finger->pressure = ev->pressure;
 						finger->type.joystick = FINGERMOTION_JOYSTICK;
 						finger->u.gamecontrol = -1;
 						foundbutton = true;
@@ -362,8 +364,8 @@ void G_MapEventsToControls(event_t *ev)
 			// The finger is moving either the joystick or the camera.
 			if (touch_camera && (!foundbutton))
 			{
-				INT32 dx = ev->extradata[0];
-				INT32 dy = ev->extradata[1];
+				INT32 dx = ev->dx;
+				INT32 dy = ev->dy;
 
 				if (ev->type == ev_touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
@@ -390,11 +392,13 @@ void G_MapEventsToControls(event_t *ev)
 
 					finger->x = x;
 					finger->y = y;
+					finger->pressure = ev->pressure;
 				}
 				else
 				{
 					finger->x = x;
 					finger->y = y;
+					finger->pressure = ev->pressure;
 					finger->type.mouse = FINGERMOTION_MOUSE;
 					finger->u.gamecontrol = gc_null;
 				}
@@ -402,47 +406,51 @@ void G_MapEventsToControls(event_t *ev)
 			break;
 
 		case ev_touchup:
-			// Let go of this button.
+			// Let go of this finger.
 			gc = finger->u.gamecontrol;
 			if (gc > gc_null)
 				gamekeydown[gamecontrol[gc][0]] = gc_null;
 			finger->u.gamecontrol = gc_null;
+
+			// Reset joystick movement.
 			if (finger->type.joystick == FINGERMOTION_JOYSTICK)
 				touchjoyxmove = touchjoyymove = 0.0f;
-			finger->type.mouse = 0; // Remember that this is an union!
+
+			// Remember that this is an union!
+			finger->type.mouse = 0;
 			break;
 #endif
 
 		case ev_mouse: // buttons are virtual keys
 			if (!G_InGameInput())
 				break;
-			mousex = (INT32)(ev->data2*((cv_mousesens.value*cv_mousesens.value)/110.0f + 0.1f));
-			mousey = (INT32)(ev->data3*((cv_mousesens.value*cv_mousesens.value)/110.0f + 0.1f));
-			mlooky = (INT32)(ev->data3*((cv_mouseysens.value*cv_mousesens.value)/110.0f + 0.1f));
+			mousex = (INT32)(ev->x*((cv_mousesens.value*cv_mousesens.value)/110.0f + 0.1f));
+			mousey = (INT32)(ev->y*((cv_mousesens.value*cv_mousesens.value)/110.0f + 0.1f));
+			mlooky = (INT32)(ev->y*((cv_mouseysens.value*cv_mousesens.value)/110.0f + 0.1f));
 			break;
 
 		case ev_joystick: // buttons are virtual keys
-			i = ev->data1;
+			i = ev->key;
 			if (i >= JOYAXISSET || !G_InGameInput())
 				break;
-			if (ev->data2 != INT32_MAX) joyxmove[i] = ev->data2;
-			if (ev->data3 != INT32_MAX) joyymove[i] = ev->data3;
+			if (ev->x != INT32_MAX) joyxmove[i] = ev->x;
+			if (ev->y != INT32_MAX) joyymove[i] = ev->y;
 			break;
 
 		case ev_joystick2: // buttons are virtual keys
-			i = ev->data1;
+			i = ev->key;
 			if (i >= JOYAXISSET || !G_InGameInput())
 				break;
-			if (ev->data2 != INT32_MAX) joy2xmove[i] = ev->data2;
-			if (ev->data3 != INT32_MAX) joy2ymove[i] = ev->data3;
+			if (ev->x != INT32_MAX) joy2xmove[i] = ev->x;
+			if (ev->y != INT32_MAX) joy2ymove[i] = ev->y;
 			break;
 
 		case ev_mouse2: // buttons are virtual keys
 			if (!G_InGameInput())
 				break;
-			mouse2x = (INT32)(ev->data2*((cv_mousesens2.value*cv_mousesens2.value)/110.0f + 0.1f));
-			mouse2y = (INT32)(ev->data3*((cv_mousesens2.value*cv_mousesens2.value)/110.0f + 0.1f));
-			mlook2y = (INT32)(ev->data3*((cv_mouseysens2.value*cv_mousesens2.value)/110.0f + 0.1f));
+			mouse2x = (INT32)(ev->x*((cv_mousesens2.value*cv_mousesens2.value)/110.0f + 0.1f));
+			mouse2y = (INT32)(ev->y*((cv_mousesens2.value*cv_mousesens2.value)/110.0f + 0.1f));
+			mlook2y = (INT32)(ev->y*((cv_mouseysens2.value*cv_mousesens2.value)/110.0f + 0.1f));
 			break;
 
 		default:

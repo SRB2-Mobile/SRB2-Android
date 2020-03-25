@@ -1066,7 +1066,7 @@ void F_IntroTicker(void)
 //
 boolean F_IntroResponder(event_t *event)
 {
-	INT32 key = event->data1;
+	INT32 key = event->key;
 
 	// remap virtual keys (mouse & joystick buttons)
 	switch (key)
@@ -1458,7 +1458,7 @@ void F_CreditTicker(void)
 
 boolean F_CreditResponder(event_t *event)
 {
-	INT32 key = event->data1;
+	INT32 key = event->key;
 
 	// remap virtual keys (mouse & joystick buttons)
 	switch (key)
@@ -3890,7 +3890,7 @@ void F_ContinueTicker(void)
 
 boolean F_ContinueResponder(event_t *event)
 {
-	INT32 key = event->data1;
+	INT32 key = event->key;
 
 	if (keypressed)
 		return true;

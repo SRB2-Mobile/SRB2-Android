@@ -1979,7 +1979,7 @@ boolean G_Responder(event_t *ev)
 	if (gameaction == ga_nothing && !singledemo &&
 		((demoplayback && !modeattacking && !titledemo) || gamestate == GS_TITLESCREEN))
 	{
-		if (ev->type == ev_keydown && ev->data1 != 301 && !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
+		if (ev->type == ev_keydown && ev->key != 301 && !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
 		{
 			M_StartControlPanel();
 			return true;
@@ -2053,7 +2053,7 @@ boolean G_Responder(event_t *ev)
 
 	// allow spy mode changes even during the demo
 	if (gamestate == GS_LEVEL && ev->type == ev_keydown
-		&& (ev->data1 == KEY_F12 || ev->data1 == gamecontrol[gc_viewpoint][0] || ev->data1 == gamecontrol[gc_viewpoint][1]))
+		&& (ev->key == KEY_F12 || ev->key == gamecontrol[gc_viewpoint][0] || ev->key == gamecontrol[gc_viewpoint][1]))
 	{
 		if (G_HandleSpyMode())
 			return true;
@@ -2065,15 +2065,15 @@ boolean G_Responder(event_t *ev)
 	switch (ev->type)
 	{
 		case ev_keydown:
-			if (ev->data1 == gamecontrol[gc_pause][0]
-				|| ev->data1 == gamecontrol[gc_pause][1]
-				|| ev->data1 == KEY_PAUSE)
+			if (ev->key == gamecontrol[gc_pause][0]
+				|| ev->key == gamecontrol[gc_pause][1]
+				|| ev->key == KEY_PAUSE)
 			{
-				if (G_HandlePauseKey(ev->data1 == KEY_PAUSE))
+				if (G_HandlePauseKey(ev->key == KEY_PAUSE))
 					return true;
 			}
-			if (ev->data1 == gamecontrol[gc_camtoggle][0]
-				|| ev->data1 == gamecontrol[gc_camtoggle][1])
+			if (ev->key == gamecontrol[gc_camtoggle][0]
+				|| ev->key == gamecontrol[gc_camtoggle][1])
 			{
 				if (!camtoggledelay)
 				{
@@ -2081,8 +2081,8 @@ boolean G_Responder(event_t *ev)
 					CV_SetValue(&cv_chasecam, cv_chasecam.value ? 0 : 1);
 				}
 			}
-			if (ev->data1 == gamecontrolbis[gc_camtoggle][0]
-				|| ev->data1 == gamecontrolbis[gc_camtoggle][1])
+			if (ev->key == gamecontrolbis[gc_camtoggle][0]
+				|| ev->key == gamecontrolbis[gc_camtoggle][1])
 			{
 				if (!camtoggledelay2)
 				{

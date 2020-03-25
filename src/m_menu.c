@@ -3243,7 +3243,7 @@ boolean M_Responder(event_t *ev)
 		if (ev->type == ev_keydown)
 		{
 			keydown++;
-			ch = ev->data1;
+			ch = ev->key;
 
 			// added 5-2-98 remap virtual keys (mouse & joystick buttons)
 			switch (ch)
@@ -3276,44 +3276,44 @@ boolean M_Responder(event_t *ev)
 					break;
 			}
 		}
-		else if (ev->type == ev_joystick  && ev->data1 == 0 && joywait < I_GetTime())
+		else if (ev->type == ev_joystick && ev->key == 0 && joywait < I_GetTime())
 		{
 			const INT32 jdeadzone = (JOYAXISRANGE * cv_digitaldeadzone.value) / FRACUNIT;
-			if (ev->data3 != INT32_MAX)
+			if (ev->y != INT32_MAX)
 			{
-				if (Joystick.bGamepadStyle || abs(ev->data3) > jdeadzone)
+				if (Joystick.bGamepadStyle || abs(ev->y) > jdeadzone)
 				{
-					if (ev->data3 < 0 && pjoyy >= 0)
+					if (ev->y < 0 && pjoyy >= 0)
 					{
 						ch = KEY_UPARROW;
 						joywait = I_GetTime() + NEWTICRATE/7;
 					}
-					else if (ev->data3 > 0 && pjoyy <= 0)
+					else if (ev->y > 0 && pjoyy <= 0)
 					{
 						ch = KEY_DOWNARROW;
 						joywait = I_GetTime() + NEWTICRATE/7;
 					}
-					pjoyy = ev->data3;
+					pjoyy = ev->y;
 				}
 				else
 					pjoyy = 0;
 			}
 
-			if (ev->data2 != INT32_MAX)
+			if (ev->x != INT32_MAX)
 			{
-				if (Joystick.bGamepadStyle || abs(ev->data2) > jdeadzone)
+				if (Joystick.bGamepadStyle || abs(ev->x) > jdeadzone)
 				{
-					if (ev->data2 < 0 && pjoyx >= 0)
+					if (ev->x < 0 && pjoyx >= 0)
 					{
 						ch = KEY_LEFTARROW;
 						joywait = I_GetTime() + NEWTICRATE/17;
 					}
-					else if (ev->data2 > 0 && pjoyx <= 0)
+					else if (ev->x > 0 && pjoyx <= 0)
 					{
 						ch = KEY_RIGHTARROW;
 						joywait = I_GetTime() + NEWTICRATE/17;
 					}
-					pjoyx = ev->data2;
+					pjoyx = ev->x;
 				}
 				else
 					pjoyx = 0;
@@ -3321,7 +3321,7 @@ boolean M_Responder(event_t *ev)
 		}
 		else if (ev->type == ev_mouse && mousewait < I_GetTime())
 		{
-			pmousey += ev->data3;
+			pmousey += ev->y;
 			if (pmousey < lasty-30)
 			{
 				ch = KEY_DOWNARROW;
@@ -3335,7 +3335,7 @@ boolean M_Responder(event_t *ev)
 				pmousey = lasty += 30;
 			}
 
-			pmousex += ev->data2;
+			pmousex += ev->x;
 			if (pmousex < lastx - 30)
 			{
 				ch = KEY_LEFTARROW;
@@ -3352,9 +3352,9 @@ boolean M_Responder(event_t *ev)
 #ifdef TOUCHINPUTS
 		else if (ev->type == ev_touchdown || ev->type == ev_touchmotion)
 		{
-			INT32 x = ev->data1;
-			INT32 y = ev->data2;
-			INT32 finger = ev->data3;
+			INT32 x = ev->x;
+			INT32 y = ev->y;
+			touchfinger_t *finger = &touchfingers[ev->key];
 			boolean button = false;
 
 			// Check for any buttons first
@@ -3389,7 +3389,7 @@ boolean M_Responder(event_t *ev)
 			{
 				// Tap anywhere to end the message
 				if (routine == M_StopMessage)
-					touchfingers[finger].u.keyinput = KEY_ENTER;
+					finger->u.keyinput = KEY_ENTER;
 				else // Handle screen regions
 				{
 					// 1/4 of the screen
@@ -3399,39 +3399,39 @@ boolean M_Responder(event_t *ev)
 					if (x < sides || x >= (vid.width - sides))
 					{
 						if (x >= (vid.width / 2))
-							touchfingers[finger].u.keyinput = KEY_RIGHTARROW;
+							finger->u.keyinput = KEY_RIGHTARROW;
 						else
-							touchfingers[finger].u.keyinput = KEY_LEFTARROW;
+							finger->u.keyinput = KEY_LEFTARROW;
 					}
 					else
 					{
 						// Handle vertical input
 						if (y >= (vid.height / 2))
-							touchfingers[finger].u.keyinput = KEY_DOWNARROW;
+							finger->u.keyinput = KEY_DOWNARROW;
 						else
-							touchfingers[finger].u.keyinput = KEY_UPARROW;
+							finger->u.keyinput = KEY_UPARROW;
 					}
 				}
 
 				// finger down
-				touchfingers[finger].type.menu = true;
-				touchfingers[finger].x = x;
-				touchfingers[finger].y = y;
+				finger->type.menu = true;
+				finger->x = x;
+				finger->y = y;
 			}
 		}
 		else if (ev->type == ev_touchup)
 		{
-			INT32 finger = ev->data3;
-			if (touchfingers[finger].type.menu)
-				ch = touchfingers[finger].u.keyinput;
-			touchfingers[finger].type.menu = false;
+			touchfinger_t *finger = &touchfingers[ev->key];
+			if (finger->type.menu)
+				ch = finger->u.keyinput;
+			finger->type.menu = false;
 		}
 #endif
 		else if (ev->type == ev_keyup) // Preserve event for other responders
 			keydown = 0;
 	}
 	else if (ev->type == ev_keydown) // Preserve event for other responders
-		ch = ev->data1;
+		ch = ev->key;
 
 	if (ch == -1)
 		return false;
@@ -12111,7 +12111,7 @@ static void M_ChangecontrolResponse(event_t *ev)
 {
 	INT32        control;
 	INT32        found;
-	INT32        ch = ev->data1;
+	INT32        ch = ev->key;
 
 	// ESCAPE cancels; dummy out PAUSE
 	if (ch != KEY_ESCAPE && ch != KEY_PAUSE)
@@ -12130,7 +12130,7 @@ static void M_ChangecontrolResponse(event_t *ev)
 			// keypad arrows are converted for the menu in cursor arrows
 			// so use the event instead of ch
 			case ev_keydown:
-				ch = ev->data1;
+				ch = ev->key;
 			break;
 
 			default:

@@ -153,6 +153,7 @@ boolean G_HandleSpyMode(void);
 typedef struct
 {
 	INT32 x, y;
+	float pressure;
 	union {
 		INT32 gamecontrol;
 		INT32 keyinput;

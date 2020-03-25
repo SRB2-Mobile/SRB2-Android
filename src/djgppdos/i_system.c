@@ -411,22 +411,22 @@ void I_InitJoystick (void)
 		int i;
 		event_t event;
 		event.type=ev_keyup;
-		event.data2 = 0;
-		event.data3 = 0;
+		event.x = 0;
+		event.y = 0;
 
 		lastjoybuttons = lastjoyhats = 0;
 
 		// emulate the up of all joystick buttons
 		for (i=0;i<JOYBUTTONS;i++)
 		{
-			event.data1=KEY_JOY1+i;
+			event.key=KEY_JOY1+i;
 			D_PostEvent(&event);
 		}
 
 		// emulate the up of all joystick hats
 		for (i=0;i<JOYHATS*4;i++)
 		{
-			event.data1=KEY_HAT1+i;
+			event.key=KEY_HAT1+i;
 			D_PostEvent(&event);
 		}
 
@@ -434,7 +434,7 @@ void I_InitJoystick (void)
 		event.type = ev_joystick;
 		for (i=0;i<JOYAXISSET; i++)
 		{
-			event.data1 = i;
+			event.key = i;
 			D_PostEvent(&event);
 		}
 	}
@@ -494,22 +494,22 @@ void I_InitJoystick2 (void)
 		int i;
 		event_t event;
 		event.type=ev_keyup;
-		event.data2 = 0;
-		event.data3 = 0;
+		event.x = 0;
+		event.y = 0;
 
 		lastjoy2buttons = lastjoy2hats = 0;
 
 		// emulate the up of all joystick buttons
 		for (i=0;i<JOYBUTTONS;i++)
 		{
-			event.data1=KEY_2JOY1+i;
+			event.key=KEY_2JOY1+i;
 			D_PostEvent(&event);
 		}
 
 		// emulate the up of all joystick hats
 		for (i=0;i<JOYHATS*4;i++)
 		{
-			event.data1=KEY_2HAT1+i;
+			event.key=KEY_2HAT1+i;
 			D_PostEvent(&event);
 		}
 
@@ -517,7 +517,7 @@ void I_InitJoystick2 (void)
 		event.type = ev_joystick2;
 		for (i=0;i<JOYAXISSET; i++)
 		{
-			event.data1 = i;
+			event.key = i;
 			D_PostEvent(&event);
 		}
 	}
@@ -780,7 +780,7 @@ static void I_ShutdownMouse2(void)
 	for (i=0;i<MOUSEBUTTONS;i++)
 	{
 		event.type=ev_keyup;
-		event.data1=KEY_2MOUSE1+i;
+		event.key=KEY_2MOUSE1+i;
 		D_PostEvent(&event);
 	}
 
@@ -971,7 +971,7 @@ void I_GetJoystickEvents(void)
 					event.type=ev_keydown;
 				else
 					event.type=ev_keyup;
-				event.data1=KEY_JOY1+i;
+				event.key=KEY_JOY1+i;
 				D_PostEvent(&event);
 			}
 	}
@@ -990,7 +990,7 @@ void I_GetJoystickEvents(void)
 					event.type=ev_keydown;
 				else
 					event.type=ev_keyup;
-				event.data1=KEY_HAT1+i;
+				event.key=KEY_HAT1+i;
 				D_PostEvent(&event);
 			}
 	}
@@ -1000,25 +1000,25 @@ void I_GetJoystickEvents(void)
 
 	for (i = JOYAXISSET_MIN -1; i >=0;)
 	{
-		event.data1 = i;
-		event.data2 = event.data3 = 0;
+		event.key = i;
+		event.x = event.y = 0;
 		if (joy[js].stick[s].flags &  JOYFLAG_DIGITAL)
 		{
 			if (joy[js].stick[s].axis[0].d1)
-				event.data2=-1;
+				event.x=-1;
 			if (joy[js].stick[s].axis[0].d2)
-				event.data2=1;
+				event.x=1;
 			if (joy[js].stick[s].axis[1].d1)
-				event.data3=-1;
+				event.y=-1;
 			if (joy[js].stick[s].axis[1].d2)
-				event.data3=1;
+				event.y=1;
 			D_PostEvent(&event);
 			i++;
 		}
 		else if (joy[js].stick[s].flags &  JOYFLAG_ANALOGUE)
 		{
-			event.data2 = joy[js].stick[s].axis[0].pos*32;
-			event.data3 = joy[js].stick[s].axis[1].pos*32;
+			event.x = joy[js].stick[s].axis[0].pos*32;
+			event.y = joy[js].stick[s].axis[1].pos*32;
 			D_PostEvent(&event);
 			i++;
 		}
@@ -1074,7 +1074,7 @@ void I_GetJoystick2Events(void)
 					event.type=ev_keydown;
 				else
 					event.type=ev_keyup;
-				event.data1=KEY_2JOY1+i;
+				event.key=KEY_2JOY1+i;
 				D_PostEvent(&event);
 			}
 	}
@@ -1093,7 +1093,7 @@ void I_GetJoystick2Events(void)
 					event.type=ev_keydown;
 				else
 					event.type=ev_keyup;
-				event.data1=KEY_2HAT1+i;
+				event.key=KEY_2HAT1+i;
 				D_PostEvent(&event);
 			}
 	}
@@ -1103,25 +1103,25 @@ void I_GetJoystick2Events(void)
 
 	for (i = JOYAXISSET_MIN - 1; i >=0;)
 	{
-		event.data1 = i;
-		event.data2 = event.data3 = 0;
+		event.key = i;
+		event.x = event.y = 0;
 		if (joy[js].stick[s].flags &  JOYFLAG_DIGITAL)
 		{
 			if (joy[js].stick[s].axis[0].d1)
-				event.data2=-1;
+				event.x=-1;
 			if (joy[js].stick[s].axis[0].d2)
-				event.data2=1;
+				event.x=1;
 			if (joy[js].stick[s].axis[1].d1)
-				event.data3=-1;
+				event.y=-1;
 			if (joy[js].stick[s].axis[1].d2)
-				event.data3=1;
+				event.y=1;
 			D_PostEvent(&event);
 			i++;
 		}
 		else if (joy[js].stick[s].flags &  JOYFLAG_ANALOGUE)
 		{
-			event.data2 = joy[js].stick[s].axis[0].pos*32;
-			event.data3 = joy[js].stick[s].axis[1].pos*32;
+			event.x = joy[js].stick[s].axis[0].pos*32;
+			event.y = joy[js].stick[s].axis[1].pos*32;
 			D_PostEvent(&event);
 			i++;
 		}
@@ -1165,28 +1165,28 @@ void I_GetMouseEvents(void)
 					event.type=ev_keydown;
 				else
 					event.type=ev_keyup;
-				event.data1=KEY_MOUSE1+i;
+				event.key=KEY_MOUSE1+i;
 				D_PostEvent(&event);
 			}
 	}
 
 	event.type=ev_keyup;
-	event.data1 = 0;
+	event.key = 0;
 	if (wheels > 0)
-		event.data1 = KEY_MOUSEWHEELUP;
+		event.key = KEY_MOUSEWHEELUP;
 	else if (wheels < 0)
-		event.data1 = KEY_MOUSEWHEELDOWN;
-	if (event.data1)
+		event.key = KEY_MOUSEWHEELDOWN;
+	if (event.key)
 			D_PostEvent(&event);
 
 
 	if ((xmickeys!=0)||(ymickeys!=0))
 	{
 		event.type=ev_mouse;
-		event.data1=0;
-		//event.data1=buttons;    // not needed
-		event.data2=xmickeys;
-		event.data3=-ymickeys;
+		event.key=0;
+		//event.key=buttons;    // not needed
+		event.x=xmickeys;
+		event.y=-ymickeys;
 
 		D_PostEvent(&event);
 	}
@@ -1220,7 +1220,7 @@ void I_GetEvent (void)
 						event.type=ev_keydown;
 					else
 						event.type=ev_keyup;
-					event.data1=KEY_2MOUSE1+i;
+					event.key=KEY_2MOUSE1+i;
 					D_PostEvent(&event);
 				}
 		}
@@ -1228,10 +1228,10 @@ void I_GetEvent (void)
 		if ((handlermouse2x!=0)||(handlermouse2y!=0))
 		{
 			event.type=ev_mouse2;
-			event.data1=0;
-			//event.data1=buttons;    // not needed
-			event.data2=handlermouse2x<<1;
-			event.data3=-handlermouse2y<<1;
+			event.key=0;
+			//event.key=buttons;    // not needed
+			event.x=handlermouse2x<<1;
+			event.y=-handlermouse2y<<1;
 
 			D_PostEvent(&event);
 			handlermouse2x=0;
@@ -1384,7 +1384,7 @@ static void I_KeyboardHandler(void)
 	else if (ch==0xE1) // pause key
 	{
 		event.type=ev_keydown;
-		event.data1=KEY_PAUSE;
+		event.key=KEY_PAUSE;
 		D_PostEvent(&event);
 		pausepressed=5;
 	}
@@ -1413,17 +1413,17 @@ static void I_KeyboardHandler(void)
 
 			// remap lonely keypad slash
 			if (ch==53)
-				event.data1 = KEY_KPADSLASH;
+				event.key = KEY_KPADSLASH;
 			else if (ch>=91 && ch<=93) // remap the bill gates keys...
-				event.data1 = ch + 0x80;    // leftwin, rightwin, menu
+				event.key = ch + 0x80;    // leftwin, rightwin, menu
 			else if (ch>=71 && ch<=83) // remap non-keypad extended keys to a value<128, but
-				event.data1 = 0x80 + ch + 30; // make them different than the KEYPAD keys.
+				event.key = 0x80 + ch + 30; // make them different than the KEYPAD keys.
 			else if (ch==28)
-				event.data1 = KEY_ENTER;    // keypad enter -> return key
+				event.key = KEY_ENTER;    // keypad enter -> return key
 			else if (ch==29)
-				event.data1 = KEY_RCTRL;     // rctrl -> lctrl
+				event.key = KEY_RCTRL;     // rctrl -> lctrl
 			else if (ch==56)
-				event.data1 = KEY_RALT;      // ralt -> lalt
+				event.key = KEY_RALT;      // ralt -> lalt
 			else
 				ch = 0;
 			if (ch)
@@ -1432,9 +1432,9 @@ static void I_KeyboardHandler(void)
 		else
 		{
 			if (ASCIINames[ch]!=0)
-				event.data1=ASCIINames[ch];
+				event.key=ASCIINames[ch];
 			else
-				event.data1=ch+0x80;
+				event.key=ch+0x80;
 			D_PostEvent(&event);
 		}
 	}
@@ -1461,7 +1461,7 @@ INT32 I_GetKey (void)
 			ev = &events[eventtail];
 			if (ev->type == ev_keydown || ev->type == ev_console)
 			{
-				rc = ev->data1;
+				rc = ev->key;
 				continue;
 			}
 		}

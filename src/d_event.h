@@ -38,11 +38,11 @@ typedef enum
 typedef struct
 {
 	evtype_t type;
-	INT32 data1; // keys / mouse / joystick buttons, finger x
-	INT32 data2; // mouse / joystick x move, finger y
-	INT32 data3; // mouse / joystick y move, finger id
+	INT32 key; // keyboard key, mouse button, joystick button, finger id
+	INT32 x, y;
 #ifdef TOUCHINPUTS
-	INT32 extradata[2]; // finger delta, screen size
+	INT32 dx, dy;
+	float pressure;
 #endif
 } event_t;
 
