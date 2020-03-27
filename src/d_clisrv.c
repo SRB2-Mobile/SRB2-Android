@@ -2065,10 +2065,12 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 		// Get events, be them keyboard events, or touch screen events
 		I_OsPolling();
 
-		key = I_GetKey();
 #ifdef TOUCHINPUTS
-		I_GetFinger(&x, &y);
+		if (touch_screenexists)
+			I_GetFinger(&x, &y);
+		else
 #endif
+			key = I_GetKey();
 
 		if ((key == KEY_ESCAPE || key == KEY_JOY1+1)
 #ifdef TOUCHINPUTS

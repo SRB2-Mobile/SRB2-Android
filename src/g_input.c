@@ -1349,20 +1349,18 @@ static void G_DefineTouchGameControls(void)
 
 	// Pause
 	touchcontrols[gc_pause].x = touchcontrols[gc_systemmenu].x;
+	touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
 	touchcontrols[gc_pause].w = 24;
 	touchcontrols[gc_pause].h = 24;
 	if (cv_pause.value || server || (IsPlayerAdmin(consoleplayer)))
-	{
 		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + 4);
-		touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
-	}
 	else
 		touchcontrols[gc_pause].hidden = true;
 
 	// Spy mode
 	touchcontrols[gc_viewpoint].hidden = true;
-	touchcontrols[gc_viewpoint].x = touchcontrols[gc_pause].x;
-	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
+	touchcontrols[gc_viewpoint].x = touchcontrols[gc_systemmenu].x;
+	touchcontrols[gc_viewpoint].y = touchcontrols[gc_systemmenu].y;
 	if (netgame)
 	{
 		touchcontrols[gc_viewpoint].w = 32;
