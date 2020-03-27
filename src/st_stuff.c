@@ -1403,7 +1403,7 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, IN
 	}
 }
 
-void ST_drawTouchGameInput(void)
+void ST_drawTouchGameInput(boolean drawgamecontrols)
 {
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
@@ -1421,9 +1421,10 @@ void ST_drawTouchGameInput(void)
 	if (!G_InGameInput())
 		return;
 
-	// Draw the d-pad
-	if (!promptblockcontrols)
+	// Draw movement control
+	if (!promptblockcontrols && drawgamecontrols)
 	{
+		// Draw the d-pad
 		if (touch_movementstyle == tms_dpad)
 		{
 			ST_drawTouchDPad(
@@ -1468,8 +1469,11 @@ void ST_drawTouchGameInput(void)
 #define drawoffsbutt(gctype, butt, symb, xoffs, yoffs) drawbutton(gctype, butt, symb, xoffs, yoffs, DEFAULTKEYCOL)
 
 	// Jump and spin
-	drawbutt(gc_jump,  BT_JUMP, "JMP");
-	drawbutt(gc_use,   BT_USE,  "SPN");
+	if (drawgamecontrols)
+	{
+		drawbutt(gc_jump,  BT_JUMP, "JMP");
+		drawbutt(gc_use,   BT_USE,  "SPN");
+	}
 
 	// Control panel
 	drawbutt(gc_systemmenu, 0, "\x018"); // <>
@@ -2982,6 +2986,12 @@ static void ST_overlayDrawer(void)
 	// Decide whether to draw the stage title or not
 	boolean stagetitle = false;
 
+#ifdef TOUCHINPUTS
+	// Same deal, but for touch screen inputs.
+	// Movement controls, jump and spin, etc.
+	boolean drawtouchcontrols = true;
+#endif
+
 	// Check for a valid level title
 	// If the HUD is enabled
 	// And, if Lua is running, if the HUD library has the stage title enabled
@@ -3055,6 +3065,10 @@ static void ST_overlayDrawer(void)
 
 			V_DrawScaledPatch(lvlttlx - 8, BASEVIDHEIGHT/2, flags, (countdown == 1 ? slidtime : slidgame));
 			V_DrawScaledPatch(BASEVIDWIDTH + 8 - lvlttlx, BASEVIDHEIGHT/2, flags, slidover);
+
+#ifdef TOUCHINPUTS
+			drawtouchcontrols = false;
+#endif
 		}
 	}
 
@@ -3155,8 +3169,8 @@ static void ST_overlayDrawer(void)
 	if (modeattacking && !(demoplayback && hu_showscores))
 		ST_drawInput();
 #ifdef TOUCHINPUTS
-	else if (stplyr == &players[consoleplayer] && (!demoplayback))
-		ST_drawTouchGameInput();
+	else if (stplyr == &players[consoleplayer] && !demoplayback)
+		ST_drawTouchGameInput(drawtouchcontrols);
 #endif
 
 	ST_drawDebugInfo();

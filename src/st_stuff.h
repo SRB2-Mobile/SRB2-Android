@@ -58,7 +58,7 @@ void ST_drawWipeTitleCard(void);
 
 // Touch screen inputs
 #ifdef TOUCHINPUTS
-void ST_drawTouchGameInput(void);
+void ST_drawTouchGameInput(boolean drawgamecontrols);
 void ST_drawTouchMenuInput(void);
 void ST_drawTouchDPad(
 	INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh,
