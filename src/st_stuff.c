@@ -3180,8 +3180,8 @@ static void ST_overlayDrawer(void)
 	if (modeattacking && !(demoplayback && hu_showscores))
 		ST_drawInput();
 #ifdef TOUCHINPUTS
-	else if (stplyr == &players[consoleplayer] && !demoplayback)
-		ST_drawTouchGameInput(drawtouchcontrols);
+	else if (!demoplayback)
+		ST_drawTouchGameInput(drawtouchcontrols && (stplyr == &players[consoleplayer]));
 #endif
 
 	ST_drawDebugInfo();
