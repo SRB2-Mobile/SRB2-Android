@@ -2057,19 +2057,24 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 	// Call it only once by tic
 	if (*oldtic != I_GetTime())
 	{
-#ifndef TOUCHINPUTS
 		INT32 key;
-
-		I_OsPolling();
-		key = I_GetKey();
-		if (key == KEY_ESCAPE || key == KEY_JOY1+1)
-#else
+#ifdef TOUCHINPUTS
 		INT32 x = -1, y = -1;
-		I_OsPolling();
-		I_GetFinger(&x, &y);
-		if ((x != -1 && y != -1) && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ESCAPE]))
 #endif
-		{
+
+		// Get events, be them keyboard events, or touch screen events
+		I_OsPolling();
+
+		key = I_GetKey();
+#ifdef TOUCHINPUTS
+		I_GetFinger(&x, &y);
+#endif
+
+		if ((key == KEY_ESCAPE || key == KEY_JOY1+1)
+#ifdef TOUCHINPUTS
+		|| ((x != -1 && y != -1) && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ESCAPE]))
+#endif
+		) {
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
 			D_QuitNetGame();
 			CL_Reset();
