@@ -1421,23 +1421,23 @@ void ST_drawTouchGameInput(void)
 	if (!G_InGameInput())
 		return;
 
-	if (promptblockcontrols)
-		return;
-
 	// Draw the d-pad
-	if (touch_movementstyle == tms_dpad)
+	if (!promptblockcontrols)
 	{
-		ST_drawTouchDPad(
-			touch_dpad_x, touch_dpad_y,
-			touch_dpad_w, touch_dpad_h,
-			tleft, (stplyr->cmd.sidemove < 0),
-			tright, (stplyr->cmd.sidemove > 0),
-			tup, (stplyr->cmd.forwardmove > 0),
-			tdown, (stplyr->cmd.forwardmove < 0),
-			true, flags, accent);
+		if (touch_movementstyle == tms_dpad)
+		{
+			ST_drawTouchDPad(
+				touch_dpad_x, touch_dpad_y,
+				touch_dpad_w, touch_dpad_h,
+				tleft, (stplyr->cmd.sidemove < 0),
+				tright, (stplyr->cmd.sidemove > 0),
+				tup, (stplyr->cmd.forwardmove > 0),
+				tdown, (stplyr->cmd.forwardmove < 0),
+				true, flags, accent);
+		}
+		else // Draw the joystick
+			ST_drawTouchJoystick(touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h, flags, false);
 	}
-	else // Draw the joystick
-		ST_drawTouchJoystick(touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h, flags, false);
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
 #define drawbutton(gctype, butt, symb, strxoffs, stryoffs, keycol) { \

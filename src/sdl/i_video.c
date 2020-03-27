@@ -950,47 +950,33 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	}
 #endif
 
-	if ((evt.type != SDL_FINGERMOTION) // ignore finger motion events here
-	&& ((gamestate == GS_TITLESCREEN && (!menuactive)) || promptblockcontrols
-	|| (gamestate == GS_INTRO || gamestate == GS_CREDITS || gamestate == GS_CUTSCENE)
-	|| (gamestate == GS_INTERMISSION)))
+	switch (evt.type)
 	{
-		INT32 key = ((gamestate == GS_INTERMISSION) ? gamecontrol[gc_use][0] : KEY_ENTER);
-		if (promptblockcontrols) // tutorial prompt
-			key = gamecontrol[gc_jump][0];
-		event.type = (evt.type == SDL_FINGERDOWN) ? ev_keydown : ev_keyup;
-		event.key = key;
+		case SDL_FINGERMOTION:
+			event.type = ev_touchmotion;
+			break;
+		case SDL_FINGERDOWN:
+			event.type = ev_touchdown;
+			break;
+		case SDL_FINGERUP:
+			event.type = ev_touchup;
+			break;
+		default:
+			// Don't generate any event.
+			return;
 	}
-	else
+
+	event.x = screenx;
+	event.y = screeny;
+	event.key = finger;
+	event.pressure = evt.pressure;
+
+	// calculate finger delta
 	{
-		switch (evt.type)
-		{
-			case SDL_FINGERMOTION:
-				event.type = ev_touchmotion;
-				break;
-			case SDL_FINGERDOWN:
-				event.type = ev_touchdown;
-				break;
-			case SDL_FINGERUP:
-				event.type = ev_touchup;
-				break;
-			default:
-				// Don't generate any event.
-				return;
-		}
-
-		event.x = screenx;
-		event.y = screeny;
-		event.key = finger;
-		event.pressure = evt.pressure;
-
-		// calculate finger delta
-		{
-			int wwidth, wheight;
-			SDL_GetWindowSize(window, &wwidth, &wheight);
-			event.dx = (INT32)lround(deltax * ((float)wwidth / (float)realwidth));
-			event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
-		}
+		int wwidth, wheight;
+		SDL_GetWindowSize(window, &wwidth, &wheight);
+		event.dx = (INT32)lround(deltax * ((float)wwidth / (float)realwidth));
+		event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
 	}
 	D_PostEvent(&event);
 }

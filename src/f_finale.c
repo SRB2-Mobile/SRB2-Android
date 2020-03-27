@@ -1068,43 +1068,48 @@ boolean F_IntroResponder(event_t *event)
 {
 	INT32 key = event->key;
 
-	// remap virtual keys (mouse & joystick buttons)
-	switch (key)
+	if (event->type == ev_keydown)
 	{
-		case KEY_MOUSE1:
-			key = KEY_ENTER;
-			break;
-		case KEY_MOUSE1 + 1:
-			key = KEY_BACKSPACE;
-			break;
-		case KEY_JOY1:
-		case KEY_JOY1 + 2:
-			key = KEY_ENTER;
-			break;
-		case KEY_JOY1 + 3:
-			key = 'n';
-			break;
-		case KEY_JOY1 + 1:
-			key = KEY_BACKSPACE;
-			break;
-		case KEY_HAT1:
-			key = KEY_UPARROW;
-			break;
-		case KEY_HAT1 + 1:
-			key = KEY_DOWNARROW;
-			break;
-		case KEY_HAT1 + 2:
-			key = KEY_LEFTARROW;
-			break;
-		case KEY_HAT1 + 3:
-			key = KEY_RIGHTARROW;
-			break;
+		// remap virtual keys (mouse & joystick buttons)
+		switch (key)
+		{
+			case KEY_MOUSE1:
+				key = KEY_ENTER;
+				break;
+			case KEY_MOUSE1 + 1:
+				key = KEY_BACKSPACE;
+				break;
+			case KEY_JOY1:
+			case KEY_JOY1 + 2:
+				key = KEY_ENTER;
+				break;
+			case KEY_JOY1 + 3:
+				key = 'n';
+				break;
+			case KEY_JOY1 + 1:
+				key = KEY_BACKSPACE;
+				break;
+			case KEY_HAT1:
+				key = KEY_UPARROW;
+				break;
+			case KEY_HAT1 + 1:
+				key = KEY_DOWNARROW;
+				break;
+			case KEY_HAT1 + 2:
+				key = KEY_LEFTARROW;
+				break;
+			case KEY_HAT1 + 3:
+				key = KEY_RIGHTARROW;
+				break;
+		}
+
+		if (event->type != ev_keydown && key != 301)
+			return false;
+
+		if (key != 27 && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
+			return false;
 	}
-
-	if (event->type != ev_keydown && key != 301)
-		return false;
-
-	if (key != 27 && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
+	else if (event->type != ev_touchdown)
 		return false;
 
 	if (keypressed)
@@ -1460,50 +1465,34 @@ boolean F_CreditResponder(event_t *event)
 {
 	INT32 key = event->key;
 
-	// remap virtual keys (mouse & joystick buttons)
-	switch (key)
-	{
-		case KEY_MOUSE1:
-			key = KEY_ENTER;
-			break;
-		case KEY_MOUSE1 + 1:
-			key = KEY_BACKSPACE;
-			break;
-		case KEY_JOY1:
-		case KEY_JOY1 + 2:
-			key = KEY_ENTER;
-			break;
-		case KEY_JOY1 + 3:
-			key = 'n';
-			break;
-		case KEY_JOY1 + 1:
-			key = KEY_BACKSPACE;
-			break;
-		case KEY_HAT1:
-			key = KEY_UPARROW;
-			break;
-		case KEY_HAT1 + 1:
-			key = KEY_DOWNARROW;
-			break;
-		case KEY_HAT1 + 2:
-			key = KEY_LEFTARROW;
-			break;
-		case KEY_HAT1 + 3:
-			key = KEY_RIGHTARROW;
-			break;
-	}
-
 	if (!(timesBeaten) && !(netgame || multiplayer) && !cv_debug)
 		return false;
 
-	if (event->type != ev_keydown)
-		return false;
+	// remap virtual keys (mouse & joystick buttons)
+	if (event->type == ev_keydown)
+	{
+		switch (key)
+		{
+			case KEY_MOUSE1:
+				key = KEY_ENTER;
+				break;
+			case KEY_MOUSE1 + 1:
+				key = KEY_BACKSPACE;
+				break;
+			case KEY_JOY1:
+			case KEY_JOY1 + 2:
+				key = KEY_ENTER;
+				break;
+			case KEY_JOY1 + 1:
+				key = KEY_BACKSPACE;
+				break;
+		}
 
-	if (key != KEY_ESCAPE && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
+		if (key != KEY_ESCAPE && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
+			return false;
+	}
+	else if (event->type != ev_touchdown)
 		return false;
-
-	if (keypressed)
-		return true;
 
 	keypressed = true;
 	return true;
@@ -3897,20 +3886,24 @@ boolean F_ContinueResponder(event_t *event)
 
 	if (timetonext >= 21*TICRATE/2)
 		return false;
-	if (event->type != ev_keydown)
+
+	if (!(event->type == ev_keydown || event->type == ev_touchdown))
 		return false;
 
 	// remap virtual keys (mouse & joystick buttons)
-	switch (key)
+	if (event->type == ev_keydown)
 	{
-		case KEY_ENTER:
-		case KEY_SPACE:
-		case KEY_MOUSE1:
-		case KEY_JOY1:
-		case KEY_JOY1 + 2:
-			break;
-		default:
-			return false;
+		switch (key)
+		{
+			case KEY_ENTER:
+			case KEY_SPACE:
+			case KEY_MOUSE1:
+			case KEY_JOY1:
+			case KEY_JOY1 + 2:
+				break;
+			default:
+				return false;
+		}
 	}
 
 	keypressed = true;
