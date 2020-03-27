@@ -979,6 +979,9 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 		event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
 	}
 	D_PostEvent(&event);
+
+	if (!touch_screenexists)
+		touch_screenexists = true;
 }
 
 // Lactozilla: Android text input

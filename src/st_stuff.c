@@ -1418,6 +1418,11 @@ void ST_drawTouchGameInput(boolean drawgamecontrols)
 	touchconfig_t *tup = &touchcontrols[gc_forward];
 	touchconfig_t *tdown = &touchcontrols[gc_backward];
 
+#if defined(__ANDROID__)
+	if (!touch_screenexists)
+		return;
+#endif
+
 	if (!G_InGameInput())
 		return;
 
@@ -1510,6 +1515,11 @@ void ST_drawTouchMenuInput(void)
 	INT32 col, offs;
 	INT32 x, y, w, h;
 	patch_t *font;
+
+#if defined(__ANDROID__)
+	if (!touch_screenexists)
+		return;
+#endif
 
 #define drawbutt(keyname, symb) \
 	control = &touchnavigation[keyname]; \

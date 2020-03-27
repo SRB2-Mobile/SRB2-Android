@@ -66,16 +66,19 @@ touchconfig_t touchnavigation[NUMKEYS];
 // Input variables
 INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 
+// Is the touch screen available?
+boolean touch_screenexists = false;
+
 // Touch screen settings
 touchmovementstyle_e touch_movementstyle;
-boolean touch_dpad_tiny;
+boolean touch_tinycontrols;
 boolean touch_camera;
 
 // Console variables for the touch screen
 static CV_PossibleValue_t dpadstyle_cons_t[] = {{tms_dpad, "D-Pad"}, {tms_joystick, "Joystick"}, {0, NULL}};
 
 consvar_t cv_dpadstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, dpadstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_dpadtiny = {"touch_dpad_tiny", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_dpadtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 // Touch screen sensitivity
@@ -1207,7 +1210,7 @@ void G_DefineDefaultControls(void)
 void G_SetupTouchSettings(void)
 {
 	touch_movementstyle = cv_dpadstyle.value;
-	touch_dpad_tiny = !!cv_dpadtiny.value;
+	touch_tinycontrols = !!cv_dpadtiny.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 }
 
@@ -1229,7 +1232,7 @@ static void G_DefineTouchGameControls(void)
 	// clear all
 	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
 
-	if (touch_dpad_tiny)
+	if (touch_tinycontrols)
 	{
 		touch_dpad_x = 24;
 		touch_dpad_y = 128 + (offs + bottomalign);
