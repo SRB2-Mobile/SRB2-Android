@@ -4233,7 +4233,7 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (strcmp((const char *)save_p, (const char *)vcheck))
 	{
 #ifdef SAVEGAME_OTHERVERSIONS
-		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),
+		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n("CONFIRM_MESSAGE")\n"),
 		               M_ForceLoadGameResponse, MM_YESNO);
 		//Freeing done by the callback function of the above message
 #else

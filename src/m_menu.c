@@ -6856,7 +6856,7 @@ static void M_HandleAddons(INT32 choice)
 							}
 							break;
 						case EXT_TXT:
-							M_StartMessage(va("%c%s\x80\nThis file may not be a console script.\nAttempt to run anyways? \n\n("PRESS_Y_MESSAGE" to confirm)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonExec,MM_YESNO);
+							M_StartMessage(va("%c%s\x80\nThis file may not be a console script.\nAttempt to run anyways? \n\n("CONFIRM_MESSAGE")\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonExec,MM_YESNO);
 							break;
 						case EXT_CFG:
 							M_AddonExec(KEY_ENTER);
@@ -7042,7 +7042,7 @@ static void M_RetryResponse(INT32 ch)
 static void M_Retry(INT32 choice)
 {
 	(void)choice;
-	M_StartMessage(M_GetText("Retry this act from the last starpost?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),M_RetryResponse,MM_YESNO);
+	M_StartMessage(M_GetText("Retry this act from the last starpost?\n\n("CONFIRM_MESSAGE")\n"),M_RetryResponse,MM_YESNO);
 }
 
 static void M_SelectableClearMenus(INT32 choice)
@@ -7098,7 +7098,7 @@ static void M_DestroyRobots(INT32 choice)
 {
 	(void)choice;
 
-	M_StartMessage(M_GetText("Do you want to destroy all\nrobots in the current level?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),M_DestroyRobotsResponse,MM_YESNO);
+	M_StartMessage(M_GetText("Do you want to destroy all\nrobots in the current level?\n\n("CONFIRM_MESSAGE")\n"),M_DestroyRobotsResponse,MM_YESNO);
 }
 
 static void M_LevelSelectWarp(INT32 choice)
@@ -8854,7 +8854,7 @@ static void M_HandleLoadSave(INT32 choice)
 			{
 				loadgamescroll = 0;
 				S_StartSound(NULL, sfx_skid);
-				M_StartMessage("Are you sure you want to play\n\x85ultimate mode\x80? It isn't remotely fair,\nand you don't even get an emblem for it.\n\n("PRESS_Y_MESSAGE" to confirm)\n",M_SaveGameUltimateResponse,MM_YESNO);
+				M_StartMessage("Are you sure you want to play\n\x85ultimate mode\x80? It isn't remotely fair,\nand you don't even get an emblem for it.\n\n("CONFIRM_MESSAGE")\n",M_SaveGameUltimateResponse,MM_YESNO);
 			}
 			else if (saveSlotSelected != NOSAVESLOT && savegameinfo[saveSlotSelected-1].lives == -42 && !(!modifiedgame || savemoddata))
 			{
@@ -8886,7 +8886,7 @@ static void M_HandleLoadSave(INT32 choice)
 			{
 				loadgamescroll = 0;
 				S_StartSound(NULL, sfx_skid);
-				M_StartMessage(va("Are you sure you want to delete\nsave file %d?\n\n("PRESS_Y_MESSAGE" to confirm)\n", saveSlotSelected),M_SaveGameDeleteResponse,MM_YESNO);
+				M_StartMessage(va("Are you sure you want to delete\nsave file %d?\n\n("CONFIRM_MESSAGE")\n", saveSlotSelected),M_SaveGameDeleteResponse,MM_YESNO);
 			}
 			else if (!loadgameoffset)
 			{
@@ -10392,11 +10392,11 @@ static void M_SetGuestReplay(INT32 choice)
 		break;
 	case 4: // guest
 	default:
-		M_StartMessage(M_GetText("Are you sure you want to\ndelete the guest replay data?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),M_EraseGuest,MM_YESNO);
+		M_StartMessage(M_GetText("Are you sure you want to\ndelete the guest replay data?\n\n("CONFIRM_MESSAGE")\n"),M_EraseGuest,MM_YESNO);
 		return;
 	}
 	if (FIL_FileExists(va("%s"PATHSEP"replay"PATHSEP"%s"PATHSEP"%s-guest.lmp", srb2home, timeattackfolder, G_BuildMapName(cv_nextmap.value))))
-		M_StartMessage(M_GetText("Are you sure you want to\noverwrite the guest replay data?\n\n("PRESS_Y_MESSAGE" to confirm)\n"),which,MM_YESNO);
+		M_StartMessage(M_GetText("Are you sure you want to\noverwrite the guest replay data?\n\n("CONFIRM_MESSAGE")\n"),which,MM_YESNO);
 	else
 		which(0);
 }
@@ -10463,7 +10463,7 @@ static void M_EndGame(INT32 choice)
 	if (!Playing())
 		return;
 
-	M_StartMessage(M_GetText("Are you sure you want to end the game?\n\n("PRESS_Y_MESSAGE" to confirm)\n"), M_ExitGameResponse, MM_YESNO);
+	M_StartMessage(M_GetText("Are you sure you want to end the game?\n\n("CONFIRM_MESSAGE")\n"), M_ExitGameResponse, MM_YESNO);
 }
 
 //===========================================================================
@@ -11697,7 +11697,7 @@ static void M_EraseDataResponse(INT32 ch)
 
 static void M_EraseData(INT32 choice)
 {
-	const char *eschoice, *esstr = M_GetText("Are you sure you want to erase\n%s?\n\n("PRESS_Y_MESSAGE" to confirm)\n");
+	const char *eschoice, *esstr = M_GetText("Are you sure you want to erase\n%s?\n\n("CONFIRM_MESSAGE")\n");
 
 	erasecontext = (UINT8)choice;
 

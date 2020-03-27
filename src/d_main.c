@@ -848,7 +848,12 @@ void D_StartTitle(void)
 		CV_SetValue(&cv_alwaysfreelook, tutorialfreelook);
 		CV_SetValue(&cv_mousemove, tutorialmousemove);
 		CV_SetValue(&cv_analog[0], tutorialanalog);
-		M_StartMessage("Do you want to \x82save the recommended \x82movement controls?\x80\n\n"PRESS_Y_MESSAGE" or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
+		M_StartMessage("Do you want to \x82save the recommended \x82movement controls?\x80\n\n"
+#ifdef TOUCHINPUTS
+			"Tap 'Confirm' to save\nTap 'Back' to keep \nyour current controls",
+#else
+			PRESS_Y_MESSAGE" or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
+#endif
 			M_TutorialSaveControlResponse, MM_YESNO);
 	}
 	tutorialmode = false;
