@@ -1441,9 +1441,10 @@ void ST_drawTouchGameInput(boolean drawgamecontrols)
 	}
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
-#define drawbutton(gctype, butt, symb, strxoffs, stryoffs, keycol) { \
+#define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) { \
 	touchconfig_t *control = &touchcontrols[gctype]; \
 	if (!control->hidden) { \
+		const char *keystr = ((str == NULL) ? control->name : str); \
 		SCALEBUTTON(control); \
 		if ((butt != 0 && (stplyr->cmd.buttons & butt)) \
 		|| control->pressed > I_GetTime()) \
@@ -1458,21 +1459,21 @@ void ST_drawTouchGameInput(boolean drawgamecontrols)
 			V_DrawFill(x, y + h, w, shadow, 29|flags); \
 		} \
 		V_DrawFill(x, y + offs, w, h, col|flags); \
-		V_DrawString((x + (w / 2)) - (V_StringWidth(symb, flags) / 2) + strxoffs, \
+		V_DrawString((x + (w / 2)) - (V_StringWidth(keystr, flags) / 2) + strxoffs, \
 					((y + (h / 2)) - ((8*vid.dupy) / 2) + offs) + stryoffs, \
-					flags, symb); \
+					flags, keystr); \
 		} \
 	}
 
-#define drawbutt(gctype, butt, symb) drawbutton(gctype, butt, symb, 0, 0, DEFAULTKEYCOL)
-#define drawcolbutt(gctype, butt, symb, col) drawbutton(gctype, butt, symb, 0, 0, col)
-#define drawoffsbutt(gctype, butt, symb, xoffs, yoffs) drawbutton(gctype, butt, symb, xoffs, yoffs, DEFAULTKEYCOL)
+#define drawbutt(gctype, butt, str) drawbutton(gctype, butt, str, 0, 0, DEFAULTKEYCOL)
+#define drawcolbutt(gctype, butt, str, col) drawbutton(gctype, butt, str, 0, 0, col)
+#define drawoffsbutt(gctype, butt, str, xoffs, yoffs) drawbutton(gctype, butt, str, xoffs, yoffs, DEFAULTKEYCOL)
 
 	// Jump and spin
 	if (drawgamecontrols)
 	{
-		drawbutt(gc_jump,  BT_JUMP, "JMP");
-		drawbutt(gc_use,   BT_USE,  "SPN");
+		drawbutt(gc_jump,  BT_JUMP, NULL);
+		drawbutt(gc_use,   BT_USE,  NULL);
 	}
 
 	// Control panel
