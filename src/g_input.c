@@ -198,6 +198,7 @@ void G_MapEventsToControls(event_t *ev)
 	INT32 x = ev->x;
 	INT32 y = ev->y;
 	touchfinger_t *finger = &touchfingers[ev->key];
+	boolean touchmotion = (ev->type == ev_touchmotion);
 	INT32 gc;
 	boolean foundbutton = false;
 #endif
@@ -237,8 +238,8 @@ void G_MapEventsToControls(event_t *ev)
 				break;
 			}
 
-			// Finger ignores touch motion events.
-			if (ev->type == ev_touchmotion && finger->ignoremotion)
+			// This finger ignores touch motion events, so don't do anything.
+			if (touchmotion && finger->ignoremotion)
 				break;
 
 			// Lactozilla: Find every on-screen button and
@@ -268,8 +269,16 @@ void G_MapEventsToControls(event_t *ev)
 				// This is done so that the buttons that are down don't 'stick'
 				// if you move your finger from a button to another.
 				gc = finger->u.gamecontrol;
-				if (ev->type == ev_touchmotion && (gc > gc_null) && G_TouchButtonIsPlayerControl(gc))
+				if (touchmotion && (gc > gc_null))
 				{
+					// Non-control keys ignore touch motion events.
+					if (!G_TouchButtonIsPlayerControl(gc))
+					{
+						if (G_FingerTouchesButton(x, y, butt))
+							foundbutton = true;
+						break;
+					}
+
 					// Let go of this button.
 					gamekeydown[gamecontrol[gc][0]] = 0;
 					finger->u.gamecontrol = gc_null;
@@ -342,7 +351,7 @@ void G_MapEventsToControls(event_t *ev)
 			}
 
 			// Check if your finger touches the d-pad area.
-			if (!foundbutton && (ev->type != ev_touchmotion))
+			if (!foundbutton && !touchmotion)
 			{
 				touchconfig_t dpad;
 				dpad.x = touch_dpad_x;
@@ -393,7 +402,7 @@ void G_MapEventsToControls(event_t *ev)
 				INT32 dx = ev->dx;
 				INT32 dy = ev->dy;
 
-				if (ev->type == ev_touchmotion && finger->type.joystick) // Remember that this is an union!
+				if (touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
 					INT32 movex = (INT32)(dx*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
 					INT32 movey = (INT32)(dy*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
@@ -430,7 +439,6 @@ void G_MapEventsToControls(event_t *ev)
 				}
 				foundbutton = true;
 			}
-
 			break;
 
 		case ev_touchup:
