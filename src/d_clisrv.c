@@ -2057,7 +2057,7 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 	// Call it only once by tic
 	if (*oldtic != I_GetTime())
 	{
-		INT32 key;
+		INT32 key = 0;
 #ifdef TOUCHINPUTS
 		INT32 x = -1, y = -1;
 #endif

@@ -361,6 +361,9 @@ static void M_DrawTimeAttackMenu(void);
 static void M_DrawNightsAttackMenu(void);
 static void M_DrawSetupChoosePlayerMenu(void);
 static void M_DrawControlsDefMenu(void);
+#ifdef TOUCHINPUTS
+static void M_DrawTouchOptionsMenu(void);
+#endif
 static void M_DrawCameraOptionsMenu(void);
 static void M_DrawPlaystyleMenu(void);
 static void M_DrawControl(void);
@@ -1202,17 +1205,22 @@ static menuitem_t OP_Mouse2OptionsMenu[] =
 #ifdef TOUCHINPUTS
 static menuitem_t OP_TouchOptionsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Movement style",         &cv_dpadstyle,      10},
-	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_dpadtiny,       20},
-	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    30},
+	{IT_STRING | IT_CVAR, NULL, "Movement style",         &cv_touchstyle,     10},
+	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    20},
+	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_touchtiny,      30},
 
 	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 50},
 	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  60},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch X Sensitivity",    &cv_touchsens,      80},
+	                      NULL, "Input translucency",     &cv_touchtrans,     80},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,     90},
+	                      NULL, "Menu translucency",      &cv_touchmenutrans, 90},
+
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Touch X Sensitivity",    &cv_touchsens,     110},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,    120},
 };
 #endif
 
@@ -2086,9 +2094,17 @@ menu_t OP_JoystickSetDef =
 };
 
 #ifdef TOUCHINPUTS
-menu_t OP_TouchOptionsDef = DEFAULTMENUSTYLE(
+menu_t OP_TouchOptionsDef = {
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_TOUCHSCREEN << 12),
-	"M_CONTRO", OP_TouchOptionsMenu, &OP_P1ControlsDef, 35, 30);
+	"M_CONTRO",
+	sizeof (OP_CameraOptionsMenu)/sizeof (menuitem_t),
+	&OP_P1ControlsDef,
+	OP_TouchOptionsMenu,
+	M_DrawTouchOptionsMenu,
+	35, 30,
+	0,
+	NULL
+};
 #endif
 
 menu_t OP_CameraOptionsDef = {
@@ -12285,6 +12301,14 @@ static void M_HandlePlaystyleMenu(INT32 choice)
 		break;
 	}
 }
+
+#ifdef TOUCHINPUTS
+static void M_DrawTouchOptionsMenu(void)
+{
+	ST_drawTouchGameInput(true);
+	M_DrawGenericMenu();
+}
+#endif
 
 static void M_DrawCameraOptionsMenu(void)
 {
