@@ -220,7 +220,7 @@ extern consvar_t cv_touchsens, cv_touchysens;
 // Screen joystick movement
 #define TOUCHJOYEXTENDX (touch_dpad_w / 2)
 #define TOUCHJOYEXTENDY (touch_dpad_h / 2)
-extern float touchjoyxmove, touchjoyymove;
+extern float touchxmove, touchymove, touchpressure;
 #endif
 
 // two key codes (or virtual key) per game control

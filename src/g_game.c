@@ -909,12 +909,12 @@ static INT32 JoyAxis(axis_input_e axissel)
 	}
 
 #ifdef TOUCHINPUTS
-	if (FLOAT_TO_FIXED(touchjoyxmove) || FLOAT_TO_FIXED(touchjoyymove)) // Touch screen joystick
+	if (FLOAT_TO_FIXED(touchxmove) || FLOAT_TO_FIXED(touchymove)) // Touch screen joystick
 	{
 		if (axissel == AXISMOVE)
-			return (INT32)(touchjoyymove * JOYAXISRANGE);
+			return (INT32)(touchymove * JOYAXISRANGE);
 		else if (axissel == AXISSTRAFE)
-			return (INT32)(touchjoyxmove * JOYAXISRANGE);
+			return (INT32)(touchxmove * JOYAXISRANGE);
 		else
 			return 0;
 	}
@@ -1873,7 +1873,7 @@ void G_DoLoadLevel(boolean resetplayer)
 		joyxmove[i] = joyymove[i] = 0;
 		joy2xmove[i] = joy2ymove[i] = 0;
 #ifdef TOUCHINPUTS
-		touchjoyxmove = touchjoyymove = 0.0f;
+		touchxmove = touchymove = touchpressure = 0.0f;
 #endif
 	}
 	mousex = mousey = 0;
@@ -2925,7 +2925,7 @@ void G_DoReborn(INT32 playernum)
 				joyxmove[i] = joyymove[i] = 0;
 				joy2xmove[i] = joy2ymove[i] = 0;
 #ifdef TOUCHINPUTS
-				touchjoyxmove = touchjoyymove = 0.0f;
+				touchxmove = touchymove = touchpressure = 0.0f;
 #endif
 			}
 			mousex = mousey = 0;
