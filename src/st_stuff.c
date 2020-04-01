@@ -1210,6 +1210,43 @@ static void ST_drawInput(void)
 	w = FixedMul(touch->w * FRACUNIT, dupx) / FRACUNIT; \
 	h = FixedMul(touch->h * FRACUNIT, dupy) / FRACUNIT;
 
+void ST_drawJoystickBacking(INT32 padx, INT32 pady, INT32 padw, INT32 padh, fixed_t scale, UINT8 color)
+{
+	INT32 x, y, w, h;
+	fixed_t dupx = vid.dupx*FRACUNIT;
+	fixed_t dupy = vid.dupy*FRACUNIT;
+	fixed_t xscale, yscale;
+	patch_t *backing = W_CachePatchName("DSHADOW", PU_PATCH);
+
+	// generate colormap
+	static UINT8 *colormap = NULL;
+	static UINT8 lastcolor = 0;
+	size_t colsize = 256 * sizeof(UINT8);
+
+	if (colormap == NULL)
+		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
+	if (color != lastcolor)
+	{
+		memset(colormap, color, colsize);
+		lastcolor = color;
+	}
+
+	// scale coords
+	x = FixedMul(padx * FRACUNIT, dupx) / FRACUNIT;
+	y = FixedMul(pady * FRACUNIT, dupy) / FRACUNIT;
+	w = FixedMul(padw * FRACUNIT, dupx) / FRACUNIT;
+	h = FixedMul(padh * FRACUNIT, dupy) / FRACUNIT;
+
+	xscale = FixedMul(FixedDiv(padw*FRACUNIT, SHORT(backing->width)*FRACUNIT), scale);
+	yscale = FixedMul(FixedDiv(padh*FRACUNIT, SHORT(backing->height)*FRACUNIT), scale);
+
+	// draw backing
+	V_DrawStretchyFixedPatch(
+		((x*FRACUNIT + (w*FRACUNIT / 2)) - (((SHORT(backing->width) * vid.dupx) / 2) * xscale)),
+		((y*FRACUNIT + (h*FRACUNIT / 2)) - (((SHORT(backing->height) * vid.dupy) / 2) * yscale)),
+		xscale, yscale, V_NOSCALESTART, backing, colormap);
+}
+
 void ST_drawTouchDPad(
 					INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh,
 					touchconfig_t *tleft, boolean moveleft,
@@ -1235,14 +1272,7 @@ void ST_drawTouchDPad(
 
 	// O backing
 	if (backing)
-	{
-		x = FixedMul(dpadx * FRACUNIT, dupx) / FRACUNIT;
-		y = FixedMul(dpady * FRACUNIT, dupy) / FRACUNIT;
-		w = FixedMul(dpadw * FRACUNIT, dupx) / FRACUNIT;
-		h = FixedMul(dpadh * FRACUNIT, dupy) / FRACUNIT;
-		V_DrawFill(x, y-1, w, h, flags|20);
-		V_DrawFill(x, y+h-1, w, shadow, flags|29);
-	}
+		ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20);
 
 	if (vid.dupx == 1)
 		udw = 2;
@@ -1381,8 +1411,7 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, IN
 	INT32 stickx = max(-TOUCHJOYEXTENDX, min(touchjoyxmove * TOUCHJOYEXTENDX, TOUCHJOYEXTENDX));
 	INT32 sticky = max(-TOUCHJOYEXTENDY, min(touchjoyymove * TOUCHJOYEXTENDY, TOUCHJOYEXTENDY));
 
-	V_DrawFill(x, y-1, w, h, flags|20);
-	V_DrawFill(x, y+h-1, w, vid.dupy, flags|29);
+	ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20);
 
 	if (cursor)
 	{
