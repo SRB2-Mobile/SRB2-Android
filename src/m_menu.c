@@ -12306,7 +12306,7 @@ static void M_HandlePlaystyleMenu(INT32 choice)
 #ifdef TOUCHINPUTS
 static void M_DrawTouchOptionsMenu(void)
 {
-	ST_drawTouchGameInput(true);
+	ST_drawTouchGameInput(true, cv_touchtrans.value);
 	M_DrawGenericMenu();
 }
 #endif

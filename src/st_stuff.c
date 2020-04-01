@@ -1210,6 +1210,12 @@ static void ST_drawInput(void)
 	w = FixedMul(touch->w * FRACUNIT, dupx) / FRACUNIT; \
 	h = FixedMul(touch->h * FRACUNIT, dupy) / FRACUNIT;
 
+#define drawfill(dx, dy, dw, dh, dcol, dflags) \
+	if (alphalevel < 10) \
+		V_DrawFadeFill(dx, dy, dw, dh, dflags, dcol, alphalevel); \
+	else \
+		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
+
 void ST_drawJoystickBacking(INT32 padx, INT32 pady, INT32 padw, INT32 padh, fixed_t scale, UINT8 color, INT32 flags)
 {
 	INT32 x, y, w, h;
@@ -1274,12 +1280,6 @@ void ST_drawTouchDPad(
 	// O backing
 	if (backing)
 		ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
-
-#define drawfill(dx, dy, dw, dh, dcol, dflags) \
-	if (alphalevel < 10) \
-		V_DrawFadeFill(dx, dy, dw, dh, dflags, dcol, alphalevel); \
-	else \
-		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
 
 	if (vid.dupx == 1)
 		udw = 2;
@@ -1406,7 +1406,6 @@ void ST_drawTouchDPad(
 #undef drawrightbutton
 #undef drawupbutton
 #undef drawleftbutton
-#undef drawfill
 #undef SCALEPAD
 }
 
@@ -1460,12 +1459,11 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 		xscale, yscale, flags, cursor, colormap);
 }
 
-void ST_drawTouchGameInput(boolean drawgamecontrols)
+void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 {
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
-	const INT32 trans = min(cv_touchtrans.value, st_translucency);
-	const INT32 transflag = ((10-trans)<<V_ALPHASHIFT);
+	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = (stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
 	const INT32 shadow = vid.dupy;
@@ -1477,7 +1475,7 @@ void ST_drawTouchGameInput(boolean drawgamecontrols)
 	touchconfig_t *tup = &touchcontrols[gc_forward];
 	touchconfig_t *tdown = &touchcontrols[gc_backward];
 
-	if (!trans)
+	if (!alphalevel)
 		return;
 
 #if defined(__ANDROID__)
@@ -1503,12 +1501,6 @@ void ST_drawTouchGameInput(boolean drawgamecontrols)
 		else // Draw the joystick
 			ST_drawTouchJoystick(touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h, accent, flags);
 	}
-
-#define drawfill(dx, dy, dw, dh, dcol, dflags) \
-	if (trans < 10) \
-		V_DrawFadeFill(dx, dy, dw, dh, dflags, dcol, trans); \
-	else \
-		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
 #define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) { \
@@ -1573,8 +1565,8 @@ void ST_drawTouchMenuInput(void)
 {
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
-	const INT32 trans = cv_touchmenutrans.value;
-	const INT32 transflag = ((10-trans)<<V_ALPHASHIFT);
+	const INT32 alphalevel = cv_touchmenutrans.value;
+	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = Color_Index[(cv_playercolor.value)-1][4];
 	const INT32 shadow = vid.dupy;
@@ -1583,7 +1575,7 @@ void ST_drawTouchMenuInput(void)
 	INT32 x, y, w, h;
 	patch_t *font;
 
-	if (!trans)
+	if (!alphalevel)
 		return;
 
 #if defined(__ANDROID__)
@@ -1605,7 +1597,7 @@ void ST_drawTouchMenuInput(void)
 		{ \
 			col = 16; \
 			offs = 0; \
-			if (trans >= 10) \
+			if (alphalevel >= 10) \
 				V_DrawFill(x, y + h, w, shadow, 29|flags); \
 		} \
 		font = hu_font[toupper(symb) - HU_FONTSTART]; \
@@ -1620,9 +1612,9 @@ void ST_drawTouchMenuInput(void)
 	drawbutt(KEY_CONSOLE, '$');
 
 #undef drawbutt
-#undef drawfill
 }
 
+#undef drawfill
 #undef SCALEBUTTON
 #endif
 
@@ -3253,7 +3245,7 @@ static void ST_overlayDrawer(void)
 		ST_drawInput();
 #ifdef TOUCHINPUTS
 	else if (G_InGameInput() && !demoplayback)
-		ST_drawTouchGameInput(drawtouchcontrols && (stplyr == &players[consoleplayer]));
+		ST_drawTouchGameInput(drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
 #endif
 
 	ST_drawDebugInfo();
