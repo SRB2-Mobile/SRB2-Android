@@ -4067,7 +4067,6 @@ void M_Init(void)
 	quitmsg[QUITMSG7] = M_GetText("Go ahead and leave. See if I care...\n*sniffle*\n\n("PRESS_Y_MESSAGE" to quit)");
 
 	quitmsg[QUIT2MSG] = M_GetText("If you leave now,\nEggman will take over the world!\n\n("PRESS_Y_MESSAGE" to quit)");
-	quitmsg[QUIT2MSG1] = M_GetText("Don't quit!\nThere are animals\nto save!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG3] = M_GetText("Did you get all those Chaos Emeralds?\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG4] = M_GetText("If you leave, I'll use\nmy spin attack on you!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG5] = M_GetText("Don't go!\nYou might find the hidden\nlevels!\n\n("PRESS_Y_MESSAGE" to quit)");
@@ -4082,6 +4081,7 @@ void M_Init(void)
 	quitmsg[QUITMSG] = M_GetText("Eggman's tied explosives\nto your girlfriend, and\nwill activate them if\nyou tap the 'Confirm' button!\nTap the 'Back' button\nto save her!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUITMSG4] = M_GetText("You're trying to say you\nlike Sonic Dash better than\nthis, right?\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUITMSG6] = M_GetText("You'd rather chat than play?\n\n("PRESS_Y_MESSAGE" to quit)");
+	quitmsg[QUIT2MSG1] = M_GetText("Don't quit!\nThere are animals to save!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG2] = M_GetText("Aw c'mon, just bop a few more robots!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG6] = M_GetText("Tap the 'Back' button, Sonic!\nThe 'Back' button!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG2] = M_GetText("Tap 'Back' to unlock\nthe Ultimate Cheat!\n\n("PRESS_Y_MESSAGE" to quit)");
@@ -4090,6 +4090,7 @@ void M_Init(void)
 	quitmsg[QUITMSG] = M_GetText("Eggman's tied explosives\nto your girlfriend, and\nwill activate them if\nyou press the 'Y' key!\nPress 'N' to save her!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUITMSG4] = M_GetText("You're trying to say you\nlike Sonic 2K6 better than\nthis, right?\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUITMSG6] = M_GetText("You'd rather work than play?\n\n("PRESS_Y_MESSAGE" to quit)");
+	quitmsg[QUIT2MSG1] = M_GetText("Don't quit!\nThere are animals\nto save!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG2] = M_GetText("Aw c'mon, just bop\na few more robots!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG6] = M_GetText("Hit the 'N' key, Sonic!\nThe 'N' key!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG2] = M_GetText("Press 'N' to unlock\nthe Ultimate Cheat!\n\n("PRESS_Y_MESSAGE" to quit)");
