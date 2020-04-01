@@ -2097,7 +2097,7 @@ menu_t OP_JoystickSetDef =
 menu_t OP_TouchOptionsDef = {
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_TOUCHSCREEN << 12),
 	"M_CONTRO",
-	sizeof (OP_CameraOptionsMenu)/sizeof (menuitem_t),
+	sizeof (OP_TouchOptionsMenu)/sizeof (menuitem_t),
 	&OP_P1ControlsDef,
 	OP_TouchOptionsMenu,
 	M_DrawTouchOptionsMenu,
