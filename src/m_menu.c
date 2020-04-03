@@ -12128,10 +12128,15 @@ static void M_ChangecontrolResponse(event_t *ev)
 	INT32        found;
 	INT32        ch = ev->key;
 
+#ifdef TOUCHINPUTS
+	// Ignore touch screen
+	if (ev->type == ev_touchmotion || ev->type == ev_touchdown || ev->type == ev_touchup)
+		S_StartSound(NULL, sfx_skid);
+	else
+#endif
 	// ESCAPE cancels; dummy out PAUSE
 	if (ch != KEY_ESCAPE && ch != KEY_PAUSE)
 	{
-
 		switch (ev->type)
 		{
 			// ignore mouse/joy movements, just get buttons
