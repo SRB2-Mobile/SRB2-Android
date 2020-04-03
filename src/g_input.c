@@ -188,55 +188,21 @@ boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol)
 	}
 	return true;
 }
-#endif
 
 //
-// Remaps the inputs to game controls.
+// Remaps touch input events to game controls.
 //
-// A game control can be triggered by one or more keys/buttons.
-//
-// Each key/mousebutton/joybutton triggers ONLY ONE game control.
-//
-void G_MapEventsToControls(event_t *ev)
+static void G_HandleFingerEvent(event_t *ev)
 {
-	INT32 i;
-	UINT8 flag;
-
-#ifdef TOUCHINPUTS
 	INT32 x = ev->x;
 	INT32 y = ev->y;
 	touchfinger_t *finger = &touchfingers[ev->key];
 	boolean touchmotion = (ev->type == ev_touchmotion);
-	INT32 gc;
+	INT32 gc, i;
 	boolean foundbutton = false;
-#endif
 
 	switch (ev->type)
 	{
-		case ev_keydown:
-			if (ev->key < NUMINPUTS)
-				gamekeydown[ev->key] = 1;
-#ifdef PARANOIA
-			else
-			{
-				CONS_Debug(DBG_GAMELOGIC, "Bad downkey input %d\n",ev->key);
-			}
-
-#endif
-			break;
-
-		case ev_keyup:
-			if (ev->key < NUMINPUTS)
-				gamekeydown[ev->key] = 0;
-#ifdef PARANOIA
-			else
-			{
-				CONS_Debug(DBG_GAMELOGIC, "Bad upkey input %d\n",ev->key);
-			}
-#endif
-			break;
-
-#ifdef TOUCHINPUTS
 		case ev_touchdown:
 		case ev_touchmotion:
 			// Ignore when the menu, console, or chat window are open
@@ -464,6 +430,56 @@ void G_MapEventsToControls(event_t *ev)
 
 			// Remember that this is an union!
 			finger->type.mouse = 0;
+			break;
+
+		default:
+			break;
+	}
+}
+#endif
+
+//
+// Remaps the inputs to game controls.
+//
+// A game control can be triggered by one or more keys/buttons.
+//
+// Each key/mousebutton/joybutton/finger triggers ONLY ONE game control.
+//
+void G_MapEventsToControls(event_t *ev)
+{
+	INT32 i;
+	UINT8 flag;
+
+	switch (ev->type)
+	{
+		case ev_keydown:
+			if (ev->key < NUMINPUTS)
+				gamekeydown[ev->key] = 1;
+#ifdef PARANOIA
+			else
+			{
+				CONS_Debug(DBG_GAMELOGIC, "Bad downkey input %d\n",ev->key);
+			}
+
+#endif
+			break;
+
+		case ev_keyup:
+			if (ev->key < NUMINPUTS)
+				gamekeydown[ev->key] = 0;
+#ifdef PARANOIA
+			else
+			{
+				CONS_Debug(DBG_GAMELOGIC, "Bad upkey input %d\n",ev->key);
+			}
+#endif
+			break;
+
+#ifdef TOUCHINPUTS
+		case ev_touchdown:
+		case ev_touchmotion:
+		case ev_touchup:
+			G_HandleFingerEvent(ev);
 			break;
 #endif
 
