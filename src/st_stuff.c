@@ -1459,6 +1459,10 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 		xscale, yscale, flags, cursor, colormap);
 }
 
+//
+// Touch input in-game
+//
+
 void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 {
 	fixed_t dupx = vid.dupx*FRACUNIT;
@@ -1503,11 +1507,19 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	}
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
-#define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) { \
+#define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) \
+{ \
 	touchconfig_t *control = &touchcontrols[gctype]; \
-	if (!control->hidden) { \
+	if (!control->hidden) \
+	{ \
+		INT32 strx, stry; \
+		INT32 strwidth, strheight; \
+		INT32 strflags = (flags | V_ALLOWLOWERCASE); \
+		boolean drawthin = false; \
 		const char *keystr = ((str == NULL) ? control->name : str); \
 		SCALEBUTTON(control); \
+ \
+		/* Draw the button */ \
 		if ((butt != 0 && (stplyr->cmd.buttons & butt)) \
 		|| control->pressed > I_GetTime()) \
 		{ \
@@ -1521,11 +1533,27 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 			drawfill(x, y + h, w, shadow, 29, flags); \
 		} \
 		drawfill(x, y + offs, w, h, col, flags); \
-		V_DrawString((x + (w / 2)) - (V_StringWidth(keystr, flags) / 2) + strxoffs, \
-					((y + (h / 2)) - ((8*vid.dupy) / 2) + offs) + stryoffs, \
-					flags, keystr); \
-		} \
-	}
+ \
+		/* string width */ \
+		strwidth = V_StringWidth(keystr, strflags); \
+		drawthin = (strwidth >= w); \
+		if (drawthin) \
+			strwidth = (V_ThinStringWidth(keystr, strflags) * vid.dupx) + 1; \
+ \
+		/* string height */ \
+		strheight = 8; \
+		if (drawthin) \
+			strheight = 7; \
+ \
+		strx = (x + (w / 2)) - (strwidth / 2) + strxoffs; \
+		stry = ((y + (h / 2)) - ((strheight*vid.dupy) / 2) + offs) + stryoffs; \
+ \
+		if (drawthin) \
+			V_DrawThinString(strx, stry, strflags, keystr); \
+		else \
+			V_DrawString(strx, stry, strflags, keystr); \
+	} \
+}
 
 #define drawbutt(gctype, butt, str) drawbutton(gctype, butt, str, 0, 0, DEFAULTKEYCOL)
 #define drawcolbutt(gctype, butt, str, col) drawbutton(gctype, butt, str, 0, 0, col)
@@ -1539,23 +1567,23 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	}
 
 	// Control panel
-	drawbutt(gc_systemmenu, 0, "\x018"); // <>
+	drawbutt(gc_systemmenu, 0, "MENU");
 
 	// Pause
-	drawbutt(gc_pause,      0, (paused ? "\x1D" : "II"));
+	drawbutt(gc_pause, 0, (paused ? "\x1D" : "II"));
 
 	// Spy mode
 	drawbutt(gc_viewpoint, 0, "F12");
 
 	// Screenshot
-	drawbutt(gc_screenshot, 0, "SCR");
+	drawbutt(gc_screenshot, 0, "SCRCAP");
 
 	// Movie mode
 	drawcolbutt(gc_recordgif, 0, "REC", (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
 
 	// Talk key and team talk key
-	drawoffsbutt(gc_talkkey, 0, "...", 1, -1);
-	drawbutton  (gc_teamkey, 0, "...", 1, -1, accent);
+	drawoffsbutt(gc_talkkey, 0, "TALK", 1, -1);
+	drawbutton  (gc_teamkey, 0, "TEAM", 1, -1, accent);
 
 #undef drawoffsbutt
 #undef drawcolbutt
@@ -1563,6 +1591,10 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 #undef drawbutton
 #undef DEFAULTKEYCOL
 }
+
+//
+// Menu touch input
+//
 
 void ST_drawTouchMenuInput(void)
 {

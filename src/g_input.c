@@ -1249,6 +1249,7 @@ void G_UpdateTouchControls(void)
 
 static void G_DefineTouchGameControls(void)
 {
+	INT32 x, y, w, h;
 	INT32 corneroffset = 4;
 	INT32 offs = (promptactive ? -32 : 0);
 	INT32 bottomalign = 0;
@@ -1312,8 +1313,6 @@ static void G_DefineTouchGameControls(void)
 	}
 	else
 	{
-		INT32 x;
-
 		touch_dpad_x = 24;
 		touch_dpad_y = 92 + (offs + bottomalign);
 		touch_dpad_w = 64;
@@ -1369,8 +1368,8 @@ static void G_DefineTouchGameControls(void)
 	offs = 8;
 
 	// Menu
-	touchcontrols[gc_systemmenu].w = 24;
-	touchcontrols[gc_systemmenu].h = 24;
+	touchcontrols[gc_systemmenu].w = 32;
+	touchcontrols[gc_systemmenu].h = 32;
 	touchcontrols[gc_systemmenu].x = ((vid.width / vid.dupx) - touchcontrols[gc_systemmenu].w - corneroffset);
 	touchcontrols[gc_systemmenu].y = corneroffset;
 
@@ -1397,24 +1396,47 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_viewpoint].hidden = false;
 	}
 
+	// Align screenshot and movie mode buttons
+	w = 40;
+	h = 24;
+
+	if ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden))
+	{
+		x = touchcontrols[gc_viewpoint].x;
+		x -= (touchcontrols[gc_viewpoint].x - touchcontrols[gc_pause].x) / 2;
+		y = max(touchcontrols[gc_viewpoint].y, touchcontrols[gc_pause].y) + h + offs;
+	}
+	// only if one of either are visible, but not both
+	else if (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden)
+	{
+		x = touchcontrols[gc_viewpoint].x - (w - touchcontrols[gc_viewpoint].w);
+		y = touchcontrols[gc_viewpoint].y + min(touchcontrols[gc_viewpoint].h, touchcontrols[gc_pause].h) + offs;
+	}
+	else
+	{
+		x = (touchcontrols[gc_viewpoint].x - w - 4);
+		y = touchcontrols[gc_viewpoint].y;
+	}
+
+	touchcontrols[gc_screenshot].w = touchcontrols[gc_recordgif].w = w;
+	touchcontrols[gc_screenshot].h = touchcontrols[gc_recordgif].h = h;
+
 	// Screenshot
-	touchcontrols[gc_screenshot].w = 32;
-	touchcontrols[gc_screenshot].h = 24;
-	touchcontrols[gc_screenshot].x = touchcontrols[gc_viewpoint].x - touchcontrols[gc_screenshot].w - 4;
-	touchcontrols[gc_screenshot].y = touchcontrols[gc_viewpoint].y;
+	touchcontrols[gc_screenshot].x = x;
+	touchcontrols[gc_screenshot].y = y;
 
 	// Movie mode
-	touchcontrols[gc_recordgif].w = 32;
-	touchcontrols[gc_recordgif].h = 24;
-	touchcontrols[gc_recordgif].x = touchcontrols[gc_screenshot].x;
+	touchcontrols[gc_recordgif].x = x;
 	touchcontrols[gc_recordgif].y = (touchcontrols[gc_screenshot].y + touchcontrols[gc_screenshot].h + offs);
 
 	// Talk key and team talk key
-	touchcontrols[gc_talkkey].hidden = true;
-	touchcontrols[gc_teamkey].hidden = true;
+	touchcontrols[gc_talkkey].hidden = true; // hidden by default
+	touchcontrols[gc_teamkey].hidden = true; // hidden outside of team games
+
+	// if netgame + chat not muted
 	if (netgame && !CHAT_MUTE)
 	{
-		touchcontrols[gc_talkkey].w = 24;
+		touchcontrols[gc_talkkey].w = 32;
 		touchcontrols[gc_talkkey].h = 24;
 		touchcontrols[gc_talkkey].x = ((vid.width / vid.dupx) - touchcontrols[gc_talkkey].w - corneroffset);
 		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
@@ -1422,7 +1444,7 @@ static void G_DefineTouchGameControls(void)
 
 		if (players[consoleplayer].ctfteam)
 		{
-			touchcontrols[gc_teamkey].w = 24;
+			touchcontrols[gc_teamkey].w = 32;
 			touchcontrols[gc_teamkey].h = 24;
 			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
 			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
