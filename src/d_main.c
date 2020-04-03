@@ -706,6 +706,10 @@ void D_SRB2Loop(void)
 		if (realtics > 8)
 			realtics = 1;
 
+#ifdef TOUCHINPUTS
+		G_UpdateTouchControls();
+#endif
+
 		// process tics (but maybe not if realtic == 0)
 		TryRunTics(realtics);
 

@@ -1247,7 +1247,7 @@ void G_UpdateTouchControls(void)
 	G_DefineTouchButtons();
 }
 
-static void G_DefineTouchGameControls(void)
+void G_TouchControlPreset(void)
 {
 	INT32 x, y, w, h;
 	INT32 corneroffset = 4;
@@ -1470,7 +1470,7 @@ static void G_DefineTouchGameControls(void)
 	}
 }
 
-static void G_DefineTouchNavigation(void)
+void G_TouchNavigationPreset(void)
 {
 	INT32 corneroffset = 4;
 
@@ -1504,8 +1504,8 @@ static void G_DefineTouchNavigation(void)
 
 void G_DefineTouchButtons(void)
 {
-	G_DefineTouchGameControls();
-	G_DefineTouchNavigation();
+	G_TouchControlPreset();
+	G_TouchNavigationPreset();
 }
 #endif
 

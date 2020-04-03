@@ -76,7 +76,6 @@ static void TimeLimit_OnChange(void);
 static void NumLaps_OnChange(void);
 static void BaseNumLaps_OnChange(void);
 
-static void PausePermission_OnChange(void);
 static void Mute_OnChange(void);
 
 static void Hidetime_OnChange(void);
@@ -381,7 +380,7 @@ consvar_t cv_exitmove = {"exitmove", "On", CV_NETVAR|CV_CALL, CV_OnOff, ExitMove
 
 consvar_t cv_runscripts = {"runscripts", "Yes", 0, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-consvar_t cv_pause = {"pausepermission", "Server", CV_NETVAR, pause_cons_t, PausePermission_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_pause = {"pausepermission", "Server", CV_NETVAR, pause_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_mute = {"mute", "Off", CV_NETVAR|CV_CALL, CV_OnOff, Mute_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_sleep = {"cpusleep", "1", CV_SAVE, sleeping_cons_t, NULL, -1, NULL, NULL, 0, 0, NULL};
@@ -2875,11 +2874,6 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 		displayplayer = consoleplayer;
 	}
 
-#ifdef TOUCHINPUTS
-	if (playernum == consoleplayer)
-		G_UpdateTouchControls();
-#endif
-
 	if (G_GametypeHasTeams())
 	{
 		if (NetPacket.packet.newteam)
@@ -3066,9 +3060,6 @@ static void Got_Verification(UINT8 **cp, INT32 playernum)
 		return;
 
 	CONS_Printf(M_GetText("You are now a server administrator.\n"));
-#ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
-#endif
 }
 
 static void Command_RemoveAdmin_f(void)
@@ -3119,9 +3110,6 @@ static void Got_Removal(UINT8 **cp, INT32 playernum)
 		return;
 
 	CONS_Printf(M_GetText("You are no longer a server administrator.\n"));
-#ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
-#endif
 }
 
 static void Command_MotD_f(void)
@@ -4574,21 +4562,6 @@ static void Color2_OnChange(void)
 	}
 }
 
-/** Updates touch control layouts after pause permission change.
-  *
-  * \sa cv_pause
-  * \author Lactozilla
-  */
-static void PausePermission_OnChange(void)
-{
-	if (server || (IsPlayerAdmin(consoleplayer)))
-		return;
-
-#ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
-#endif
-}
-
 /** Displays the result of the chat being muted or unmuted.
   * The server or remote admin should already know and be able to talk
   * regardless, so this is only displayed to clients.
@@ -4606,10 +4579,6 @@ static void Mute_OnChange(void)
 		CONS_Printf(M_GetText("Chat has been muted.\n"));
 	else
 		CONS_Printf(M_GetText("Chat is no longer muted.\n"));
-
-#ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
-#endif
 }
 
 /** Hack to clear all changed flags after game start.

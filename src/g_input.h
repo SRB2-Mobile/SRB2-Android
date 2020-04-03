@@ -276,6 +276,10 @@ void G_SetupTouchSettings(void);
 void G_UpdateTouchControls(void);
 void G_DefineTouchButtons(void);
 
+// Button presets
+void G_TouchControlPreset(void);
+void G_TouchNavigationPreset(void);
+
 // Check if the finger (x, y) is touching the specified button (butt)
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt);
 

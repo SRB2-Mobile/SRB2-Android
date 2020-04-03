@@ -3623,10 +3623,6 @@ boolean P_LoadLevel(boolean fromnetsave)
 
 	P_InitCamera();
 
-#ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
-#endif
-
 	// clear special respawning que
 	iquehead = iquetail = 0;
 
