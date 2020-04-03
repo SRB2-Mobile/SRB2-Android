@@ -15,6 +15,7 @@
 #define __G_INPUT__
 
 #include "d_event.h"
+#include "d_player.h"
 #include "keys.h"
 #include "command.h"
 
@@ -143,7 +144,10 @@ extern UINT8 gamekeydown[NUMINPUTS];
 
 boolean G_InGameInput(void);
 boolean G_HandlePauseKey(boolean ispausebreak);
-boolean G_HandleSpyMode(void);
+
+boolean G_DoViewpointSwitch(void);
+boolean G_CanViewpointSwitch(void);
+boolean G_CanViewpointSwitchToPlayer(player_t *player);
 
 // Lactozilla: Touch input buttons
 #ifdef TOUCHINPUTS

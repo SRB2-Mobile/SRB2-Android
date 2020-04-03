@@ -22,6 +22,7 @@
 #include "hu_stuff.h" // need HUFONT start & end
 #include "st_stuff.h"
 #include "d_net.h"
+#include "d_player.h"
 #include "console.h"
 #include "i_system.h"
 
@@ -281,7 +282,7 @@ static void G_HandleFingerEvent(event_t *ev)
 							waspressed = G_HandlePauseKey(true);
 						// Handle spy mode
 						else if (i == gc_viewpoint)
-							waspressed = G_HandleSpyMode();
+							waspressed = G_DoViewpointSwitch();
 						// Handle screenshot
 						else if (i == gc_screenshot)
 							M_ScreenShot();
@@ -297,7 +298,7 @@ static void G_HandleFingerEvent(event_t *ev)
 							// Only raise the screen keyboard in team games
 							// if you're assigned to any team
 							if (raise && (i == gc_teamkey))
-								raise = (players[consoleplayer].ctfteam != 0);
+								raise = (G_GametypeHasTeams() && (players[consoleplayer].ctfteam != 0));
 
 							// Do it (works with console chat)
 							if (raise)
@@ -608,7 +609,85 @@ boolean G_HandlePauseKey(boolean ispausebreak)
 	return false;
 }
 
-boolean G_HandleSpyMode(void)
+// Returns true if you can switch your viewpoint to this player.
+boolean G_CanViewpointSwitchToPlayer(player_t *player)
+{
+	player_t *myself = &players[consoleplayer];
+
+	if (player->spectator)
+		return false;
+
+	if (G_GametypeHasTeams())
+	{
+		if (myself->ctfteam && player->ctfteam != myself->ctfteam)
+			return false;
+	}
+	else if (gametype == GT_HIDEANDSEEK)
+	{
+		if (myself->pflags & PF_TAGIT)
+			return false;
+	}
+	// Other Tag-based gametypes?
+	else if (G_TagGametype())
+	{
+		if (!myself->spectator && (myself->pflags & PF_TAGIT) != (player->pflags & PF_TAGIT))
+			return false;
+	}
+	else if (G_GametypeHasSpectators() && G_RingSlingerGametype())
+	{
+		if (!myself->spectator)
+			return false;
+	}
+
+	return true;
+}
+
+// Returns true if you can switch your viewpoint at all.
+boolean G_CanViewpointSwitch(void)
+{
+	// ViewpointSwitch Lua hook.
+#ifdef HAVE_BLUA
+	UINT8 canSwitchView = 0;
+#endif
+
+	INT32 checkdisplayplayer = displayplayer;
+
+	if (splitscreen || !netgame)
+		return false;
+
+	if (D_NumPlayers() <= 1)
+		return false;
+
+	do
+	{
+		checkdisplayplayer++;
+		if (checkdisplayplayer == MAXPLAYERS)
+			checkdisplayplayer = 0;
+
+		if (!playeringame[checkdisplayplayer])
+			continue;
+
+#ifdef HAVE_BLUA
+		// Call ViewpointSwitch hooks here.
+		canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[checkdisplayplayer], false);
+		if (canSwitchView == 1) // Set viewpoint to this player
+			break;
+		else if (canSwitchView == 2) // Skip this player
+			continue;
+#endif
+
+		if (!G_CanViewpointSwitchToPlayer(&players[checkdisplayplayer]))
+			continue;
+
+		break;
+	} while (checkdisplayplayer != consoleplayer);
+
+	// had any change??
+	return (checkdisplayplayer != displayplayer);
+}
+
+// Handles the viewpoint switch key being pressed.
+boolean G_DoViewpointSwitch(void)
 {
 	// ViewpointSwitch Lua hook.
 #ifdef HAVE_BLUA
@@ -619,7 +698,6 @@ boolean G_HandleSpyMode(void)
 		displayplayer = consoleplayer;
 	else
 	{
-		// spy mode
 		do
 		{
 			displayplayer++;
@@ -638,32 +716,8 @@ boolean G_HandleSpyMode(void)
 				continue;
 #endif
 
-			if (players[displayplayer].spectator)
+			if (!G_CanViewpointSwitchToPlayer(&players[displayplayer]))
 				continue;
-
-			if (G_GametypeHasTeams())
-			{
-				if (players[consoleplayer].ctfteam
-				 && players[displayplayer].ctfteam != players[consoleplayer].ctfteam)
-					continue;
-			}
-			else if (gametype == GT_HIDEANDSEEK)
-			{
-				if (players[consoleplayer].pflags & PF_TAGIT)
-					continue;
-			}
-			// Other Tag-based gametypes?
-			else if (G_TagGametype())
-			{
-				if (!players[consoleplayer].spectator
-				 && (players[consoleplayer].pflags & PF_TAGIT) != (players[displayplayer].pflags & PF_TAGIT))
-					continue;
-			}
-			else if (G_GametypeHasSpectators() && G_RingSlingerGametype())
-			{
-				if (!players[consoleplayer].spectator)
-					continue;
-			}
 
 			break;
 		} while (displayplayer != consoleplayer);
@@ -1253,6 +1307,9 @@ void G_TouchControlPreset(void)
 	INT32 corneroffset = 4;
 	INT32 offs = (promptactive ? -32 : 0);
 	INT32 bottomalign = 0;
+	touchconfig_t *ref;
+	boolean bothvisible;
+	boolean eithervisible;
 
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
 		bottomalign = (vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy;
@@ -1388,7 +1445,7 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_viewpoint].hidden = true;
 	touchcontrols[gc_viewpoint].x = touchcontrols[gc_pause].x;
 	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
-	if (netgame)
+	if (G_CanViewpointSwitch())
 	{
 		touchcontrols[gc_viewpoint].w = 32;
 		touchcontrols[gc_viewpoint].h = 24;
@@ -1400,17 +1457,18 @@ void G_TouchControlPreset(void)
 	w = 40;
 	h = 24;
 
-	if ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden))
+	bothvisible = ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden));
+	eithervisible = (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden);
+
+	if (bothvisible || eithervisible)
 	{
-		x = touchcontrols[gc_viewpoint].x;
-		x -= (touchcontrols[gc_viewpoint].x - touchcontrols[gc_pause].x) / 2;
-		y = max(touchcontrols[gc_viewpoint].y, touchcontrols[gc_pause].y) + h + offs;
-	}
-	// only if one of either are visible, but not both
-	else if (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden)
-	{
-		x = touchcontrols[gc_viewpoint].x - (w - touchcontrols[gc_viewpoint].w);
-		y = touchcontrols[gc_viewpoint].y + min(touchcontrols[gc_viewpoint].h, touchcontrols[gc_pause].h) + offs;
+		if (bothvisible)
+			ref = &touchcontrols[gc_pause];
+		else // only if one of either are visible, but not both
+			ref = (touchcontrols[gc_viewpoint].hidden ? &touchcontrols[gc_pause] : &touchcontrols[gc_viewpoint]);
+
+		x = ref->x - (w - ref->w);
+		y = ref->y + ref->h + offs;
 	}
 	else
 	{
@@ -1442,7 +1500,7 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
 		touchcontrols[gc_talkkey].hidden = false;
 
-		if (players[consoleplayer].ctfteam)
+		if (G_GametypeHasTeams() && players[consoleplayer].ctfteam)
 		{
 			touchcontrols[gc_teamkey].w = 32;
 			touchcontrols[gc_teamkey].h = 24;

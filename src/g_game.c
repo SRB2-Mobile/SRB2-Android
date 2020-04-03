@@ -2056,7 +2056,7 @@ boolean G_Responder(event_t *ev)
 	if (gamestate == GS_LEVEL && ev->type == ev_keydown
 		&& (ev->key == KEY_F12 || ev->key == gamecontrol[gc_viewpoint][0] || ev->key == gamecontrol[gc_viewpoint][1]))
 	{
-		if (G_HandleSpyMode())
+		if (G_DoViewpointSwitch())
 			return true;
 	}
 
