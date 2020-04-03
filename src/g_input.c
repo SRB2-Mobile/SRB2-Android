@@ -268,6 +268,8 @@ static void G_HandleFingerEvent(event_t *ev)
 
 					if (!G_TouchButtonIsPlayerControl(i))
 					{
+						boolean waspressed = true;
+
 						// Handle menu button
 						if (i == gc_systemmenu)
 							M_StartControlPanel();
@@ -276,22 +278,16 @@ static void G_HandleFingerEvent(event_t *ev)
 							CON_Toggle();
 						// Handle pause button
 						else if (i == gc_pause)
-						{
-							if (G_HandlePauseKey(true))
-								butt->pressed = keydowntime;
-						}
+							waspressed = G_HandlePauseKey(true);
 						// Handle spy mode
 						else if (i == gc_viewpoint)
-						{
-							if (G_HandleSpyMode())
-								butt->pressed = keydowntime;
-						}
+							waspressed = G_HandleSpyMode();
+						// Handle screenshot
+						else if (i == gc_screenshot)
+							M_ScreenShot();
 						// Handle movie mode
 						else if (i == gc_recordgif)
-						{
 							((moviemode) ? M_StopMovie : M_StartMovie)();
-							butt->pressed = keydowntime;
-						}
 						// Handle talk buttons
 						else if (i == gc_talkkey || i == gc_teamkey)
 						{
@@ -311,7 +307,12 @@ static void G_HandleFingerEvent(event_t *ev)
 								else
 									HU_CloseChat();
 							}
+							else
+								waspressed = false;
 						}
+
+						if (waspressed)
+							butt->pressed = keydowntime;
 					}
 					else
 						gamekeydown[gc] = 1;
@@ -1396,11 +1397,17 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_viewpoint].hidden = false;
 	}
 
+	// Screenshot
+	touchcontrols[gc_screenshot].w = 32;
+	touchcontrols[gc_screenshot].h = 24;
+	touchcontrols[gc_screenshot].x = touchcontrols[gc_viewpoint].x - touchcontrols[gc_screenshot].w - 4;
+	touchcontrols[gc_screenshot].y = touchcontrols[gc_viewpoint].y;
+
 	// Movie mode
 	touchcontrols[gc_recordgif].w = 32;
 	touchcontrols[gc_recordgif].h = 24;
-	touchcontrols[gc_recordgif].x = touchcontrols[gc_viewpoint].x - touchcontrols[gc_recordgif].w - 4;
-	touchcontrols[gc_recordgif].y = touchcontrols[gc_viewpoint].y;
+	touchcontrols[gc_recordgif].x = touchcontrols[gc_screenshot].x;
+	touchcontrols[gc_recordgif].y = (touchcontrols[gc_screenshot].y + touchcontrols[gc_screenshot].h + offs);
 
 	// Talk key and team talk key
 	touchcontrols[gc_talkkey].hidden = true;
@@ -1410,7 +1417,7 @@ static void G_DefineTouchGameControls(void)
 		touchcontrols[gc_talkkey].w = 24;
 		touchcontrols[gc_talkkey].h = 24;
 		touchcontrols[gc_talkkey].x = ((vid.width / vid.dupx) - touchcontrols[gc_talkkey].w - corneroffset);
-		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);;
+		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
 		touchcontrols[gc_talkkey].hidden = false;
 
 		if (players[consoleplayer].ctfteam)

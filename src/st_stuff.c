@@ -1547,6 +1547,9 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	// Spy mode
 	drawbutt(gc_viewpoint, 0, "F12");
 
+	// Screenshot
+	drawbutt(gc_screenshot, 0, "SCR");
+
 	// Movie mode
 	drawcolbutt(gc_recordgif, 0, "REC", (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
 
