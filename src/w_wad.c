@@ -856,16 +856,16 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 	// will be realloced as lumps are added
 	for (; *filenames; filenames++)
 	{
-		boolean mainfile = (numwadfiles < mainfiles);
 		fhandletype_t handletype = FILEHANDLE_STANDARD;
 
 #if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
-		if (mainfile)
-			handletype = FILEHANDLE_SDL;
+		// All files added at startup are handled by SDL_RWops and can be loaded from the inside the APK.
+		// This also means that any file added with -file can be loaded from the package's assets folder.
+		handletype = FILEHANDLE_SDL;
 #endif
 
 		//CONS_Debug(DBG_SETUP, "Loading %s\n", *filenames);
-		W_InitFile(*filenames, handletype, mainfile, true);
+		W_InitFile(*filenames, handletype, (numwadfiles < mainfiles), true);
 	}
 }
 

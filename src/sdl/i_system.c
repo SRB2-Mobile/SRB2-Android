@@ -2822,6 +2822,14 @@ static const char *locateWad(void)
 	const char *envstr;
 	const char *WadPath;
 
+#if defined(__ANDROID__)
+	if (I_StorageLocation())
+	{
+		I_OutputMsg("%s", I_StorageLocation());
+		return I_StorageLocation();
+	}
+#endif
+
 	I_OutputMsg("SRB2WADDIR");
 	// does SRB2WADDIR exist?
 	if (((envstr = I_GetEnv("SRB2WADDIR")) != NULL) && isWadPathOk(envstr))
@@ -2845,15 +2853,6 @@ static const char *locateWad(void)
 		return returnWadPath;
 	}
 #endif
-#endif
-
-#ifdef __ANDROID__
-	strcpy(returnWadPath, SDL_AndroidGetExternalStoragePath());
-	I_OutputMsg(",%s", returnWadPath);
-	if (isWadPathOk(returnWadPath))
-	{
-		return returnWadPath;
-	}
 #endif
 
 #ifdef __APPLE__
@@ -2966,7 +2965,7 @@ const char *I_LocateWad(void)
 
 const char *I_StorageLocation(void)
 {
-#ifdef __ANDROID__
+#if defined(__ANDROID__)
 	return SDL_AndroidGetExternalStoragePath();
 #else
 	return NULL;

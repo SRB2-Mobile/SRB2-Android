@@ -906,13 +906,14 @@ static inline void D_CleanFile(void)
 
 static void IdentifyVersion(void)
 {
-	char *srb2wad;
+	const char *basepk3 = "srb2.pk3";
 	const char *srb2waddir = NULL;
 
 #if defined(__ANDROID__)
 	fhandletype_t handletype = FILEHANDLE_SDL;
 	D_SetupHome();
 #else
+	char *srb2wad;
 	fhandletype_t handletype = FILEHANDLE_STANDARD;
 #endif
 
@@ -942,25 +943,30 @@ static void IdentifyVersion(void)
 		srb2waddir = I_GetWadDir();
 #endif
 
+	// will be overwritten in case of -cdrom or unix/win home
+	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);
+	configfile[sizeof configfile - 1] = '\0';
+
+#if defined(__ANDROID__)
+	// Lactozilla: srb2.pk3 is always present, inside the APK, so just add it
+	D_AddFile(basepk3);
+#else
 	// Commercial.
 	srb2wad = malloc(strlen(srb2waddir)+1+8+1);
 	if (srb2wad == NULL)
 		I_Error("No more free memory to look in %s", srb2waddir);
 	else
-		sprintf(srb2wad, pandf, srb2waddir, "srb2.pk3");
-
-	// will be overwritten in case of -cdrom or unix/win home
-	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);
-	configfile[sizeof configfile - 1] = '\0';
+		sprintf(srb2wad, pandf, srb2waddir, basepk3);
 
 	// Load the IWAD
 	if (srb2wad != NULL && FIL_ReadFileOK(srb2wad))
 		D_AddFile(srb2wad);
 	else
-		I_Error("srb2.pk3 not found! Expected in %s, ss file: %s\n", srb2waddir, srb2wad);
+		I_Error("%s not found! Expected in %s, ss file: %s\n", basepk3, srb2waddir, srb2wad);
 
 	if (srb2wad)
 		free(srb2wad);
+#endif
 
 	// if you change the ordering of this or add/remove a file, be sure to update the md5
 	// checking in D_SRB2Main
@@ -1222,6 +1228,9 @@ void D_SRB2Main(void)
 	W_VerifyFileMD5(2, ASSET_HASH_PLAYER_DTA); // player.dta
 #ifdef USE_PATCH_DTA
 	W_VerifyFileMD5(3, ASSET_HASH_PATCH_PK3); // patch.pk3
+#endif
+#if defined(__ANDROID__)
+	W_VerifyFileMD5(4, ASSET_HASH_ANDROID_PK3); // android.pk3
 #endif
 	// don't check music.dta because people like to modify it, and it doesn't matter if they do
 	// ...except it does if they slip maps in there, and that's what W_VerifyNMUSlumps is for.
