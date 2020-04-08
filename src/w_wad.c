@@ -286,7 +286,7 @@ static inline void W_LoadDehackedLumps(UINT16 wadnum, boolean mainfile)
   * \param resblock resulting MD5 checksum
   * \return 0 if MD5 checksum was made, and is at resblock, 1 if error was found
   */
-static inline INT32 W_MakeFileMD5(const char *filename, void *resblock)
+static inline INT32 W_MakeFileMD5(const char *filename, fhandletype_t handletype, void *resblock)
 {
 #ifdef NOMD5
 	(void)filename;
@@ -294,7 +294,7 @@ static inline INT32 W_MakeFileMD5(const char *filename, void *resblock)
 #else
 	void *fhandle;
 
-	if ((fhandle = File_Open(filename, "rb", FILEHANDLE_STANDARD)) != NULL)
+	if ((fhandle = File_Open(filename, "rb", handletype)) != NULL)
 	{
 		tic_t t = I_GetTime();
 		CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",filename);
@@ -736,7 +736,7 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	// Let's not add a wad file if the MD5 matches
 	// an MD5 of an already added WAD file!
 	//
-	W_MakeFileMD5(filename, md5sum);
+	W_MakeFileMD5(filename, handletype, md5sum);
 
 	for (i = 0; i < numwadfiles; i++)
 	{

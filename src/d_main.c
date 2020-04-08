@@ -898,10 +898,22 @@ static inline void D_CleanFile(void)
 // Identify the SRB2 version, and IWAD file to use.
 // ==========================================================================
 
+#if defined(__ANDROID__)
+#define FILEPATH(fname) fname
+#else
+#define FILEPATH(fname) va(pandf,srb2waddir,fname)
+#endif
+
 static void IdentifyVersion(void)
 {
 	char *srb2wad;
 	const char *srb2waddir = NULL;
+
+#if defined(__ANDROID__)
+	fhandletype_t handletype = FILEHANDLE_SDL;
+#else
+	fhandletype_t handletype = FILEHANDLE_STANDARD;
+#endif
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	// change to the directory where 'srb2.pk3' is found
@@ -928,6 +940,7 @@ static void IdentifyVersion(void)
 	if (!stricmp(srb2waddir, "/"))
 		srb2waddir = I_GetWadDir();
 #endif
+
 	// Commercial.
 	srb2wad = malloc(strlen(srb2waddir)+1+8+1);
 	if (srb2wad == NULL)
@@ -952,22 +965,27 @@ static void IdentifyVersion(void)
 	// checking in D_SRB2Main
 
 	// Add the maps
-	D_AddFile(va(pandf,srb2waddir,"zones.pk3"));
+	D_AddFile(FILEPATH("zones.pk3"));
 
 	// Add the players
-	D_AddFile(va(pandf,srb2waddir, "player.dta"));
+	D_AddFile(FILEPATH("player.dta"));
 
 #ifdef USE_PATCH_DTA
 	// Add our crappy patches to fix our bugs
-	D_AddFile(va(pandf,srb2waddir,"patch.pk3"));
+	D_AddFile(FILEPATH("patch.pk3"));
+#endif
+
+#if defined(__ANDROID__)
+	// Android assets
+	D_AddFile(FILEPATH("android.pk3"));
 #endif
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
 	{
 #define MUSICTEST(str) \
 		{\
-			const char *musicpath = va(pandf,srb2waddir,str);\
-			int ms = W_VerifyNMUSlumps(musicpath,FILEHANDLE_STANDARD); \
+			const char *musicpath = FILEPATH(str);\
+			int ms = W_VerifyNMUSlumps(musicpath,handletype); \
 			if (ms == 1) \
 				D_AddFile(musicpath); \
 			else if (ms == 0) \
@@ -981,6 +999,8 @@ static void IdentifyVersion(void)
 	}
 #endif
 }
+
+#undef FILEPATH
 
 #ifdef PC_DOS
 /* ======================================================================== */
@@ -1224,6 +1244,9 @@ void D_SRB2Main(void)
 
 	mainwads = 3; // doesn't include music.dta
 #ifdef USE_PATCH_DTA
+	mainwads++;
+#endif
+#if defined(__ANDROID__)
 	mainwads++;
 #endif
 

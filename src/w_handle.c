@@ -85,6 +85,13 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 	else
 		I_Error("File_Open: unknown file handle type!");
 
+	// File not found
+	if (!handle->file)
+	{
+		free(handle);
+		return NULL;
+	}
+
 	return handle;
 }
 
@@ -110,7 +117,7 @@ int File_CheckError(void *f)
 			return ferror((FILE *)handle->file);
 #ifdef HAVE_SDL
 		case FILEHANDLE_SDL:
-			return (handle->lasterror != NULL);
+			return 0;
 #endif
 		default:
 			break;
