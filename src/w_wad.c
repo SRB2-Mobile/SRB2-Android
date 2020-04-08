@@ -298,7 +298,7 @@ static inline INT32 W_MakeFileMD5(const char *filename, void *resblock)
 	{
 		tic_t t = I_GetTime();
 		CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",filename);
-		if (md5_stream(fhandle, resblock) == 1)
+		if (md5_stream_whandle(fhandle, resblock) == 1)
 		{
 			File_Close(fhandle);
 			return 1;
@@ -452,7 +452,7 @@ static boolean ResFindSignature (void* handle, char endPat[], UINT32 startpos)
 
 	File_Seek(handle, startpos, SEEK_SET);
 	s = endPat;
-	while((c = fgetc(handle)) != EOF)
+	while((c = File_GetChar(handle)) != EOF)
 	{
 		if (*s != c && s > endPat) // No match?
 			s = endPat; // We "reset" the counter by sending the s pointer back to the start of the array.
@@ -585,7 +585,7 @@ static lumpinfo_t* ResGetLumpsZip (void* handle, UINT16* nlmp)
 		lump_p->size = zentry->size;
 
 		fullname = malloc(zentry->namelen + 1);
-		if (fgets(fullname, zentry->namelen + 1, handle) != fullname)
+		if (File_GetString(fullname, zentry->namelen + 1, handle) != fullname)
 		{
 			CONS_Alert(CONS_ERROR, "Unable to read lumpname (%s)\n", File_Error(handle));
 			Z_Free(lumpinfo);
@@ -1809,7 +1809,7 @@ W_VerifyPK3 (void *fp, lumpchecklist_t *checklist, boolean status)
 			return true;
 
 		fullname = malloc(zentry.namelen + 1);
-		if (fgets(fullname, zentry.namelen + 1, fp) != fullname)
+		if (File_GetString(fullname, zentry.namelen + 1, fp) != fullname)
 			return true;
 
 		// Strip away file address and extension for the 8char name.

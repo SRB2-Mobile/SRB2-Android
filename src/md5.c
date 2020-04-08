@@ -45,6 +45,10 @@
  #define SWAP(n) (n)
 #endif
 
+#ifdef HAVE_WHANDLE
+#include "w_handle.h"
+#endif
+
 /* This array contains the bytes used to pad the buffer to the next
    64-byte boundary.  (RFC 1321, 3.1: Step 1)  */
 static const unsigned char fillbuf[64] = { 0x80, 0 /*, 0, 0, ...  */ };
@@ -383,6 +387,45 @@ int md5_stream (FILE *stream, void *resblock)
   md5_finish_ctx (&ctx, resblock);
   return 0;
 }
+
+/* Compute MD5 message digest for bytes read from a WAD file handle.  */
+#ifdef HAVE_WHANDLE
+int md5_stream_whandle (void *stream, void *resblock)
+{
+  struct md5_ctx ctx;
+  char buffer[BLOCKSIZE + 72];
+  size_t sum = 0;
+
+  md5_init_ctx (&ctx);
+
+  while (1)
+    {
+      size_t n;
+      sum = 0;
+
+      do
+	{
+	  n = File_Read (buffer + sum, 1, BLOCKSIZE - sum, stream);
+
+	  sum += n;
+	}
+      while (sum < BLOCKSIZE && n != 0);
+      if (n == 0 && File_CheckError (stream))
+        return 1;
+
+      if (n == 0)
+	break;
+
+      md5_process_block (buffer, BLOCKSIZE, &ctx);
+    }
+
+  if (sum > 0)
+    md5_process_bytes (buffer, sum, &ctx);
+
+  md5_finish_ctx (&ctx, resblock);
+  return 0;
+}
+#endif // HAVE_WHANDLE
 
 /* Compute MD5 message digest for LEN bytes beginning at BUFFER.  The
    result is always in little endian byte order, so that a byte-wise

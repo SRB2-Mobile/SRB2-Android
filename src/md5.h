@@ -126,4 +126,11 @@ int md5_stream __P ((FILE *stream, void *resblock));
    digest.  */
 extern void *md5_buffer __P ((const char *buffer, size_t len, void *resblock));
 
+/* Compute MD5 message digest for bytes read from a WAD file handle.  */
+#ifdef HAVE_WHANDLE
+int md5_stream_whandle (void *stream, void *resblock);
+#else
+#define md5_stream_whandle md5_stream
+#endif
+
 #endif

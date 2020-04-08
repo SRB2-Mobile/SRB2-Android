@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 1999-2020 by Sonic Team Junior.
+// Copyright (C) 2020 by Sonic Team Junior.
 // Copyright (C) 2020 by Jaime "Lactozilla" Passos.
 //
 // This program is free software distributed under the
@@ -27,10 +27,12 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 
 	if (type == FILEHANDLE_STANDARD)
 	{
-		CONS_Printf("Opening standard file\n");
+		CONS_Printf("Opening standard file %s %s\n", filename, filemode);
 		handle->read = &File_StandardRead;
 		handle->seek = &File_StandardSeek;
 		handle->tell = &File_StandardTell;
+		handle->getchar = &File_StandardGetChar;
+		handle->getstring = &File_StandardGetString;
 		handle->close = &File_StandardClose;
 		handle->error = &File_StandardError;
 		handle->file = fopen(filename, filemode);
@@ -38,10 +40,12 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 #ifdef HAVE_SDL
 	else if (type == FILEHANDLE_SDL)
 	{
-		CONS_Printf("Opening SDL file\n");
+		CONS_Printf("Opening SDL file %s %s\n", filename, filemode);
 		handle->read = &File_SDLRead;
 		handle->seek = &File_SDLSeek;
 		handle->tell = &File_SDLTell;
+		handle->getchar = &File_SDLGetChar;
+		handle->getstring = &File_SDLGetString;
 		handle->close = &File_SDLClose;
 		handle->error = &File_SDLError;
 		handle->file = SDL_RWFromFile(filename, filemode);
@@ -62,6 +66,26 @@ int File_Close(void *f)
 		free(handle->lasterror);
 	free(handle);
 	return ok;
+}
+
+// Check for file read errors.
+int File_CheckError(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+
+	switch (handle->type)
+	{
+		case FILEHANDLE_STANDARD:
+			return ferror((FILE *)handle->file);
+#ifdef HAVE_SDL
+		case FILEHANDLE_SDL:
+			return (handle->lasterror != NULL);
+#endif
+		default:
+			break;
+	}
+
+	return 0;
 }
 
 //
@@ -87,6 +111,19 @@ long int File_StandardTell(void *f)
 {
 	filehandle_t *handle = (filehandle_t *)f;
 	return ftell((FILE *)handle->file);
+}
+
+// Read a single character from the file stream.
+int File_StandardGetChar(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	return fgetc((FILE *)handle->file);
+}
+
+char *File_StandardGetString(void *f, char *str, int num)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	return fgets(str, num, (FILE *)handle->file);
 }
 
 // Close the file handle.
@@ -148,6 +185,27 @@ long int File_SDLTell(void *f)
 	long int position = (long int)SDL_RWtell((struct SDL_RWops *)handle->file);
 	File_SDLSetError(handle);
 	return position;
+}
+
+// Read a single character from the file stream.
+int File_SDLGetChar(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	int c;
+	SDL_RWread((struct SDL_RWops *)handle->file, &c, sizeof(char), 1);
+	File_SDLSetError(handle);
+	return c;
+}
+
+char *File_SDLGetString(void *f, char *str, int num)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	if (!SDL_RWread((struct SDL_RWops *)handle->file, str, sizeof(char), num))
+	{
+		File_SDLSetError(handle);
+		return NULL;
+	}
+	return str;
 }
 
 // Close the file handle.
