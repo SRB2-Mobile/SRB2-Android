@@ -47,6 +47,7 @@ void D_PostEvent_end(void);    // delimiter for locking memory
 void D_ProcessEvents(void);
 
 const char *D_Home(void);
+void D_SetupHome(void);
 
 //
 // BASE LEVEL

@@ -408,7 +408,7 @@ enum {
 
 // Name of local directory for config files and savegames
 #if defined(__ANDROID__)
-#define DEFAULTDIR "user"
+#define DEFAULTDIR // no user home in Android, interferes with the application storage path
 #elif (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
 #define DEFAULTDIR ".srb2"
 #else

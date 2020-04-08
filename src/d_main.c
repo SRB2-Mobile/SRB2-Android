@@ -911,6 +911,7 @@ static void IdentifyVersion(void)
 
 #if defined(__ANDROID__)
 	fhandletype_t handletype = FILEHANDLE_SDL;
+	D_SetupHome();
 #else
 	fhandletype_t handletype = FILEHANDLE_STANDARD;
 #endif
@@ -1130,53 +1131,11 @@ void D_SRB2Main(void)
 	// default savegame
 	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
 
-	{
-		const char *userhome = D_Home(); //Alam: path to home
-
-		if (!userhome)
-		{
-#if ((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
-			I_Error("Please set $HOME to your home directory\n");
-#else
-			if (dedicated)
-				snprintf(configfile, sizeof configfile, "d"CONFIGFILENAME);
-			else
-				snprintf(configfile, sizeof configfile, CONFIGFILENAME);
-#endif
-		}
-		else
-		{
-			// use user specific config file
-#ifdef DEFAULTDIR
-			snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
-			snprintf(downloaddir, sizeof downloaddir, "%s" PATHSEP "DOWNLOAD", srb2home);
-			if (dedicated)
-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, srb2home);
-			else
-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
-
-			// can't use sprintf since there is %u in savegamename
-			strcatbf(savegamename, srb2home, PATHSEP);
-
-#else
-			snprintf(srb2home, sizeof srb2home, "%s", userhome);
-			snprintf(downloaddir, sizeof downloaddir, "%s", userhome);
-			if (dedicated)
-				snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
-			else
-				snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
-
-			// can't use sprintf since there is %u in savegamename
-			strcatbf(savegamename, userhome, PATHSEP);
-#endif
-		}
-
-		configfile[sizeof configfile - 1] = '\0';
-	}
-
 #if defined(__ANDROID__)
 	// Lactozilla: Create the home directory
 	I_mkdir(srb2home, 0755);
+#else
+	D_SetupHome();
 #endif
 
 	// Create addons dir
@@ -1583,8 +1542,8 @@ const char *D_Home(void)
 {
 	const char *userhome = NULL;
 
-#ifdef __ANDROID__
-	return I_StorageLocation();
+#if defined(__ANDROID__)
+	return ""; // In Android, writing to anywhere already points to the application's data folder.
 #endif
 
 	if (M_CheckParm("-home") && M_IsNextParm())
@@ -1624,4 +1583,49 @@ const char *D_Home(void)
 #endif// _WIN32
 	if (usehome) return userhome;
 	else return NULL;
+}
+
+void D_SetupHome(void)
+{
+	const char *userhome = D_Home(); //Alam: path to home
+
+	if (!userhome)
+	{
+#if ((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)
+		I_Error("Please set $HOME to your home directory\n");
+#else
+		if (dedicated)
+			snprintf(configfile, sizeof configfile, "d"CONFIGFILENAME);
+		else
+			snprintf(configfile, sizeof configfile, CONFIGFILENAME);
+#endif
+	}
+	else
+	{
+		// use user specific config file
+#ifdef DEFAULTDIR
+		snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
+		snprintf(downloaddir, sizeof downloaddir, "%s" PATHSEP "DOWNLOAD", srb2home);
+		if (dedicated)
+			snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, srb2home);
+		else
+			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
+
+		// can't use sprintf since there is %u in savegamename
+		strcatbf(savegamename, srb2home, PATHSEP);
+
+#else
+		snprintf(srb2home, sizeof srb2home, "%s", userhome);
+		snprintf(downloaddir, sizeof downloaddir, "%s", userhome);
+		if (dedicated)
+			snprintf(configfile, sizeof configfile, "%s" PATHSEP "d"CONFIGFILENAME, userhome);
+		else
+			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
+
+		// can't use sprintf since there is %u in savegamename
+		strcatbf(savegamename, userhome, PATHSEP);
+#endif
+	}
+
+	configfile[sizeof configfile - 1] = '\0';
 }
