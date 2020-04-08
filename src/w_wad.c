@@ -181,6 +181,12 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 		}
 		else
 		{
+#if defined(__ANDROID__)
+			// Lactozilla: Search inside the app package.
+			handle = File_Open(*filename, "rb", type);
+			if (handle)
+				return handle;
+#endif
 			if (useerrors)
 				CONS_Alert(CONS_ERROR, M_GetText("File %s not found.\n"), *filename);
 			return NULL;
@@ -1202,7 +1208,7 @@ void zerr(int ret)
   * \param lump Lump number to read from.
   * \param dest Buffer in memory to serve as destination.
   * \param size Number of bytes to read.
-  * \param offest Number of bytes to offset.
+  * \param offset Number of bytes to offset.
   * \return Number of bytes read (should equal size).
   * \sa W_ReadLump, W_RawReadLumpHeader
   */

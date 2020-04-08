@@ -898,11 +898,7 @@ static inline void D_CleanFile(void)
 // Identify the SRB2 version, and IWAD file to use.
 // ==========================================================================
 
-#if defined(__ANDROID__)
-#define FILEPATH(fname) fname
-#else
 #define FILEPATH(fname) va(pandf,srb2waddir,fname)
-#endif
 
 static void IdentifyVersion(void)
 {
@@ -949,7 +945,7 @@ static void IdentifyVersion(void)
 
 #if defined(__ANDROID__)
 	// Lactozilla: srb2.pk3 is always present, inside the APK, so just add it
-	D_AddFile(basepk3);
+	D_AddFile(FILEPATH(basepk3));
 #else
 	// Commercial.
 	srb2wad = malloc(strlen(srb2waddir)+1+8+1);

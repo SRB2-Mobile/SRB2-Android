@@ -1,0 +1,27 @@
+This folder contains the files that will be packaged with the built APK.
+
+  These files are not required to be bundled with the application package.
+  If they are missing, the app will look instead into the following path:
+    /storage/emulated/0/Android/data/org.stjr.srb2/files/
+  Files inside the APK have higher access time than files stored inside
+  the user's sdcard.
+
+    * srb2.pk3
+    * zones.pk3
+    * player.dta
+    * patch.pk3
+
+  These files are meant to be bundled with the application package.
+
+    * android.pk3
+    * splash.png
+
+  These files are completely optional, and the app may launch with or without
+  their presence.
+
+     * music.dta
+
+Do not include files that are too large - if you need to store such files,
+please consider asking the user to place them into their sdcard instead.
+
+ - Lactozilla (Jaime Passos)

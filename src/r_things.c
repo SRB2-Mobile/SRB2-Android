@@ -230,6 +230,9 @@ boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef, UINT16
 	lumpinfo_t *lumpinfo;
 	patch_t patch;
 	UINT8 numadded = 0;
+#ifndef NO_PNG_LUMPS
+	void *lumpdata;
+#endif
 
 	memset(sprtemp,0xFF, sizeof (sprtemp));
 	maxframe = (size_t)-1;
@@ -274,10 +277,17 @@ boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef, UINT16
 
 			// store sprite info in lookup tables
 			//FIXME : numspritelumps do not duplicate sprite replacements
+#ifndef NO_PNG_LUMPS
+			lumpdata = W_CacheLumpNumPwad(wadnum, l, PU_STATIC);
+			M_Memcpy(&patch, lumpdata, sizeof(INT16)*4);
+#else
 			W_ReadLumpHeaderPwad(wadnum, l, &patch, sizeof (patch_t), 0);
+#endif
+
+			// check if the lump is a png
 #ifndef NO_PNG_LUMPS
 			{
-				patch_t *png = W_CacheLumpNumPwad(wadnum, l, PU_STATIC);
+				patch_t *png = (patch_t *)lumpdata;
 				size_t len = W_LumpLengthPwad(wadnum, l);
 				// lump is a png so convert it
 				if (R_IsLumpPNG((UINT8 *)png, len))
