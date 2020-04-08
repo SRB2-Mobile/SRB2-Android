@@ -14,6 +14,8 @@
 #ifndef __W_WAD__
 #define __W_WAD__
 
+#include "w_handle.h"
+
 #ifdef HWRENDER
 #include "hardware/hw_data.h"
 #endif
@@ -126,7 +128,7 @@ typedef struct wadfile_s
 	aatree_t *hwrcache; // patches are cached in renderer's native format
 #endif
 	UINT16 numlumps; // this wad's number of resources
-	FILE *handle;
+	void *handle;
 	UINT32 filesize; // for network
 	UINT8 md5sum[16];
 
@@ -144,7 +146,7 @@ extern wadfile_t *wadfiles[MAX_WADFILES];
 void W_Shutdown(void);
 
 // Opens a WAD file. Returns the FILE * handle for the file, or NULL if not found or could not be opened
-FILE *W_OpenWadFile(const char **filename, boolean useerrors);
+void *W_OpenWadFile(const char **filename, boolean useerrors);
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
 UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup);
 

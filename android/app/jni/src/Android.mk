@@ -78,6 +78,7 @@ LOCAL_SRC_FILES := $(OBJDIR)/comptime.c \
 			$(OBJDIR)/s_sound.c  \
 			$(OBJDIR)/sounds.c   \
 			$(OBJDIR)/w_wad.c    \
+			$(OBJDIR)/w_handle.c \
 			$(OBJDIR)/filesrch.c \
 			$(OBJDIR)/mserv.c    \
 			$(OBJDIR)/i_tcp.c    \
@@ -143,6 +144,7 @@ LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
 				-DUNIXCOMMON -DLINUX \
 				-DDEBUGMODE -DLOGCAT -DDIRECTFULLSCREEN \
 				-DHAVE_ZLIB -DHAVE_BLUA -DHAVE_PNG \
+				-DHAVE_WHANDLE \
 				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE
 
 LOCAL_SHARED_LIBRARIES := SDL2 hidapi \
