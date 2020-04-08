@@ -96,7 +96,7 @@ const char *File_SDLError(void *handle);
 #else
 
 // If you don't need to use whandle.
-#define File_Open(fname, fmode, ftype) fopen(fname, ftype)
+#define File_Open(fname, fmode, ftype) fopen(fname, fmode)
 #define File_Read fread
 #define File_Seek fseek
 #define File_Tell ftell

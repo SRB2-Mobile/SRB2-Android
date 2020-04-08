@@ -27,7 +27,6 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 
 	if (type == FILEHANDLE_STANDARD)
 	{
-		CONS_Printf("Opening standard file %s %s\n", filename, filemode);
 		handle->read = &File_StandardRead;
 		handle->seek = &File_StandardSeek;
 		handle->tell = &File_StandardTell;
@@ -40,7 +39,6 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 #ifdef HAVE_SDL
 	else if (type == FILEHANDLE_SDL)
 	{
-		CONS_Printf("Opening SDL file %s %s\n", filename, filemode);
 		handle->read = &File_SDLRead;
 		handle->seek = &File_SDLSeek;
 		handle->tell = &File_SDLTell;
@@ -52,7 +50,7 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 	}
 #endif
 	else
-		I_Error("File_Open: unknown handle type!");
+		I_Error("File_Open: unknown file handle type!");
 
 	return handle;
 }

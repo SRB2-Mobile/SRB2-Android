@@ -143,7 +143,7 @@ static char filenamebuf[MAX_WADPATH];
 // Returns the file handle for the file, or NULL if not found or could not be opened
 // If "useerrors" is true then print errors in the console, else just don't bother
 // "filename" may be modified to have the correct path the actual file is located in, if necessary
-void *W_OpenWadFile(const char **filename, boolean useerrors)
+void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors)
 {
 	void *handle;
 
@@ -158,7 +158,7 @@ void *W_OpenWadFile(const char **filename, boolean useerrors)
 	}
 
 	// open wad file
-	if ((handle = File_Open(*filename, "rb", FILEHANDLE_STANDARD)) == NULL)
+	if ((handle = File_Open(*filename, "rb", type)) == NULL)
 	{
 		// If we failed to load the file with the path as specified by
 		// the user, strip the directories and search for the file.
@@ -168,7 +168,7 @@ void *W_OpenWadFile(const char **filename, boolean useerrors)
 		// in filenamebuf == *filename.
 		if (findfile(filenamebuf, NULL, true))
 		{
-			if ((handle = File_Open(*filename, "rb", FILEHANDLE_STANDARD)) == NULL)
+			if ((handle = File_Open(*filename, "rb", type)) == NULL)
 			{
 				if (useerrors)
 					CONS_Alert(CONS_ERROR, M_GetText("Can't open %s\n"), *filename);
@@ -676,6 +676,12 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	size_t packetsize;
 	UINT8 md5sum[16];
 	boolean important;
+	fhandletype_t handletype = FILEHANDLE_STANDARD;
+
+#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
+	if (mainfile)
+		handletype = FILEHANDLE_SDL;
+#endif
 
 	if (!(refreshdirmenu & REFRESHDIR_ADDFILE))
 		refreshdirmenu = REFRESHDIR_NORMAL|REFRESHDIR_ADDFILE; // clean out cons_alerts that happened earlier
@@ -702,13 +708,13 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	}
 
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, true)) == NULL)
+	if ((handle = W_OpenWadFile(&filename, handletype, true)) == NULL)
 		return W_InitFileError(filename, startup);
 
 	// Check if wad files will overflow fileneededbuffer. Only the filename part
 	// is send in the packet; cf.
 	// see PutFileNeeded in d_netfil.c
-	if ((important = !W_VerifyNMUSlumps(filename)))
+	if ((important = !W_VerifyNMUSlumps(filename, handletype)))
 	{
 		packetsize = packetsizetally + nameonlylength(filename) + 22;
 
@@ -782,7 +788,6 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	wadfile->important = important;
 	File_Seek(handle, 0, SEEK_END);
 	wadfile->filesize = (unsigned)File_Tell(handle);
-	wadfile->type = type;
 
 	// already generated, just copy it over
 	M_Memcpy(&wadfile->md5sum, &md5sum, 16);
@@ -1843,7 +1848,7 @@ W_VerifyPK3 (void *fp, lumpchecklist_t *checklist, boolean status)
 // Note: This never opens lumps themselves and therefore doesn't have to
 // deal with compressed lumps.
 static int W_VerifyFile(const char *filename, lumpchecklist_t *checklist,
-	boolean status)
+	fhandletype_t type, boolean status)
 {
 	void *handle;
 	int goodfile = false;
@@ -1851,7 +1856,7 @@ static int W_VerifyFile(const char *filename, lumpchecklist_t *checklist,
 	if (!checklist)
 		I_Error("No checklist for %s\n", filename);
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, false)) == NULL)
+	if ((handle = W_OpenWadFile(&filename, type, false)) == NULL)
 		return -1;
 
 	if (stricmp(&filename[strlen(filename) - 4], ".pk3") == 0)
@@ -1879,12 +1884,13 @@ static int W_VerifyFile(const char *filename, lumpchecklist_t *checklist,
   * be sent.
   *
   * \param filename Filename of the wad to check.
+  * \param type File handle type.
   * \return 1 if file contains only music/sound lumps, 0 if it contains other
   *         stuff (maps, sprites, dehacked lumps, and so on). -1 if there no
   *         file exists with that filename
   * \author Alam Arias
   */
-int W_VerifyNMUSlumps(const char *filename)
+int W_VerifyNMUSlumps(const char *filename, fhandletype_t type)
 {
 	// MIDI, MOD/S3M/IT/XM/OGG/MP3/WAV, WAVE SFX
 	// ENDOOM text and palette lumps
@@ -1913,7 +1919,7 @@ int W_VerifyNMUSlumps(const char *filename)
 
 		{NULL, 0},
 	};
-	return W_VerifyFile(filename, NMUSlist, false);
+	return W_VerifyFile(filename, NMUSlist, type, false);
 }
 
 /** \brief Generates a virtual resource used for level data loading.

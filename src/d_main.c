@@ -967,7 +967,7 @@ static void IdentifyVersion(void)
 #define MUSICTEST(str) \
 		{\
 			const char *musicpath = va(pandf,srb2waddir,str);\
-			int ms = W_VerifyNMUSlumps(musicpath); \
+			int ms = W_VerifyNMUSlumps(musicpath,FILEHANDLE_STANDARD); \
 			if (ms == 1) \
 				D_AddFile(musicpath); \
 			else if (ms == 0) \
@@ -1183,7 +1183,7 @@ void D_SRB2Main(void)
 
 				if (s) // Check for NULL?
 				{
-					if (!W_VerifyNMUSlumps(s))
+					if (!W_VerifyNMUSlumps(s, FILEHANDLE_STANDARD))
 						G_SetGameModified(true);
 					D_AddFile(s);
 				}
