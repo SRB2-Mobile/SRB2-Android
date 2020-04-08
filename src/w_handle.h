@@ -53,38 +53,6 @@ void       *File_Open(const char *filename, const char *filemode, fhandletype_t 
 int         File_Close(void *stream);
 int         File_CheckError(void *stream);
 
-//
-// Standard library file operations
-//
-
-// File read / seek / tell
-size_t      File_StandardRead      (void *f, void *ptr, size_t size, size_t count);
-int         File_StandardSeek      (void *stream, long int offset, int origin);
-long int    File_StandardTell      (void *stream);
-int         File_StandardGetChar   (void *f);
-char       *File_StandardGetString (void *f, char *str, int num);
-
-// File close / error
-int         File_StandardClose(void *f);
-const char *File_StandardError(void *handle);
-
-//
-// SDL_RWops file operations
-//
-
-#ifdef HAVE_SDL
-// File read / seek / tell
-size_t      File_SDLRead      (void *f, void *ptr, size_t size, size_t count);
-int         File_SDLSeek      (void *stream, long int offset, int origin);
-long int    File_SDLTell      (void *stream);
-int         File_SDLGetChar   (void *f);
-char       *File_SDLGetString (void *f, char *str, int num);
-
-// File close / error
-int         File_SDLClose(void *f);
-const char *File_SDLError(void *handle);
-#endif
-
 // Macros for file operations
 #define File_Read(ptr, size, count, fhandle) ((filehandle_t *)fhandle)->read(((filehandle_t *)fhandle), ptr, size, count)
 #define File_Seek(fhandle, offset, origin)   ((filehandle_t *)fhandle)->seek(((filehandle_t *)fhandle), offset, origin)
