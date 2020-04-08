@@ -148,7 +148,7 @@ void W_Shutdown(void);
 // Opens a WAD file. Returns the file handle for the file, or NULL if not found or could not be opened
 void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors);
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
-UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup);
+UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup);
 
 // W_InitMultipleFiles exits if a file was not found, but not if all is okay.
 void W_InitMultipleFiles(char **filenames, UINT16 mainfiles);

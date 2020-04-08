@@ -147,6 +147,10 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 {
 	void *handle;
 
+#ifndef HAVE_WHANDLE
+	(void)type;
+#endif
+
 	// Officially, strncpy should not have overlapping buffers, since W_VerifyNMUSlumps is called after this, and it
 	// changes filename to point at filenamebuf, it would technically be doing that. I doubt any issue will occur since
 	// they point to the same location, but it's better to be safe and this is a simple change.
@@ -290,9 +294,14 @@ static inline INT32 W_MakeFileMD5(const char *filename, fhandletype_t handletype
 {
 #ifdef NOMD5
 	(void)filename;
+	(void)type;
 	memset(resblock, 0x00, 16);
 #else
 	void *fhandle;
+
+#ifndef HAVE_WHANDLE
+	(void)handletype;
+#endif
 
 	if ((fhandle = File_Open(filename, "rb", handletype)) != NULL)
 	{
@@ -663,7 +672,7 @@ static UINT16 W_InitFileError (const char *filename, boolean exitworthy)
 //
 // Can now load dehacked files (.soc)
 //
-UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
+UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup)
 {
 	void *handle;
 	lumpinfo_t *lumpinfo = NULL;
@@ -676,12 +685,6 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	size_t packetsize;
 	UINT8 md5sum[16];
 	boolean important;
-	fhandletype_t handletype = FILEHANDLE_STANDARD;
-
-#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
-	if (mainfile)
-		handletype = FILEHANDLE_SDL;
-#endif
 
 	if (!(refreshdirmenu & REFRESHDIR_ADDFILE))
 		refreshdirmenu = REFRESHDIR_NORMAL|REFRESHDIR_ADDFILE; // clean out cons_alerts that happened earlier
@@ -853,8 +856,16 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 	// will be realloced as lumps are added
 	for (; *filenames; filenames++)
 	{
+		boolean mainfile = (numwadfiles < mainfiles);
+		fhandletype_t handletype = FILEHANDLE_STANDARD;
+
+#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
+		if (mainfile)
+			handletype = FILEHANDLE_SDL;
+#endif
+
 		//CONS_Debug(DBG_SETUP, "Loading %s\n", *filenames);
-		W_InitFile(*filenames, numwadfiles < mainfiles, true);
+		W_InitFile(*filenames, handletype, mainfile, true);
 	}
 }
 
