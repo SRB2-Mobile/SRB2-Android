@@ -2087,6 +2087,8 @@ void I_SplashScreen(void)
 	SDL_RWclose(file);
 
 	decoding_error = lodepng_decode32(&splash, &swidth, &sheight, filedata, (size_t)filesize);
+	free(filedata); // free the file data because it is not needed anymore
+
 	if (decoding_error)
 	{
 		CONS_Alert(CONS_ERROR, "failed to decode the splash screen image: %s\n", lodepng_error_text(decoding_error));
@@ -2116,6 +2118,7 @@ void I_SplashScreen(void)
 		rect.w = swidth;
 		rect.h = sheight;
 
+		// draw for a single second
 		starttime = I_GetTime();
 
 		while (I_GetTime() < (starttime + TICRATE))
@@ -2129,6 +2132,9 @@ void I_SplashScreen(void)
 			SDL_RenderCopy(renderer, texture, NULL, NULL);
 			SDL_RenderPresent(renderer);
 		}
+
+		// free splash screen image data
+		free(splash);
 	}
 #endif
 }
