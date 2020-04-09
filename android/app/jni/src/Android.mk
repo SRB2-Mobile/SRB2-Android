@@ -139,6 +139,10 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(LUA_SOURCE)/lvm.c \
 	$(JNIDIR)/localeconv.c
 
+# Include LodePNG.
+LOCAL_SRC_FILES += $(JNIDIR)/lodepng.c
+
+# Compile flags
 LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
 				-DTOUCHINPUTS \
 				-DUNIXCOMMON -DLINUX \
@@ -147,6 +151,7 @@ LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
 				-DHAVE_WHANDLE \
 				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE
 
+# Libraries
 LOCAL_SHARED_LIBRARIES := SDL2 hidapi \
 	SDL2_mixer libmpg123 \
 	libpng

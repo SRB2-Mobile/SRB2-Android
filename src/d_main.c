@@ -1087,6 +1087,10 @@ void D_SRB2Main(void)
 	"We do not claim ownership of SEGA's intellectual property used\n"
 	"in this program.\n\n");
 
+#if defined(__ANDROID__)
+	I_SplashScreen();
+#endif
+
 	// keep error messages until the final flush(stderr)
 #if !defined (PC_DOS) && !defined(NOTERMIOS)
 	if (setvbuf(stderr, NULL, _IOFBF, 1000))

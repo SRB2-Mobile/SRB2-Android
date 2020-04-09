@@ -57,6 +57,10 @@ void I_StartupHardwareGraphics(void);
 */
 void I_ShutdownGraphics(void);
 
+/**	\brief display splash screen
+*/
+void I_SplashScreen(void);
+
 /**	\brief	The I_SetPalette function
 
 	\param	palette	Takes full 8 bit values

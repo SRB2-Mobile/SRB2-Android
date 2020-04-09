@@ -31,6 +31,11 @@
 #define _MATH_DEFINES_DEFINED
 #include "SDL.h"
 
+#if defined(__ANDROID__)
+#include "SDL_rwops.h"
+#include <lodepng.h>
+#endif
+
 #ifdef _MSC_VER
 #include <windows.h>
 #pragma warning(default : 4214 4244)
@@ -191,6 +196,11 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	int bpp = 16;
 	int sw_texture_format = SDL_PIXELFORMAT_ABGR8888;
 
+	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
+#if defined(__ANDROID__)
+	fullscreen_type = SDL_WINDOW_FULLSCREEN;
+#endif
+
 	realwidth = vid.width;
 	realheight = vid.height;
 
@@ -199,7 +209,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 		if (fullscreen)
 		{
 			wasfullscreen = SDL_TRUE;
-			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+			SDL_SetWindowFullscreen(window, fullscreen_type);
 		}
 		else // windowed mode
 		{
@@ -226,9 +236,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 		wasfullscreen = fullscreen;
 		SDL_SetWindowSize(window, width, height);
 		if (fullscreen)
-		{
-			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-		}
+			SDL_SetWindowFullscreen(window, fullscreen_type);
 	}
 
 #ifdef HWRENDER
@@ -1847,6 +1855,15 @@ static void Impl_VideoSetupBuffer(void)
 	}
 }
 
+static void Impl_InitVideoSubSystem(void)
+{
+	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
+	{
+		CONS_Printf(M_GetText("Couldn't initialize SDL's Video System: %s\n"), SDL_GetError());
+		return;
+	}
+}
+
 void I_StartupGraphics(void)
 {
 	if (dedicated)
@@ -1869,13 +1886,9 @@ void I_StartupGraphics(void)
 
 	keyboard_started = true;
 
-#if !defined(HAVE_TTF)
+#if !defined(HAVE_TTF) && !defined(__ANDROID__)
 	// Previously audio was init here for questionable reasons?
-	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
-	{
-		CONS_Printf(M_GetText("Couldn't initialize SDL's Video System: %s\n"), SDL_GetError());
-		return;
-	}
+	Impl_InitVideoSubSystem();
 #endif
 	{
 		const char *vd = SDL_GetCurrentVideoDriver();
@@ -1888,6 +1901,22 @@ void I_StartupGraphics(void)
 		))
 			framebuffer = SDL_TRUE;
 	}
+
+#if defined(__ANDROID__)
+	// free old video surface
+	if (vidSurface)
+	{
+		SDL_FreeSurface(vidSurface);
+		vidSurface = NULL;
+	}
+
+	// free old splash screen surface
+	if (bufSurface)
+	{
+		SDL_FreeSurface(bufSurface);
+		bufSurface = NULL;
+	}
+#endif
 
 #ifdef HWRENDER
 	if (M_CheckParm("-opengl"))
@@ -1932,7 +1961,12 @@ void I_StartupGraphics(void)
 #endif
 	Impl_SetWindowIcon();
 
+#if defined(__ANDROID__)
+	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+#else
+	// Lactozilla: I don't know why I_StartupGraphics calls VID_SetMode(320x200) twice
 	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
+#endif
 
 	if (M_CheckParm("-nomousegrab"))
 		mousegrabok = SDL_FALSE;
@@ -2009,6 +2043,92 @@ void I_StartupHardwareGraphics(void)
 			setrenderneeded = 0;
 		}
 		glstartup = true;
+	}
+#endif
+}
+
+void I_SplashScreen(void)
+{
+#if defined(__ANDROID__)
+	struct SDL_RWops *file;
+	Sint64 filesize;
+	void *filedata;
+	unsigned char *splash;
+	unsigned swidth, sheight;
+	unsigned decoding_error;
+	tic_t starttime;
+
+	CONS_Printf("Displaying splash screen\n");
+	Impl_InitVideoSubSystem();
+
+	// load splash.png
+	file = SDL_RWFromFile("splash.png", "rb");
+	if (!file) // not found?
+	{
+		CONS_Alert(CONS_ERROR, "splash screen image not found\n");
+		return;
+	}
+
+	filesize = SDL_RWsize(file);
+	if (filesize < 0) // wut?
+	{
+		CONS_Alert(CONS_ERROR, "error getting the file size of the splash screen image\n");
+		return;
+	}
+
+	filedata = malloc((size_t)filesize);
+	if (!filedata) // somehow couldn't malloc
+	{
+		CONS_Alert(CONS_ERROR, "could not find free memory for the splash screen image\n");
+		return;
+	}
+
+	SDL_RWread(file, filedata, 1, filesize);
+	SDL_RWclose(file);
+
+	decoding_error = lodepng_decode32(&splash, &swidth, &sheight, filedata, (size_t)filesize);
+	if (decoding_error)
+	{
+		CONS_Alert(CONS_ERROR, "failed to decode the splash screen image: %s\n", lodepng_error_text(decoding_error));
+		return;
+	}
+
+	// create the window
+	vid.width = swidth;
+	vid.height = sheight;
+	rendermode = render_soft;
+	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
+
+	// create a surface from the image
+	bufSurface = SDL_CreateRGBSurfaceFrom(splash, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+	if (!bufSurface)
+	{
+		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
+		return;
+	}
+	else
+	{
+		// display splash.png
+		SDL_Rect rect;
+
+		rect.x = 0;
+		rect.y = 0;
+		rect.w = swidth;
+		rect.h = sheight;
+
+		starttime = I_GetTime();
+
+		while (I_GetTime() < (starttime + TICRATE))
+		{
+			SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
+			SDL_LockSurface(vidSurface);
+			SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
+			SDL_UnlockSurface(vidSurface);
+
+			SDL_RenderClear(renderer);
+			SDL_RenderCopy(renderer, texture, NULL, NULL);
+			SDL_RenderPresent(renderer);
+		}
 	}
 #endif
 }
