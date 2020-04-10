@@ -23,6 +23,7 @@
 #include "../../../../src/console.h"
 
 void JNI_Startup(void);
+void JNI_SetupActivity(void);
 
 const char *JNI_ExternalStoragePath(void);
 
