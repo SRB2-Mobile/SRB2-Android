@@ -939,14 +939,14 @@ static void IdentifyVersion(void)
 		srb2waddir = I_GetWadDir();
 #endif
 
-	// will be overwritten in case of -cdrom or unix/win home
-	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);
-	configfile[sizeof configfile - 1] = '\0';
-
 #if defined(__ANDROID__)
 	// Lactozilla: srb2.pk3 is always present, inside the APK, so just add it
 	D_AddFile(FILEPATH(basepk3));
 #else
+	// will be overwritten in case of -cdrom or unix/win home
+	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);
+	configfile[sizeof configfile - 1] = '\0';
+
 	// Commercial.
 	srb2wad = malloc(strlen(srb2waddir)+1+8+1);
 	if (srb2wad == NULL)
@@ -1552,7 +1552,8 @@ const char *D_Home(void)
 	const char *userhome = NULL;
 
 #if defined(__ANDROID__)
-	return ""; // In Android, writing to anywhere already points to the application's data folder.
+	if (I_StorageLocation())
+		return I_StorageLocation();
 #endif
 
 	if (M_CheckParm("-home") && M_IsNextParm())

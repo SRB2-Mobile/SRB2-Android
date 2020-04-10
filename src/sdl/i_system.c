@@ -133,6 +133,10 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #include "macosx/mac_resources.h"
 #endif
 
+#if defined(__ANDROID__)
+#include <jni_android.h> // includes jni.h
+#endif
+
 #ifndef errno
 #include <errno.h>
 #endif
@@ -2823,6 +2827,17 @@ static const char *locateWad(void)
 	const char *WadPath;
 
 #if defined(__ANDROID__)
+	// Access the SD card first
+	WadPath = JNI_ExternalStoragePath();
+	if (WadPath)
+	{
+		I_OutputMsg("External storage: %s", WadPath);
+		strcpy(returnWadPath, WadPath);
+		if (isWadPathOk(returnWadPath))
+			return returnWadPath;
+	}
+
+	// Access the main storage location
 	if (I_StorageLocation())
 	{
 		I_OutputMsg("%s", I_StorageLocation());

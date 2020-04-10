@@ -11,8 +11,11 @@ JNIDIR := .
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include
 
-# Add your application source files here...
-LOCAL_SRC_FILES := $(OBJDIR)/comptime.c \
+# Android JNI functions
+LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c
+
+# SRB2 main source files
+LOCAL_SRC_FILES += $(OBJDIR)/comptime.c \
 			$(OBJDIR)/string.c   \
 			$(OBJDIR)/d_main.c   \
 			$(OBJDIR)/d_clisrv.c \
