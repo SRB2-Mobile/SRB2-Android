@@ -101,7 +101,6 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	HWR_Startup();
-	textureformatGL = GL_RGBA;
 
 	return true;
 }

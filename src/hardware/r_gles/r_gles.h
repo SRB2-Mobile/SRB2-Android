@@ -14,21 +14,24 @@
 #ifndef _R_OPENGL_H_
 #define _R_OPENGL_H_
 
+#define GL_GLEXT_PROTOTYPES
+#undef DRIVER_STRING
+
+#ifdef HAVE_GLES2
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#define DRIVER_STRING "OpenGL ES 1.1"
+#else
 #include <GLES/gl.h>
 #include <GLES/glext.h>
-
-#define GL_GLEXT_PROTOTYPES
-#include <GLES/glext.h>
+#define DRIVER_STRING "OpenGL ES 2.0"
+#endif
 
 #define _CREATE_DLL_ // This is apparently required
 #undef DEBUG_TO_FILE
 
 #include "../../doomdef.h"
 #include "../hw_drv.h"
-
-#ifndef DRIVER_STRING
-#define DRIVER_STRING "HWRAPI Init(): SRB2 OpenGL ES renderer"
-#endif
 
 // ==========================================================================
 //                                                                     PROTOS

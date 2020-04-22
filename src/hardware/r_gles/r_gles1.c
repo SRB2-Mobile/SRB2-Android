@@ -9,7 +9,7 @@
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 /// \file r_gles.c
-/// \brief OpenGL ES API for Sonic Robo Blast 2
+/// \brief OpenGL ES 1.1 API for Sonic Robo Blast 2
 
 #include <stdarg.h>
 #include <math.h>
@@ -67,11 +67,6 @@ static GLint anisotropic_filter = 0;
 static boolean model_lighting = true;
 
 const GLubyte *gl_extensions = NULL;
-
-//Hurdler: 04/10/2000: added for the kick ass coronas as Boris wanted;-)
-static GLfloat    modelMatrix[16];
-static GLfloat    projMatrix[16];
-static GLint       viewport[4];
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
 //			flush all of the stored textures, leaving them unavailable at times such as between levels
@@ -397,46 +392,6 @@ static void GLPerspective(GLfloat fovy, GLfloat aspect)
 	pglMultMatrixf(&m[0][0]);
 }
 
-static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
-                      GLfloat* winX, GLfloat* winY, GLfloat* winZ)
-{
-	GLfloat in[4], out[4];
-	int i;
-
-	for (i=0; i<4; i++)
-	{
-		out[i] =
-			objX * modelMatrix[0*4+i] +
-			objY * modelMatrix[1*4+i] +
-			objZ * modelMatrix[2*4+i] +
-			modelMatrix[3*4+i];
-	}
-	for (i=0; i<4; i++)
-	{
-		in[i] =
-			out[0] * projMatrix[0*4+i] +
-			out[1] * projMatrix[1*4+i] +
-			out[2] * projMatrix[2*4+i] +
-			out[3] * projMatrix[3*4+i];
-	}
-	if (fpclassify(in[3]) == FP_ZERO) return;
-	in[0] /= in[3];
-	in[1] /= in[3];
-	in[2] /= in[3];
-	/* Map x, y and z to range 0-1 */
-	in[0] = in[0] * 0.5f + 0.5f;
-	in[1] = in[1] * 0.5f + 0.5f;
-	in[2] = in[2] * 0.5f + 0.5f;
-
-	/* Map x,y to viewport */
-	in[0] = in[0] * viewport[2] + viewport[0];
-	in[1] = in[1] * viewport[3] + viewport[1];
-
-	*winX=in[0];
-	*winY=in[1];
-	*winZ=in[2];
-}
-
 // -----------------+
 // SetModelView     :
 // -----------------+
@@ -452,9 +407,6 @@ void SetModelView(GLint w, GLint h)
 	screen_height = h;
 
 	pglViewport(0, 0, w, h);
-#ifdef GL_ACCUM_BUFFER_BIT
-	pglClear(GL_ACCUM_BUFFER_BIT);
-#endif
 
 	pglMatrixMode(GL_PROJECTION);
 	pglLoadIdentity();
@@ -463,11 +415,6 @@ void SetModelView(GLint w, GLint h)
 	pglLoadIdentity();
 
 	GLPerspective(fov, ASPECT_RATIO);
-	//pglScalef(1.0f, 320.0f/200.0f, 1.0f);  // gr_scalefrustum (ORIGINAL_ASPECT)
-
-	// added for new coronas' code (without depth buffer)
-	pglGetIntegerv(GL_VIEWPORT, viewport);
-	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix);
 }
 
 
@@ -531,7 +478,6 @@ void SetStates(void)
 	// bp : when no t&l :)
 	pglLoadIdentity();
 	pglScalef(1.0f, 1.0f, -1.0f);
-	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
 }
 
 
@@ -585,13 +531,13 @@ INT32 isExtAvailable(const char *extension, const GLubyte *start)
 
 
 // -----------------+
-// Init             : Initialise the OpenGL interface API
+// Init             : Initialise the OpenGL ES interface API
 // Returns          :
 // -----------------+
 EXPORT boolean HWRAPI(Init) (I_Error_t FatalErrorFunction)
 {
 	(void)FatalErrorFunction;
-	DBG_Printf ("%s %s\n", DRIVER_STRING, VERSIONSTRING);
+	DBG_Printf ("HWRAPI Init(): SRB2 %s renderer %s\n", DRIVER_STRING, VERSIONSTRING);
 	return LoadGL();
 }
 
@@ -673,10 +619,6 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
 	pglLoadIdentity();
 	GLPerspective(fov, ASPECT_RATIO);
 	pglMatrixMode(GL_MODELVIEW);
-
-	// added for new coronas' code (without depth buffer)
-	pglGetIntegerv(GL_VIEWPORT, viewport);
-	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix);
 }
 
 
@@ -969,7 +911,6 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 							tex[w*j+i].s.alpha = *pImgData;
 						pImgData++;
 					}
-
 				}
 			}
 		}
@@ -1034,12 +975,7 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 		}
 
-		if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
-			pglTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8)
-			pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		else
-			pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 
 		if (MipMap)
 			pglGenerateMipmap(GL_TEXTURE_2D);
@@ -1977,10 +1913,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	else
 		GLPerspective(used_fov, ASPECT_RATIO);
 
-	pglGetFloatv(GL_PROJECTION_MATRIX, projMatrix); // added for new coronas' code (without depth buffer)
 	pglMatrixMode(GL_MODELVIEW);
-
-	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
 }
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)

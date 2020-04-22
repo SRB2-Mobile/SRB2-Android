@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
-    android:versionCode="222"
+    android:versionCode="2220"
     android:versionName="2.2.2"
     android:installLocation="auto">
 
@@ -29,12 +29,6 @@
         android:name="android.hardware.type.pc"
         android:required="false" />
 
-    <!-- Audio recording support -->
-    <!-- if you want to capture audio, uncomment this. -->
-    <!-- <uses-feature
-        android:name="android.hardware.microphone"
-        android:required="false" /> -->
-
     <!-- Allow reading the external storage -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <!-- Allow writing to external storage -->
@@ -47,9 +41,6 @@
     <!-- Lactozilla: Network access -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- if you want to capture audio, uncomment this. -->
-    <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
 
     <application android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"

@@ -2173,7 +2173,7 @@ void I_ShutdownGraphics(void)
 	I_OutputMsg("shut down\n");
 
 #ifdef HWRENDER
-#if !defined(__ANDROID__)
+#ifndef HAVE_GLES
 	if (GLUhandle)
 		hwClose(GLUhandle);
 #endif

@@ -16,7 +16,7 @@ LUA_SOURCES := $(OBJDIR)/blua/
 HWR_SOURCES := $(OBJDIR)/hardware/
 
 #
-#  SRB2 main source files
+# SRB2 main source files
 #
 
 LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
@@ -135,7 +135,7 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(JNIDIR)/localeconv.c
 
 # OpenGL
-LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles.c $(SDL2_SOURCES)/ogl_es_sdl.c \
+LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c $(SDL2_SOURCES)/ogl_es_sdl.c \
 		$(HWR_SOURCES)/hw_bsp.c \
 		$(HWR_SOURCES)/hw_draw.c \
 		$(HWR_SOURCES)/hw_light.c \
@@ -153,7 +153,7 @@ LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles.c $(SDL2_SOURCES)/ogl_es_sdl.c \
 LOCAL_SRC_FILES += $(JNIDIR)/lodepng.c
 
 #
-#  SDL2 interface
+# SDL2 interface
 #
 LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
 			$(SDL2_SOURCES)/i_net.c    \
@@ -166,13 +166,13 @@ LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
 			$(SDL2_SOURCES)/SDL_main/SDL_android_main.c
 
 # Compile flags
-LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER -DHWRENDER \
-				-DTOUCHINPUTS \
-				-DUNIXCOMMON -DLINUX \
-				-DDEBUGMODE -DLOGCAT -DDIRECTFULLSCREEN \
+LOCAL_CFLAGS += -DUNIXCOMMON -DLINUX \
+				-DHAVE_SDL -DHAVE_MIXER \
+				-DHWRENDER -DHAVE_GLES \
+				-DTOUCHINPUTS -DDIRECTFULLSCREEN \
 				-DHAVE_ZLIB -DHAVE_BLUA -DHAVE_PNG \
 				-DHAVE_WHANDLE \
-				-DNONX86 -DNOASM -DNOHW -DNOMUMBLE
+				-DNONX86 -DNOASM -DNOMUMBLE
 
 # Libraries
 LOCAL_SHARED_LIBRARIES := SDL2 hidapi \
