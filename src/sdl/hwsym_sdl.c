@@ -47,7 +47,11 @@
 #include "../hardware/hw_drv.h"
 #include "ogl_sdl.h"
 #ifdef STATIC_OPENGL
+#if defined(__ANDROID__)
+#include "../hardware/r_gles/r_gles.h"
+#else
 #include "../hardware/r_opengl/r_opengl.h"
+#endif
 #endif
 #endif
 

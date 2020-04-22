@@ -11,11 +11,16 @@ JNIDIR := .
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include
 
-# Android JNI functions
-LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c
+SDL2_SOURCES := $(OBJDIR)/sdl/
+LUA_SOURCES := $(OBJDIR)/blua/
+HWR_SOURCES := $(OBJDIR)/hardware/
 
-# SRB2 main source files
-LOCAL_SRC_FILES += $(OBJDIR)/comptime.c \
+#
+#  SRB2 main source files
+#
+
+LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
+			$(OBJDIR)/comptime.c \
 			$(OBJDIR)/string.c   \
 			$(OBJDIR)/d_main.c   \
 			$(OBJDIR)/d_clisrv.c \
@@ -89,20 +94,7 @@ LOCAL_SRC_FILES += $(OBJDIR)/comptime.c \
 			$(OBJDIR)/b_bot.c    \
 			$(OBJDIR)/md5.c
 
-# Include the SDL2 interface files.
-SDL2_SOURCE := ../../../../src/sdl/
-LOCAL_SRC_FILES += $(SDL2_SOURCE)/i_cdmus.c  \
-			$(SDL2_SOURCE)/i_net.c    \
-			$(SDL2_SOURCE)/i_video.c  \
-			$(SDL2_SOURCE)/i_system.c \
-			$(SDL2_SOURCE)/mixer_sound.c\
-			$(SDL2_SOURCE)/dosstr.c   \
-			$(SDL2_SOURCE)/endtxt.c   \
-			$(SDL2_SOURCE)/hwsym_sdl.c\
-			$(SDL2_SOURCE)/SDL_main/SDL_android_main.c
-
-# Include Lua.
-LUA_SOURCE := ../../../../src/blua/
+# Lua
 LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(OBJDIR)/lua_baselib.c \
 	$(OBJDIR)/lua_mathlib.c \
@@ -116,37 +108,65 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(OBJDIR)/lua_maplib.c \
 	$(OBJDIR)/lua_blockmaplib.c \
 	$(OBJDIR)/lua_hudlib.c \
-	$(LUA_SOURCE)/lapi.c \
-	$(LUA_SOURCE)/lbaselib.c \
-	$(LUA_SOURCE)/ldo.c \
-	$(LUA_SOURCE)/lfunc.c \
-	$(LUA_SOURCE)/linit.c \
-	$(LUA_SOURCE)/llex.c \
-	$(LUA_SOURCE)/lmem.c \
-	$(LUA_SOURCE)/lobject.c \
-	$(LUA_SOURCE)/lstate.c \
-	$(LUA_SOURCE)/lstrlib.c \
-	$(LUA_SOURCE)/ltablib.c \
-	$(LUA_SOURCE)/lundump.c \
-	$(LUA_SOURCE)/lzio.c \
-	$(LUA_SOURCE)/lauxlib.c \
-	$(LUA_SOURCE)/lcode.c \
-	$(LUA_SOURCE)/ldebug.c \
-	$(LUA_SOURCE)/ldump.c \
-	$(LUA_SOURCE)/lgc.c \
-	$(LUA_SOURCE)/lopcodes.c \
-	$(LUA_SOURCE)/lparser.c \
-	$(LUA_SOURCE)/lstring.c \
-	$(LUA_SOURCE)/ltable.c \
-	$(LUA_SOURCE)/ltm.c \
-	$(LUA_SOURCE)/lvm.c \
+	$(LUA_SOURCES)/lapi.c \
+	$(LUA_SOURCES)/lbaselib.c \
+	$(LUA_SOURCES)/ldo.c \
+	$(LUA_SOURCES)/lfunc.c \
+	$(LUA_SOURCES)/linit.c \
+	$(LUA_SOURCES)/llex.c \
+	$(LUA_SOURCES)/lmem.c \
+	$(LUA_SOURCES)/lobject.c \
+	$(LUA_SOURCES)/lstate.c \
+	$(LUA_SOURCES)/lstrlib.c \
+	$(LUA_SOURCES)/ltablib.c \
+	$(LUA_SOURCES)/lundump.c \
+	$(LUA_SOURCES)/lzio.c \
+	$(LUA_SOURCES)/lauxlib.c \
+	$(LUA_SOURCES)/lcode.c \
+	$(LUA_SOURCES)/ldebug.c \
+	$(LUA_SOURCES)/ldump.c \
+	$(LUA_SOURCES)/lgc.c \
+	$(LUA_SOURCES)/lopcodes.c \
+	$(LUA_SOURCES)/lparser.c \
+	$(LUA_SOURCES)/lstring.c \
+	$(LUA_SOURCES)/ltable.c \
+	$(LUA_SOURCES)/ltm.c \
+	$(LUA_SOURCES)/lvm.c \
 	$(JNIDIR)/localeconv.c
 
-# Include LodePNG.
+# OpenGL
+LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles.c $(SDL2_SOURCES)/ogl_es_sdl.c \
+		$(HWR_SOURCES)/hw_bsp.c \
+		$(HWR_SOURCES)/hw_draw.c \
+		$(HWR_SOURCES)/hw_light.c \
+		$(HWR_SOURCES)/hw_main.c \
+		$(HWR_SOURCES)/hw_clip.c \
+		$(HWR_SOURCES)/hw_md2.c \
+		$(HWR_SOURCES)/hw_cache.c \
+		$(HWR_SOURCES)/hw_trick.c \
+		$(HWR_SOURCES)/hw_md2load.c \
+		$(HWR_SOURCES)/hw_md3load.c \
+		$(HWR_SOURCES)/hw_model.c \
+		$(HWR_SOURCES)/u_list.c
+
+# LodePNG
 LOCAL_SRC_FILES += $(JNIDIR)/lodepng.c
 
+#
+#  SDL2 interface
+#
+LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
+			$(SDL2_SOURCES)/i_net.c    \
+			$(SDL2_SOURCES)/i_video.c  \
+			$(SDL2_SOURCES)/i_system.c \
+			$(SDL2_SOURCES)/mixer_sound.c\
+			$(SDL2_SOURCES)/dosstr.c   \
+			$(SDL2_SOURCES)/endtxt.c   \
+			$(SDL2_SOURCES)/hwsym_sdl.c\
+			$(SDL2_SOURCES)/SDL_main/SDL_android_main.c
+
 # Compile flags
-LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER \
+LOCAL_CFLAGS += -DHAVE_SDL -DHAVE_MIXER -DHWRENDER \
 				-DTOUCHINPUTS \
 				-DUNIXCOMMON -DLINUX \
 				-DDEBUGMODE -DLOGCAT -DDIRECTFULLSCREEN \
@@ -159,6 +179,6 @@ LOCAL_SHARED_LIBRARIES := SDL2 hidapi \
 	SDL2_mixer libmpg123 \
 	libpng
 
-LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -llog -lz
+LOCAL_LDLIBS := -lGLESv1_CM -lEGL -llog -lz
 
 include $(BUILD_SHARED_LIBRARY)

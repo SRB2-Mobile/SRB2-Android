@@ -1545,8 +1545,16 @@ void I_InitJoystick2(void)
 #ifdef TOUCHINPUTS
 void I_InitTouchScreen(void)
 {
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+	SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
+
+#if !defined(__ANDROID__)
+	if (M_CheckParm("-mouseastouchscreen"))
+		SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
+#endif
+
 	if (M_CheckParm("-noaccelerometer"))
-		SDL_SetHintWithPriority("SDL_HINT_ACCELEROMETER_AS_JOYSTICK", "0", SDL_HINT_OVERRIDE);
+		SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
 	// Lactozilla: The touch screen depends on the joystick system.
 	if (SDL_WasInit(SDL_INIT_JOYSTICK) == 0)

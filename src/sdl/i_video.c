@@ -1862,6 +1862,11 @@ static void Impl_InitVideoSubSystem(void)
 		CONS_Printf(M_GetText("Couldn't initialize SDL's Video System: %s\n"), SDL_GetError());
 		return;
 	}
+
+#if defined(__ANDROID__)
+	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles");
+#endif
 }
 
 void I_StartupGraphics(void)
@@ -2168,8 +2173,10 @@ void I_ShutdownGraphics(void)
 	I_OutputMsg("shut down\n");
 
 #ifdef HWRENDER
+#if !defined(__ANDROID__)
 	if (GLUhandle)
 		hwClose(GLUhandle);
+#endif
 	if (sdlglcontext)
 	{
 		SDL_GL_DeleteContext(sdlglcontext);
