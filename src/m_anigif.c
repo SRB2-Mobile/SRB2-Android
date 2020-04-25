@@ -503,7 +503,7 @@ static void hwrconvert(void)
 
 	for (y = 0; y < vid.height; y++)
 	{
-		for (x = 0; x < vid.width; x++, i += 3)
+		for (x = 0; x < vid.width; x++, i += SCREENSHOT_BITS)
 		{
 			r = (UINT8)linear[i];
 			g = (UINT8)linear[i + 1];

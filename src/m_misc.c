@@ -730,7 +730,12 @@ static void M_PNGhdr(png_structp png_ptr, png_infop png_info_ptr, PNG_CONST png_
 	}
 	else
 	{
-		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB,
+		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8,
+#ifdef SCREENSHOT_USE_RGBA
+		PNG_COLOR_TYPE_RGBA,
+#else
+		PNG_COLOR_TYPE_RGB,
+#endif
 		 png_interlace, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 		png_write_info_before_PLTE(png_ptr, png_info_ptr);
 		png_set_compression_strategy(png_ptr, Z_FILTERED);
