@@ -39,8 +39,8 @@ void M_StartMovie(void);
 void M_SaveFrame(void);
 void M_StopMovie(void);
 
-#define SCREENSHOT_USE_RGBA
 #ifdef HAVE_GLES
+#define SCREENSHOT_USE_RGBA
 #define SCREENSHOT_BITS 4
 #else
 #define SCREENSHOT_BITS 3
