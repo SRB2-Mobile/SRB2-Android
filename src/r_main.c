@@ -1519,9 +1519,12 @@ void R_RegisterEngineStuff(void)
 	if (dedicated)
 		return;
 
-#if defined(__ANDROID__)
-	// Lactozilla: Change the default draw distance for Android
+#if defined(__ANDROID__) // Override CVARs
+	// Change the default draw distance
 	cv_drawdist.defaultvalue = "1536";
+
+	// Disable shadows by default
+	cv_shadow.defaultvalue = "Off";
 #endif
 
 	CV_RegisterVar(&cv_drawdist);
