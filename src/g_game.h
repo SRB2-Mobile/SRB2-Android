@@ -176,7 +176,7 @@ void G_PreLevelTitleCard(void);
 boolean G_IsTitleCardAvailable(void);
 void G_DeferedPlayDemo(const char *demo);
 
-// Can be called by the startup code or M_Responder, calls P_SetupLevel.
+// Can be called by the startup code or M_Responder, calls P_LoadLevel.
 void G_LoadGame(UINT32 slot, INT16 mapoverride);
 
 void G_SaveGameData(void);

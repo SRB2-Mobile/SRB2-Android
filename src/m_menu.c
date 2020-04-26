@@ -1059,11 +1059,17 @@ static menuitem_t OP_P1ControlsMenu[] =
 
 	{IT_SUBMENU | IT_STRING, NULL, "Camera Options...", &OP_CameraOptionsDef,	50},
 
-	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake,  70},
+	{IT_STRING  | IT_CVAR,   NULL, "Automatic braking", &cv_autobrake,  70},
 	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup1PPlaystyleMenu, 80},
 
 #ifdef TOUCHINPUTS
 	{IT_SUBMENU | IT_STRING, NULL, "Touch Screen Options...", &OP_TouchOptionsDef, 100},
+#endif
+
+	// Accelerometer settings
+#if defined(__ANDROID__)
+	{IT_STRING | IT_CVAR, NULL,                "Use accelerometer", &cv_useaccelerometer,   110},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. scale", &cv_accelscale, 120},
 #endif
 };
 
@@ -3896,8 +3902,8 @@ void M_StartControlPanel(void)
 //
 void M_UpdateTouchScreenNavigation(void)
 {
-	memset(touchfingers, 0x00, sizeof(touchfinger_t) * NUMTOUCHFINGERS); // clear all fingers
-	memset(gamekeydown, 0x00, sizeof (gamekeydown)); // clear all keys
+	memset(touchfingers, 0x00, sizeof(touchfingers)); // clear all fingers
+	memset(touchcontroldown, 0x00, sizeof(touchcontroldown)); // clear all controls
 	G_UpdateTouchControls();
 }
 
@@ -4073,7 +4079,9 @@ void M_Init(void)
 
 	quitmsg[QUIT3MSG] = M_GetText("Are you really going to give up?\nWe certainly would never give you up.\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG1] = M_GetText("Come on, just ONE more netgame!\n\n("PRESS_Y_MESSAGE" to quit)");
+	quitmsg[QUIT3MSG2] = M_GetText(PRESS_N_MESSAGE" to unlock\nthe Ultimate Cheat!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG3] = M_GetText("Why don't you go back and try\njumping on that house to\nsee what happens?\n\n("PRESS_Y_MESSAGE" to quit)");
+	quitmsg[QUIT3MSG4] = M_GetText("Every time you "PRESS_Y_MESSAGE_L", an\nSRB2 Developer cries...\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG5] = M_GetText("You'll be back to play soon, though...\n......right?\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT3MSG6] = M_GetText("Aww, is Egg Rock Zone too\ndifficult for you?\n\n("PRESS_Y_MESSAGE" to quit)");
 
@@ -4084,8 +4092,6 @@ void M_Init(void)
 	quitmsg[QUIT2MSG1] = M_GetText("Don't quit!\nThere are animals to save!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG2] = M_GetText("Aw c'mon, just bop a few more robots!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG6] = M_GetText("Tap the 'Back' button, Sonic!\nThe 'Back' button!\n\n("PRESS_Y_MESSAGE" to quit)");
-	quitmsg[QUIT3MSG2] = M_GetText("Tap 'Back' to unlock\nthe Ultimate Cheat!\n\n("PRESS_Y_MESSAGE" to quit)");
-	quitmsg[QUIT3MSG4] = M_GetText("Every time you tap 'Confirm', an\nSRB2 Developer cries...\n\n("PRESS_Y_MESSAGE" to quit)");
 #else
 	quitmsg[QUITMSG] = M_GetText("Eggman's tied explosives\nto your girlfriend, and\nwill activate them if\nyou press the 'Y' key!\nPress 'N' to save her!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUITMSG4] = M_GetText("You're trying to say you\nlike Sonic 2K6 better than\nthis, right?\n\n("PRESS_Y_MESSAGE" to quit)");
@@ -4093,8 +4099,6 @@ void M_Init(void)
 	quitmsg[QUIT2MSG1] = M_GetText("Don't quit!\nThere are animals\nto save!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG2] = M_GetText("Aw c'mon, just bop\na few more robots!\n\n("PRESS_Y_MESSAGE" to quit)");
 	quitmsg[QUIT2MSG6] = M_GetText("Hit the 'N' key, Sonic!\nThe 'N' key!\n\n("PRESS_Y_MESSAGE" to quit)");
-	quitmsg[QUIT3MSG2] = M_GetText("Press 'N' to unlock\nthe Ultimate Cheat!\n\n("PRESS_Y_MESSAGE" to quit)");
-	quitmsg[QUIT3MSG4] = M_GetText("Every time you press 'Y', an\nSRB2 Developer cries...\n\n("PRESS_Y_MESSAGE" to quit)");
 #endif
 
 	/*
@@ -8952,8 +8956,10 @@ static void M_FirstTimeResponse(INT32 ch)
 {
 	S_StartSound(NULL, sfx_menu1);
 
+#ifndef TOUCHINPUTS
 	if (ch == KEY_ESCAPE)
 		return;
+#endif
 
 	if (ch != 'y' && ch != KEY_ENTER)
 	{
@@ -8977,7 +8983,7 @@ static void M_LoadGame(INT32 choice)
 
 	if (tutorialmap && cv_tutorialprompt.value)
 	{
-		M_StartMessage("Do you want to \x82play a brief Tutorial\x80?\n\nWe highly recommend this because \nthe controls are slightly different \nfrom other games.\n\n"PRESS_Y_MESSAGE" or 'Enter' to go\nPress 'N' or any key to skip\n",
+		M_StartMessage("Do you want to \x82play a brief Tutorial\x80?\n\nWe highly recommend this because \nthe controls are slightly different \nfrom other games.\n\n" PRESS_Y_MESSAGE" or 'Enter' to go\n" PRESS_N_MESSAGE" or any key to skip\n",
 			M_FirstTimeResponse, MM_YESNO);
 		return;
 	}

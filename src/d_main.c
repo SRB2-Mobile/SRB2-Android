@@ -326,6 +326,10 @@ static void D_Display(void)
 	else
 		wipetypepre = -1;
 
+#ifdef TOUCHINPUTS
+	G_UpdateTouchControls();
+#endif
+
 	// do buffered drawing
 	switch (gamestate)
 	{

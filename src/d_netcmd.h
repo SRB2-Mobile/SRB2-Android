@@ -40,6 +40,7 @@ extern consvar_t cv_usejoystick;
 extern consvar_t cv_usejoystick2;
 #if defined(__ANDROID__)
 extern consvar_t cv_useaccelerometer;
+extern consvar_t cv_accelscale;
 #endif
 
 #ifdef LJOYSTICK

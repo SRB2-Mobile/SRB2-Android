@@ -539,6 +539,20 @@ static void VID_Command_Mode_f (void)
 		setmodeneeded = modenum+1; // request vid mode change
 }
 
+#if defined(__ANDROID__)
+static boolean IsJoystickAccelerometer(SDL_Joystick *joy)
+{
+	return (!strcmp(SDL_JoystickName(joy), "Android Accelerometer"));
+}
+
+static boolean CanUseAccelerometer(SDL_Joystick *joy)
+{
+	if (IsJoystickAccelerometer(joy))
+		return (cv_useaccelerometer.value && (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL)));
+	return true; // if not an accelerometer then return true
+}
+#endif
+
 static inline void SDLJoyRemap(event_t *event)
 {
 	(void)event;
@@ -548,49 +562,34 @@ static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
 {
 	// -32768 to 32767
 	INT32 raxis = axis/32;
-	if (which == ev_joystick)
+	JoyType_t *Joystick_p = (which == ev_joystick2) ? &Joystick2 : &Joystick;
+	SDLJoyInfo_t *JoyInfo_p = (which == ev_joystick2) ? &JoyInfo2 : &JoyInfo;
+
+	if (Joystick_p->bGamepadStyle)
 	{
-		if (Joystick.bGamepadStyle)
-		{
-			// gamepad control type, on or off, live or die
-			if (raxis < -(JOYAXISRANGE/2))
-				raxis = -1;
-			else if (raxis > (JOYAXISRANGE/2))
-				raxis = 1;
-			else
-				raxis = 0;
-		}
+		// gamepad control type, on or off, live or die
+		if (raxis < -(JOYAXISRANGE/2))
+			raxis = -1;
+		else if (raxis > (JOYAXISRANGE/2))
+			raxis = 1;
 		else
-		{
-			raxis = JoyInfo.scale!=1?((raxis/JoyInfo.scale)*JoyInfo.scale):raxis;
+			raxis = 0;
+	}
+	else
+	{
+		raxis = JoyInfo_p->scale!=1?((raxis/JoyInfo_p->scale)*JoyInfo_p->scale):raxis;
+
+#if defined(__ANDROID__)
+		if (IsJoystickAccelerometer(JoyInfo_p->dev))
+			raxis *= cv_accelscale.value;
+#endif
 
 #ifdef SDL_JDEADZONE
-			if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
-				raxis = 0;
+		if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
+			raxis = 0;
 #endif
-		}
 	}
-	else if (which == ev_joystick2)
-	{
-		if (Joystick2.bGamepadStyle)
-		{
-			// gamepad control type, on or off, live or die
-			if (raxis < -(JOYAXISRANGE/2))
-				raxis = -1;
-			else if (raxis > (JOYAXISRANGE/2))
-				raxis = 1;
-			else raxis = 0;
-		}
-		else
-		{
-			raxis = JoyInfo2.scale!=1?((raxis/JoyInfo2.scale)*JoyInfo2.scale):raxis;
 
-#ifdef SDL_JDEADZONE
-			if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
-				raxis = 0;
-#endif
-		}
-	}
 	return raxis;
 }
 
@@ -798,20 +797,6 @@ static void Impl_HandleMouseWheelEvent(SDL_MouseWheelEvent evt)
 	}
 }
 
-#if defined(__ANDROID__)
-static boolean IsJoystickAccelerometer(SDL_Joystick *joy)
-{
-	return (!strcmp(SDL_JoystickName(joy), "Android Accelerometer"));
-}
-
-static boolean CanUseAccelerometer(SDL_Joystick *joy)
-{
-	if (IsJoystickAccelerometer(joy))
-		return (cv_useaccelerometer.value && (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL)));
-	return true; // if not an accelerometer then return true
-}
-#endif
-
 static void Impl_HandleJoystickAxisEvent(SDL_JoyAxisEvent evt)
 {
 	event_t event;
@@ -939,24 +924,7 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	INT32 deltay = -evt.dy * vid.height;
 
 	if (finger >= NUMTOUCHFINGERS)
-	{
-		CONS_Alert(CONS_NOTICE, "More than %d fingers not supported, please only use up to two hands or paws\n", NUMTOUCHFINGERS);
 		return;
-	}
-
-#if 0
-	else
-	{
-		const char *fingertype = "???";
-		if (evt.type == SDL_FINGERMOTION)
-			fingertype = "Finger motion";
-		else if (evt.type == SDL_FINGERUP)
-			fingertype = "Finger up";
-		else if (evt.type == SDL_FINGERDOWN)
-			fingertype = "Finger down";
-		CONS_Printf("%s: x %d y %d fingerid %d touchid %d\n", fingertype, screenx, screeny, finger, (int)evt.touchId);
-	}
-#endif
 
 	switch (evt.type)
 	{

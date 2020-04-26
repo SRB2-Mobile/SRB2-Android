@@ -4310,6 +4310,7 @@ void F_EndTextPrompt(boolean forceexec, boolean noexec)
 		if (promptmo && promptmo->player && promptblockcontrols)
 			promptmo->reactiontime = TICRATE/4; // prevent jumping right away // \todo account freeze realtime for this)
 		// \todo reset frozen realtime?
+		promptblockcontrols = false;
 	}
 
 	// \todo net safety, maybe loop all player thinkers?
@@ -4399,7 +4400,7 @@ void F_StartTextPrompt(INT32 promptnum, INT32 pagenum, mobj_t *mo, UINT16 postex
 		}
 
 #ifdef TOUCHINPUTS
-		memset(gamekeydown, 0, sizeof (gamekeydown)); // No, this is not a hack at all. I don't know what you're talking about.
+		G_ResetInputs();
 #endif
 	}
 	else

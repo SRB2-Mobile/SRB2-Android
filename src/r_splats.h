@@ -62,7 +62,7 @@ typedef struct floorsplat_s
 // p_setup.c
 fixed_t P_SegLength(seg_t *seg);
 
-// call at P_SetupLevel()
+// call at P_LoadLevel()
 void R_ClearLevelSplats(void);
 
 #ifdef WALLSPLATS

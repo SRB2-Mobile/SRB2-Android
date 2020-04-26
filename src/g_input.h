@@ -139,10 +139,22 @@ typedef enum
 	AXISFIRENORMAL,
 } axis_input_e;
 
+typedef struct joystickvector2_s
+{
+	INT32 xaxis;
+	INT32 yaxis;
+} joystickvector2_t;
+extern joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
+
 // current state of the keys: true if pushed
 extern UINT8 gamekeydown[NUMINPUTS];
 
 boolean G_InGameInput(void);
+
+void G_ResetInputs(void);
+void G_ResetJoysticks(void);
+void G_ResetMice(void);
+
 boolean G_HandlePauseKey(boolean ispausebreak);
 
 boolean G_DoViewpointSwitch(void);
@@ -170,6 +182,7 @@ typedef struct
 	boolean ignoremotion;
 } touchfinger_t;
 extern touchfinger_t touchfingers[NUMTOUCHFINGERS];
+extern UINT8 touchcontroldown[num_gamecontrols];
 
 // Touch screen button structure
 typedef struct
@@ -232,8 +245,23 @@ extern INT32 gamecontrol[num_gamecontrols][2];
 extern INT32 gamecontrolbis[num_gamecontrols][2]; // secondary splitscreen player
 extern INT32 gamecontroldefault[num_gamecontrolschemes][num_gamecontrols][2]; // default control storage, use 0 (gcs_custom) for memory retention
 extern INT32 gamecontrolbisdefault[num_gamecontrolschemes][num_gamecontrols][2];
-#define PLAYER1INPUTDOWN(gc) (gamekeydown[gamecontrol[gc][0]] || gamekeydown[gamecontrol[gc][1]])
-#define PLAYER2INPUTDOWN(gc) (gamekeydown[gamecontrolbis[gc][0]] || gamekeydown[gamecontrolbis[gc][1]])
+
+// Checks if any game control key is down
+#define GAMECONTROLDOWN(keyref, gc) (gamekeydown[keyref[gc][0]] || gamekeydown[keyref[gc][1]])
+#define GC1KEYDOWN(gc) GAMECONTROLDOWN(gamecontrol, gc)
+#define GC2KEYDOWN(gc) GAMECONTROLDOWN(gamecontrolbis, gc)
+
+// Player 1 input
+#ifdef TOUCHINPUTS
+	#define PLAYER1INPUTDOWN(gc) (GC1KEYDOWN(gc) || touchcontroldown[gc])
+#else
+	#define PLAYER1INPUTDOWN(gc) GC1KEYDOWN(gc)
+#endif
+
+// Player 2 input
+#define PLAYER2INPUTDOWN(gc) GAMECONTROLDOWN(gamecontrolbis, gc)
+
+// Check inputs for the specified player
 #define PLAYERINPUTDOWN(p, gc) ((p) == 2 ? PLAYER2INPUTDOWN(gc) : PLAYER1INPUTDOWN(gc))
 
 #define num_gcl_tutorial_check 6

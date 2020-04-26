@@ -282,13 +282,19 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_HEADER      (IT_SPACE  +IT_HEADERTEXT)
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
 
-// Confirm (press 'Y') / ESC messages
+// Confirm (press 'Y') / Return (press 'N') / ESC messages
 #ifdef TOUCHINPUTS
 #define PRESS_Y_MESSAGE   "Tap 'Confirm'"
+#define PRESS_Y_MESSAGE_L "tap 'Confirm'"
+#define PRESS_N_MESSAGE   "Tap 'Back'"
+#define PRESS_N_MESSAGE_L "tap 'Back'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE
 #define PRESS_ESC_MESSAGE "Tap anywhere\n"
 #else
 #define PRESS_Y_MESSAGE   "Press 'Y'"
+#define PRESS_Y_MESSAGE_L "press 'Y'"
+#define PRESS_N_MESSAGE   "Press 'N'"
+#define PRESS_N_MESSAGE_L "Press 'N'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE " to confirm"
 #define PRESS_ESC_MESSAGE "Press ESC\n"
 #endif

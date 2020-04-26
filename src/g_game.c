@@ -275,12 +275,6 @@ static UINT8 *metalbuffer = NULL;
 static UINT8 *metal_p;
 static UINT16 metalversion;
 
-typedef struct joystickvector2_s
-{
-	INT32 xaxis;
-	INT32 yaxis;
-} joystickvector2_t;
-
 // extra data stuff (events registered this frame while recording)
 static struct {
 	UINT8 flags; // EZT flags
@@ -1115,6 +1109,8 @@ static fixed_t forwardmove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16};
 static fixed_t sidemove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16}; // faster!
 static fixed_t angleturn[3] = {640, 1280, 320}; // + slow turn
 
+joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
+
 boolean ticcmd_centerviewdown[2]; // For simple controls, lock the camera behind the player
 mobj_t *ticcmd_ztargetfocus[2]; // Locking onto an object?
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
@@ -1123,7 +1119,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	boolean forcefullinput = false;
 	INT32 tspeed, forward, side, axis, strafeaxis, moveaxis, turnaxis, lookaxis, i;
 
-	joystickvector2_t movejoystickvector, lookjoystickvector;
+	joystickvector2_t *movejoystickvector, *lookjoystickvector;
 
 	const INT32 speed = 1;
 	// these ones used for multiple conditions
@@ -1224,6 +1220,9 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	}
 #endif
 
+	movejoystickvector = &movejoystickvectors[forplayer];
+	lookjoystickvector = &lookjoystickvectors[forplayer];
+
 	thisjoyaiming = (chasecam && !player->spectator) ? chasefreelook : alwaysfreelook;
 
 	// Reset the vertical look if we're no longer joyaiming
@@ -1235,14 +1234,14 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	if (strafeisturn)
 		turnaxis += PlayerJoyAxis(ssplayer, AXISSTRAFE);
 	lookaxis = PlayerJoyAxis(ssplayer, AXISLOOK);
-	lookjoystickvector.xaxis = turnaxis;
-	lookjoystickvector.yaxis = lookaxis;
-	G_HandleAxisDeadZone(forplayer, &lookjoystickvector);
+	lookjoystickvector->xaxis = turnaxis;
+	lookjoystickvector->yaxis = lookaxis;
+	G_HandleAxisDeadZone(forplayer, lookjoystickvector);
 
-	if (gamepadjoystickmove && lookjoystickvector.xaxis != 0)
+	if (gamepadjoystickmove && lookjoystickvector->xaxis != 0)
 	{
-		turnright = turnright || (lookjoystickvector.xaxis > 0);
-		turnleft = turnleft || (lookjoystickvector.xaxis < 0);
+		turnright = turnright || (lookjoystickvector->xaxis > 0);
+		turnleft = turnleft || (lookjoystickvector->xaxis < 0);
 	}
 	forward = side = 0;
 
@@ -1282,10 +1281,10 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		if (turnleft)
 			side -= sidemove[speed];
 
-		if (analogjoystickmove && lookjoystickvector.xaxis != 0)
+		if (analogjoystickmove && lookjoystickvector->xaxis != 0)
 		{
 			// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
-			side += ((lookjoystickvector.xaxis * sidemove[1]) >> 10);
+			side += ((lookjoystickvector->xaxis * sidemove[1]) >> 10);
 		}
 	}
 	else if (controlstyle == CS_LMAOGALOG) // Analog
@@ -1303,10 +1302,10 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		else if (turnleft)
 			cmd->angleturn = (INT16)(cmd->angleturn + ((angleturn[tspeed] * turnmultiplier)>>FRACBITS));
 
-		if (analogjoystickmove && lookjoystickvector.xaxis != 0)
+		if (analogjoystickmove && lookjoystickvector->xaxis != 0)
 		{
 			// JOYAXISRANGE should be 1023 (divide by 1024)
-			cmd->angleturn = (INT16)(cmd->angleturn - ((((lookjoystickvector.xaxis * angleturn[1]) >> 10) * turnmultiplier)>>FRACBITS)); // ANALOG!
+			cmd->angleturn = (INT16)(cmd->angleturn - ((((lookjoystickvector->xaxis * angleturn[1]) >> 10) * turnmultiplier)>>FRACBITS)); // ANALOG!
 		}
 
 		if (turnright || turnleft || abs(cmd->angleturn) > angleturn[2])
@@ -1315,35 +1314,35 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 
 	strafeaxis = strafeisturn ? 0 : PlayerJoyAxis(ssplayer, AXISSTRAFE);
 	moveaxis = PlayerJoyAxis(ssplayer, AXISMOVE);
-	movejoystickvector.xaxis = strafeaxis;
-	movejoystickvector.yaxis = moveaxis;
-	G_HandleAxisDeadZone(forplayer, &movejoystickvector);
+	movejoystickvector->xaxis = strafeaxis;
+	movejoystickvector->yaxis = moveaxis;
+	G_HandleAxisDeadZone(forplayer, movejoystickvector);
 
-	if (gamepadjoystickmove && movejoystickvector.xaxis != 0)
+	if (gamepadjoystickmove && movejoystickvector->xaxis != 0)
 	{
-		if (movejoystickvector.xaxis > 0)
+		if (movejoystickvector->xaxis > 0)
 			side += sidemove[speed];
-		else if (movejoystickvector.xaxis < 0)
+		else if (movejoystickvector->xaxis < 0)
 			side -= sidemove[speed];
 	}
-	else if (analogjoystickmove && movejoystickvector.xaxis != 0)
+	else if (analogjoystickmove && movejoystickvector->xaxis != 0)
 	{
 		// JOYAXISRANGE is supposed to be 1023 (divide by 1024)
-		side += ((movejoystickvector.xaxis * sidemove[1]) >> 10);
+		side += ((movejoystickvector->xaxis * sidemove[1]) >> 10);
 	}
 
 	// forward with key or button
-	if (movefkey || (gamepadjoystickmove && movejoystickvector.yaxis < 0)
+	if (movefkey || (gamepadjoystickmove && movejoystickvector->yaxis < 0)
 		|| ((player->powers[pw_carry] == CR_NIGHTSMODE)
-			&& (PLAYERINPUTDOWN(ssplayer, gc_lookup) || (gamepadjoystickmove && lookjoystickvector.yaxis > 0))))
+			&& (PLAYERINPUTDOWN(ssplayer, gc_lookup) || (gamepadjoystickmove && lookjoystickvector->yaxis > 0))))
 		forward = forwardmove[speed];
-	if (movebkey || (gamepadjoystickmove && movejoystickvector.yaxis > 0)
+	if (movebkey || (gamepadjoystickmove && movejoystickvector->yaxis > 0)
 		|| ((player->powers[pw_carry] == CR_NIGHTSMODE)
-			&& (PLAYERINPUTDOWN(ssplayer, gc_lookdown) || (gamepadjoystickmove && lookjoystickvector.yaxis < 0))))
+			&& (PLAYERINPUTDOWN(ssplayer, gc_lookdown) || (gamepadjoystickmove && lookjoystickvector->yaxis < 0))))
 		forward -= forwardmove[speed];
 
-	if (analogjoystickmove && movejoystickvector.yaxis != 0)
-		forward -= ((movejoystickvector.yaxis * forwardmove[1]) >> 10); // ANALOG!
+	if (analogjoystickmove && movejoystickvector->yaxis != 0)
+		forward -= ((movejoystickvector->yaxis * forwardmove[1]) >> 10); // ANALOG!
 
 	// some people strafe left & right with mouse buttons
 	// those people are weird
@@ -1531,8 +1530,8 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 			*myaiming += (*mly<<19)*player_invert*screen_invert;
 		}
 
-		if (analogjoystickmove && joyaiming[forplayer] && lookjoystickvector.yaxis != 0 && configlookaxis != 0)
-			*myaiming += (lookjoystickvector.yaxis<<16) * screen_invert;
+		if (analogjoystickmove && joyaiming[forplayer] && lookjoystickvector->yaxis != 0 && configlookaxis != 0)
+			*myaiming += (lookjoystickvector->yaxis<<16) * screen_invert;
 
 		// spring back if not using keyboard neither mouselookin'
 		if (!keyboard_look[forplayer] && configlookaxis == 0 && !joyaiming[forplayer] && !mouseaiming)
@@ -1540,12 +1539,12 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 
 		if (!(player->powers[pw_carry] == CR_NIGHTSMODE))
 		{
-			if (PLAYERINPUTDOWN(ssplayer, gc_lookup) || (gamepadjoystickmove && lookjoystickvector.yaxis < 0))
+			if (PLAYERINPUTDOWN(ssplayer, gc_lookup) || (gamepadjoystickmove && lookjoystickvector->yaxis < 0))
 			{
 				*myaiming += KB_LOOKSPEED * screen_invert;
 				keyboard_look[forplayer] = true;
 			}
-			else if (PLAYERINPUTDOWN(ssplayer, gc_lookdown) || (gamepadjoystickmove && lookjoystickvector.yaxis > 0))
+			else if (PLAYERINPUTDOWN(ssplayer, gc_lookdown) || (gamepadjoystickmove && lookjoystickvector->yaxis > 0))
 			{
 				*myaiming -= KB_LOOKSPEED * screen_invert;
 				keyboard_look[forplayer] = true;
@@ -1866,18 +1865,7 @@ void G_DoLoadLevel(boolean resetplayer)
 	if (camera2.chase && splitscreen)
 		P_ResetCamera(&players[secondarydisplayplayer], &camera2);
 
-	// clear cmd building stuff
-	memset(gamekeydown, 0, sizeof (gamekeydown));
-	for (i = 0;i < JOYAXISSET; i++)
-	{
-		joyxmove[i] = joyymove[i] = 0;
-		joy2xmove[i] = joy2ymove[i] = 0;
-#ifdef TOUCHINPUTS
-		touchxmove = touchymove = touchpressure = 0.0f;
-#endif
-	}
-	mousex = mousey = 0;
-	mouse2x = mouse2y = 0;
+	G_ResetInputs();
 
 	// clear hud messages remains (usually from game startup)
 	CON_ClearHUD();
@@ -2913,18 +2901,7 @@ void G_DoReborn(INT32 playernum)
 			if (camera2.chase && splitscreen)
 				P_ResetCamera(&players[secondarydisplayplayer], &camera2);
 
-			// clear cmd building stuff
-			memset(gamekeydown, 0, sizeof (gamekeydown));
-			for (i = 0; i < JOYAXISSET; i++)
-			{
-				joyxmove[i] = joyymove[i] = 0;
-				joy2xmove[i] = joy2ymove[i] = 0;
-#ifdef TOUCHINPUTS
-				touchxmove = touchymove = touchpressure = 0.0f;
-#endif
-			}
-			mousex = mousey = 0;
-			mouse2x = mouse2y = 0;
+			G_ResetInputs();
 
 			// clear hud messages remains (usually from game startup)
 			CON_ClearHUD();

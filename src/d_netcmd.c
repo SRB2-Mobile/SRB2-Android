@@ -253,7 +253,7 @@ consvar_t cv_usejoystick2 = {"use_gamepad2", "2", CV_SAVE|CV_CALL, usejoystick_c
 	I_InitJoystick2, 0, NULL, NULL, 0, 0, NULL};
 
 #if defined(__ANDROID__)
-consvar_t cv_useaccelerometer = {"use_accelerometer", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_useaccelerometer = {"use_accelerometer", "Off", CV_SAVE|CV_CALL, CV_OnOff, G_ResetJoysticks, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 #if (defined (LJOYSTICK) || defined (HAVE_SDL))
@@ -266,6 +266,10 @@ consvar_t cv_joyscale2 = {"padscale2", "1", CV_SAVE|CV_CALL, NULL, I_JoyScale2, 
 #else
 consvar_t cv_joyscale = {"padscale", "1", CV_SAVE|CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL}; //Alam: Dummy for save
 consvar_t cv_joyscale2 = {"padscale2", "1", CV_SAVE|CV_HIDEN, NULL, NULL, 0, NULL, NULL, 0, 0, NULL}; //Alam: Dummy for save
+#endif
+#if defined(__ANDROID__)
+static CV_PossibleValue_t accelscale_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
+consvar_t cv_accelscale = {"accelerometer_scale", "8", CV_SAVE, accelscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 #if (defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)
 consvar_t cv_mouse2port = {"mouse2port", "/dev/gpmdata", CV_SAVE, mouse2port_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -843,6 +847,9 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_joyscale);
 	CV_RegisterVar(&cv_joyscale2);
+#if defined(__ANDROID__)
+	CV_RegisterVar(&cv_accelscale);
+#endif
 
 #ifdef TOUCHINPUTS
 	// Lactozilla: Configure the Simple playstyle as the default

@@ -60,6 +60,7 @@ UINT8 gamekeydown[NUMINPUTS];
 #ifdef TOUCHINPUTS
 // Finger data
 touchfinger_t touchfingers[NUMTOUCHFINGERS];
+UINT8 touchcontroldown[num_gamecontrols];
 
 // Screen buttons
 touchconfig_t touchcontrols[num_gamecontrols];
@@ -202,6 +203,9 @@ static void G_HandleFingerEvent(event_t *ev)
 	INT32 gc, i;
 	boolean foundbutton = false;
 
+	if (gamestate != GS_LEVEL)
+		return;
+
 	switch (ev->type)
 	{
 		case ev_touchdown:
@@ -222,7 +226,7 @@ static void G_HandleFingerEvent(event_t *ev)
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				touchconfig_t *butt = &touchcontrols[i];
-				tic_t keydowntime;
+				tic_t keydowntime = I_GetTime() + (TICRATE/10);
 
 				// Ignore camera and joystick movement
 				if (finger->type.mouse)
@@ -255,15 +259,12 @@ static void G_HandleFingerEvent(event_t *ev)
 					}
 
 					// Let go of this button.
-					gamekeydown[gamecontrol[gc][0]] = 0;
+					touchcontroldown[gc] = 0;
 					finger->u.gamecontrol = gc_null;
 				}
 
-				gc = gamecontrol[i][0];
-				keydowntime = I_GetTime() + (TICRATE/10);
-
 				// Check if your finger touches this button.
-				if (G_FingerTouchesButton(x, y, butt) && (!gamekeydown[gc]))
+				if (G_FingerTouchesButton(x, y, butt) && (!touchcontroldown[i]))
 				{
 					foundbutton = true;
 
@@ -316,7 +317,7 @@ static void G_HandleFingerEvent(event_t *ev)
 							butt->pressed = keydowntime;
 					}
 					else
-						gamekeydown[gc] = 1;
+						touchcontroldown[i] = 1;
 
 					finger->x = x;
 					finger->y = y;
@@ -350,7 +351,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				}
 			}
 
-			// In some gamestates, set a specific gamecontrol down or something.
+			// In some gamestates, set a specific gamecontrol down.
 			if (!foundbutton)
 			{
 				gc = gc_null;
@@ -367,7 +368,7 @@ static void G_HandleFingerEvent(event_t *ev)
 					finger->pressure = ev->pressure;
 					finger->ignoremotion = true;
 					finger->u.gamecontrol = gc;
-					gamekeydown[gamecontrol[gc][0]] = 1;
+					touchcontroldown[gc] = 1;
 					foundbutton = true;
 				}
 			}
@@ -422,7 +423,7 @@ static void G_HandleFingerEvent(event_t *ev)
 			// Let go of this finger.
 			gc = finger->u.gamecontrol;
 			if (gc > gc_null)
-				gamekeydown[gamecontrol[gc][0]] = gc_null;
+				touchcontroldown[gc] = 0;
 			finger->u.gamecontrol = gc_null;
 			finger->ignoremotion = false;
 
@@ -1566,6 +1567,40 @@ void G_DefineTouchButtons(void)
 	G_TouchNavigationPreset();
 }
 #endif
+
+// clear cmd building stuff
+void G_ResetInputs(void)
+{
+	memset(gamekeydown, 0x00, sizeof(gamekeydown));
+
+#ifdef TOUCHINPUTS
+	memset(touchfingers, 0x00, sizeof(touchfingers));
+	memset(touchcontroldown, 0x00, sizeof(touchcontroldown));
+
+	touchxmove = touchymove = touchpressure = 0.0f;
+#endif
+
+	G_ResetJoysticks();
+	G_ResetMice();
+}
+
+// clear joystick axes / accelerometer position
+void G_ResetJoysticks(void)
+{
+	INT32 i;
+	for (i = 0; i < JOYAXISSET; i++)
+	{
+		joyxmove[i] = joyymove[i] = 0;
+		joy2xmove[i] = joy2ymove[i] = 0;
+	}
+}
+
+// clear mice positions
+void G_ResetMice(void)
+{
+	mousex = mousey = 0;
+	mouse2x = mouse2y = 0;
+}
 
 boolean G_InGameInput(void)
 {

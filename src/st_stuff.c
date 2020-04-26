@@ -47,6 +47,10 @@
 #include "lua_hud.h"
 #endif
 
+#ifdef TOUCHINPUTS
+#include "i_joy.h"
+#endif
+
 UINT16 objectsdrawn = 0;
 
 //
@@ -1414,7 +1418,7 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 	patch_t *cursor = W_CachePatchName("DSHADOW", PU_PATCH);
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
-	fixed_t pressure = max(FRACUNIT/100, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
+	fixed_t pressure = max(FRACUNIT/4, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
 
 	// generate colormap
 	static UINT8 *colormap = NULL;
@@ -1435,13 +1439,36 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 	INT32 w = FixedMul(dpadw * FRACUNIT, dupx) / FRACUNIT;
 	INT32 h = FixedMul(dpadh * FRACUNIT, dupy) / FRACUNIT;
 
-	INT32 stickx = max(-TOUCHJOYEXTENDX, min(touchxmove * TOUCHJOYEXTENDX, TOUCHJOYEXTENDX));
-	INT32 sticky = max(-TOUCHJOYEXTENDY, min(touchymove * TOUCHJOYEXTENDY, TOUCHJOYEXTENDY));
+	float xmove, ymove;
+	INT32 stickx, sticky;
+	joystickvector2_t *joy = &movejoystickvectors[0];
 
 	fixed_t basexscale = FixedDiv(dpadw*FRACUNIT, SHORT(cursor->width)*FRACUNIT);
 	fixed_t baseyscale = FixedDiv(dpadh*FRACUNIT, SHORT(cursor->height)*FRACUNIT);
 	fixed_t xscale = FixedMul(pressure, (basexscale / 2));
 	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
+
+	// set stick position
+	if (GC1KEYDOWN(gc_strafeleft) || GC1KEYDOWN(gc_straferight))
+		xmove = GC1KEYDOWN(gc_straferight) ? 1.0f : -1.0f;
+	else
+	{
+		xmove = touchxmove;
+		if (joy->xaxis)
+			xmove += ((float)joy->xaxis / JOYAXISRANGE);
+	}
+
+	if (GC1KEYDOWN(gc_forward) || GC1KEYDOWN(gc_backward))
+		ymove = GC1KEYDOWN(gc_forward) ? -1.0f : 1.0f;
+	else
+	{
+		ymove = touchymove;
+		if (joy->yaxis)
+			ymove += ((float)joy->yaxis / JOYAXISRANGE);
+	}
+
+	stickx = max(-TOUCHJOYEXTENDX, min(xmove * TOUCHJOYEXTENDX, TOUCHJOYEXTENDX));
+	sticky = max(-TOUCHJOYEXTENDY, min(ymove * TOUCHJOYEXTENDY, TOUCHJOYEXTENDY));
 
 	// O backing
 	ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
