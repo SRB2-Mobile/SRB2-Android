@@ -1452,23 +1452,13 @@ void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t d
 	fixed_t yextend = TOUCHJOYEXTENDY;
 
 	// set stick position
-	if ((GC1KEYDOWN(gc_strafeleft) || GC1KEYDOWN(gc_straferight)) && G_CanBuildTiccmd(stplyr))
-		xmove = GC1KEYDOWN(gc_straferight) ? 1.0f : -1.0f;
-	else
-	{
-		xmove = touchxmove;
-		if (joy->xaxis)
-			xmove += ((float)joy->xaxis / JOYAXISRANGE);
-	}
+	xmove = touchxmove;
+	if (joy->xaxis)
+		xmove += ((float)joy->xaxis / JOYAXISRANGE);
 
-	if ((GC1KEYDOWN(gc_forward) || GC1KEYDOWN(gc_backward)) && G_CanBuildTiccmd(stplyr))
-		ymove = GC1KEYDOWN(gc_forward) ? -1.0f : 1.0f;
-	else
-	{
-		ymove = touchymove;
-		if (joy->yaxis)
-			ymove += ((float)joy->yaxis / JOYAXISRANGE);
-	}
+	ymove = touchymove;
+	if (joy->yaxis)
+		ymove += ((float)joy->yaxis / JOYAXISRANGE);
 
 	stickx = max(-xextend, min(FixedMul(FLOAT_TO_FIXED(xmove), xextend), xextend));
 	sticky = max(-yextend, min(FixedMul(FLOAT_TO_FIXED(ymove), yextend), yextend));
