@@ -1460,7 +1460,15 @@ static char *CHAT_WordWrap(INT32 x, INT32 w, INT32 option, const char *string)
 
 // 30/7/18: chaty is now the distance at which the lowest point of the chat will be drawn if that makes any sense.
 
-INT16 chatx = 13, chaty = 169; // let's use this as our coordinates
+// let's use this as our coordinates
+INT16 chatx = 13;
+#if defined(__ANDROID__)
+INT16 chaty = 64;
+INT32 chatsnapflags = (V_SNAPTOTOP | V_SNAPTOLEFT);
+#else
+INT16 chaty = 169;
+INT32 chatsnapflags = (V_SNAPTOBOTTOM | V_SNAPTOLEFT);
+#endif
 
 // chat stuff by VincyTM LOL XD!
 
@@ -1534,7 +1542,10 @@ static void HU_drawMiniChat(void)
 			Z_Free(msg);
 	}
 
-	y = chaty - charheight*(msglines+1);
+	y = chaty;
+#if !defined(__ANDROID__)
+	y -= charheight*(msglines+1);
+#endif
 
 	/*if (splitscreen)
 	{
@@ -1554,7 +1565,7 @@ static void HU_drawMiniChat(void)
 		INT32 timer = ((cv_chattime.value*TICRATE)-chat_timers[i]) - cv_chattime.value*TICRATE+9; // see below...
 		INT32 transflag = (timer >= 0 && timer <= 9) ? (timer*V_10TRANS) : 0; // you can make bad jokes out of this one.
 		size_t j = 0;
-		char *msg = CHAT_WordWrap(x+2, boxw-(charwidth*2), V_SNAPTOBOTTOM|V_SNAPTOLEFT|V_ALLOWLOWERCASE, chat_mini[i]); // get the current message, and word wrap it.
+		char *msg = CHAT_WordWrap(x+2, boxw-(charwidth*2), chatsnapflags|V_ALLOWLOWERCASE, chat_mini[i]); // get the current message, and word wrap it.
 		UINT8 *colormap = NULL;
 
 		while(msg[j]) // iterate through msg
@@ -1585,9 +1596,9 @@ static void HU_drawMiniChat(void)
 			else
 			{
 				if (cv_chatbacktint.value) // on request of wolfy
-					V_DrawFillConsoleMap(x + dx + 2, y+dy, charwidth, charheight, 239|V_SNAPTOBOTTOM|V_SNAPTOLEFT);
+					V_DrawFillConsoleMap(x + dx + 2, y+dy, charwidth, charheight, 239|chatsnapflags);
 
-				V_DrawChatCharacter(x + dx + 2, y+dy, msg[j++] |V_SNAPTOBOTTOM|V_SNAPTOLEFT|transflag, !cv_allcaps.value, colormap);
+				V_DrawChatCharacter(x + dx + 2, y+dy, msg[j++] |chatsnapflags|transflag, !cv_allcaps.value, colormap);
 			}
 
 			dx += charwidth;
@@ -1634,7 +1645,11 @@ static void HU_drawChatLog(INT32 offset)
 	}
 #endif
 
+#if defined(__ANDROID__)
+	y = chaty + offset*charheight - (chat_scroll*charheight);
+#else
 	y = chaty - offset*charheight - (chat_scroll*charheight) - boxh*charheight - 12;
+#endif
 
 #ifdef NETSPLITSCREEN
 	if (splitscreen)
@@ -1648,13 +1663,13 @@ static void HU_drawChatLog(INT32 offset)
 	chat_topy = y + chat_scroll*charheight;
 	chat_bottomy = chat_topy + boxh*charheight;
 
-	V_DrawFillConsoleMap(chatx, chat_topy, boxw, boxh*charheight +2, 239|V_SNAPTOBOTTOM|V_SNAPTOLEFT); // log box
+	V_DrawFillConsoleMap(chatx, chat_topy, boxw, boxh*charheight +2, 239|chatsnapflags); // log box
 
 	for (i=0; i<chat_nummsg_log; i++) // iterate through our chatlog
 	{
 		INT32 clrflag = 0;
 		INT32 j = 0;
-		char *msg = CHAT_WordWrap(x+2, boxw-(charwidth*2), V_SNAPTOBOTTOM|V_SNAPTOLEFT|V_ALLOWLOWERCASE, chat_log[i]); // get the current message, and word wrap it.
+		char *msg = CHAT_WordWrap(x+2, boxw-(charwidth*2), chatsnapflags|V_ALLOWLOWERCASE, chat_log[i]); // get the current message, and word wrap it.
 		UINT8 *colormap = NULL;
 		while(msg[j]) // iterate through msg
 		{
@@ -1680,7 +1695,7 @@ static void HU_drawChatLog(INT32 offset)
 			else
 			{
 				if ((y+dy+2 >= chat_topy) && (y+dy < (chat_bottomy)))
-					V_DrawChatCharacter(x + dx + 2, y+dy+2, msg[j++] |V_SNAPTOBOTTOM|V_SNAPTOLEFT, !cv_allcaps.value, colormap);
+					V_DrawChatCharacter(x + dx + 2, y+dy+2, msg[j++] |chatsnapflags, !cv_allcaps.value, colormap);
 				else
 					j++; // don't forget to increment this or we'll get stuck in the limbo.
 			}
@@ -1717,9 +1732,9 @@ static void HU_drawChatLog(INT32 offset)
 	// draw arrows to indicate that we can (or not) scroll.
 	// account for Y = -1 offset in tinyfont
 	if (chat_scroll > 0)
-		V_DrawThinString(chatx-8, ((justscrolledup) ? (chat_topy-1) : (chat_topy)) - 1, V_SNAPTOBOTTOM | V_SNAPTOLEFT | V_YELLOWMAP, "\x1A"); // up arrow
+		V_DrawThinString(chatx-8, ((justscrolledup) ? (chat_topy-1) : (chat_topy)) - 1, chatsnapflags | V_YELLOWMAP, "\x1A"); // up arrow
 	if (chat_scroll < chat_maxscroll)
-		V_DrawThinString(chatx-8, chat_bottomy-((justscrolleddown) ? 5 : 6) - 1, V_SNAPTOBOTTOM | V_SNAPTOLEFT | V_YELLOWMAP, "\x1B"); // down arrow
+		V_DrawThinString(chatx-8, chat_bottomy-((justscrolleddown) ? 5 : 6) - 1, chatsnapflags | V_YELLOWMAP, "\x1B"); // down arrow
 
 	justscrolleddown = false;
 	justscrolledup = false;
@@ -1735,12 +1750,18 @@ static void HU_DrawChat(void)
 {
 	INT32 charwidth = 4, charheight = 6;
 	INT32 boxw = cv_chatwidth.value;
-	INT32 t = 0, c = 0, y = chaty - (typelines*charheight);
+	INT32 t = 0, c = 0, y = chaty;
 	UINT32 i = 0, saylen = strlen(w_chat); // You learn new things everyday!
 	INT32 cflag = 0;
 	const char *ntalk = "Say: ", *ttalk = "Team: ";
 	const char *talk = ntalk;
 	const char *mute = "Chat has been muted.";
+
+#if defined(__ANDROID__)
+	y -= charheight;
+#else
+	y -= (typelines*charheight);
+#endif
 
 #ifdef NETSPLITSCREEN
 	if (splitscreen)
@@ -1772,7 +1793,7 @@ static void HU_DrawChat(void)
 		cflag = V_GRAYMAP; // set text in gray if chat is muted.
 	}
 
-	V_DrawFillConsoleMap(chatx, y-1, boxw, (typelines*charheight), 239 | V_SNAPTOBOTTOM | V_SNAPTOLEFT);
+	V_DrawFillConsoleMap(chatx, y-1, boxw, (typelines*charheight), 239 | chatsnapflags);
 
 	while (talk[i])
 	{
@@ -1780,7 +1801,7 @@ static void HU_DrawChat(void)
 			++i;
 		else
 		{
-			V_DrawChatCharacter(chatx + c + 2, y, talk[i] |V_SNAPTOBOTTOM|V_SNAPTOLEFT|cflag, !cv_allcaps.value, V_GetStringColormap(talk[i]|cflag));
+			V_DrawChatCharacter(chatx + c + 2, y, talk[i] |chatsnapflags|cflag, !cv_allcaps.value, V_GetStringColormap(talk[i]|cflag));
 			i++;
 		}
 
@@ -1798,7 +1819,7 @@ static void HU_DrawChat(void)
 	typelines = 1;
 
 	if ((strlen(w_chat) == 0 || c_input == 0) && hu_tick < 4)
-		V_DrawChatCharacter(chatx + 2 + c, y+1, '_' |V_SNAPTOBOTTOM|V_SNAPTOLEFT|t, !cv_allcaps.value, NULL);
+		V_DrawChatCharacter(chatx + 2 + c, y+1, '_' |chatsnapflags|t, !cv_allcaps.value, NULL);
 
 	while (w_chat[i])
 	{
@@ -1808,7 +1829,7 @@ static void HU_DrawChat(void)
 			INT32 cursorx = (c+charwidth < boxw-charwidth) ? (chatx + 2 + c+charwidth) : (chatx+1); // we may have to go down.
 			INT32 cursory = (cursorx != chatx+1) ? (y) : (y+charheight);
 			if (hu_tick < 4)
-				V_DrawChatCharacter(cursorx, cursory+1, '_' |V_SNAPTOBOTTOM|V_SNAPTOLEFT|t, !cv_allcaps.value, NULL);
+				V_DrawChatCharacter(cursorx, cursory+1, '_' |chatsnapflags|t, !cv_allcaps.value, NULL);
 
 			if (cursorx == chatx+1 && saylen == i) // a weirdo hack
 			{
@@ -1821,7 +1842,7 @@ static void HU_DrawChat(void)
 		if (w_chat[i] < HU_FONTSTART)
 			++i;
 		else
-			V_DrawChatCharacter(chatx + c + 2, y, w_chat[i++] | V_SNAPTOBOTTOM|V_SNAPTOLEFT | t, !cv_allcaps.value, NULL);
+			V_DrawChatCharacter(chatx + c + 2, y, w_chat[i++] | chatsnapflags | t, !cv_allcaps.value, NULL);
 
 		c += charwidth;
 		if (c > boxw-(charwidth*2) && !skippedline)
@@ -1893,15 +1914,15 @@ static void HU_DrawChat(void)
 			{
 				char name[MAXPLAYERNAME+1];
 				strlcpy(name, player_names[i], 7); // shorten name to 7 characters.
-				V_DrawFillConsoleMap(chatx+ boxw + 2, p_dispy- (6*count), 48, 6, 239 | V_SNAPTOBOTTOM | V_SNAPTOLEFT); // fill it like the chat so the text doesn't become hard to read because of the hud.
-				V_DrawSmallString(chatx+ boxw + 4, p_dispy- (6*count), V_SNAPTOBOTTOM|V_SNAPTOLEFT|V_ALLOWLOWERCASE, va("\x82%d\x80 - %s", i, name));
+				V_DrawFillConsoleMap(chatx+ boxw + 2, p_dispy- (6*count), 48, 6, 239 | chatsnapflags); // fill it like the chat so the text doesn't become hard to read because of the hud.
+				V_DrawSmallString(chatx+ boxw + 4, p_dispy- (6*count), chatsnapflags|V_ALLOWLOWERCASE, va("\x82%d\x80 - %s", i, name));
 				count++;
 			}
 		}
 		if (count == 0) // no results.
 		{
-			V_DrawFillConsoleMap(chatx+boxw+2, p_dispy- (6*count), 48, 6, 239 | V_SNAPTOBOTTOM | V_SNAPTOLEFT); // fill it like the chat so the text doesn't become hard to read because of the hud.
-			V_DrawSmallString(chatx+boxw+4, p_dispy- (6*count), V_SNAPTOBOTTOM|V_SNAPTOLEFT|V_ALLOWLOWERCASE, "NO RESULT.");
+			V_DrawFillConsoleMap(chatx+boxw+2, p_dispy- (6*count), 48, 6, 239 | chatsnapflags); // fill it like the chat so the text doesn't become hard to read because of the hud.
+			V_DrawSmallString(chatx+boxw+4, p_dispy- (6*count), chatsnapflags|V_ALLOWLOWERCASE, "NO RESULT.");
 		}
 	}
 
