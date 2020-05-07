@@ -1221,9 +1221,13 @@ static menuitem_t OP_TouchOptionsMenu[] =
 	                      NULL, "Menu translucency",      &cv_touchmenutrans, 90},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch X Sensitivity",    &cv_touchsens,     110},
+	                      NULL, "Touch Horz. Sensitivity",   &cv_touchsens,        110},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Y Sensitivity",    &cv_touchysens,    120},
+	                      NULL, "Touch Vert. Sensitivity",   &cv_touchvertsens,    120},
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
+	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 130},
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
+	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 140},
 };
 #endif
 

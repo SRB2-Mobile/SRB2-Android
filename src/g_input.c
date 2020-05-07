@@ -78,7 +78,7 @@ boolean touch_tinycontrols;
 boolean touch_camera;
 
 // Console variables for the touch screen
-static CV_PossibleValue_t touchstyle_cons_t[] = {{tms_dpad, "D-Pad"}, {tms_joystick, "Joystick"}, {0, NULL}};
+static CV_PossibleValue_t touchstyle_cons_t[] = {{tms_joystick, "Joystick"}, {tms_dpad, "D-Pad"}, {0, NULL}};
 
 consvar_t cv_touchstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
@@ -91,8 +91,12 @@ consvar_t cv_touchmenutrans = {"touch_transmenu", "10", CV_SAVE, touchtrans_cons
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
 static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
-consvar_t cv_touchsens = {"touchsens", "40", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchysens = {"touchysens", "45", CV_SAVE, mousesens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchsens = {"touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchvertsens = {"touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t touchjoysens_cons_t[] = {{FRACUNIT/1000, "MIN"}, {4 * FRACUNIT, "MAX"}, {0, NULL}};
+consvar_t cv_touchjoyhorzsens = {"touch_joyhorzsens", "0.5", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchjoyvertsens = {"touch_joyvertsens", "0.5", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 // two key codes (or virtual key) per game control
@@ -200,8 +204,9 @@ static void G_HandleFingerEvent(event_t *ev)
 	INT32 y = ev->y;
 	touchfinger_t *finger = &touchfingers[ev->key];
 	boolean touchmotion = (ev->type == ev_touchmotion);
-	INT32 gc, i;
 	boolean foundbutton = false;
+	boolean movecamera = true;
+	INT32 gc, i;
 
 	if (gamestate != GS_LEVEL)
 		return;
@@ -244,7 +249,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				if ((touch_movementstyle != tms_dpad) && butt->dpad)
 					continue;
 
-				// In a touch motion event, simulate a key up event by clearing gamekeydown.
+				// In a touch motion event, simulate a key up event by clearing touchcontroldown.
 				// This is done so that the buttons that are down don't 'stick'
 				// if you move your finger from a button to another.
 				gc = finger->u.gamecontrol;
@@ -260,7 +265,7 @@ static void G_HandleFingerEvent(event_t *ev)
 
 					// Let go of this button.
 					touchcontroldown[gc] = 0;
-					finger->u.gamecontrol = gc_null;
+					movecamera = false;
 				}
 
 				// Check if your finger touches this button.
@@ -328,7 +333,7 @@ static void G_HandleFingerEvent(event_t *ev)
 			}
 
 			// Check if your finger touches the d-pad area.
-			if (!foundbutton && !touchmotion)
+			if (!foundbutton)
 			{
 				touchconfig_t dpad;
 				dpad.x = touch_dpad_x;
@@ -338,7 +343,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				if (G_FingerTouchesButton(x, y, &dpad))
 				{
 					// Joystick
-					if (touch_movementstyle == tms_joystick)
+					if (touch_movementstyle == tms_joystick && (!touchmotion))
 					{
 						finger->x = x;
 						finger->y = y;
@@ -346,8 +351,13 @@ static void G_HandleFingerEvent(event_t *ev)
 						finger->type.joystick = FINGERMOTION_JOYSTICK;
 						finger->u.gamecontrol = -1;
 						foundbutton = true;
+						break;
 					}
-					break;
+					else if (touch_movementstyle == tms_dpad)
+					{
+						movecamera = false;
+						break;
+					}
 				}
 			}
 
@@ -374,7 +384,7 @@ static void G_HandleFingerEvent(event_t *ev)
 			}
 
 			// The finger is moving either the joystick or the camera.
-			if (touch_camera && (!foundbutton))
+			if (!foundbutton)
 			{
 				INT32 dx = ev->dx;
 				INT32 dy = ev->dy;
@@ -387,27 +397,33 @@ static void G_HandleFingerEvent(event_t *ev)
 					// Joystick
 					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
 					{
-						INT32 padx = touch_dpad_x, pady = touch_dpad_y, padw = touch_dpad_w, padh = touch_dpad_h;
+						float xsens = FIXED_TO_FLOAT(cv_touchjoyhorzsens.value);
+						float ysens = FIXED_TO_FLOAT(cv_touchjoyvertsens.value);
+						INT32 padx = touch_dpad_x, pady = touch_dpad_y;
+						INT32 padw = touch_dpad_w, padh = touch_dpad_h;
+
 						G_ScaleDPadCoords(&padx, &pady, &padw, &padh);
+
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
-						touchxmove = ((float)dx / (float)TOUCHJOYEXTENDX);
-						touchymove = ((float)dy / (float)TOUCHJOYEXTENDY);
+
+						touchxmove = (((float)dx * xsens) / (float)TOUCHJOYEXTENDX);
+						touchymove = (((float)dy * ysens) / (float)TOUCHJOYEXTENDY);
 						touchpressure = ev->pressure;
 					}
 					// Mouse
-					else if (finger->type.mouse == FINGERMOTION_MOUSE)
+					else if (finger->type.mouse == FINGERMOTION_MOUSE && (touch_camera && movecamera))
 					{
 						mousex = movex;
 						mousey = movey;
-						mlooky = (INT32)(dy*((cv_touchysens.value*cv_touchsens.value)/110.0f + 0.1f));
+						mlooky = (INT32)(dy*((cv_touchvertsens.value*cv_touchsens.value)/110.0f + 0.1f));
 					}
 
 					finger->x = x;
 					finger->y = y;
 					finger->pressure = ev->pressure;
 				}
-				else
+				else if (touch_camera && movecamera)
 				{
 					finger->x = x;
 					finger->y = y;
@@ -432,7 +448,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				touchxmove = touchymove = touchpressure = 0.0f;
 
 			// Remember that this is an union!
-			finger->type.mouse = 0;
+			finger->type.mouse = FINGERMOTION_NONE;
 			break;
 
 		default:

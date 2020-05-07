@@ -1537,7 +1537,7 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 #define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) \
 { \
 	touchconfig_t *control = &touchcontrols[gctype]; \
-	if (!control->hidden) \
+	if (!control->hidden && !F_GetPromptHideHud(control->y / vid.dupy)) \
 	{ \
 		INT32 strx, stry; \
 		INT32 strwidth, strheight; \

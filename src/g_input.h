@@ -205,16 +205,18 @@ extern INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 // Touch movement style
 typedef enum
 {
+	tms_joystick = 1,
 	tms_dpad,
-	tms_joystick,
+
 	num_touchmovementstyles
 } touchmovementstyle_e;
 
 // Finger motion type
 enum
 {
-	FINGERMOTION_JOYSTICK = 1,
-	FINGERMOTION_MOUSE = 2,
+	FINGERMOTION_NONE,
+	FINGERMOTION_JOYSTICK,
+	FINGERMOTION_MOUSE,
 };
 
 // Is the touch screen available?
@@ -232,7 +234,8 @@ extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
 
 // Touch screen sensitivity
-extern consvar_t cv_touchsens, cv_touchysens;
+extern consvar_t cv_touchsens, cv_touchvertsens;
+extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 
 // Screen joystick movement
 #define TOUCHJOYEXTENDX (touch_dpad_w / 2)
