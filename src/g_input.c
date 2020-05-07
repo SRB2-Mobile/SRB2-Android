@@ -1432,7 +1432,7 @@ void G_TouchControlPreset(void)
 	fixed_t corneroffset = 4 * FRACUNIT;
 	fixed_t rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
 	fixed_t bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
-	fixed_t jumph;
+	fixed_t jsoffs = G_RingSlingerGametype() ? (-4 * FRACUNIT) : 0, jumph;
 	fixed_t offs = (promptactive ? -16 : 0);
 	fixed_t nonjoyoffs = -12 * FRACUNIT;
 	fixed_t bottomalign = 0;
@@ -1473,16 +1473,14 @@ void G_TouchControlPreset(void)
 		// Jump
 		w = 40 * FRACUNIT;
 		h = jumph = 32 * FRACUNIT;
-		touchcontrols[gc_jump].name = "JMP";
 		touchcontrols[gc_jump].w = SCALECOORD(w);
 		touchcontrols[gc_jump].h = SCALECOORD(h);
 		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
-		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + offs + nonjoyoffs;
+		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
 
 		// Spin
 		w = 32 * FRACUNIT;
 		h = 24 * FRACUNIT;
-		touchcontrols[gc_use].name = "SPN";
 		touchcontrols[gc_use].w = SCALECOORD(w);
 		touchcontrols[gc_use].h = SCALECOORD(h);
 		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
@@ -1493,16 +1491,14 @@ void G_TouchControlPreset(void)
 		// Jump
 		w = 48 * FRACUNIT;
 		h = jumph = 48 * FRACUNIT;
-		touchcontrols[gc_jump].name = "JUMP";
 		touchcontrols[gc_jump].w = SCALECOORD(w);
 		touchcontrols[gc_jump].h = SCALECOORD(h);
 		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
-		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + offs + nonjoyoffs;
+		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
 
 		// Spin
 		w = 40 * FRACUNIT;
 		h = 32 * FRACUNIT;
-		touchcontrols[gc_use].name = "SPIN";
 		touchcontrols[gc_use].w = SCALECOORD(w);
 		touchcontrols[gc_use].h = SCALECOORD(h);
 		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
@@ -1517,7 +1513,6 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_use].h = h;
 		touchcontrols[gc_use].y = ((touchcontrols[gc_jump].y + touchcontrols[gc_jump].h) - h) + offs;
 
-		touchcontrols[gc_fire].name = (touch_tinycontrols) ? "FRE" : "FIRE";
 		touchcontrols[gc_fire].w = touchcontrols[gc_use].w;
 		touchcontrols[gc_fire].h = h;
 		touchcontrols[gc_fire].x = touchcontrols[gc_use].x;
@@ -1526,13 +1521,11 @@ void G_TouchControlPreset(void)
 		if (gametyperules & GTR_TEAMFLAGS)
 		{
 			ref = &touchcontrols[gc_tossflag];
-			ref->name = (touch_tinycontrols) ? "TSS" : "TOSSFLAG";
 			touchcontrols[gc_firenormal].hidden = true;
 		}
 		else
 		{
 			ref = &touchcontrols[gc_firenormal];
-			ref->name = (touch_tinycontrols) ? "FRN" : "F.NORMAL";
 			touchcontrols[gc_tossflag].hidden = true;
 		}
 
@@ -1644,6 +1637,32 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_backward].dpad = true;
 	touchcontrols[gc_strafeleft].dpad = true;
 	touchcontrols[gc_straferight].dpad = true;
+
+	// Set button names
+	touchcontrols[gc_jump].name = "JUMP";
+	touchcontrols[gc_use].name = "SPIN";
+	touchcontrols[gc_fire].name = "FIRE";
+	touchcontrols[gc_firenormal].name = "F.NORMAL";
+	touchcontrols[gc_tossflag].name = "TOSSFLAG";
+
+	touchcontrols[gc_systemmenu].name = "MENU";
+	touchcontrols[gc_viewpoint].name = "F12";
+	touchcontrols[gc_screenshot].name = "SCRCAP";
+	touchcontrols[gc_recordgif].name = "REC";
+	touchcontrols[gc_talkkey].name = "TALK";
+	touchcontrols[gc_teamkey].name = "TEAM";
+
+	// Set abbreviated button names
+	touchcontrols[gc_jump].tinyname = "JMP";
+	touchcontrols[gc_use].tinyname = "SPN";
+	touchcontrols[gc_fire].tinyname = "FRE";
+	touchcontrols[gc_firenormal].tinyname = "FRN";
+	touchcontrols[gc_tossflag].tinyname = "TSS";
+
+	touchcontrols[gc_systemmenu].tinyname = "MNU";
+	touchcontrols[gc_screenshot].tinyname = "SCR";
+	touchcontrols[gc_talkkey].tinyname = "TLK";
+	touchcontrols[gc_teamkey].tinyname = "TTK";
 
 	// Hide movement controls in prompts that block controls
 	if (promptblockcontrols)

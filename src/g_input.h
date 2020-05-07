@@ -192,7 +192,7 @@ typedef struct
 	tic_t pressed; // touch navigation
 	boolean dpad; // d-pad key
 	boolean hidden; // hidden key?
-	const char *name; // key name
+	const char *name, *tinyname; // key name
 } touchconfig_t;
 
 // Screen buttons
