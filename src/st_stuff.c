@@ -1449,7 +1449,7 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
 
 	// set stick position
-	if (GC1KEYDOWN(gc_strafeleft) || GC1KEYDOWN(gc_straferight))
+	if ((GC1KEYDOWN(gc_strafeleft) || GC1KEYDOWN(gc_straferight)) && G_CanBuildTiccmd(stplyr))
 		xmove = GC1KEYDOWN(gc_straferight) ? 1.0f : -1.0f;
 	else
 	{
@@ -1458,7 +1458,7 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 			xmove += ((float)joy->xaxis / JOYAXISRANGE);
 	}
 
-	if (GC1KEYDOWN(gc_forward) || GC1KEYDOWN(gc_backward))
+	if ((GC1KEYDOWN(gc_forward) || GC1KEYDOWN(gc_backward)) && G_CanBuildTiccmd(stplyr))
 		ymove = GC1KEYDOWN(gc_forward) ? -1.0f : 1.0f;
 	else
 	{
@@ -1586,11 +1586,18 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 #define drawcolbutt(gctype, butt, str, col) drawbutton(gctype, butt, str, 0, 0, col)
 #define drawoffsbutt(gctype, butt, str, xoffs, yoffs) drawbutton(gctype, butt, str, xoffs, yoffs, DEFAULTKEYCOL)
 
-	// Jump and spin
 	if (drawgamecontrols)
 	{
-		drawbutt(gc_jump,  BT_JUMP, NULL);
-		drawbutt(gc_use,   BT_USE,  NULL);
+		// Jump and spin
+		drawbutt(gc_jump,  BT_JUMP,   NULL);
+		drawbutt(gc_use,   BT_USE,    NULL);
+
+		// Fire and fire normal
+		drawbutt(gc_fire,       BT_ATTACK,     NULL);
+		drawbutt(gc_firenormal, BT_FIRENORMAL, NULL);
+
+		// Toss flag
+		drawbutt(gc_tossflag, BT_TOSSFLAG, NULL);
 	}
 
 	// Control panel

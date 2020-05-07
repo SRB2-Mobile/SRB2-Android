@@ -1446,6 +1446,48 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 12;
 	}
 
+	// Fire, fire normal, and toss flag
+	if (G_RingSlingerGametype())
+	{
+		offs = 8;
+		h = (touchcontrols[gc_jump].h / 2) + 4;
+		touchcontrols[gc_use].h = h;
+		touchcontrols[gc_use].y = ((touchcontrols[gc_jump].y + touchcontrols[gc_jump].h) - h) + offs;
+
+		touchcontrols[gc_fire].name = (touch_tinycontrols) ? "FRE" : "FIRE";
+		touchcontrols[gc_fire].w = touchcontrols[gc_use].w;
+		touchcontrols[gc_fire].h = h;
+		touchcontrols[gc_fire].x = touchcontrols[gc_use].x;
+		touchcontrols[gc_fire].y = touchcontrols[gc_jump].y - offs;
+
+		if (gametyperules & GTR_TEAMFLAGS)
+		{
+			ref = &touchcontrols[gc_tossflag];
+			ref->name = (touch_tinycontrols) ? "TSS" : "TOSSFLAG";
+			touchcontrols[gc_firenormal].hidden = true;
+		}
+		else
+		{
+			ref = &touchcontrols[gc_firenormal];
+			ref->name = (touch_tinycontrols) ? "FRN" : "F.NORMAL";
+			touchcontrols[gc_tossflag].hidden = true;
+		}
+
+		ref->w = touchcontrols[gc_jump].w;
+		ref->h = touchcontrols[gc_fire].h;
+		if (!touch_tinycontrols)
+			ref->h /= 2;
+
+		ref->x = touchcontrols[gc_jump].x;
+		ref->y = touchcontrols[gc_jump].y - ref->h - 4;
+	}
+	else
+	{
+		touchcontrols[gc_fire].hidden = true;
+		touchcontrols[gc_firenormal].hidden = true;
+		touchcontrols[gc_tossflag].hidden = true;
+	}
+
 	offs = 8;
 
 	// Menu

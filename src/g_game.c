@@ -1113,6 +1113,19 @@ joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
 
 boolean ticcmd_centerviewdown[2]; // For simple controls, lock the camera behind the player
 mobj_t *ticcmd_ztargetfocus[2]; // Locking onto an object?
+
+boolean G_CanBuildTiccmd(player_t *player)
+{
+	// why build a ticcmd if we're paused?
+	// Or, for that matter, if we're being reborn.
+	// ...OR if we're blindfolded. No looking into the floor.
+	if (paused || P_AutoPause() || (gamestate == GS_LEVEL && (player->playerstate == PST_REBORN || ((gametyperules & GTR_TAG)
+	&& (leveltime < hidetime * TICRATE) && (player->pflags & PF_TAGIT)))))
+		//@TODO splitscreen player
+		return false;
+	return true;
+}
+
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 {
 	boolean forcestrafe = false;
@@ -1180,12 +1193,8 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		((cv_cam_lockedinput[forplayer].value && !ticcmd_ztargetfocus[forplayer]) || (player->pflags & PF_STARTDASH)) &&
 		!player->climbing && player->powers[pw_carry] != CR_MINECART;
 
-	// why build a ticcmd if we're paused?
-	// Or, for that matter, if we're being reborn.
-	// ...OR if we're blindfolded. No looking into the floor.
-	if (paused || P_AutoPause() || (gamestate == GS_LEVEL && (player->playerstate == PST_REBORN || ((gametyperules & GTR_TAG)
-	&& (leveltime < hidetime * TICRATE) && (player->pflags & PF_TAGIT)))))
-	{//@TODO splitscreen player
+	if (!G_CanBuildTiccmd(player))
+	{
 		cmd->angleturn = (INT16)(*myangle >> 16);
 		cmd->aiming = G_ClipAimingPitch(myaiming);
 		return;

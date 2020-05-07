@@ -111,6 +111,7 @@ const char *G_BuildMapName(INT32 map);
 extern boolean ticcmd_centerviewdown[2]; // For simple controls, lock the camera behind the player
 extern mobj_t *ticcmd_ztargetfocus[2]; // Locking onto an object?
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer);
+boolean G_CanBuildTiccmd(player_t *player);
 
 // copy ticcmd_t to and fro the normal way
 ticcmd_t *G_CopyTiccmd(ticcmd_t* dest, const ticcmd_t* src, const size_t n);
