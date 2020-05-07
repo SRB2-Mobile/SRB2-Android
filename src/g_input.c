@@ -86,7 +86,7 @@ consvar_t cv_touchtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchguiscale = {"touch_guiscale", "1.0", CV_FLOAT|CV_SAVE, touchguiscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchguiscale = {"touch_guiscale", "0.75", CV_FLOAT|CV_SAVE, touchguiscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -168,10 +168,10 @@ void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h)
 {
 	fixed_t dupx = vid.dupx * FRACUNIT;
 	fixed_t dupy = vid.dupy * FRACUNIT;
-	*x = FixedMul((*x) * FRACUNIT, dupx) / FRACUNIT;
-	*y = FixedMul((*y) * FRACUNIT, dupy) / FRACUNIT;
-	*w = FixedMul((*w) * FRACUNIT, dupx) / FRACUNIT;
-	*h = FixedMul((*h) * FRACUNIT, dupy) / FRACUNIT;
+	*x = FixedMul((*x), dupx) / FRACUNIT;
+	*y = FixedMul((*y), dupy) / FRACUNIT;
+	*w = FixedMul((*w), dupx) / FRACUNIT;
+	*h = FixedMul((*h), dupy) / FRACUNIT;
 }
 
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
@@ -413,8 +413,8 @@ static void G_HandleFingerEvent(event_t *ev)
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
 
-						touchxmove = (((float)dx * xsens) / (float)TOUCHJOYEXTENDX);
-						touchymove = (((float)dy * ysens) / (float)TOUCHJOYEXTENDY);
+						touchxmove = (((float)dx * xsens) / FIXED_TO_FLOAT(TOUCHJOYEXTENDX));
+						touchymove = (((float)dy * ysens) / FIXED_TO_FLOAT(TOUCHJOYEXTENDY));
 						touchpressure = ev->pressure;
 					}
 					// Mouse
@@ -1329,13 +1329,15 @@ void G_UpdateTouchControls(void)
 
 void G_TouchControlPreset(void)
 {
-	INT32 x, y, w, h;
-	INT32 dx, dy, dw, dh;
-	INT32 corneroffset = 4;
-	INT32 jumph;
-	INT32 offs = (promptactive ? -16 : 0);
-	INT32 nonjoyoffs = -12;
-	INT32 bottomalign = 0;
+	fixed_t x, y, w, h;
+	fixed_t dx, dy, dw, dh;
+	fixed_t corneroffset = 4 * FRACUNIT;
+	fixed_t rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
+	fixed_t bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
+	fixed_t jumph;
+	fixed_t offs = (promptactive ? -16 : 0);
+	fixed_t nonjoyoffs = -12 * FRACUNIT;
+	fixed_t bottomalign = 0;
 	fixed_t scale = touch_gui_scale;
 
 	touchconfig_t *ref;
@@ -1343,33 +1345,33 @@ void G_TouchControlPreset(void)
 	boolean eithervisible;
 
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
-		bottomalign = (vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy;
+		bottomalign = ((vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy) * FRACUNIT;
 
 	// clear all
 	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
 
 	if (touch_tinycontrols)
 	{
-		dx = 24;
-		dy = 128;
-		dw = 32;
-		dh = 32;
+		dx = 24 * FRACUNIT;
+		dy = 128 * FRACUNIT;
+		dw = 32 * FRACUNIT;
+		dh = 32 * FRACUNIT;
 	}
 	else
 	{
-		dx = 24;
-		dy = 92;
-		dw = 64;
-		dh = 64;
+		dx = 24 * FRACUNIT;
+		dy = 92 * FRACUNIT;
+		dw = 64 * FRACUNIT;
+		dh = 64 * FRACUNIT;
 	}
 
-#define SCALECOORD(coord) FixedInt(FixedMul(coord * FRACUNIT, scale))
+#define SCALECOORD(coord) FixedMul(coord, scale)
 
 	touch_dpad_w = SCALECOORD(dw);
 	touch_dpad_h = SCALECOORD(dh);
-	touch_dpad_x = max(dx, ((dx + (dw / 2)) - (touch_dpad_w / 2)));
+	touch_dpad_x = max(dx, ((dx + FixedDiv(dw, FRACUNIT * 2)) - FixedDiv(touch_dpad_w, FRACUNIT * 2)));
 	if (touch_gui_scale < FRACUNIT)
-		touch_dpad_y = ((dy + (dh / 2)) - (touch_dpad_h / 2));
+		touch_dpad_y = ((dy + FixedDiv(dh, FRACUNIT * 2)) - FixedDiv(touch_dpad_h, FRACUNIT * 2));
 	else
 		touch_dpad_y = ((dy + dh) - touch_dpad_h);
 	touch_dpad_y += (offs + bottomalign);
@@ -1378,124 +1380,124 @@ void G_TouchControlPreset(void)
 	{
 		if (touch_movementstyle == tms_joystick)
 		{
-			touch_dpad_x -= 4;
-			touch_dpad_y += 8;
+			touch_dpad_x -= 4 * FRACUNIT;
+			touch_dpad_y += 8 * FRACUNIT;
 		}
 
 		if (G_RingSlingerGametype())
-			touch_dpad_y -= 4;
+			touch_dpad_y -= 4 * FRACUNIT;
 
 		// Up
-		w = 20;
-		h = 16;
+		w = 20 * FRACUNIT;
+		h = 16 * FRACUNIT;
 		touchcontrols[gc_forward].w = SCALECOORD(w);
 		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedInt(FixedCeil(FixedDiv(FixedMul(w * FRACUNIT, scale), FRACUNIT * 3)));
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8 * FRACUNIT);
 
 		// Down
 		touchcontrols[gc_backward].w = SCALECOORD(w);
 		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedInt(FixedCeil(FixedDiv(FixedMul(w * FRACUNIT, scale), FRACUNIT * 3)));
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8 * FRACUNIT);
 
 		// Left
-		w = 16;
-		h = 14;
+		w = 16 * FRACUNIT;
+		h = 14 * FRACUNIT;
 		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
 		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
 		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_strafeleft].h / 2);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
 
 		// Right
 		touchcontrols[gc_straferight].w = SCALECOORD(w);
 		touchcontrols[gc_straferight].h = SCALECOORD(h);
-		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_straferight].h / 2);
+		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8 * FRACUNIT);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
 
 		// Jump
-		w = 40;
-		h = jumph = 32;
+		w = 40 * FRACUNIT;
+		h = jumph = 32 * FRACUNIT;
 		touchcontrols[gc_jump].name = "JMP";
 		touchcontrols[gc_jump].w = SCALECOORD(w);
 		touchcontrols[gc_jump].h = SCALECOORD(h);
-		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
+		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
+		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + offs + nonjoyoffs;
 
 		// Spin
-		w = 32;
-		h = 24;
+		w = 32 * FRACUNIT;
+		h = 24 * FRACUNIT;
 		touchcontrols[gc_use].name = "SPN";
 		touchcontrols[gc_use].w = SCALECOORD(w);
 		touchcontrols[gc_use].h = SCALECOORD(h);
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 8;
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + (8 * FRACUNIT);
 	}
 	else
 	{
 		if (touch_movementstyle == tms_joystick)
 		{
-			touch_dpad_x -= 12;
-			touch_dpad_y += 16;
+			touch_dpad_x -= 12 * FRACUNIT;
+			touch_dpad_y += 16 * FRACUNIT;
 		}
 
 		if (G_RingSlingerGametype())
-			touch_dpad_y -= 8;
+			touch_dpad_y -= 8 * FRACUNIT;
 
-		x = (touch_dpad_x + touch_dpad_w) - (touch_dpad_w / 2);
+		x = (touch_dpad_x + touch_dpad_w) - FixedDiv(touch_dpad_w, 2 * FRACUNIT);
 
 		// Up
-		w = 40;
-		h = 32;
+		w = 40 * FRACUNIT;
+		h = 32 * FRACUNIT;
 		touchcontrols[gc_forward].w = SCALECOORD(w);
 		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16 * FRACUNIT);
 
 		// Down
 		touchcontrols[gc_backward].w = SCALECOORD(w);
 		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16 * FRACUNIT);
 
 		// Left
-		w = 32;
-		h = 28;
+		w = 32 * FRACUNIT;
+		h = 28 * FRACUNIT;
 		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
 		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_strafeleft].h / 2);
+		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16 * FRACUNIT);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
 
 		// Right
 		touchcontrols[gc_straferight].w = SCALECOORD(w);
 		touchcontrols[gc_straferight].h = SCALECOORD(h);
 		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(16);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_straferight].h / 2);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2)) - FixedDiv(touchcontrols[gc_straferight].h, 2);
 
 		// Jump
-		w = 48;
-		h = jumph = 48;
+		w = 48 * FRACUNIT;
+		h = jumph = 48 * FRACUNIT;
 		touchcontrols[gc_jump].name = "JUMP";
 		touchcontrols[gc_jump].w = SCALECOORD(w);
 		touchcontrols[gc_jump].h = SCALECOORD(h);
-		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
+		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
+		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + offs + nonjoyoffs;
 
 		// Spin
-		w = 40;
-		h = 32;
+		w = 40 * FRACUNIT;
+		h = 32 * FRACUNIT;
 		touchcontrols[gc_use].name = "SPIN";
 		touchcontrols[gc_use].w = SCALECOORD(w);
 		touchcontrols[gc_use].h = SCALECOORD(h);
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 12;
+		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
+		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + (12 * FRACUNIT);
 	}
 
 	// Fire, fire normal, and toss flag
 	if (G_RingSlingerGametype())
 	{
-		offs = SCALECOORD(8);
-		h = SCALECOORD(jumph / 2) + SCALECOORD(4);
+		offs = SCALECOORD(8 * FRACUNIT);
+		h = SCALECOORD(FixedDiv(jumph, 2 * FRACUNIT)) + SCALECOORD(4 * FRACUNIT);
 		touchcontrols[gc_use].h = h;
 		touchcontrols[gc_use].y = ((touchcontrols[gc_jump].y + touchcontrols[gc_jump].h) - h) + offs;
 
@@ -1521,10 +1523,10 @@ void G_TouchControlPreset(void)
 		ref->w = touchcontrols[gc_jump].w;
 		ref->h = touchcontrols[gc_fire].h;
 		if (!touch_tinycontrols)
-			ref->h /= 2;
+			ref->h = FixedDiv(ref->h, 2 * FRACUNIT);
 
 		ref->x = touchcontrols[gc_jump].x;
-		ref->y = touchcontrols[gc_jump].y - ref->h - SCALECOORD(4);
+		ref->y = touchcontrols[gc_jump].y - ref->h - SCALECOORD(4 * FRACUNIT);
 	}
 	else
 	{
@@ -1533,22 +1535,22 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_tossflag].hidden = true;
 	}
 
-	offs = SCALECOORD(8);
+	offs = SCALECOORD(8 * FRACUNIT);
 
 	// Menu
-	touchcontrols[gc_systemmenu].w = SCALECOORD(32);
-	touchcontrols[gc_systemmenu].h = SCALECOORD(32);
-	touchcontrols[gc_systemmenu].x = ((vid.width / vid.dupx) - touchcontrols[gc_systemmenu].w - corneroffset);
+	touchcontrols[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
+	touchcontrols[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
+	touchcontrols[gc_systemmenu].x = (rightcorner - touchcontrols[gc_systemmenu].w - corneroffset);
 	touchcontrols[gc_systemmenu].y = corneroffset;
 
 	// Pause
 	touchcontrols[gc_pause].x = touchcontrols[gc_systemmenu].x;
 	touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
-	touchcontrols[gc_pause].w = SCALECOORD(24);
-	touchcontrols[gc_pause].h = SCALECOORD(24);
+	touchcontrols[gc_pause].w = SCALECOORD(24 * FRACUNIT);
+	touchcontrols[gc_pause].h = SCALECOORD(24 * FRACUNIT);
 	if ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer)))
 	|| (modeattacking && demorecording))
-		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + SCALECOORD(4));
+		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + SCALECOORD(4 * FRACUNIT));
 	else
 		touchcontrols[gc_pause].hidden = true;
 
@@ -1558,15 +1560,15 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
 	if (G_CanViewpointSwitch())
 	{
-		touchcontrols[gc_viewpoint].w = SCALECOORD(32);
-		touchcontrols[gc_viewpoint].h = SCALECOORD(24);
-		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + SCALECOORD(4));
+		touchcontrols[gc_viewpoint].w = SCALECOORD(32 * FRACUNIT);
+		touchcontrols[gc_viewpoint].h = SCALECOORD(24 * FRACUNIT);
+		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + SCALECOORD(4 * FRACUNIT));
 		touchcontrols[gc_viewpoint].hidden = false;
 	}
 
 	// Align screenshot and movie mode buttons
-	w = SCALECOORD(40);
-	h = SCALECOORD(24);
+	w = SCALECOORD(40 * FRACUNIT);
+	h = SCALECOORD(24 * FRACUNIT);
 
 	bothvisible = ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden));
 	eithervisible = (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden);
@@ -1583,7 +1585,7 @@ void G_TouchControlPreset(void)
 	}
 	else
 	{
-		x = (touchcontrols[gc_viewpoint].x - w - SCALECOORD(4));
+		x = (touchcontrols[gc_viewpoint].x - w - SCALECOORD(4 * FRACUNIT));
 		y = touchcontrols[gc_viewpoint].y;
 	}
 
@@ -1605,16 +1607,16 @@ void G_TouchControlPreset(void)
 	// if netgame + chat not muted
 	if (netgame && !CHAT_MUTE)
 	{
-		touchcontrols[gc_talkkey].w = SCALECOORD(32);
-		touchcontrols[gc_talkkey].h = SCALECOORD(24);
-		touchcontrols[gc_talkkey].x = ((vid.width / vid.dupx) - touchcontrols[gc_talkkey].w - corneroffset);
+		touchcontrols[gc_talkkey].w = SCALECOORD(32 * FRACUNIT);
+		touchcontrols[gc_talkkey].h = SCALECOORD(24 * FRACUNIT);
+		touchcontrols[gc_talkkey].x = (rightcorner - touchcontrols[gc_talkkey].w - corneroffset);
 		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
 		touchcontrols[gc_talkkey].hidden = false;
 
 		if (G_GametypeHasTeams() && players[consoleplayer].ctfteam)
 		{
-			touchcontrols[gc_teamkey].w = SCALECOORD(32);
-			touchcontrols[gc_teamkey].h = SCALECOORD(24);
+			touchcontrols[gc_teamkey].w = SCALECOORD(32 * FRACUNIT);
+			touchcontrols[gc_teamkey].h = SCALECOORD(24 * FRACUNIT);
 			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
 			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
 			touchcontrols[gc_teamkey].hidden = false;
@@ -1641,7 +1643,7 @@ void G_TouchControlPreset(void)
 
 void G_TouchNavigationPreset(void)
 {
-	INT32 corneroffset = 4;
+	INT32 corneroffset = 4 * FRACUNIT;
 
 	// clear all
 	memset(touchnavigation, 0x00, sizeof(touchconfig_t) * NUMKEYS);
@@ -1649,13 +1651,13 @@ void G_TouchNavigationPreset(void)
 	// Back
 	touchnavigation[KEY_ESCAPE].x = corneroffset;
 	touchnavigation[KEY_ESCAPE].y = corneroffset;
-	touchnavigation[KEY_ESCAPE].w = 24;
-	touchnavigation[KEY_ESCAPE].h = 24;
+	touchnavigation[KEY_ESCAPE].w = 24 * FRACUNIT;
+	touchnavigation[KEY_ESCAPE].h = 24 * FRACUNIT;
 
 	// Confirm
-	touchnavigation[KEY_ENTER].w = 24;
-	touchnavigation[KEY_ENTER].h = 24;
-	touchnavigation[KEY_ENTER].x = ((vid.width / vid.dupx) - touchnavigation[KEY_ENTER].w - corneroffset);
+	touchnavigation[KEY_ENTER].w = 24 * FRACUNIT;
+	touchnavigation[KEY_ENTER].h = 24 * FRACUNIT;
+	touchnavigation[KEY_ENTER].x = (((vid.width / vid.dupx) * FRACUNIT) - touchnavigation[KEY_ENTER].w - corneroffset);
 	touchnavigation[KEY_ENTER].y = corneroffset;
 
 	// Console
@@ -1664,9 +1666,9 @@ void G_TouchNavigationPreset(void)
 	else
 	{
 		touchnavigation[KEY_CONSOLE].x = corneroffset;
-		touchnavigation[KEY_CONSOLE].y = touchnavigation[KEY_ENTER].y + touchnavigation[KEY_ENTER].h + 8;
-		touchnavigation[KEY_CONSOLE].w = 24;
-		touchnavigation[KEY_CONSOLE].h = 24;
+		touchnavigation[KEY_CONSOLE].y = touchnavigation[KEY_ENTER].y + touchnavigation[KEY_ENTER].h + (8 * FRACUNIT);
+		touchnavigation[KEY_CONSOLE].w = 24 * FRACUNIT;
+		touchnavigation[KEY_CONSOLE].h = 24 * FRACUNIT;
 		touchnavigation[KEY_CONSOLE].hidden = false;
 	}
 }

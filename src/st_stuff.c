@@ -1209,10 +1209,10 @@ static void ST_drawInput(void)
 #ifdef TOUCHINPUTS
 
 #define SCALEBUTTON(touch) \
-	x = FixedMul(touch->x * FRACUNIT, dupx) / FRACUNIT; \
-	y = FixedMul(touch->y * FRACUNIT, dupy) / FRACUNIT; \
-	w = FixedMul(touch->w * FRACUNIT, dupx) / FRACUNIT; \
-	h = FixedMul(touch->h * FRACUNIT, dupy) / FRACUNIT;
+	x = FixedMul(touch->x, dupx) / FRACUNIT; \
+	y = FixedMul(touch->y, dupy) / FRACUNIT; \
+	w = FixedMul(touch->w, dupx) / FRACUNIT; \
+	h = FixedMul(touch->h, dupy) / FRACUNIT;
 
 #define drawfill(dx, dy, dw, dh, dcol, dflags) \
 	if (alphalevel < 10) \
@@ -1220,9 +1220,9 @@ static void ST_drawInput(void)
 	else \
 		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
 
-void ST_drawJoystickBacking(INT32 padx, INT32 pady, INT32 padw, INT32 padh, fixed_t scale, UINT8 color, INT32 flags)
+void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags)
 {
-	INT32 x, y, w, h;
+	fixed_t x, y, w, h;
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
 	fixed_t xscale, yscale;
@@ -1242,23 +1242,23 @@ void ST_drawJoystickBacking(INT32 padx, INT32 pady, INT32 padw, INT32 padh, fixe
 	}
 
 	// scale coords
-	x = FixedMul(padx * FRACUNIT, dupx) / FRACUNIT;
-	y = FixedMul(pady * FRACUNIT, dupy) / FRACUNIT;
-	w = FixedMul(padw * FRACUNIT, dupx) / FRACUNIT;
-	h = FixedMul(padh * FRACUNIT, dupy) / FRACUNIT;
+	x = FixedMul(padx, dupx);
+	y = FixedMul(pady, dupy);
+	w = FixedMul(padw, dupx);
+	h = FixedMul(padh, dupy);
 
-	xscale = FixedMul(FixedDiv(padw*FRACUNIT, SHORT(backing->width)*FRACUNIT), scale);
-	yscale = FixedMul(FixedDiv(padh*FRACUNIT, SHORT(backing->height)*FRACUNIT), scale);
+	xscale = FixedMul(FixedDiv(padw, SHORT(backing->width)*FRACUNIT), scale);
+	yscale = FixedMul(FixedDiv(padh, SHORT(backing->height)*FRACUNIT), scale);
 
 	// draw backing
 	V_DrawStretchyFixedPatch(
-		((x*FRACUNIT + (w*FRACUNIT / 2)) - (((SHORT(backing->width) * vid.dupx) / 2) * xscale)),
-		((y*FRACUNIT + (h*FRACUNIT / 2)) - (((SHORT(backing->height) * vid.dupy) / 2) * yscale)),
+		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(backing->width) * vid.dupx) / 2) * xscale)),
+		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(backing->height) * vid.dupy) / 2) * yscale)),
 		xscale, yscale, flags, backing, colormap);
 }
 
 void ST_drawTouchDPad(
-					INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh,
+					fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 					touchconfig_t *tleft, boolean moveleft,
 					touchconfig_t *tright, boolean moveright,
 					touchconfig_t *tup, boolean moveup,
@@ -1278,8 +1278,8 @@ void ST_drawTouchDPad(
 
 #define SCALEPAD(touch) \
 	SCALEBUTTON(touch); \
-	xslant = FixedMul((touch->w/2) * FRACUNIT, dupx) / FRACUNIT; \
-	yslant = FixedMul((touch->h/2) * FRACUNIT, dupy) / FRACUNIT; \
+	xslant = FixedMul(FixedDiv(touch->w, 2 * FRACUNIT), dupx) / FRACUNIT; \
+	yslant = FixedMul(FixedDiv(touch->h, 2 * FRACUNIT), dupy) / FRACUNIT; \
 
 	// O backing
 	if (backing)
@@ -1413,7 +1413,7 @@ void ST_drawTouchDPad(
 #undef SCALEPAD
 }
 
-void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UINT8 color, INT32 flags)
+void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
 {
 	patch_t *cursor = W_CachePatchName("DSHADOW", PU_PATCH);
 	fixed_t dupx = vid.dupx*FRACUNIT;
@@ -1434,19 +1434,21 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 	}
 
 	// scale coords
-	INT32 x = FixedMul(dpadx * FRACUNIT, dupx) / FRACUNIT;
-	INT32 y = FixedMul(dpady * FRACUNIT, dupy) / FRACUNIT;
-	INT32 w = FixedMul(dpadw * FRACUNIT, dupx) / FRACUNIT;
-	INT32 h = FixedMul(dpadh * FRACUNIT, dupy) / FRACUNIT;
+	fixed_t x = FixedMul(dpadx, dupx);
+	fixed_t y = FixedMul(dpady, dupy);
+	fixed_t w = FixedMul(dpadw, dupx);
+	fixed_t h = FixedMul(dpadh, dupy);
 
 	float xmove, ymove;
-	INT32 stickx, sticky;
+	fixed_t stickx, sticky;
 	joystickvector2_t *joy = &movejoystickvectors[0];
 
-	fixed_t basexscale = FixedDiv(dpadw*FRACUNIT, SHORT(cursor->width)*FRACUNIT);
-	fixed_t baseyscale = FixedDiv(dpadh*FRACUNIT, SHORT(cursor->height)*FRACUNIT);
+	fixed_t basexscale = FixedDiv(dpadw, SHORT(cursor->width)*FRACUNIT);
+	fixed_t baseyscale = FixedDiv(dpadh, SHORT(cursor->height)*FRACUNIT);
 	fixed_t xscale = FixedMul(pressure, (basexscale / 2));
 	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
+	fixed_t xextend = TOUCHJOYEXTENDX;
+	fixed_t yextend = TOUCHJOYEXTENDY;
 
 	// set stick position
 	if ((GC1KEYDOWN(gc_strafeleft) || GC1KEYDOWN(gc_straferight)) && G_CanBuildTiccmd(stplyr))
@@ -1467,22 +1469,22 @@ void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UI
 			ymove += ((float)joy->yaxis / JOYAXISRANGE);
 	}
 
-	stickx = max(-TOUCHJOYEXTENDX, min(xmove * TOUCHJOYEXTENDX, TOUCHJOYEXTENDX));
-	sticky = max(-TOUCHJOYEXTENDY, min(ymove * TOUCHJOYEXTENDY, TOUCHJOYEXTENDY));
+	stickx = max(-xextend, min(FixedMul(FLOAT_TO_FIXED(xmove), xextend), xextend));
+	sticky = max(-yextend, min(FixedMul(FLOAT_TO_FIXED(ymove), yextend), yextend));
 
 	// O backing
 	ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
 
 	// hole
 	V_DrawStretchyFixedPatch(
-		((x*FRACUNIT + (w*FRACUNIT / 2)) - (((SHORT(cursor->width) * vid.dupx) / 2) * (basexscale / 4))),
-		((y*FRACUNIT + (h*FRACUNIT / 2)) - (((SHORT(cursor->height) * vid.dupy) / 2) * (baseyscale / 4))),
+		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * (basexscale / 4))),
+		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * (baseyscale / 4))),
 		(basexscale / 4), (baseyscale / 4), flags, cursor, NULL);
 
 	// stick
 	V_DrawStretchyFixedPatch(
-		((x*FRACUNIT + (w*FRACUNIT / 2)) - (((SHORT(cursor->width) * vid.dupx) / 2) * xscale)) + (stickx * vid.dupx * FRACUNIT),
-		((y*FRACUNIT + (h*FRACUNIT / 2)) - (((SHORT(cursor->height) * vid.dupy) / 2) * yscale)) + (sticky * vid.dupy * FRACUNIT),
+		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * xscale)) + (stickx * vid.dupx),
+		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * yscale)) + (sticky * vid.dupy),
 		xscale, yscale, flags, cursor, colormap);
 }
 

@@ -61,14 +61,14 @@ void ST_drawWipeTitleCard(void);
 void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel);
 void ST_drawTouchMenuInput(void);
 void ST_drawTouchDPad(
-	INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh,
+	fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	touchconfig_t *tleft, boolean moveleft,
 	touchconfig_t *tright, boolean moveright,
 	touchconfig_t *tup, boolean moveup,
 	touchconfig_t *tdown, boolean movedown,
 	boolean backing, INT32 flags, INT32 accent);
-void ST_drawJoystickBacking(INT32 padx, INT32 pady, INT32 padw, INT32 padh, fixed_t scale, UINT8 color, INT32 flags);
-void ST_drawTouchJoystick(INT32 dpadx, INT32 dpady, INT32 dpadw, INT32 dpadh, UINT8 color, INT32 flags);
+void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags);
+void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags);
 #endif
 
 extern tic_t lt_ticker, lt_lasttic;

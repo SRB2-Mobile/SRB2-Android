@@ -187,8 +187,8 @@ extern UINT8 touchcontroldown[num_gamecontrols];
 // Touch screen button structure
 typedef struct
 {
-	INT32 x, y;
-	INT32 w, h;
+	fixed_t x, y;
+	fixed_t w, h;
 	tic_t pressed; // touch navigation
 	boolean dpad; // d-pad key
 	boolean hidden; // hidden key?
@@ -200,7 +200,7 @@ extern touchconfig_t touchcontrols[num_gamecontrols]; // Game inputs
 extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
 
 // Input variables
-extern INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
+extern fixed_t touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 extern fixed_t touch_gui_scale;
 
 // Touch movement style
@@ -240,8 +240,8 @@ extern consvar_t cv_touchsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 
 // Screen joystick movement
-#define TOUCHJOYEXTENDX (touch_dpad_w / 2)
-#define TOUCHJOYEXTENDY (touch_dpad_h / 2)
+#define TOUCHJOYEXTENDX (FixedDiv(touch_dpad_w, 2 * FRACUNIT))
+#define TOUCHJOYEXTENDY (FixedDiv(touch_dpad_h, 2 * FRACUNIT))
 extern float touchxmove, touchymove, touchpressure;
 #endif
 
