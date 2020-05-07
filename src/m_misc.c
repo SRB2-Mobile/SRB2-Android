@@ -1648,6 +1648,46 @@ void M_StartupLocale(void)
 //                        MISC STRING FUNCTIONS
 // ==========================================================================
 
+#if defined(__ANDROID__)
+///\brief Android vsnprintf errors on characters beyond 0x80 and makes me want to die.
+int Android_vsnprintf(char *str, size_t size, const char *format, va_list argptr)
+{
+	unsigned char extsyms[1024];
+	size_t numsyms = 0;
+	size_t appliedsyms = 0;
+	unsigned char *c;
+	char tmpformat[1024];
+	int ret;
+
+	strncpy(tmpformat, format, 1024);
+	for (c = (unsigned char *)tmpformat; *c; c++)
+	{
+		if (*c == 0x01 || *c >= 0x80)
+		{
+			extsyms[numsyms] = *c;
+			*c = 0x01;
+			numsyms++;
+		}
+	}
+
+	ret = vsnprintf(str, size, tmpformat, argptr);
+
+	for (c = (unsigned char *)str; *c; c++)
+	{
+		if (*c == 0x01)
+		{
+			*c = extsyms[appliedsyms];
+			appliedsyms++;
+
+			if (appliedsyms >= numsyms)
+				break;
+		}
+	}
+
+	return ret;
+}
+#endif // defined
+
 /** Returns a temporary string made out of varargs.
   * For use with CONS_Printf().
   *
@@ -1661,7 +1701,11 @@ char *va(const char *format, ...)
 	static char string[1024];
 
 	va_start(argptr, format);
+#if defined(__ANDROID__)
+	Android_vsnprintf(string, 1024, format, argptr);
+#else
 	vsprintf(string, format, argptr);
+#endif
 	va_end(argptr);
 
 	return string;

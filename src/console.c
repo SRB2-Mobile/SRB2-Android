@@ -1314,7 +1314,7 @@ void CONS_Printf(const char *fmt, ...)
 
 	va_start(argptr, fmt);
 #if defined(__ANDROID__)
-	vsnprintf(txt, 8192, fmt, argptr);
+	Android_vsnprintf(txt, 8192, fmt, argptr);
 #else
 	vsprintf(txt, fmt, argptr);
 #endif
@@ -1371,7 +1371,7 @@ void CONS_Alert(alerttype_t level, const char *fmt, ...)
 
 	va_start(argptr, fmt);
 #if defined(__ANDROID__)
-	vsnprintf(txt, 8192, fmt, argptr);
+	Android_vsnprintf(txt, 8192, fmt, argptr);
 #else
 	vsprintf(txt, fmt, argptr);
 #endif
@@ -1411,7 +1411,7 @@ void CONS_Debug(INT32 debugflags, const char *fmt, ...)
 
 	va_start(argptr, fmt);
 #if defined(__ANDROID__)
-	vsnprintf(txt, 8192, fmt, argptr);
+	Android_vsnprintf(txt, 8192, fmt, argptr);
 #else
 	vsprintf(txt, fmt, argptr);
 #endif

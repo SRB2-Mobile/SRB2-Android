@@ -468,17 +468,25 @@ char savegamename[256];
 #define M_GetText(x) (x)
 #endif
 void M_StartupLocale(void);
-extern void *(*M_Memcpy)(void* dest, const void* src, size_t n) FUNCNONNULL;
+
 char *va(const char *format, ...) FUNCPRINTF;
-char *M_GetToken(const char *inputString);
-void M_UnGetToken(void);
-UINT32 M_GetTokenPos(void);
-void M_SetTokenPos(UINT32 newPos);
+#if defined(__ANDROID__)
+///\brief Android vsnprintf errors on characters beyond 0x80 and makes me want to die.
+int Android_vsnprintf(char *str, size_t size, const char *format, va_list argptr);
+#endif
+
 char *sizeu1(size_t num);
 char *sizeu2(size_t num);
 char *sizeu3(size_t num);
 char *sizeu4(size_t num);
 char *sizeu5(size_t num);
+
+char *M_GetToken(const char *inputString);
+void M_UnGetToken(void);
+UINT32 M_GetTokenPos(void);
+void M_SetTokenPos(UINT32 newPos);
+
+extern void *(*M_Memcpy)(void* dest, const void* src, size_t n) FUNCNONNULL;
 
 // d_main.c
 extern boolean devparm; // development mode (-debug)

@@ -923,23 +923,7 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 		}
 
 		// add to chat
-#if defined(__ANDROID__)
-		{
-			// Lactozilla: va() in Android doesn't like color codes
-			size_t length = strlen(prefix) + strlen(cstart) + strlen(dispname) + strlen(cend) + strlen(textcolor) + strlen(msg);
-			char *finalstring = Z_Malloc(length + 5, PU_STATIC, NULL);
-			finalstring[0] = '\0';
-#define cat(x) strcat(finalstring, x)
-			cat(prefix); cat("<"); cat(cstart); cat(dispname); cat(">\x80");
-			cat(cend); cat(" ");
-			cat(textcolor); cat(msg);
-#undef cat
-			HU_AddChatText(finalstring, cv_chatnotifications.value);
-			Z_Free(finalstring);
-		}
-#else
 		HU_AddChatText(va(fmt2, prefix, cstart, dispname, cend, textcolor, msg), cv_chatnotifications.value);
-#endif
 
 		if (tempchar)
 			Z_Free(tempchar);
