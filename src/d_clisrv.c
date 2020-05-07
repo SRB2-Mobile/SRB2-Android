@@ -1095,27 +1095,9 @@ static void SV_AcknowledgeResynchAck(INT32 node, UINT8 rsg)
 // -----------------------------------------------------------------
 
 static INT16 Consistancy(void);
-
-#ifndef NONET
-#define JOININGAME
-#endif
-
-typedef enum
-{
-	CL_SEARCHING,
-	CL_DOWNLOADFILES,
-	CL_ASKJOIN,
-	CL_WAITJOINRESPONSE,
-#ifdef JOININGAME
-	CL_DOWNLOADSAVEGAME,
-#endif
-	CL_CONNECTED,
-	CL_ABORTED
-} cl_mode_t;
-
 static void GetPackets(void);
 
-static cl_mode_t cl_mode = CL_SEARCHING;
+cl_mode_t cl_mode = CL_SEARCHING;
 
 // Player name send/load
 
@@ -1159,6 +1141,8 @@ static void CV_LoadPlayerNames(UINT8 **p)
 //
 static inline void CL_DrawConnectionStatus(void)
 {
+	INT32 bottombox = BASEVIDHEIGHT-24;
+	INT32 top = BASEVIDHEIGHT-24;
 	INT32 ccstime = I_GetTime();
 
 	// Draw background fade
@@ -1166,25 +1150,18 @@ static inline void CL_DrawConnectionStatus(void)
 		V_DrawFadeScreen(0xFF00, 16); // force default
 
 	// Draw the bottom box.
-	M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-24-8, 32, 1);
+	M_DrawTextBox(BASEVIDWIDTH/2-128-8, bottombox-8, 32, 1);
 #ifndef TOUCHINPUTS
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-24, V_YELLOWMAP, "Press ESC to abort");
+#else
+	top += 16;
 #endif
 
 	if (cl_mode != CL_DOWNLOADFILES)
 	{
-		INT32 top = BASEVIDHEIGHT-24;
 		INT32 i, animtime = ((ccstime / 4) & 15) + 16;
 		UINT8 palstart = (cl_mode == CL_SEARCHING) ? 32 : 96;
 		const char *cltext;
-
-		// 15 pal entries total.
-		for (i = 0; i < 16; ++i)
-			V_DrawFill((BASEVIDWIDTH/2-128) + (i * 16), BASEVIDHEIGHT-24, 16, 8, palstart + ((animtime - i) & 15));
-
-#ifdef TOUCHINPUTS
-		top += 16;
-#endif
 
 		switch (cl_mode)
 		{
@@ -1207,10 +1184,23 @@ static inline void CL_DrawConnectionStatus(void)
 			case CL_WAITJOINRESPONSE:
 				cltext = M_GetText("Requesting to join...");
 				break;
+#ifdef CLIENT_CONFIRMDOWNLOADS
+			case CL_CONFIRMDOWNLOADING:
+				V_DrawCenteredString(BASEVIDWIDTH/2, top-42, V_YELLOWMAP,
+					va(M_GetText("Download %u%sB of files?"),
+					(totaldownloadsize >= 1<<20 ? totaldownloadsize>>20 : totaldownloadsize>>10),
+					(totaldownloadsize >= 1<<20) ? "M" : "K"));
+				cltext = M_GetText(CONFIRM_MESSAGE " or " PRESS_N_MESSAGE_L);
+				palstart = 48;
+				break;
+#endif
 			default:
 				cltext = M_GetText("Connecting to server...");
 				break;
 		}
+		// 15 pal entries total.
+		for (i = 0; i < 16; ++i)
+			V_DrawFill((BASEVIDWIDTH/2-128) + (i * 16), BASEVIDHEIGHT-24, 16, 8, palstart + ((animtime - i) & 15));
 		V_DrawCenteredString(BASEVIDWIDTH/2, top-32, V_YELLOWMAP, cltext);
 	}
 	else
@@ -1226,8 +1216,8 @@ static inline void CL_DrawConnectionStatus(void)
 			dldlength = (INT32)((file->currentsize/(double)file->totalsize) * 256);
 			if (dldlength > 256)
 				dldlength = 256;
-			V_DrawFill(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, 256, 8, 111);
-			V_DrawFill(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, dldlength, 8, 96);
+			V_DrawFill(BASEVIDWIDTH/2-128, bottombox, 256, 8, 111);
+			V_DrawFill(BASEVIDWIDTH/2-128, bottombox, dldlength, 8, 96);
 
 			memset(tempname, 0, sizeof(tempname));
 			// offset filename to just the name only part
@@ -1245,15 +1235,15 @@ static inline void CL_DrawConnectionStatus(void)
 				strncpy(tempname, filename, sizeof(tempname)-1);
 			}
 
-			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-32, V_YELLOWMAP,
+			V_DrawCenteredString(BASEVIDWIDTH/2, top-32, V_YELLOWMAP,
 				va(M_GetText("Downloading \"%s\""), tempname));
-			V_DrawString(BASEVIDWIDTH/2-128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE,
+			V_DrawString(BASEVIDWIDTH/2-128, bottombox, V_20TRANS|V_MONOSPACE,
 				va(" %4uK/%4uK",fileneeded[lastfilenum].currentsize>>10,file->totalsize>>10));
-			V_DrawRightAlignedString(BASEVIDWIDTH/2+128, BASEVIDHEIGHT-24, V_20TRANS|V_MONOSPACE,
+			V_DrawRightAlignedString(BASEVIDWIDTH/2+128, bottombox, V_20TRANS|V_MONOSPACE,
 				va("%3.1fK/s ", ((double)getbps)/1024));
 		}
 		else
-			V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-32, V_YELLOWMAP,
+			V_DrawCenteredString(BASEVIDWIDTH/2, top-32, V_YELLOWMAP,
 				M_GetText("Waiting to download files..."));
 	}
 
@@ -1264,6 +1254,10 @@ static inline void CL_DrawConnectionStatus(void)
 		for (i = 0; i < NUMKEYS; i++)
 			touchnavigation[i].hidden = true;
 		touchnavigation[KEY_ESCAPE].hidden = false;
+#ifdef CLIENT_CONFIRMDOWNLOADS
+		if (cl_mode == CL_CONFIRMDOWNLOADING)
+			touchnavigation[KEY_ENTER].hidden = false;
+#endif
 		ST_drawTouchMenuInput();
 	}
 #endif
@@ -1945,9 +1939,13 @@ static boolean CL_ServerConnectionSearchTicker(boolean viams, tic_t *asksent)
 					), NULL, MM_NOTHING);
 					return false;
 				}
+#ifdef CLIENT_CONFIRMDOWNLOADS
+				CL_ConfirmDownloadRequest();
+#else
 				// no problem if can't send packet, we will retry later
 				if (CL_SendRequestFile())
 					cl_mode = CL_DOWNLOADFILES;
+#endif
 			}
 		}
 		else
@@ -1998,6 +1996,13 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 			if (!CL_ServerConnectionSearchTicker(viams, asksent))
 				return false;
 			break;
+
+#ifdef CLIENT_CONFIRMDOWNLOADS
+		case CL_DOWNLOADINGWASCONFIRMED:
+			if (CL_SendRequestFile())
+				cl_mode = CL_DOWNLOADFILES;
+			break;
+#endif
 
 		case CL_DOWNLOADFILES:
 			waitmore = false;
@@ -2060,6 +2065,7 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 		INT32 key = 0;
 #ifdef TOUCHINPUTS
 		INT32 x = -1, y = -1;
+		boolean fingerok = false;
 #endif
 
 		// Get events, be them keyboard events, or touch screen events
@@ -2067,14 +2073,17 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 
 #ifdef TOUCHINPUTS
 		if (touch_screenexists)
+		{
 			I_GetFinger(&x, &y);
+			fingerok = (x != -1 && y != -1);
+		}
 		else
 #endif
 			key = I_GetKey();
 
 		if ((key == KEY_ESCAPE || key == KEY_JOY1+1)
 #ifdef TOUCHINPUTS
-		|| ((x != -1 && y != -1) && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ESCAPE]))
+		|| (fingerok && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ESCAPE]))
 #endif
 		) {
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
@@ -2086,6 +2095,17 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 #endif
 			return false;
 		}
+#ifdef CLIENT_CONFIRMDOWNLOADS
+		else if (cl_mode == CL_CONFIRMDOWNLOADING)
+		{
+			if ((key == KEY_ENTER || key == 'y')
+#ifdef TOUCHINPUTS
+			|| (fingerok && G_FingerTouchesButton(x, y, &touchnavigation[KEY_ENTER]))
+#endif
+			)
+				cl_mode = CL_DOWNLOADINGWASCONFIRMED;
+		}
+#endif
 
 		// why are these here? this is for servers, we're a client
 		//if (key == 's' && server)

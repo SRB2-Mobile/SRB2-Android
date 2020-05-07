@@ -94,6 +94,10 @@ char downloaddir[512] = "DOWNLOAD";
 INT32 lastfilenum = -1;
 #endif
 
+#ifdef CLIENT_CONFIRMDOWNLOADS
+size_t totaldownloadsize;
+#endif
+
 /** Fills a serverinfo packet with information about wad files loaded.
   *
   * \todo Give this function a better name since it is in global scope.
@@ -288,6 +292,20 @@ boolean CL_SendRequestFile(void)
 	return HSendPacket(servernode, true, 0, p - (char *)netbuffer->u.textcmd);
 }
 
+#ifdef CLIENT_CONFIRMDOWNLOADS
+void CL_ConfirmDownloadRequest(void)
+{
+	INT32 i;
+
+	cl_mode = CL_CONFIRMDOWNLOADING;
+	totaldownloadsize = 0;
+
+	for (i = 0; i < fileneedednum; i++)
+		if ((fileneeded[i].status == FS_NOTFOUND || fileneeded[i].status == FS_MD5SUMBAD))
+			totaldownloadsize += fileneeded[i].totalsize;
+}
+#endif
+
 // get request filepak and put it on the send queue
 // returns false if a requested file was not found or cannot be sent
 boolean Got_RequestFilePak(INT32 node)
@@ -315,6 +333,7 @@ boolean Got_RequestFilePak(INT32 node)
   * \return 0 if some files are missing
   *         1 if all files exist
   *         2 if some already loaded files are not requested or are in a different order
+  *         3 if too many files are added
   *
   */
 INT32 CL_CheckFiles(void)
@@ -756,6 +775,9 @@ void Got_Filetxpak(void)
 		&& strcmp(filename, "player.dta")
 		&& strcmp(filename, "patch.pk3")
 		&& strcmp(filename, "music.dta")
+#if defined(__ANDROID__)
+		&& strcmp(filename, "android.pk3")
+#endif
 		))
 		I_Error("Tried to download \"%s\"", filename);
 

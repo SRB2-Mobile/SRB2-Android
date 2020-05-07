@@ -535,11 +535,36 @@ boolean SV_SpawnServer(void);
 void SV_SpawnPlayer(INT32 playernum, INT32 x, INT32 y, angle_t angle);
 void SV_StopServer(void);
 void SV_ResetServer(void);
+
 void CL_AddSplitscreenPlayer(void);
 void CL_RemoveSplitscreenPlayer(void);
 void CL_Reset(void);
 void CL_ClearPlayer(INT32 playernum);
 void CL_UpdateServerList(boolean internetsearch, INT32 room);
+
+#ifndef NONET
+#define JOININGAME
+#endif
+
+typedef enum
+{
+	CL_SEARCHING,
+	CL_DOWNLOADFILES,
+	CL_ASKJOIN,
+	CL_WAITJOINRESPONSE,
+#ifdef JOININGAME
+	CL_DOWNLOADSAVEGAME,
+#endif
+#ifdef CLIENT_CONFIRMDOWNLOADS
+	CL_CONFIRMDOWNLOADING,
+	CL_DOWNLOADINGWASCONFIRMED,
+#endif
+	CL_CONNECTED,
+	CL_ABORTED
+} cl_mode_t;
+
+extern cl_mode_t cl_mode;
+
 // Is there a game running
 boolean Playing(void);
 

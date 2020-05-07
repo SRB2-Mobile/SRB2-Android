@@ -53,6 +53,10 @@ extern char downloaddir[512];
 extern INT32 lastfilenum;
 #endif
 
+#ifdef CLIENT_CONFIRMDOWNLOADS
+extern size_t totaldownloadsize;
+#endif
+
 UINT8 *PutFileNeeded(void);
 void D_ParseFileneeded(INT32 fileneedednum_parm, UINT8 *fileneededstr);
 void CL_PrepareDownloadSaveGame(const char *tmpsave);
@@ -68,6 +72,10 @@ boolean SV_SendingFile(INT32 node);
 
 boolean CL_CheckDownloadable(void);
 boolean CL_SendRequestFile(void);
+#ifdef CLIENT_CONFIRMDOWNLOADS
+void CL_ConfirmDownloadRequest(void);
+#endif
+
 boolean Got_RequestFilePak(INT32 node);
 
 void SV_AbortSendFiles(INT32 node);

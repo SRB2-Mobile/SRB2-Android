@@ -616,6 +616,11 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 #define CLIENT_LOADINGSCREEN
 #endif
 
+#if defined(__ANDROID__)
+///	Asks if the player wants to download files before joining a netgame.
+#define CLIENT_CONFIRMDOWNLOADS
+#endif
+
 /// Experimental tweaks to analog mode. (Needs a lot of work before it's ready for primetime.)
 //#define REDSANALOG
 
