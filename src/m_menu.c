@@ -1210,24 +1210,26 @@ static menuitem_t OP_TouchOptionsMenu[] =
 {
 	{IT_STRING | IT_CVAR, NULL, "Movement style",         &cv_touchstyle,     10},
 	{IT_STRING | IT_CVAR, NULL, "Camera movement",        &cv_touchcamera,    20},
-	{IT_STRING | IT_CVAR, NULL, "Tiny controls",          &cv_touchtiny,      30},
+	{IT_STRING | IT_CVAR, NULL, "Use tiny preset",        &cv_touchtiny,      30},
 
 	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 50},
 	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  60},
 
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
+	                      NULL, "Input GUI scale",        &cv_touchguiscale,  80},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Input translucency",     &cv_touchtrans,     80},
+	                      NULL, "Input translucency",     &cv_touchtrans,     90},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Menu translucency",      &cv_touchmenutrans, 90},
+	                      NULL, "Menu translucency",      &cv_touchmenutrans, 100},
 
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Horz. Sensitivity",   &cv_touchsens,        110},
+	                      NULL, "Touch Horz. Sensitivity",   &cv_touchsens,        120},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Vert. Sensitivity",   &cv_touchvertsens,    120},
+	                      NULL, "Touch Vert. Sensitivity",   &cv_touchvertsens,    130},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 130},
+	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 140},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 140},
+	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 150},
 };
 #endif
 

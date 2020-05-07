@@ -201,6 +201,7 @@ extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
 
 // Input variables
 extern INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
+extern fixed_t touch_gui_scale;
 
 // Touch movement style
 typedef enum
@@ -232,6 +233,7 @@ extern consvar_t cv_touchstyle;
 extern consvar_t cv_touchtiny;
 extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
+extern consvar_t cv_touchguiscale;
 
 // Touch screen sensitivity
 extern consvar_t cv_touchsens, cv_touchvertsens;
@@ -321,8 +323,8 @@ boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt);
 // Check if the gamecontrol is a player control key
 boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
 
-// Scale a d-pad
-void G_ScaleDPadCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h);
+// Scale a touch button
+void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h);
 #endif
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen);

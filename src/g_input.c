@@ -68,6 +68,7 @@ touchconfig_t touchnavigation[NUMKEYS];
 
 // Input variables
 INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
+fixed_t touch_gui_scale;
 
 // Is the touch screen available?
 boolean touch_screenexists = false;
@@ -83,6 +84,9 @@ static CV_PossibleValue_t touchstyle_cons_t[] = {{tms_joystick, "Joystick"}, {tm
 consvar_t cv_touchstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+
+static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
+consvar_t cv_touchguiscale = {"touch_guiscale", "1.0", CV_FLOAT|CV_SAVE, touchguiscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -160,18 +164,20 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
 #ifdef TOUCHINPUTS
-void G_ScaleDPadCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h)
+void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h)
 {
-	*x = FixedMul((*x) * FRACUNIT, vid.dupx * FRACUNIT) / FRACUNIT;
-	*y = FixedMul((*y) * FRACUNIT, vid.dupy * FRACUNIT) / FRACUNIT;
-	*w = FixedMul((*w) * FRACUNIT, vid.dupx * FRACUNIT) / FRACUNIT;
-	*h = FixedMul((*h) * FRACUNIT, vid.dupy * FRACUNIT) / FRACUNIT;
+	fixed_t dupx = vid.dupx * FRACUNIT;
+	fixed_t dupy = vid.dupy * FRACUNIT;
+	*x = FixedMul((*x) * FRACUNIT, dupx) / FRACUNIT;
+	*y = FixedMul((*y) * FRACUNIT, dupy) / FRACUNIT;
+	*w = FixedMul((*w) * FRACUNIT, dupx) / FRACUNIT;
+	*h = FixedMul((*h) * FRACUNIT, dupy) / FRACUNIT;
 }
 
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
 {
 	INT32 tx = butt->x, ty = butt->y, tw = butt->w, th = butt->h;
-	G_ScaleDPadCoords(&tx, &ty, &tw, &th);
+	G_ScaleTouchCoords(&tx, &ty, &tw, &th);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
@@ -402,7 +408,7 @@ static void G_HandleFingerEvent(event_t *ev)
 						INT32 padx = touch_dpad_x, pady = touch_dpad_y;
 						INT32 padw = touch_dpad_w, padh = touch_dpad_h;
 
-						G_ScaleDPadCoords(&padx, &pady, &padw, &padh);
+						G_ScaleTouchCoords(&padx, &pady, &padw, &padh);
 
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
@@ -1299,6 +1305,8 @@ void G_DefineDefaultControls(void)
 	CV_RegisterVar(&cv_touchtiny);
 	CV_RegisterVar(&cv_touchstyle);
 
+	CV_RegisterVar(&cv_touchguiscale);
+
 	G_UpdateTouchControls();
 #endif
 }
@@ -1310,6 +1318,7 @@ void G_SetupTouchSettings(void)
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	touch_tinycontrols = !!cv_touchtiny.value;
+	touch_gui_scale = cv_touchguiscale.value;
 }
 
 void G_UpdateTouchControls(void)
@@ -1321,10 +1330,14 @@ void G_UpdateTouchControls(void)
 void G_TouchControlPreset(void)
 {
 	INT32 x, y, w, h;
+	INT32 dx, dy, dw, dh;
 	INT32 corneroffset = 4;
+	INT32 jumph;
 	INT32 offs = (promptactive ? -16 : 0);
 	INT32 nonjoyoffs = -12;
 	INT32 bottomalign = 0;
+	fixed_t scale = touch_gui_scale;
+
 	touchconfig_t *ref;
 	boolean bothvisible;
 	boolean eithervisible;
@@ -1337,11 +1350,32 @@ void G_TouchControlPreset(void)
 
 	if (touch_tinycontrols)
 	{
-		touch_dpad_x = 24;
-		touch_dpad_y = 128 + (offs + bottomalign);
-		touch_dpad_w = 32;
-		touch_dpad_h = 32;
+		dx = 24;
+		dy = 128;
+		dw = 32;
+		dh = 32;
+	}
+	else
+	{
+		dx = 24;
+		dy = 92;
+		dw = 64;
+		dh = 64;
+	}
 
+#define SCALECOORD(coord) FixedInt(FixedMul(coord * FRACUNIT, scale))
+
+	touch_dpad_w = SCALECOORD(dw);
+	touch_dpad_h = SCALECOORD(dh);
+	touch_dpad_x = max(dx, ((dx + (dw / 2)) - (touch_dpad_w / 2)));
+	if (touch_gui_scale < FRACUNIT)
+		touch_dpad_y = ((dy + (dh / 2)) - (touch_dpad_h / 2));
+	else
+		touch_dpad_y = ((dy + dh) - touch_dpad_h);
+	touch_dpad_y += (offs + bottomalign);
+
+	if (touch_tinycontrols)
+	{
 		if (touch_movementstyle == tms_joystick)
 		{
 			touch_dpad_x -= 4;
@@ -1352,50 +1386,53 @@ void G_TouchControlPreset(void)
 			touch_dpad_y -= 4;
 
 		// Up
-		touchcontrols[gc_forward].x = touch_dpad_x + 8;
-		touchcontrols[gc_forward].y = touch_dpad_y - 8;
-		touchcontrols[gc_forward].w = 20;
-		touchcontrols[gc_forward].h = 16;
+		w = 20;
+		h = 16;
+		touchcontrols[gc_forward].w = SCALECOORD(w);
+		touchcontrols[gc_forward].h = SCALECOORD(h);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedInt(FixedCeil(FixedDiv(FixedMul(w * FRACUNIT, scale), FRACUNIT * 3)));
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8);
 
 		// Down
-		touchcontrols[gc_backward].x = touch_dpad_x + 8;
-		touchcontrols[gc_backward].y = touch_dpad_y + 24;
-		touchcontrols[gc_backward].w = 20;
-		touchcontrols[gc_backward].h = 16;
+		touchcontrols[gc_backward].w = SCALECOORD(w);
+		touchcontrols[gc_backward].h = SCALECOORD(h);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedInt(FixedCeil(FixedDiv(FixedMul(w * FRACUNIT, scale), FRACUNIT * 3)));
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8);
 
 		// Left
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - 8;
-		touchcontrols[gc_strafeleft].y = touch_dpad_y + 8;
-		touchcontrols[gc_strafeleft].w = 16;
-		touchcontrols[gc_strafeleft].h = 14;
+		w = 16;
+		h = 14;
+		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
+		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
+		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_strafeleft].h / 2);
 
 		// Right
-		touchcontrols[gc_straferight].x = touch_dpad_x + 24;
-		touchcontrols[gc_straferight].y = touch_dpad_y + 8;
-		touchcontrols[gc_straferight].w = 16;
-		touchcontrols[gc_straferight].h = 14;
+		touchcontrols[gc_straferight].w = SCALECOORD(w);
+		touchcontrols[gc_straferight].h = SCALECOORD(h);
+		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_straferight].h / 2);
 
 		// Jump
+		w = 40;
+		h = jumph = 32;
 		touchcontrols[gc_jump].name = "JMP";
-		touchcontrols[gc_jump].w = 40;
-		touchcontrols[gc_jump].h = 32;
+		touchcontrols[gc_jump].w = SCALECOORD(w);
+		touchcontrols[gc_jump].h = SCALECOORD(h);
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
 		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
 
 		// Spin
+		w = 32;
+		h = 24;
 		touchcontrols[gc_use].name = "SPN";
-		touchcontrols[gc_use].w = 32;
-		touchcontrols[gc_use].h = 24;
+		touchcontrols[gc_use].w = SCALECOORD(w);
+		touchcontrols[gc_use].h = SCALECOORD(h);
 		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
 		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 8;
 	}
 	else
 	{
-		touch_dpad_x = 24;
-		touch_dpad_y = 92 + (offs + bottomalign);
-		touch_dpad_w = 64;
-		touch_dpad_h = 64;
-
 		if (touch_movementstyle == tms_joystick)
 		{
 			touch_dpad_x -= 12;
@@ -1408,40 +1445,48 @@ void G_TouchControlPreset(void)
 		x = (touch_dpad_x + touch_dpad_w) - (touch_dpad_w / 2);
 
 		// Up
-		touchcontrols[gc_forward].x = x - 12;
-		touchcontrols[gc_forward].y = touch_dpad_y - (touch_dpad_w / 4);
-		touchcontrols[gc_forward].w = 40;
-		touchcontrols[gc_forward].h = 32;
+		w = 40;
+		h = 32;
+		touchcontrols[gc_forward].w = SCALECOORD(w);
+		touchcontrols[gc_forward].h = SCALECOORD(h);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16);
 
 		// Down
-		touchcontrols[gc_backward].x = x - 12;
-		touchcontrols[gc_backward].y = (touch_dpad_y + touch_dpad_h) - (touch_dpad_w / 4);
-		touchcontrols[gc_backward].w = 40;
-		touchcontrols[gc_backward].h = 32;
+		touchcontrols[gc_backward].w = SCALECOORD(w);
+		touchcontrols[gc_backward].h = SCALECOORD(h);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16);
 
 		// Left
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - (touch_dpad_w / 4);
-		touchcontrols[gc_strafeleft].y = touch_dpad_y + (touch_dpad_w / 4);
-		touchcontrols[gc_strafeleft].w = 32;
-		touchcontrols[gc_strafeleft].h = 28;
+		w = 32;
+		h = 28;
+		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
+		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
+		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_strafeleft].h / 2);
 
 		// Right
-		touchcontrols[gc_straferight].x = (touch_dpad_x + touch_dpad_w) - (touch_dpad_w / 4);
-		touchcontrols[gc_straferight].y = touch_dpad_y + (touch_dpad_w / 4);
-		touchcontrols[gc_straferight].w = 32;
-		touchcontrols[gc_straferight].h = 28;
+		touchcontrols[gc_straferight].w = SCALECOORD(w);
+		touchcontrols[gc_straferight].h = SCALECOORD(h);
+		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(16);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_straferight].h / 2);
 
 		// Jump
+		w = 48;
+		h = jumph = 48;
 		touchcontrols[gc_jump].name = "JUMP";
-		touchcontrols[gc_jump].w = 48;
-		touchcontrols[gc_jump].h = 48;
+		touchcontrols[gc_jump].w = SCALECOORD(w);
+		touchcontrols[gc_jump].h = SCALECOORD(h);
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
 		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
 
 		// Spin
+		w = 40;
+		h = 32;
 		touchcontrols[gc_use].name = "SPIN";
-		touchcontrols[gc_use].w = 40;
-		touchcontrols[gc_use].h = 32;
+		touchcontrols[gc_use].w = SCALECOORD(w);
+		touchcontrols[gc_use].h = SCALECOORD(h);
 		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - 12);
 		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + 12;
 	}
@@ -1449,8 +1494,8 @@ void G_TouchControlPreset(void)
 	// Fire, fire normal, and toss flag
 	if (G_RingSlingerGametype())
 	{
-		offs = 8;
-		h = (touchcontrols[gc_jump].h / 2) + 4;
+		offs = SCALECOORD(8);
+		h = SCALECOORD(jumph / 2) + SCALECOORD(4);
 		touchcontrols[gc_use].h = h;
 		touchcontrols[gc_use].y = ((touchcontrols[gc_jump].y + touchcontrols[gc_jump].h) - h) + offs;
 
@@ -1479,7 +1524,7 @@ void G_TouchControlPreset(void)
 			ref->h /= 2;
 
 		ref->x = touchcontrols[gc_jump].x;
-		ref->y = touchcontrols[gc_jump].y - ref->h - 4;
+		ref->y = touchcontrols[gc_jump].y - ref->h - SCALECOORD(4);
 	}
 	else
 	{
@@ -1488,22 +1533,22 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_tossflag].hidden = true;
 	}
 
-	offs = 8;
+	offs = SCALECOORD(8);
 
 	// Menu
-	touchcontrols[gc_systemmenu].w = 32;
-	touchcontrols[gc_systemmenu].h = 32;
+	touchcontrols[gc_systemmenu].w = SCALECOORD(32);
+	touchcontrols[gc_systemmenu].h = SCALECOORD(32);
 	touchcontrols[gc_systemmenu].x = ((vid.width / vid.dupx) - touchcontrols[gc_systemmenu].w - corneroffset);
 	touchcontrols[gc_systemmenu].y = corneroffset;
 
 	// Pause
 	touchcontrols[gc_pause].x = touchcontrols[gc_systemmenu].x;
 	touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
-	touchcontrols[gc_pause].w = 24;
-	touchcontrols[gc_pause].h = 24;
+	touchcontrols[gc_pause].w = SCALECOORD(24);
+	touchcontrols[gc_pause].h = SCALECOORD(24);
 	if ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer)))
 	|| (modeattacking && demorecording))
-		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + 4);
+		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + SCALECOORD(4));
 	else
 		touchcontrols[gc_pause].hidden = true;
 
@@ -1513,15 +1558,15 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
 	if (G_CanViewpointSwitch())
 	{
-		touchcontrols[gc_viewpoint].w = 32;
-		touchcontrols[gc_viewpoint].h = 24;
-		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + 4);
+		touchcontrols[gc_viewpoint].w = SCALECOORD(32);
+		touchcontrols[gc_viewpoint].h = SCALECOORD(24);
+		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + SCALECOORD(4));
 		touchcontrols[gc_viewpoint].hidden = false;
 	}
 
 	// Align screenshot and movie mode buttons
-	w = 40;
-	h = 24;
+	w = SCALECOORD(40);
+	h = SCALECOORD(24);
 
 	bothvisible = ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden));
 	eithervisible = (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden);
@@ -1538,7 +1583,7 @@ void G_TouchControlPreset(void)
 	}
 	else
 	{
-		x = (touchcontrols[gc_viewpoint].x - w - 4);
+		x = (touchcontrols[gc_viewpoint].x - w - SCALECOORD(4));
 		y = touchcontrols[gc_viewpoint].y;
 	}
 
@@ -1560,16 +1605,16 @@ void G_TouchControlPreset(void)
 	// if netgame + chat not muted
 	if (netgame && !CHAT_MUTE)
 	{
-		touchcontrols[gc_talkkey].w = 32;
-		touchcontrols[gc_talkkey].h = 24;
+		touchcontrols[gc_talkkey].w = SCALECOORD(32);
+		touchcontrols[gc_talkkey].h = SCALECOORD(24);
 		touchcontrols[gc_talkkey].x = ((vid.width / vid.dupx) - touchcontrols[gc_talkkey].w - corneroffset);
 		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
 		touchcontrols[gc_talkkey].hidden = false;
 
 		if (G_GametypeHasTeams() && players[consoleplayer].ctfteam)
 		{
-			touchcontrols[gc_teamkey].w = 32;
-			touchcontrols[gc_teamkey].h = 24;
+			touchcontrols[gc_teamkey].w = SCALECOORD(32);
+			touchcontrols[gc_teamkey].h = SCALECOORD(24);
 			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
 			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
 			touchcontrols[gc_teamkey].hidden = false;
