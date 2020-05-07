@@ -1537,7 +1537,7 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	}
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
-#define drawbutton(gctype, butt, str, strxoffs, stryoffs, keycol) \
+#define drawbutton(gctype, str, strxoffs, stryoffs, keycol) \
 { \
 	touchconfig_t *control = &touchcontrols[gctype]; \
 	if (!control->hidden && !F_GetPromptHideHud(control->y / vid.dupy)) \
@@ -1550,8 +1550,7 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 		SCALEBUTTON(control); \
  \
 		/* Draw the button */ \
-		if ((butt != 0 && (stplyr->cmd.buttons & butt)) \
-		|| control->pressed > I_GetTime()) \
+		if (touchcontroldown[gctype]) \
 		{ \
 			col = accent; \
 			offs = shadow; \
@@ -1585,42 +1584,42 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	} \
 }
 
-#define drawbutt(gctype, butt, str) drawbutton(gctype, butt, str, 0, 0, DEFAULTKEYCOL)
-#define drawcolbutt(gctype, butt, str, col) drawbutton(gctype, butt, str, 0, 0, col)
-#define drawoffsbutt(gctype, butt, str, xoffs, yoffs) drawbutton(gctype, butt, str, xoffs, yoffs, DEFAULTKEYCOL)
+#define drawbutt(gctype, str) drawbutton(gctype, str, 0, 0, DEFAULTKEYCOL)
+#define drawcolbutt(gctype, str, col) drawbutton(gctype, str, 0, 0, col)
+#define drawoffsbutt(gctype, str, xoffs, yoffs) drawbutton(gctype, str, xoffs, yoffs, DEFAULTKEYCOL)
 
 	if (drawgamecontrols)
 	{
 		// Jump and spin
-		drawbutt(gc_jump,  BT_JUMP,   NULL);
-		drawbutt(gc_use,   BT_USE,    NULL);
+		drawbutt(gc_jump,   NULL);
+		drawbutt(gc_use,    NULL);
 
 		// Fire and fire normal
-		drawbutt(gc_fire,       BT_ATTACK,     NULL);
-		drawbutt(gc_firenormal, BT_FIRENORMAL, NULL);
+		drawbutt(gc_fire,       NULL);
+		drawbutt(gc_firenormal, NULL);
 
 		// Toss flag
-		drawbutt(gc_tossflag, BT_TOSSFLAG, NULL);
+		drawbutt(gc_tossflag, NULL);
 	}
 
 	// Control panel
-	drawbutt(gc_systemmenu, 0, "MENU");
+	drawbutt(gc_systemmenu, "MENU");
 
 	// Pause
-	drawbutt(gc_pause, 0, (paused ? "\x1D" : "II"));
+	drawbutt(gc_pause, (paused ? "\x1D" : "II"));
 
 	// Spy mode
-	drawbutt(gc_viewpoint, 0, "F12");
+	drawbutt(gc_viewpoint, "F12");
 
 	// Screenshot
-	drawbutt(gc_screenshot, 0, "SCRCAP");
+	drawbutt(gc_screenshot, "SCRCAP");
 
 	// Movie mode
-	drawcolbutt(gc_recordgif, 0, "REC", (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
+	drawcolbutt(gc_recordgif, "REC", (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
 
 	// Talk key and team talk key
-	drawoffsbutt(gc_talkkey, 0, "TALK", 1, -1);
-	drawbutton  (gc_teamkey, 0, "TEAM", 1, -1, accent);
+	drawoffsbutt(gc_talkkey, "TALK", 1, -1);
+	drawbutton  (gc_teamkey, "TEAM", 1, -1, accent);
 
 #undef drawoffsbutt
 #undef drawcolbutt

@@ -201,6 +201,48 @@ boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol)
 	return true;
 }
 
+static void G_HandleNonPlayerControlButton(INT32 gamecontrol)
+{
+	// Handle menu button
+	if (gamecontrol == gc_systemmenu)
+		M_StartControlPanel();
+	// Handle console button
+	else if (gamecontrol == gc_console)
+		CON_Toggle();
+	// Handle pause button
+	else if (gamecontrol == gc_pause)
+		G_HandlePauseKey(true);
+	// Handle spy mode
+	else if (gamecontrol == gc_viewpoint)
+		G_DoViewpointSwitch();
+	// Handle screenshot
+	else if (gamecontrol == gc_screenshot)
+		M_ScreenShot();
+	// Handle movie mode
+	else if (gamecontrol == gc_recordgif)
+		((moviemode) ? M_StopMovie : M_StartMovie)();
+	// Handle talk buttons
+	else if (gamecontrol == gc_talkkey || gamecontrol == gc_teamkey)
+	{
+		// Raise the screen keyboard if not muted
+		boolean raise = (!CHAT_MUTE);
+
+		// Only raise the screen keyboard in team games
+		// if you're assigned to any team
+		if (raise && (gamecontrol == gc_teamkey))
+			raise = (G_GametypeHasTeams() && (players[consoleplayer].ctfteam != 0));
+
+		// Do it (works with console chat)
+		if (raise)
+		{
+			if (!HU_IsChatOpen())
+				HU_OpenChat();
+			else
+				HU_CloseChat();
+		}
+	}
+}
+
 //
 // Remaps touch input events to game controls.
 //
@@ -212,7 +254,7 @@ static void G_HandleFingerEvent(event_t *ev)
 	boolean touchmotion = (ev->type == ev_touchmotion);
 	boolean foundbutton = false;
 	boolean movecamera = true;
-	INT32 gc, i;
+	INT32 gc = finger->u.gamecontrol, i;
 
 	if (gamestate != GS_LEVEL)
 		return;
@@ -229,15 +271,23 @@ static void G_HandleFingerEvent(event_t *ev)
 			}
 
 			// This finger ignores touch motion events, so don't do anything.
-			if (touchmotion && finger->ignoremotion)
+			// Non-control keys ignore touch motion events.
+			if (touchmotion && (finger->ignoremotion || (!G_TouchButtonIsPlayerControl(gc))))
+			{
+				// Update finger position at least
+				if (!finger->ignoremotion)
+				{
+					finger->x = x;
+					finger->y = y;
+				}
 				break;
+			}
 
 			// Lactozilla: Find every on-screen button and
 			// check if they are below your finger.
 			for (i = 0; i < num_gamecontrols; i++)
 			{
 				touchconfig_t *butt = &touchcontrols[i];
-				tic_t keydowntime = I_GetTime() + (TICRATE/10);
 
 				// Ignore camera and joystick movement
 				if (finger->type.mouse)
@@ -258,17 +308,8 @@ static void G_HandleFingerEvent(event_t *ev)
 				// In a touch motion event, simulate a key up event by clearing touchcontroldown.
 				// This is done so that the buttons that are down don't 'stick'
 				// if you move your finger from a button to another.
-				gc = finger->u.gamecontrol;
 				if (touchmotion && (gc > gc_null))
 				{
-					// Non-control keys ignore touch motion events.
-					if (!G_TouchButtonIsPlayerControl(gc))
-					{
-						if (G_FingerTouchesButton(x, y, butt))
-							foundbutton = true;
-						break;
-					}
-
 					// Let go of this button.
 					touchcontroldown[gc] = 0;
 					movecamera = false;
@@ -277,63 +318,12 @@ static void G_HandleFingerEvent(event_t *ev)
 				// Check if your finger touches this button.
 				if (G_FingerTouchesButton(x, y, butt) && (!touchcontroldown[i]))
 				{
-					foundbutton = true;
-
-					if (!G_TouchButtonIsPlayerControl(i))
-					{
-						boolean waspressed = true;
-
-						// Handle menu button
-						if (i == gc_systemmenu)
-							M_StartControlPanel();
-						// Handle console button
-						else if (i == gc_console)
-							CON_Toggle();
-						// Handle pause button
-						else if (i == gc_pause)
-							waspressed = G_HandlePauseKey(true);
-						// Handle spy mode
-						else if (i == gc_viewpoint)
-							waspressed = G_DoViewpointSwitch();
-						// Handle screenshot
-						else if (i == gc_screenshot)
-							M_ScreenShot();
-						// Handle movie mode
-						else if (i == gc_recordgif)
-							((moviemode) ? M_StopMovie : M_StartMovie)();
-						// Handle talk buttons
-						else if (i == gc_talkkey || i == gc_teamkey)
-						{
-							// Raise the screen keyboard if not muted
-							boolean raise = (!CHAT_MUTE);
-
-							// Only raise the screen keyboard in team games
-							// if you're assigned to any team
-							if (raise && (i == gc_teamkey))
-								raise = (G_GametypeHasTeams() && (players[consoleplayer].ctfteam != 0));
-
-							// Do it (works with console chat)
-							if (raise)
-							{
-								if (!HU_IsChatOpen())
-									HU_OpenChat();
-								else
-									HU_CloseChat();
-							}
-							else
-								waspressed = false;
-						}
-
-						if (waspressed)
-							butt->pressed = keydowntime;
-					}
-					else
-						touchcontroldown[i] = 1;
-
 					finger->x = x;
 					finger->y = y;
 					finger->pressure = ev->pressure;
 					finger->u.gamecontrol = i;
+					touchcontroldown[i] = 1;
+					foundbutton = true;
 					break;
 				}
 			}
@@ -437,7 +427,6 @@ static void G_HandleFingerEvent(event_t *ev)
 					finger->type.mouse = FINGERMOTION_MOUSE;
 					finger->u.gamecontrol = gc_null;
 				}
-				foundbutton = true;
 			}
 			break;
 
@@ -445,7 +434,12 @@ static void G_HandleFingerEvent(event_t *ev)
 			// Let go of this finger.
 			gc = finger->u.gamecontrol;
 			if (gc > gc_null)
+			{
+				if (!G_TouchButtonIsPlayerControl(gc) && G_FingerTouchesButton(finger->x, finger->y, &touchcontrols[gc]))
+					G_HandleNonPlayerControlButton(gc);
 				touchcontroldown[gc] = 0;
+			}
+
 			finger->u.gamecontrol = gc_null;
 			finger->ignoremotion = false;
 
