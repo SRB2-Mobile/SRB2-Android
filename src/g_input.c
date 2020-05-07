@@ -1321,10 +1321,114 @@ void G_SetupTouchSettings(void)
 	touch_gui_scale = cv_touchguiscale.value;
 }
 
+#define SCALECOORD(coord) FixedMul(coord, scale)
+
 void G_UpdateTouchControls(void)
 {
 	G_SetupTouchSettings();
 	G_DefineTouchButtons();
+}
+
+static void G_DPadPreset(fixed_t scale, fixed_t dw)
+{
+	fixed_t w, h;
+
+	if (touch_tinycontrols)
+	{
+		// Up
+		w = 20 * FRACUNIT;
+		h = 16 * FRACUNIT;
+		touchcontrols[gc_forward].w = SCALECOORD(w);
+		touchcontrols[gc_forward].h = SCALECOORD(h);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8 * FRACUNIT);
+
+		// Down
+		touchcontrols[gc_backward].w = SCALECOORD(w);
+		touchcontrols[gc_backward].h = SCALECOORD(h);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8 * FRACUNIT);
+
+		// Left
+		w = 16 * FRACUNIT;
+		h = 14 * FRACUNIT;
+		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
+		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
+		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8 * FRACUNIT);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
+
+		// Right
+		touchcontrols[gc_straferight].w = SCALECOORD(w);
+		touchcontrols[gc_straferight].h = SCALECOORD(h);
+		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8 * FRACUNIT);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
+	}
+	else
+	{
+		// Up
+		w = 40 * FRACUNIT;
+		h = 32 * FRACUNIT;
+		touchcontrols[gc_forward].w = SCALECOORD(w);
+		touchcontrols[gc_forward].h = SCALECOORD(h);
+		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
+		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16 * FRACUNIT);
+
+		// Down
+		touchcontrols[gc_backward].w = SCALECOORD(w);
+		touchcontrols[gc_backward].h = SCALECOORD(h);
+		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
+		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16 * FRACUNIT);
+
+		// Left
+		w = 32 * FRACUNIT;
+		h = 28 * FRACUNIT;
+		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
+		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
+		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16 * FRACUNIT);
+		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
+
+		// Right
+		touchcontrols[gc_straferight].w = SCALECOORD(w);
+		touchcontrols[gc_straferight].h = SCALECOORD(h);
+		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(16 * FRACUNIT);
+		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
+	}
+}
+
+static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
+{
+	touch_dpad_w = SCALECOORD(dw);
+	touch_dpad_h = SCALECOORD(dh);
+	touch_dpad_x = max(dx, ((dx + FixedDiv(dw, FRACUNIT * 2)) - FixedDiv(touch_dpad_w, FRACUNIT * 2)));
+	if (scale < FRACUNIT)
+		touch_dpad_y = ((dy + FixedDiv(dh, FRACUNIT * 2)) - FixedDiv(touch_dpad_h, FRACUNIT * 2));
+	else
+		touch_dpad_y = ((dy + dh) - touch_dpad_h);
+	touch_dpad_y += (offs + bottomalign);
+
+	// Offset d-pad base
+	if (touch_tinycontrols)
+	{
+		if (touch_movementstyle == tms_joystick)
+		{
+			touch_dpad_x -= 4 * FRACUNIT;
+			touch_dpad_y += 8 * FRACUNIT;
+		}
+
+		if (G_RingSlingerGametype())
+			touch_dpad_y -= 4 * FRACUNIT;
+	}
+	else
+	{
+		if (touch_movementstyle == tms_joystick)
+		{
+			touch_dpad_x -= 12 * FRACUNIT;
+			touch_dpad_y += 16 * FRACUNIT;
+		}
+
+		if (G_RingSlingerGametype())
+			touch_dpad_y -= 8 * FRACUNIT;
+	}
 }
 
 void G_TouchControlPreset(void)
@@ -1365,56 +1469,13 @@ void G_TouchControlPreset(void)
 		dh = 64 * FRACUNIT;
 	}
 
-#define SCALECOORD(coord) FixedMul(coord, scale)
+	// D-Pad
+	G_ScaleDPadBase(dx, dy, dw, dh, scale, offs, bottomalign);
+	G_DPadPreset(scale, dw);
 
-	touch_dpad_w = SCALECOORD(dw);
-	touch_dpad_h = SCALECOORD(dh);
-	touch_dpad_x = max(dx, ((dx + FixedDiv(dw, FRACUNIT * 2)) - FixedDiv(touch_dpad_w, FRACUNIT * 2)));
-	if (touch_gui_scale < FRACUNIT)
-		touch_dpad_y = ((dy + FixedDiv(dh, FRACUNIT * 2)) - FixedDiv(touch_dpad_h, FRACUNIT * 2));
-	else
-		touch_dpad_y = ((dy + dh) - touch_dpad_h);
-	touch_dpad_y += (offs + bottomalign);
-
+	// Jump and spin
 	if (touch_tinycontrols)
 	{
-		if (touch_movementstyle == tms_joystick)
-		{
-			touch_dpad_x -= 4 * FRACUNIT;
-			touch_dpad_y += 8 * FRACUNIT;
-		}
-
-		if (G_RingSlingerGametype())
-			touch_dpad_y -= 4 * FRACUNIT;
-
-		// Up
-		w = 20 * FRACUNIT;
-		h = 16 * FRACUNIT;
-		touchcontrols[gc_forward].w = SCALECOORD(w);
-		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8 * FRACUNIT);
-
-		// Down
-		touchcontrols[gc_backward].w = SCALECOORD(w);
-		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8 * FRACUNIT);
-
-		// Left
-		w = 16 * FRACUNIT;
-		h = 14 * FRACUNIT;
-		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
-		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
-
-		// Right
-		touchcontrols[gc_straferight].w = SCALECOORD(w);
-		touchcontrols[gc_straferight].h = SCALECOORD(h);
-		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8 * FRACUNIT);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
-
 		// Jump
 		w = 40 * FRACUNIT;
 		h = jumph = 32 * FRACUNIT;
@@ -1435,45 +1496,6 @@ void G_TouchControlPreset(void)
 	}
 	else
 	{
-		if (touch_movementstyle == tms_joystick)
-		{
-			touch_dpad_x -= 12 * FRACUNIT;
-			touch_dpad_y += 16 * FRACUNIT;
-		}
-
-		if (G_RingSlingerGametype())
-			touch_dpad_y -= 8 * FRACUNIT;
-
-		x = (touch_dpad_x + touch_dpad_w) - FixedDiv(touch_dpad_w, 2 * FRACUNIT);
-
-		// Up
-		w = 40 * FRACUNIT;
-		h = 32 * FRACUNIT;
-		touchcontrols[gc_forward].w = SCALECOORD(w);
-		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16 * FRACUNIT);
-
-		// Down
-		touchcontrols[gc_backward].w = SCALECOORD(w);
-		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16 * FRACUNIT);
-
-		// Left
-		w = 32 * FRACUNIT;
-		h = 28 * FRACUNIT;
-		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
-		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16 * FRACUNIT);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
-
-		// Right
-		touchcontrols[gc_straferight].w = SCALECOORD(w);
-		touchcontrols[gc_straferight].h = SCALECOORD(h);
-		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(16);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2)) - FixedDiv(touchcontrols[gc_straferight].h, 2);
-
 		// Jump
 		w = 48 * FRACUNIT;
 		h = jumph = 48 * FRACUNIT;
@@ -1640,6 +1662,8 @@ void G_TouchControlPreset(void)
 		}
 	}
 }
+
+#undef SCALECOORD
 
 void G_TouchNavigationPreset(void)
 {

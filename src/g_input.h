@@ -240,8 +240,8 @@ extern consvar_t cv_touchsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 
 // Screen joystick movement
-#define TOUCHJOYEXTENDX (FixedDiv(touch_dpad_w, 2 * FRACUNIT))
-#define TOUCHJOYEXTENDY (FixedDiv(touch_dpad_h, 2 * FRACUNIT))
+#define TOUCHJOYEXTENDX (touch_dpad_w / 2) //(FixedDiv(touch_dpad_w, 2 * FRACUNIT))
+#define TOUCHJOYEXTENDY (touch_dpad_h / 2) //(FixedDiv(touch_dpad_h, 2 * FRACUNIT))
 extern float touchxmove, touchymove, touchpressure;
 #endif
 

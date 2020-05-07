@@ -1266,9 +1266,9 @@ void ST_drawTouchDPad(
 					boolean backing, INT32 flags, INT32 accent)
 {
 	INT32 x, y, w, h;
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
-	const INT32 shadow = vid.dupy;
+	fixed_t dupx = vid.dupx * FRACUNIT;
+	fixed_t dupy = vid.dupy * FRACUNIT;
+	const INT32 shadow = max(1, FixedInt(FixedMul(dupy, touch_gui_scale) + (FRACUNIT / 2)));
 	const UINT32 alphalevel = (10 - ((flags & V_ALPHAMASK) >> V_ALPHASHIFT));
 	INT32 col, offs;
 	INT32 base, ybase;
@@ -1288,7 +1288,8 @@ void ST_drawTouchDPad(
 	if (vid.dupx == 1)
 		udw = 2;
 	else
-		udw = (vid.dupx * 3);
+		udw = vid.dupx * 3;
+	udw = FixedInt(FixedMul(udw * FRACUNIT, touch_gui_scale));
 
 	// <
 	SCALEPAD(tleft);
