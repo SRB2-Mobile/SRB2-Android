@@ -361,9 +361,6 @@ static void M_DrawTimeAttackMenu(void);
 static void M_DrawNightsAttackMenu(void);
 static void M_DrawSetupChoosePlayerMenu(void);
 static void M_DrawControlsDefMenu(void);
-#ifdef TOUCHINPUTS
-static void M_DrawTouchOptionsMenu(void);
-#endif
 static void M_DrawCameraOptionsMenu(void);
 static void M_DrawPlaystyleMenu(void);
 static void M_DrawControl(void);
@@ -2100,17 +2097,9 @@ menu_t OP_JoystickSetDef =
 };
 
 #ifdef TOUCHINPUTS
-menu_t OP_TouchOptionsDef = {
+menu_t OP_TouchOptionsDef = DEFAULTMENUSTYLE(
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_TOUCHSCREEN << 12),
-	"M_CONTRO",
-	sizeof (OP_TouchOptionsMenu)/sizeof (menuitem_t),
-	&OP_P1ControlsDef,
-	OP_TouchOptionsMenu,
-	M_DrawTouchOptionsMenu,
-	35, 30,
-	0,
-	NULL
-};
+	"M_CONTRO", OP_TouchOptionsMenu, &OP_P1ControlsDef, 35, 30);
 #endif
 
 menu_t OP_CameraOptionsDef = {
@@ -12328,14 +12317,6 @@ static void M_HandlePlaystyleMenu(INT32 choice)
 		break;
 	}
 }
-
-#ifdef TOUCHINPUTS
-static void M_DrawTouchOptionsMenu(void)
-{
-	ST_drawTouchGameInput(true, cv_touchtrans.value);
-	M_DrawGenericMenu();
-}
-#endif
 
 static void M_DrawCameraOptionsMenu(void)
 {

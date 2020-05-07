@@ -1306,7 +1306,8 @@ void G_TouchControlPreset(void)
 {
 	INT32 x, y, w, h;
 	INT32 corneroffset = 4;
-	INT32 offs = (promptactive ? -32 : 0);
+	INT32 offs = (promptactive ? -16 : 0);
+	INT32 nonjoyoffs = -12;
 	INT32 bottomalign = 0;
 	touchconfig_t *ref;
 	boolean bothvisible;
@@ -1330,6 +1331,9 @@ void G_TouchControlPreset(void)
 			touch_dpad_x -= 4;
 			touch_dpad_y += 8;
 		}
+
+		if (G_RingSlingerGametype())
+			touch_dpad_y -= 4;
 
 		// Up
 		touchcontrols[gc_forward].x = touch_dpad_x + 8;
@@ -1360,7 +1364,7 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_jump].w = 40;
 		touchcontrols[gc_jump].h = 32;
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs;
+		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
 
 		// Spin
 		touchcontrols[gc_use].name = "SPN";
@@ -1381,6 +1385,9 @@ void G_TouchControlPreset(void)
 			touch_dpad_x -= 12;
 			touch_dpad_y += 16;
 		}
+
+		if (G_RingSlingerGametype())
+			touch_dpad_y -= 8;
 
 		x = (touch_dpad_x + touch_dpad_w) - (touch_dpad_w / 2);
 
@@ -1413,7 +1420,7 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_jump].w = 48;
 		touchcontrols[gc_jump].h = 48;
 		touchcontrols[gc_jump].x = ((vid.width / vid.dupx) - touchcontrols[gc_jump].w - corneroffset - 12);
-		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs;
+		touchcontrols[gc_jump].y = ((vid.height / vid.dupy) - touchcontrols[gc_jump].h - corneroffset - 12) + offs + nonjoyoffs;
 
 		// Spin
 		touchcontrols[gc_use].name = "SPIN";

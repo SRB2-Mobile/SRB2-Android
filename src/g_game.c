@@ -903,7 +903,7 @@ static INT32 JoyAxis(axis_input_e axissel)
 	}
 
 #ifdef TOUCHINPUTS
-	if (FLOAT_TO_FIXED(touchxmove) || FLOAT_TO_FIXED(touchymove)) // Touch screen joystick
+	if (fpclassify(touchxmove) == FP_NORMAL || fpclassify(touchymove) == FP_NORMAL) // Touch screen joystick
 	{
 		if (axissel == AXISMOVE)
 			return (INT32)(touchymove * JOYAXISRANGE);
