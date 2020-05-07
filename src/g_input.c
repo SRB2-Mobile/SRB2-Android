@@ -164,20 +164,30 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
 #ifdef TOUCHINPUTS
-void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h)
+void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean screenscale)
 {
-	fixed_t dupx = vid.dupx * FRACUNIT;
-	fixed_t dupy = vid.dupy * FRACUNIT;
-	*x = FixedMul((*x), dupx) / FRACUNIT;
-	*y = FixedMul((*y), dupy) / FRACUNIT;
-	*w = FixedMul((*w), dupx) / FRACUNIT;
-	*h = FixedMul((*h), dupy) / FRACUNIT;
+	if (screenscale)
+	{
+		fixed_t dupx = vid.dupx * FRACUNIT;
+		fixed_t dupy = vid.dupy * FRACUNIT;
+		*x = FixedMul((*x), dupx) / FRACUNIT;
+		*y = FixedMul((*y), dupy) / FRACUNIT;
+		*w = FixedMul((*w), dupx) / FRACUNIT;
+		*h = FixedMul((*h), dupy) / FRACUNIT;
+	}
+	else
+	{
+		*x = FixedInt(*x);
+		*y = FixedInt(*y);
+		*w = FixedInt(*w);
+		*h = FixedInt(*h);
+	}
 }
 
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
 {
 	INT32 tx = butt->x, ty = butt->y, tw = butt->w, th = butt->h;
-	G_ScaleTouchCoords(&tx, &ty, &tw, &th);
+	G_ScaleTouchCoords(&tx, &ty, &tw, &th, (!butt->dontscale));
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
@@ -398,7 +408,7 @@ static void G_HandleFingerEvent(event_t *ev)
 						INT32 padx = touch_dpad_x, pady = touch_dpad_y;
 						INT32 padw = touch_dpad_w, padh = touch_dpad_h;
 
-						G_ScaleTouchCoords(&padx, &pady, &padw, &padh);
+						G_ScaleTouchCoords(&padx, &pady, &padw, &padh, true);
 
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
@@ -1441,6 +1451,7 @@ void G_TouchControlPreset(void)
 	touchconfig_t *ref;
 	boolean bothvisible;
 	boolean eithervisible;
+	INT32 i, wep, dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
 		bottomalign = ((vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy) * FRACUNIT;
@@ -1543,6 +1554,45 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_firenormal].hidden = true;
 		touchcontrols[gc_tossflag].hidden = true;
 	}
+
+	// Weapon select slots
+	x = (ST_WEAPONS_X * FRACUNIT) + (6 * FRACUNIT);
+	y = (ST_WEAPONS_Y * FRACUNIT) - (2 * FRACUNIT);
+	w = ST_WEAPONS_W * FRACUNIT;
+	h = ST_WEAPONS_H * FRACUNIT;
+
+	wep = gc_wepslot1;
+
+	for (i = 0; i < NUM_WEAPONS; i++)
+	{
+		fixed_t wepx = x + (w * i);
+		fixed_t wepy = y;
+
+		wepx = FixedMul(wepx, dup * FRACUNIT);
+		wepy = FixedMul(wepy, dup * FRACUNIT);
+
+		if (vid.height != BASEVIDHEIGHT * dup)
+			wepy += (vid.height - (BASEVIDHEIGHT * dup)) * FRACUNIT;
+		if (vid.width != BASEVIDWIDTH * dup)
+			wepx += (vid.width - (BASEVIDWIDTH * dup)) * (FRACUNIT / 2);
+
+		if (G_RingSlingerGametype())
+		{
+			touchcontrols[wep].x = wepx;
+			touchcontrols[wep].y = wepy;
+			touchcontrols[wep].w = FixedMul(w, dup * FRACUNIT);
+			touchcontrols[wep].h = FixedMul(h, dup * FRACUNIT);
+			touchcontrols[wep].dontscale = true;
+		}
+		else
+			touchcontrols[wep].hidden = true;
+
+		wep++;
+	}
+
+	//
+	// Non-control buttons
+	//
 
 	offs = SCALECOORD(8 * FRACUNIT);
 

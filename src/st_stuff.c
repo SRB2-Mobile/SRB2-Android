@@ -1209,10 +1209,17 @@ static void ST_drawInput(void)
 #ifdef TOUCHINPUTS
 
 #define SCALEBUTTONFIXED(touch) \
-	x = FixedMul(touch->x, dupx); \
-	y = FixedMul(touch->y, dupy); \
-	w = FixedMul(touch->w, dupx); \
-	h = FixedMul(touch->h, dupy);
+	x = touch->x; \
+	y = touch->y; \
+	w = touch->w; \
+	h = touch->h; \
+	if (!touch->dontscale) \
+	{ \
+		x = FixedMul(x, dupx); \
+		y = FixedMul(y, dupy); \
+		w = FixedMul(w, dupx); \
+		h = FixedMul(h, dupy); \
+	}
 
 #define SCALEBUTTON(touch) \
 	SCALEBUTTONFIXED(touch) \
@@ -1528,7 +1535,7 @@ static void ST_drawTouchGameInputButton(INT32 gctype, const char *str, INT32 key
 		}
 		drawfill(x, y + offs, w, h, col, flags);
 
-		// Draw key string
+		// Draw the button name
 		SCALEBUTTONFIXED(control);
 
 		// String width
@@ -1624,6 +1631,10 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 		// Toss flag
 		drawbutt(gc_tossflag);
 	}
+
+	//
+	// Non-control buttons
+	//
 
 	// Control panel
 	drawbutt(gc_systemmenu);
@@ -2694,8 +2705,8 @@ static void ST_drawWeaponRing(powertype_t weapon, INT32 rwflag, INT32 wepflag, I
 static void ST_drawMatchHUD(void)
 {
 	char penaltystr[7];
-	const INT32 y = 176; // HUD_LIVES
-	INT32 offset = (BASEVIDWIDTH / 2) - (NUM_WEAPONS * 10) - 6;
+	const INT32 y = ST_WEAPONS_Y;
+	INT32 offset = ST_WEAPONS_X;
 
 	if (F_GetPromptHideHud(y))
 		return;
@@ -2720,12 +2731,12 @@ static void ST_drawMatchHUD(void)
 				ST_drawWeaponSelect(offset, y);
 		}
 
-		ST_drawWeaponRing(pw_automaticring, RW_AUTO, WEP_AUTO, offset + 20, y, autoring);
-		ST_drawWeaponRing(pw_bouncering, RW_BOUNCE, WEP_BOUNCE, offset + 40, y, bouncering);
-		ST_drawWeaponRing(pw_scatterring, RW_SCATTER, WEP_SCATTER, offset + 60, y, scatterring);
-		ST_drawWeaponRing(pw_grenadering, RW_GRENADE, WEP_GRENADE, offset + 80, y, grenadering);
-		ST_drawWeaponRing(pw_explosionring, RW_EXPLODE, WEP_EXPLODE, offset + 100, y, explosionring);
-		ST_drawWeaponRing(pw_railring, RW_RAIL, WEP_RAIL, offset + 120, y, railring);
+		ST_drawWeaponRing(pw_automaticring, RW_AUTO, WEP_AUTO, offset + ST_WEAPONS_W, y, autoring);
+		ST_drawWeaponRing(pw_bouncering, RW_BOUNCE, WEP_BOUNCE, offset + (ST_WEAPONS_W * 2), y, bouncering);
+		ST_drawWeaponRing(pw_scatterring, RW_SCATTER, WEP_SCATTER, offset + (ST_WEAPONS_W * 3), y, scatterring);
+		ST_drawWeaponRing(pw_grenadering, RW_GRENADE, WEP_GRENADE, offset + (ST_WEAPONS_W * 4), y, grenadering);
+		ST_drawWeaponRing(pw_explosionring, RW_EXPLODE, WEP_EXPLODE, offset + (ST_WEAPONS_W * 5), y, explosionring);
+		ST_drawWeaponRing(pw_railring, RW_RAIL, WEP_RAIL, offset + (ST_WEAPONS_W * 6), y, railring);
 
 		if (stplyr->ammoremovaltimer && leveltime % 8 < 4)
 		{

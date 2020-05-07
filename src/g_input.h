@@ -187,12 +187,14 @@ extern UINT8 touchcontroldown[num_gamecontrols];
 // Touch screen button structure
 typedef struct
 {
-	fixed_t x, y;
-	fixed_t w, h;
+	fixed_t x, y; // coordinates
+	fixed_t w, h; // dimensions
+	const char *name, *tinyname; // key names
+
 	tic_t pressed; // touch navigation
 	boolean dpad; // d-pad key
-	boolean hidden; // hidden key?
-	const char *name, *tinyname; // key name
+	boolean hidden; // key doesn't exist
+	boolean dontscale; // key isn't scaled
 } touchconfig_t;
 
 // Screen buttons
@@ -324,7 +326,7 @@ boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt);
 boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
 
 // Scale a touch button
-void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h);
+void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean screenscale);
 #endif
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen);
