@@ -158,7 +158,7 @@ void G_ResetMice(void);
 boolean G_HandlePauseKey(boolean ispausebreak);
 
 boolean G_DoViewpointSwitch(void);
-boolean G_CanViewpointSwitch(void);
+boolean G_CanViewpointSwitch(boolean luahook);
 boolean G_CanViewpointSwitchToPlayer(player_t *player);
 
 // Lactozilla: Touch input buttons
@@ -200,6 +200,28 @@ typedef struct
 // Screen buttons
 extern touchconfig_t touchcontrols[num_gamecontrols]; // Game inputs
 extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
+
+// Touch config. status
+typedef struct
+{
+	INT32 vidwidth, vidheight;
+
+	fixed_t guiscale; // touch_gui_scale
+	boolean movementstyle; // touch_movementstyle
+	boolean tiny; // touch_tinycontrols
+
+	boolean ringslinger; // G_RingSlingerGametype
+	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
+	boolean canpause;
+	boolean canviewpointswitch; // G_CanViewpointSwitch()
+	boolean cantalk; // netgame && !CHAT_MUTE
+	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
+	boolean promptblockcontrols; // promptblockcontrols
+	boolean canopenconsole; // modeattacking || metalrecording
+} touchconfigstatus_t;
+
+extern touchconfigstatus_t touchcontrolstatus;
+extern touchconfigstatus_t touchnavigationstatus;
 
 // Input variables
 extern fixed_t touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;

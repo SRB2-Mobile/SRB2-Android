@@ -66,6 +66,10 @@ UINT8 touchcontroldown[num_gamecontrols];
 touchconfig_t touchcontrols[num_gamecontrols];
 touchconfig_t touchnavigation[NUMKEYS];
 
+// Touch screen config. status
+touchconfigstatus_t touchcontrolstatus;
+touchconfigstatus_t touchnavigationstatus;
+
 // Input variables
 INT32 touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 fixed_t touch_gui_scale;
@@ -86,7 +90,7 @@ consvar_t cv_touchtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchguiscale = {"touch_guiscale", "0.75", CV_FLOAT|CV_SAVE, touchguiscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchguiscale = {"touch_guiscale", "0.75", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, touchguiscale_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -670,11 +674,13 @@ boolean G_CanViewpointSwitchToPlayer(player_t *player)
 }
 
 // Returns true if you can switch your viewpoint at all.
-boolean G_CanViewpointSwitch(void)
+boolean G_CanViewpointSwitch(boolean luahook)
 {
 	// ViewpointSwitch Lua hook.
 #ifdef HAVE_BLUA
 	UINT8 canSwitchView = 0;
+#else
+	(void)luahook;
 #endif
 
 	INT32 checkdisplayplayer = displayplayer;
@@ -696,11 +702,14 @@ boolean G_CanViewpointSwitch(void)
 
 #ifdef HAVE_BLUA
 		// Call ViewpointSwitch hooks here.
-		canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[checkdisplayplayer], false);
-		if (canSwitchView == 1) // Set viewpoint to this player
-			break;
-		else if (canSwitchView == 2) // Skip this player
-			continue;
+		if (luahook)
+		{
+			canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[checkdisplayplayer], false);
+			if (canSwitchView == 1) // Set viewpoint to this player
+				break;
+			else if (canSwitchView == 2) // Skip this player
+				continue;
+		}
 #endif
 
 		if (!G_CanViewpointSwitchToPlayer(&players[checkdisplayplayer]))
@@ -1437,6 +1446,8 @@ static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixe
 
 void G_TouchControlPreset(void)
 {
+	touchconfigstatus_t *status = &touchcontrolstatus;
+
 	fixed_t x, y, w, h;
 	fixed_t dx, dy, dw, dh;
 	fixed_t corneroffset = 4 * FRACUNIT;
@@ -1517,7 +1528,7 @@ void G_TouchControlPreset(void)
 	}
 
 	// Fire, fire normal, and toss flag
-	if (G_RingSlingerGametype())
+	if (status->ringslinger)
 	{
 		offs = SCALECOORD(8 * FRACUNIT);
 		h = SCALECOORD(FixedDiv(jumph, 2 * FRACUNIT)) + SCALECOORD(4 * FRACUNIT);
@@ -1529,7 +1540,7 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_fire].x = touchcontrols[gc_use].x;
 		touchcontrols[gc_fire].y = touchcontrols[gc_jump].y - offs;
 
-		if (gametyperules & GTR_TEAMFLAGS)
+		if (status->ctfgametype)
 		{
 			ref = &touchcontrols[gc_tossflag];
 			touchcontrols[gc_firenormal].hidden = true;
@@ -1576,7 +1587,7 @@ void G_TouchControlPreset(void)
 		if (vid.width != BASEVIDWIDTH * dup)
 			wepx += (vid.width - (BASEVIDWIDTH * dup)) * (FRACUNIT / 2);
 
-		if (G_RingSlingerGametype())
+		if (status->ringslinger)
 		{
 			touchcontrols[wep].x = wepx;
 			touchcontrols[wep].y = wepy;
@@ -1607,8 +1618,7 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
 	touchcontrols[gc_pause].w = SCALECOORD(24 * FRACUNIT);
 	touchcontrols[gc_pause].h = SCALECOORD(24 * FRACUNIT);
-	if ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer)))
-	|| (modeattacking && demorecording))
+	if (status->canpause)
 		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + SCALECOORD(4 * FRACUNIT));
 	else
 		touchcontrols[gc_pause].hidden = true;
@@ -1617,7 +1627,7 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_viewpoint].hidden = true;
 	touchcontrols[gc_viewpoint].x = touchcontrols[gc_pause].x;
 	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
-	if (G_CanViewpointSwitch())
+	if (status->canviewpointswitch)
 	{
 		touchcontrols[gc_viewpoint].w = SCALECOORD(32 * FRACUNIT);
 		touchcontrols[gc_viewpoint].h = SCALECOORD(24 * FRACUNIT);
@@ -1664,7 +1674,7 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_teamkey].hidden = true; // hidden outside of team games
 
 	// if netgame + chat not muted
-	if (netgame && !CHAT_MUTE)
+	if (status->cantalk)
 	{
 		touchcontrols[gc_talkkey].w = SCALECOORD(32 * FRACUNIT);
 		touchcontrols[gc_talkkey].h = SCALECOORD(24 * FRACUNIT);
@@ -1672,13 +1682,24 @@ void G_TouchControlPreset(void)
 		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
 		touchcontrols[gc_talkkey].hidden = false;
 
-		if (G_GametypeHasTeams() && players[consoleplayer].ctfteam)
+		if (status->canteamtalk)
 		{
 			touchcontrols[gc_teamkey].w = SCALECOORD(32 * FRACUNIT);
 			touchcontrols[gc_teamkey].h = SCALECOORD(24 * FRACUNIT);
 			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
 			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
 			touchcontrols[gc_teamkey].hidden = false;
+		}
+	}
+
+	// Hide movement controls in prompts that block controls
+	if (status->promptblockcontrols)
+	{
+		INT32 i;
+		for (i = 0; i < num_gamecontrols; i++)
+		{
+			if (G_TouchButtonIsPlayerControl(i))
+				touchcontrols[i].hidden = true;
 		}
 	}
 
@@ -1713,17 +1734,6 @@ void G_TouchControlPreset(void)
 	touchcontrols[gc_screenshot].tinyname = "SCR";
 	touchcontrols[gc_talkkey].tinyname = "TLK";
 	touchcontrols[gc_teamkey].tinyname = "TTK";
-
-	// Hide movement controls in prompts that block controls
-	if (promptblockcontrols)
-	{
-		INT32 i;
-		for (i = 0; i < num_gamecontrols; i++)
-		{
-			if (G_TouchButtonIsPlayerControl(i))
-				touchcontrols[i].hidden = true;
-		}
-	}
 }
 
 #undef SCALECOORD
@@ -1748,7 +1758,7 @@ void G_TouchNavigationPreset(void)
 	touchnavigation[KEY_ENTER].y = corneroffset;
 
 	// Console
-	if (modeattacking || metalrecording)
+	if (touchnavigationstatus.canopenconsole)
 		touchnavigation[KEY_CONSOLE].hidden = true;
 	else
 	{
@@ -1762,8 +1772,47 @@ void G_TouchNavigationPreset(void)
 
 void G_DefineTouchButtons(void)
 {
-	G_TouchControlPreset();
-	G_TouchNavigationPreset();
+	static touchconfigstatus_t status, navstatus;
+	size_t size = sizeof(touchconfigstatus_t);
+
+	//
+	// Touch controls
+	//
+
+	status.vidwidth = vid.width;
+	status.vidheight = vid.height;
+
+	status.guiscale = touch_gui_scale;
+	status.movementstyle = touch_movementstyle;
+	status.tiny = touch_tinycontrols;
+
+	status.ringslinger = G_RingSlingerGametype();
+	status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
+	status.canpause = ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer))) || (modeattacking && demorecording));
+	status.canviewpointswitch = G_CanViewpointSwitch(false);
+	status.cantalk = (netgame && !CHAT_MUTE);
+	status.canteamtalk = (G_GametypeHasTeams() && players[consoleplayer].ctfteam);
+	status.promptblockcontrols = promptblockcontrols;
+
+	if (memcmp(&status, &touchcontrolstatus, size))
+	{
+		M_Memcpy(&touchcontrolstatus, &status, size);
+		G_TouchControlPreset();
+	}
+
+	//
+	// Touch navigation
+	//
+
+	navstatus.vidwidth = vid.width;
+	navstatus.vidheight = vid.height;
+	navstatus.canopenconsole = (modeattacking || metalrecording);
+
+	if (memcmp(&navstatus, &touchnavigationstatus, size))
+	{
+		M_Memcpy(&touchnavigationstatus, &navstatus, size);
+		G_TouchNavigationPreset();
+	}
 }
 #endif
 

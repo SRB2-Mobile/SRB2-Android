@@ -1248,16 +1248,19 @@ static inline void CL_DrawConnectionStatus(void)
 	}
 
 #ifdef TOUCHINPUTS
-	// Touch input
+	// Draw touch input
 	{
 		INT32 i;
+
 		for (i = 0; i < NUMKEYS; i++)
 			touchnavigation[i].hidden = true;
 		touchnavigation[KEY_ESCAPE].hidden = false;
+
 #ifdef CLIENT_CONFIRMDOWNLOADS
 		if (cl_mode == CL_CONFIRMDOWNLOADING)
 			touchnavigation[KEY_ENTER].hidden = false;
 #endif
+
 		ST_drawTouchMenuInput();
 	}
 #endif
@@ -2063,9 +2066,12 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 	if (*oldtic != I_GetTime())
 	{
 		INT32 key = 0;
+
 #ifdef TOUCHINPUTS
 		INT32 x = -1, y = -1;
 		boolean fingerok = false;
+
+		G_DefineTouchButtons();
 #endif
 
 		// Get events, be them keyboard events, or touch screen events
