@@ -611,6 +611,10 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_pingtimeout);
 	CV_RegisterVar(&cv_showping);
 
+#if defined(__ANDROID__)
+	CV_RegisterVar(&cv_thinkless);
+#endif
+
 #ifdef SEENAMES
 	 CV_RegisterVar(&cv_allowseenames);
 #endif

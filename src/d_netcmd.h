@@ -120,6 +120,10 @@ extern consvar_t cv_skipmapcheck;
 
 extern consvar_t cv_sleep;
 
+#if defined(__ANDROID__)
+extern consvar_t cv_thinkless;
+#endif
+
 extern char timedemo_name[256];
 extern boolean timedemo_csv;
 extern char timedemo_csv_id[256];

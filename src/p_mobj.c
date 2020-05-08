@@ -37,6 +37,10 @@
 #include "f_finale.h"
 #include "m_cond.h"
 
+#if defined(__ANDROID__)
+consvar_t cv_thinkless = {"reducedthinking", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+#endif
+
 static CV_PossibleValue_t CV_BobSpeed[] = {{0, "MIN"}, {4*FRACUNIT, "MAX"}, {0, NULL}};
 consvar_t cv_movebob = {"movebob", "1.0", CV_FLOAT|CV_SAVE, CV_BobSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -10125,6 +10129,23 @@ void P_MobjThinker(mobj_t *mobj)
 
 	if (mobj->flags & MF_NOTHINK)
 		return;
+
+#if defined(__ANDROID__)
+	//__ANDROID__: lmao fuck netplay I just want cez2 to be playable
+	if (!mobj->player && (cv_thinkless.value && !(netgame || multiplayer)))
+	{
+		fixed_t tx, ty, cx, cy;
+		const fixed_t blocksize = 1024*FRACUNIT;
+		const fixed_t range = 4;
+		tx = mobj->x / blocksize;
+		ty = mobj->y / blocksize;
+		cx = viewx / blocksize;
+		cy = viewy / blocksize;
+
+		if (abs(tx-cx) > range || abs(ty-cy) > range)
+			return;
+	}
+#endif
 
 	if ((mobj->flags & MF_BOSS) && mobj->spawnpoint && (bossdisabled & (1<<mobj->spawnpoint->extrainfo)))
 		return;
