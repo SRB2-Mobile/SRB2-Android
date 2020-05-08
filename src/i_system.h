@@ -234,13 +234,17 @@ void I_AddExitFunc(void (*func)());
 */
 void I_RemoveExitFunc(void (*func)());
 
-/**	\brief Setup signal handler, plus stuff for trapping errors and cleanly exit.
+/**	\brief Startup systems
 */
 INT32 I_StartupSystem(void);
 
 /**	\brief Shutdown systems
 */
 void I_ShutdownSystem(void);
+
+/**	\brief Setup signal handler, plus stuff for trapping errors and cleanly exit.
+*/
+void I_SetupSignalHandler(void);
 
 /**	\brief	The I_GetDiskFreeSpace function
 

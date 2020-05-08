@@ -14,12 +14,12 @@ int main(int argc, char* argv[])
 	myargc = argc;
 	myargv = argv;
 
-	JNI_Startup();
-
 #ifdef LOGMESSAGES
 	logstream = fopen(va("%s/log.txt", I_StorageLocation()), "wt+");
-	CONS_Printf("Lactozilla was here\n");
 #endif
+
+	JNI_Startup();
+	I_SetupSignalHandler();
 
 	CONS_Printf("Setting up SRB2...\n");
 	D_SRB2Main();

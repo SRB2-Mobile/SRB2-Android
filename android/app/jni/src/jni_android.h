@@ -24,7 +24,33 @@
 
 void JNI_Startup(void);
 void JNI_SetupActivity(void);
+void JNI_SetupDeviceInfo(void);
+void JNI_SetupABIList(void);
 
-const char *JNI_ExternalStoragePath(void);
+typedef enum JNI_DeviceInfo_e
+{
+	JNIDeviceInfo_Brand,
+	JNIDeviceInfo_Device,
+	JNIDeviceInfo_Manufacturer,
+	JNIDeviceInfo_Model,
+
+	JNIDeviceInfo_Size
+} JNI_DeviceInfo_t;
+
+typedef struct JNI_DeviceInfoReference_s
+{
+	const char *info;
+	const char *display_info;
+	JNI_DeviceInfo_t info_enum;
+} JNI_DeviceInfoReference_t;
+
+extern char *JNI_DeviceInfo[JNIDeviceInfo_Size];
+extern JNI_DeviceInfoReference_t JNI_DeviceInfoReference[JNIDeviceInfo_Size + 1];
+
+extern char **JNI_ABIList;
+extern int JNI_ABICount;
+
+char *JNI_ExternalStoragePath(void);
+char *JNI_GetDeviceInfo(const char *info);
 
 #endif

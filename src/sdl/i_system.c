@@ -102,7 +102,7 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #endif
 #endif
 
-#if (defined (__unix__) && !defined (_MSDOS)) || defined (UNIXCOMMON)
+#if ((defined (__unix__) && !defined (_MSDOS)) || defined (UNIXCOMMON)) && !defined(__ANDROID__)
 #include <errno.h>
 #include <sys/wait.h>
 #define NEWSIGNALHANDLER
@@ -135,6 +135,7 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 
 #if defined(__ANDROID__)
 #include <jni_android.h> // includes jni.h
+#include <ndk_crash_handler.h>
 #endif
 
 #ifndef errno
@@ -288,6 +289,10 @@ static void I_ReportSignal(int num, int coredumped)
 	}
 
 	I_OutputMsg("\nProcess killed by signal: %s\n\n", sigmsg);
+
+#if defined(__ANDROID__)
+	NDKCrashHandler_ReportSignal(sigmsg);
+#endif
 
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
 		"Process killed by signal",
@@ -677,9 +682,6 @@ static inline void I_StartupConsole(void)
 static inline void I_ShutdownConsole(void){}
 #endif
 
-//
-// StartupKeyboard
-//
 static void I_RegisterSignals (void)
 {
 #ifdef SIGINT
@@ -2301,6 +2303,14 @@ static void I_Fork(void)
 }
 #endif/*NEWSIGNALHANDLER*/
 
+void I_SetupSignalHandler(void)
+{
+#ifdef NEWSIGNALHANDLER
+	I_Fork();
+#endif
+	I_RegisterSignals();
+}
+
 INT32 I_StartupSystem(void)
 {
 	SDL_version SDLcompiled;
@@ -2308,10 +2318,7 @@ INT32 I_StartupSystem(void)
 	SDL_VERSION(&SDLcompiled)
 	SDL_GetVersion(&SDLlinked);
 	I_StartupConsole();
-#ifdef NEWSIGNALHANDLER
-	I_Fork();
-#endif
-	I_RegisterSignals();
+	I_SetupSignalHandler();
 	I_OutputMsg("Compiled for SDL version: %d.%d.%d\n",
 	 SDLcompiled.major, SDLcompiled.minor, SDLcompiled.patch);
 	I_OutputMsg("Linked with SDL version: %d.%d.%d\n",

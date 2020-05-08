@@ -18,10 +18,25 @@ static JNIEnv *jni_env = NULL;
 static jobject activity_object;
 static jclass activity_class;
 
+char *JNI_DeviceInfo[JNIDeviceInfo_Size];
+
+JNI_DeviceInfoReference_t JNI_DeviceInfoReference[JNIDeviceInfo_Size + 1] =
+{
+	{"BRAND", "Brand", JNIDeviceInfo_Brand},
+	{"DEVICE", "Device", JNIDeviceInfo_Device},
+	{"MANUFACTURER", "Manufacturer", JNIDeviceInfo_Manufacturer},
+	{"MODEL", "Model", JNIDeviceInfo_Model},
+	{NULL, NULL, 0},
+};
+
+char **JNI_ABIList = NULL;
+int JNI_ABICount = 0;
+
 void JNI_Startup(void)
 {
 	CONS_Printf("JNI_Startup()...\n");
 	JNI_SetupActivity();
+	JNI_SetupDeviceInfo();
 }
 
 void JNI_SetupActivity(void)
@@ -30,6 +45,35 @@ void JNI_SetupActivity(void)
 	(*jni_env)->GetJavaVM(jni_env, &jvm);
 	activity_object = (jobject)SDL_AndroidGetActivity();
 	activity_class = (*jni_env)->GetObjectClass(jni_env, activity_object);
+}
+
+void JNI_SetupDeviceInfo(void)
+{
+	INT32 i;
+
+	CONS_Printf("Device info:\n");
+	for (i = 0; JNI_DeviceInfoReference[i].info; i++)
+	{
+		JNI_DeviceInfoReference_t *ref = &JNI_DeviceInfoReference[i];
+		JNI_DeviceInfo_t info_e = ref->info_enum;
+		JNI_DeviceInfo[info_e] = JNI_GetDeviceInfo(ref->info);
+		CONS_Printf("%s: %s\n", ref->display_info, JNI_DeviceInfo[info_e]);
+	}
+
+	JNI_SetupABIList();
+
+	if (JNI_ABICount)
+	{
+		CONS_Printf("Supported ABIs: ");
+		for (i = 0; i < JNI_ABICount; i++)
+		{
+			CONS_Printf("%s", JNI_ABIList[i]);
+			if (i == JNI_ABICount-1)
+				CONS_Printf("\n");
+			else
+				CONS_Printf(", ");
+		}
+	}
 }
 
 static JNIEnv *JNI_GetEnv(void)
@@ -102,7 +146,7 @@ static int LocalReferenceHolder_IsActive(void)
 #define CLEANREF LocalReferenceHolder_Cleanup(&refs);
 
 // Get the secondary external storage path
-const char *JNI_ExternalStoragePath(void)
+char *JNI_ExternalStoragePath(void)
 {
 	static char *s_AndroidExternalFilesPath = NULL;
 
@@ -158,4 +202,75 @@ const char *JNI_ExternalStoragePath(void)
 	}
 
 	return s_AndroidExternalFilesPath;
+}
+
+// Get device info
+// https://developer.android.com/reference/android/os/Build.html
+char *JNI_GetDeviceInfo(const char *info)
+{
+	LOCALREF
+	JNIEnv *env;
+	jmethodID method;
+	jobject context;
+
+	jclass build;
+	jfieldID id;
+	jstring str;
+	const char *deviceInfo_ref = NULL;
+	char *deviceInfo = NULL;
+
+	JNI_CONTEXT(NULL);
+
+	build = (*env)->FindClass(env, "android/os/Build");
+	id = (*env)->GetStaticFieldID(env, build, info, "Ljava/lang/String;");
+	str = (jstring)(*env)->GetStaticObjectField(env, build, id);
+	deviceInfo_ref = (*env)->GetStringUTFChars(env, str, NULL);
+
+	deviceInfo = malloc(strlen(deviceInfo_ref) + 1);
+	strcpy(deviceInfo, deviceInfo_ref);
+	(*env)->ReleaseStringUTFChars(env, str, deviceInfo_ref);
+
+	CLEANREF
+
+	return deviceInfo;
+}
+
+// https://developer.android.com/ndk/guides/abis
+void JNI_SetupABIList(void)
+{
+	LOCALREF
+	JNIEnv *env;
+	jmethodID method;
+	jobject context;
+
+	jclass build;
+	jfieldID id;
+	jstring str;
+	jobjectArray array;
+	int i;
+
+	JNI_CONTEXT();
+
+	build = (*env)->FindClass(env, "android/os/Build");
+	id = (*env)->GetStaticFieldID(env, build, "SUPPORTED_ABIS", "[Ljava/lang/String;");
+	array = (jobjectArray)(*env)->GetStaticObjectField(env, build, id);
+
+	JNI_ABICount = (*env)->GetArrayLength(env, array);
+	if (JNI_ABICount < 1)
+		return;
+
+	JNI_ABIList = malloc(sizeof(char **) * JNI_ABICount);
+	if (!JNI_ABIList)
+		return;
+
+	for (i = 0; i < JNI_ABICount; i++)
+	{
+		str = (jstring)((*env)->GetObjectArrayElement(env, array, i));
+		const char *ABI = (*env)->GetStringUTFChars(env, str, NULL);
+		JNI_ABIList[i] = malloc(strlen(ABI) + 1);
+		strcpy(JNI_ABIList[i], ABI);
+		(*env)->ReleaseStringUTFChars(env, str, ABI);
+	}
+
+	CLEANREF
 }
