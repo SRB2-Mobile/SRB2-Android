@@ -350,6 +350,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				dpad.y = touch_dpad_y;
 				dpad.w = touch_dpad_w;
 				dpad.h = touch_dpad_h;
+				dpad.dontscale = false;
 				if (G_FingerTouchesButton(x, y, &dpad))
 				{
 					// Joystick
