@@ -245,8 +245,9 @@ void JNI_SetupABIList(void)
 
 	jclass build;
 	jfieldID id;
-	jstring str;
 	jobjectArray array;
+	jstring str;
+	const char *ABI;
 	int i;
 
 	JNI_CONTEXT();
@@ -266,7 +267,7 @@ void JNI_SetupABIList(void)
 	for (i = 0; i < JNI_ABICount; i++)
 	{
 		str = (jstring)((*env)->GetObjectArrayElement(env, array, i));
-		const char *ABI = (*env)->GetStringUTFChars(env, str, NULL);
+		ABI = (*env)->GetStringUTFChars(env, str, NULL);
 		JNI_ABIList[i] = malloc(strlen(ABI) + 1);
 		strcpy(JNI_ABIList[i], ABI);
 		(*env)->ReleaseStringUTFChars(env, str, ABI);
