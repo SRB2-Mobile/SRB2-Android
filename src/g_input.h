@@ -201,28 +201,6 @@ typedef struct
 extern touchconfig_t touchcontrols[num_gamecontrols]; // Game inputs
 extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
 
-// Touch config. status
-typedef struct
-{
-	INT32 vidwidth, vidheight;
-
-	fixed_t guiscale; // touch_gui_scale
-	boolean movementstyle; // touch_movementstyle
-	boolean tiny; // touch_tinycontrols
-
-	boolean ringslinger; // G_RingSlingerGametype
-	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
-	boolean canpause;
-	boolean canviewpointswitch; // G_CanViewpointSwitch()
-	boolean cantalk; // netgame && !CHAT_MUTE
-	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
-	boolean promptblockcontrols; // promptblockcontrols
-	boolean canopenconsole; // modeattacking || metalrecording
-} touchconfigstatus_t;
-
-extern touchconfigstatus_t touchcontrolstatus;
-extern touchconfigstatus_t touchnavigationstatus;
-
 // Input variables
 extern fixed_t touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
 extern fixed_t touch_gui_scale;
@@ -251,6 +229,28 @@ extern boolean touch_screenexists;
 extern touchmovementstyle_e touch_movementstyle;
 extern boolean touch_tinycontrols;
 extern boolean touch_camera;
+
+// Touch config. status
+typedef struct
+{
+	INT32 vidwidth, vidheight;
+
+	fixed_t guiscale; // touch_gui_scale
+	touchmovementstyle_e movementstyle; // touch_movementstyle
+	boolean tiny; // touch_tinycontrols
+
+	boolean ringslinger; // G_RingSlingerGametype
+	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
+	boolean canpause;
+	boolean canviewpointswitch; // G_CanViewpointSwitch()
+	boolean cantalk; // netgame && !CHAT_MUTE
+	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
+	boolean promptblockcontrols; // promptblockcontrols
+	boolean canopenconsole; // modeattacking || metalrecording
+} touchconfigstatus_t;
+
+extern touchconfigstatus_t touchcontrolstatus;
+extern touchconfigstatus_t touchnavigationstatus;
 
 // Console variables for the touch screen
 extern consvar_t cv_touchstyle;

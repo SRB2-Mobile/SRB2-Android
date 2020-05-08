@@ -11,16 +11,21 @@
 
 int main(int argc, char* argv[])
 {
-    myargc = argc;
-    myargv = argv;
+	myargc = argc;
+	myargv = argv;
 
-    JNI_Startup();
+	JNI_Startup();
 
-    CONS_Printf("Setting up SRB2...\n");
-    D_SRB2Main();
+#ifdef LOGMESSAGES
+	logstream = fopen(va("%s/log.txt", I_StorageLocation()), "wt+");
+	CONS_Printf("Lactozilla was here\n");
+#endif
 
-    CONS_Printf("Entering main game loop...\n");
-    D_SRB2Loop();
+	CONS_Printf("Setting up SRB2...\n");
+	D_SRB2Main();
 
-    return 0;
+	CONS_Printf("Entering main game loop...\n");
+	D_SRB2Loop();
+
+	return 0;
 }

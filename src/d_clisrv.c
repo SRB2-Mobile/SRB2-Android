@@ -1187,8 +1187,8 @@ static inline void CL_DrawConnectionStatus(void)
 #ifdef CLIENT_CONFIRMDOWNLOADS
 			case CL_CONFIRMDOWNLOADING:
 				V_DrawCenteredString(BASEVIDWIDTH/2, top-42, V_YELLOWMAP,
-					va(M_GetText("Download %u%sB of files?"),
-					(totaldownloadsize >= 1<<20 ? totaldownloadsize>>20 : totaldownloadsize>>10),
+					va(M_GetText("Download %s%sB of files?"),
+					sizeu1(totaldownloadsize >= 1<<20 ? totaldownloadsize>>20 : totaldownloadsize>>10),
 					(totaldownloadsize >= 1<<20) ? "M" : "K"));
 				cltext = M_GetText(CONFIRM_MESSAGE " or " PRESS_N_MESSAGE_L);
 				palstart = 48;

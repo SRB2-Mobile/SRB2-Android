@@ -95,6 +95,11 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "lua_script.h"
 #endif
 
+#ifdef LOGMESSAGES
+FILE *logstream = NULL;
+char logfilename[1024];
+#endif
+
 // platform independant focus loss
 UINT8 window_notinfocus = false;
 
@@ -843,6 +848,9 @@ void D_StartTitle(void)
 	F_StartTitleScreen();
 
 	currentMenu = &MainDef; // reset the current menu ID
+#ifdef TOUCHINPUTS
+	G_TouchNavigationPreset();
+#endif
 
 	// Reset the palette
 	if (rendermode != render_none)

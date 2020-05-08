@@ -50,11 +50,6 @@
 extern int SDL_main(int argc, char *argv[]);
 #endif
 
-#ifdef LOGMESSAGES
-FILE *logstream = NULL;
-char logfilename[1024];
-#endif
-
 #ifndef DOXYGEN
 #ifndef O_TEXT
 #define O_TEXT 0

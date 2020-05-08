@@ -71,10 +71,6 @@ static LPCSTR wClassName = "SRB2WC";
 
 INT appActive = false; // app window is active
 
-#ifdef LOGMESSAGES
-FILE *logstream;
-#endif
-
 BOOL nodinput = FALSE;
 
 static LRESULT CALLBACK MainWndproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
