@@ -1539,10 +1539,10 @@ void I_InitJoystick2(void)
 		SDL_JoystickClose(newjoy);
 }
 
+#ifdef TOUCHINPUTS
 //
 // I_InitTouchScreen
 //
-#ifdef TOUCHINPUTS
 void I_InitTouchScreen(void)
 {
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
@@ -1562,6 +1562,12 @@ void I_InitTouchScreen(void)
 		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == -1)
 			CONS_Printf(M_GetText("Couldn't initialize the touch screen: %s\n"), SDL_GetError());
 	}
+}
+
+void I_TouchScreenAvailable(void)
+{
+    if (!cv_captionbackgrounds.changed)
+		CV_Set(&cv_captionbackgrounds, "On");
 }
 #endif
 

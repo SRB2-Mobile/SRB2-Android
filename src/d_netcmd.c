@@ -896,6 +896,7 @@ void D_RegisterClientCommands(void)
 	// s_sound.c
 	CV_RegisterVar(&cv_soundvolume);
 	CV_RegisterVar(&cv_closedcaptioning);
+	CV_RegisterVar(&cv_captionbackgrounds);
 	CV_RegisterVar(&cv_digmusicvolume);
 	CV_RegisterVar(&cv_midimusicvolume);
 	CV_RegisterVar(&cv_numChannels);

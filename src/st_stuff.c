@@ -1588,10 +1588,8 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	if (!alphalevel)
 		return;
 
-#if defined(__ANDROID__)
 	if (!touch_screenexists)
 		return;
-#endif
 
 	// Draw movement control
 	if (!promptblockcontrols && drawgamecontrols)
@@ -1684,10 +1682,8 @@ void ST_drawTouchMenuInput(void)
 	if (!alphalevel)
 		return;
 
-#if defined(__ANDROID__)
 	if (!touch_screenexists)
 		return;
-#endif
 
 #define drawbutt(keyname, symb) \
 	control = &touchnavigation[keyname]; \

@@ -585,9 +585,10 @@ void SCR_ClosedCaptions(void)
 
 	for (i = 0; i < NUMCAPTIONS; i++)
 	{
-		INT32 flags, y;
+		INT32 flags, x, y, h;
 		char dot;
 		boolean music;
+		const char *caption;
 
 		if (!closedcaptions[i].s)
 			continue;
@@ -598,7 +599,10 @@ void SCR_ClosedCaptions(void)
 			continue;
 
 		flags = V_SNAPTORIGHT|V_SNAPTOBOTTOM|V_ALLOWLOWERCASE;
-		y = basey-((i + 2)*10);
+		x = BASEVIDWIDTH - 20;
+
+		h = (cv_captionbackgrounds.value) ? 12 : 10;
+		y = basey-((i + 2)*h);
 
 		if (closedcaptions[i].b)
 			y -= (closedcaptions[i].b--)*vid.dupy;
@@ -613,7 +617,9 @@ void SCR_ClosedCaptions(void)
 		else
 			dot = ' ';
 
-		V_DrawRightAlignedString(BASEVIDWIDTH - 20, y, flags,
-			va("%c [%s]", dot, (closedcaptions[i].s->caption[0] ? closedcaptions[i].s->caption : closedcaptions[i].s->name)));
+		caption = va("%c [%s]", dot, (closedcaptions[i].s->caption[0] ? closedcaptions[i].s->caption : closedcaptions[i].s->name));
+		if (cv_captionbackgrounds.value)
+			V_DrawFill(x - V_StringWidth(caption, flags), y - 2, V_StringWidth(caption, flags), h, flags|31);
+		V_DrawRightAlignedString(x, y, flags, caption);
 	}
 }

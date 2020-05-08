@@ -957,7 +957,10 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	D_PostEvent(&event);
 
 	if (!touch_screenexists)
+	{
+		I_TouchScreenAvailable();
 		touch_screenexists = true;
+	}
 }
 
 // Lactozilla: Android text input

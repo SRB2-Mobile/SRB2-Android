@@ -168,10 +168,14 @@ INT32 I_NumJoys(void);
 */
 const char *I_GetJoyName(INT32 joyindex);
 
+#ifdef TOUCHINPUTS
 /**	\brief to startup the touch screen
 */
-#ifdef TOUCHINPUTS
 void I_InitTouchScreen(void);
+
+/**	\brief the touch screen was made available (exists)
+*/
+void I_TouchScreenAvailable(void);
 
 /**	\brief show the on-screen keyboard
 */

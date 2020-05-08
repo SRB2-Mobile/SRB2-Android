@@ -29,7 +29,7 @@ openmpt_module *openmpt_mhandle;
 #define PICKUP_SOUND 0x8000
 
 extern consvar_t stereoreverse;
-extern consvar_t cv_soundvolume, cv_closedcaptioning, cv_digmusicvolume, cv_midimusicvolume;
+extern consvar_t cv_soundvolume, cv_closedcaptioning, cv_captionbackgrounds, cv_digmusicvolume, cv_midimusicvolume;
 extern consvar_t cv_numChannels;
 
 extern consvar_t cv_resetmusic;
