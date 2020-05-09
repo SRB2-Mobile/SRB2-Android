@@ -1249,20 +1249,10 @@ static inline void CL_DrawConnectionStatus(void)
 
 #ifdef TOUCHINPUTS
 	// Draw touch input
-	{
-		INT32 i;
-
-		for (i = 0; i < NUMKEYS; i++)
-			touchnavigation[i].hidden = true;
-		touchnavigation[KEY_ESCAPE].hidden = false;
-
 #ifdef CLIENT_CONFIRMDOWNLOADS
-		if (cl_mode == CL_CONFIRMDOWNLOADING)
-			touchnavigation[KEY_ENTER].hidden = false;
+	touchnavigation[KEY_ENTER].hidden = (cl_mode != CL_CONFIRMDOWNLOADING);
 #endif
-
-		ST_drawTouchMenuInput();
-	}
+	ST_drawTouchMenuInput();
 #endif
 }
 #endif
@@ -2207,6 +2197,12 @@ static void CL_ConnectToServer(boolean viams)
 	SL_ClearServerList(servernode);
 #endif
 
+#ifdef TOUCHINPUTS
+	for (i = 0; i < NUMKEYS; i++)
+		touchnavigation[i].hidden = true;
+	touchnavigation[KEY_ESCAPE].hidden = false;
+#endif
+
 	do
 	{
 		// If the connection was aborted for some reason, leave
@@ -2228,6 +2224,10 @@ static void CL_ConnectToServer(boolean viams)
 	while (!(cl_mode == CL_CONNECTED && (client || (server && nodewaited <= pnumnodes))));
 
 	DEBFILE(va("Synchronisation Finished\n"));
+
+#ifdef TOUCHINPUTS
+	G_TouchNavigationPreset();
+#endif
 
 	displayplayer = consoleplayer;
 }
