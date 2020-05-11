@@ -156,10 +156,7 @@ void G_ResetJoysticks(void);
 void G_ResetMice(void);
 
 boolean G_HandlePauseKey(boolean ispausebreak);
-
 boolean G_DoViewpointSwitch(void);
-boolean G_CanViewpointSwitch(boolean luahook);
-boolean G_CanViewpointSwitchToPlayer(player_t *player);
 
 // Lactozilla: Touch input buttons
 #ifdef TOUCHINPUTS

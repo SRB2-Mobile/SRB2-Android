@@ -25,10 +25,7 @@
 #include "d_player.h"
 #include "console.h"
 #include "i_system.h"
-
-#ifdef HAVE_BLUA
 #include "lua_hook.h"
-#endif
 
 #define MAXMOUSESENSITIVITY 100 // sensitivity steps
 
@@ -639,81 +636,6 @@ boolean G_HandlePauseKey(boolean ispausebreak)
 	}
 
 	return false;
-}
-
-// Returns true if you can switch your viewpoint to this player.
-boolean G_CanViewpointSwitchToPlayer(player_t *player)
-{
-	player_t *myself = &players[consoleplayer];
-
-	if (player->spectator)
-		return false;
-
-	if (G_GametypeHasTeams())
-	{
-		if (myself->ctfteam && player->ctfteam != myself->ctfteam)
-			return false;
-	}
-	else if (gametype == GT_HIDEANDSEEK)
-	{
-		if (myself->pflags & PF_TAGIT)
-			return false;
-	}
-	// Other Tag-based gametypes?
-	else if (G_TagGametype())
-	{
-		if (!myself->spectator && (myself->pflags & PF_TAGIT) != (player->pflags & PF_TAGIT))
-			return false;
-	}
-	else if (G_GametypeHasSpectators() && G_RingSlingerGametype())
-	{
-		if (!myself->spectator)
-			return false;
-	}
-
-	return true;
-}
-
-// Returns true if you can switch your viewpoint at all.
-boolean G_CanViewpointSwitch(boolean luahook)
-{
-	// ViewpointSwitch Lua hook.
-	UINT8 canSwitchView = 0;
-	INT32 checkdisplayplayer = displayplayer;
-
-	if (splitscreen || !netgame)
-		return false;
-
-	if (D_NumPlayers() <= 1)
-		return false;
-
-	do
-	{
-		checkdisplayplayer++;
-		if (checkdisplayplayer == MAXPLAYERS)
-			checkdisplayplayer = 0;
-
-		if (!playeringame[checkdisplayplayer])
-			continue;
-
-		// Call ViewpointSwitch hooks here.
-		if (luahook)
-		{
-			canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[checkdisplayplayer], false);
-			if (canSwitchView == 1) // Set viewpoint to this player
-				break;
-			else if (canSwitchView == 2) // Skip this player
-				continue;
-		}
-
-		if (!G_CanViewpointSwitchToPlayer(&players[checkdisplayplayer]))
-			continue;
-
-		break;
-	} while (checkdisplayplayer != consoleplayer);
-
-	// had any change??
-	return (checkdisplayplayer != displayplayer);
 }
 
 // Handles the viewpoint switch key being pressed.

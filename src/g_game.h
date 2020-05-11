@@ -205,6 +205,9 @@ void G_EndGame(void); // moved from y_inter.c/h and renamed
 void G_Ticker(boolean run);
 boolean G_Responder(event_t *ev);
 
+boolean G_CanViewpointSwitch(boolean luahook);
+boolean G_CanViewpointSwitchToPlayer(player_t *player);
+
 void G_AddPlayer(INT32 playernum);
 
 void G_SetExitGameFlag(void);
