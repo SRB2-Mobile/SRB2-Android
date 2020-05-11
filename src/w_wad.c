@@ -663,7 +663,7 @@ static lumpinfo_t* ResGetLumpsZip (void* handle, UINT16* nlmp)
 		}
 
 		// skip and ignore comments/extra fields
-		if (fseek(handle, zentry.xtralen + zentry.commlen, SEEK_CUR) != 0)
+		if (File_Seek(handle, zentry.xtralen + zentry.commlen, SEEK_CUR) != 0)
 		{
 			CONS_Alert(CONS_ERROR, "Central directory is corrupt\n");
 			Z_Free(lumpinfo);
@@ -675,7 +675,7 @@ static lumpinfo_t* ResGetLumpsZip (void* handle, UINT16* nlmp)
 	for (i = 0, lump_p = lumpinfo; i < numlumps; i++, lump_p++)
 	{
 		// skip and ignore comments/extra fields
-		if ((fseek(handle, lump_p->position, SEEK_SET) != 0) || (fread(&zlentry, 1, sizeof(zlentry_t), handle) < sizeof(zlentry_t)))
+		if ((File_Seek(handle, lump_p->position, SEEK_SET) != 0) || (File_Read(&zlentry, 1, sizeof(zlentry_t), handle) < sizeof(zlentry_t)))
 		{
 			CONS_Alert(CONS_ERROR, "Local headers for lump %s are corrupt\n", lump_p->fullname);
 			Z_Free(lumpinfo);
@@ -2040,7 +2040,7 @@ W_VerifyPK3 (void *fp, lumpchecklist_t *checklist, boolean status)
 		free(fullname);
 
 		// skip and ignore comments/extra fields
-		if (fseek(fp, zentry.xtralen + zentry.commlen, SEEK_CUR) != 0)
+		if (File_Seek(fp, zentry.xtralen + zentry.commlen, SEEK_CUR) != 0)
 			return true;
 	}
 

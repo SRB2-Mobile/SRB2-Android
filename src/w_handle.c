@@ -213,7 +213,7 @@ int File_SDLSeek(void *f, long int offset, int origin)
 
 	position = (int)SDL_RWseek((struct SDL_RWops *)handle->file, offset, type);
 	File_SDLSetError(handle);
-	return position;
+	return (position == -1) ? -1 : 0;
 }
 
 // Get the current position in the stream.
