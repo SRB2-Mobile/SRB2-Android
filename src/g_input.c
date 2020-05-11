@@ -678,12 +678,7 @@ boolean G_CanViewpointSwitchToPlayer(player_t *player)
 boolean G_CanViewpointSwitch(boolean luahook)
 {
 	// ViewpointSwitch Lua hook.
-#ifdef HAVE_BLUA
 	UINT8 canSwitchView = 0;
-#else
-	(void)luahook;
-#endif
-
 	INT32 checkdisplayplayer = displayplayer;
 
 	if (splitscreen || !netgame)
@@ -701,7 +696,6 @@ boolean G_CanViewpointSwitch(boolean luahook)
 		if (!playeringame[checkdisplayplayer])
 			continue;
 
-#ifdef HAVE_BLUA
 		// Call ViewpointSwitch hooks here.
 		if (luahook)
 		{
@@ -711,7 +705,6 @@ boolean G_CanViewpointSwitch(boolean luahook)
 			else if (canSwitchView == 2) // Skip this player
 				continue;
 		}
-#endif
 
 		if (!G_CanViewpointSwitchToPlayer(&players[checkdisplayplayer]))
 			continue;
@@ -727,9 +720,7 @@ boolean G_CanViewpointSwitch(boolean luahook)
 boolean G_DoViewpointSwitch(void)
 {
 	// ViewpointSwitch Lua hook.
-#ifdef HAVE_BLUA
 	UINT8 canSwitchView = 0;
-#endif
 
 	if (splitscreen || !netgame)
 		displayplayer = consoleplayer;
@@ -744,14 +735,12 @@ boolean G_DoViewpointSwitch(void)
 			if (!playeringame[displayplayer])
 				continue;
 
-#ifdef HAVE_BLUA
 			// Call ViewpointSwitch hooks here.
 			canSwitchView = LUAh_ViewpointSwitch(&players[consoleplayer], &players[displayplayer], false);
 			if (canSwitchView == 1) // Set viewpoint to this player
 				break;
 			else if (canSwitchView == 2) // Skip this player
 				continue;
-#endif
 
 			if (!G_CanViewpointSwitchToPlayer(&players[displayplayer]))
 				continue;

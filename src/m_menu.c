@@ -527,6 +527,8 @@ static menuitem_t MISC_AddonsMenu[] =
 // ---------------------------------
 static menuitem_t MAPauseMenu[] =
 {
+	{IT_CALL | IT_STRING,    NULL, "Emblem Hints...",      M_EmblemHints,         32},
+
 	{IT_CALL | IT_STRING,    NULL, "Continue",             M_SelectableClearMenus,48},
 	{IT_CALL | IT_STRING,    NULL, "Retry",                M_ModeAttackRetry,     56},
 	{IT_CALL | IT_STRING,    NULL, "Abort",                M_ModeAttackEndGame,   64},
@@ -534,6 +536,7 @@ static menuitem_t MAPauseMenu[] =
 
 typedef enum
 {
+	mapause_hints,
 	mapause_continue,
 	mapause_retry,
 	mapause_abort
@@ -735,9 +738,9 @@ static menuitem_t SR_SoundTestMenu[] =
 
 static menuitem_t SR_EmblemHintMenu[] =
 {
-	{IT_STRING | IT_ARROWS,       NULL, "Page", M_HandleEmblemHints, 10},
-	{IT_STRING|IT_CVAR,         NULL, "Emblem Radar", &cv_itemfinder, 20},
-	{IT_WHITESTRING|IT_SUBMENU, NULL, "Back",         &SPauseDef,     30}
+	{IT_STRING | IT_ARROWS,  NULL, "Page",    M_HandleEmblemHints, 10},
+	{IT_STRING|IT_CVAR,      NULL, "Emblem Radar", &cv_itemfinder, 20},
+	{IT_WHITESTRING|IT_CALL, NULL, "Back",         M_GoBack,       30}
 };
 
 // --------------------------------
@@ -1623,7 +1626,7 @@ static menuitem_t OP_ServerOptionsMenu[] =
 	{IT_HEADER, NULL, "General", NULL, 0},
 #ifndef NONET
 	{IT_STRING | IT_CVAR | IT_CV_STRING,
-	                         NULL, "Server name",                      &cv_servername,          7},
+	                         NULL, "Server name",                      &cv_servername,           7},
 	{IT_STRING | IT_CVAR,    NULL, "Max Players",                      &cv_maxplayers,          21},
 	{IT_STRING | IT_CVAR,    NULL, "Allow Add-on Downloading",         &cv_downloading,         26},
 	{IT_STRING | IT_CVAR,    NULL, "Allow players to join",            &cv_allownewplayer,      31},
@@ -1668,8 +1671,9 @@ static menuitem_t OP_ServerOptionsMenu[] =
 
 #ifndef NONET
 	{IT_HEADER, NULL, "Advanced", NULL, 225},
-	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "Master server",        &cv_masterserver,        231},
-	{IT_STRING | IT_CVAR,    NULL, "Attempts to resynchronise",        &cv_resynchattempts,     245},
+	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "Master server",        &cv_masterserver,       231},
+	{IT_STRING | IT_CVAR,    NULL, "Join delay",                       &cv_joindelay,          246},
+	{IT_STRING | IT_CVAR,    NULL, "Attempts to resynchronise",        &cv_resynchattempts,    251},
 #endif
 };
 
@@ -2147,7 +2151,7 @@ static void M_VideoOptions(INT32 choice)
 {
 	(void)choice;
 #ifdef HWRENDER
-	if (hwrenderloaded == -1)
+	if (vid_opengl_state == -1)
 	{
 		OP_VideoOptionsMenu[op_video_renderer].status = (IT_TRANSTEXT | IT_PAIR);
 		OP_VideoOptionsMenu[op_video_renderer].patch = "Renderer";
@@ -3791,6 +3795,7 @@ void M_StartControlPanel(void)
 	else if (modeattacking)
 	{
 		currentMenu = &MAPauseDef;
+		MAPauseMenu[mapause_hints].status = (M_SecretUnlocked(SECRET_EMBLEMHINTS)) ? (IT_STRING | IT_CALL) : (IT_DISABLED);
 		itemOn = mapause_continue;
 	}
 	else if (!(netgame || multiplayer)) // Single Player
@@ -6895,12 +6900,6 @@ static void M_HandleAddons(INT32 choice)
 							M_AddonExec(KEY_ENTER);
 							break;
 						case EXT_LUA:
-#ifndef HAVE_BLUA
-							S_StartSound(NULL, sfx_lose);
-							M_StartMessage(va("%c%s\x80\nThis copy of SRB2 was compiled\nwithout support for .lua files.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),NULL,MM_NOTHING);
-							break;
-#endif
-						/* FALLTHRU */
 						case EXT_SOC:
 						case EXT_WAD:
 #ifdef USE_KART
@@ -6951,6 +6950,7 @@ static void M_PandorasBox(INT32 choice)
 	else
 		CV_StealthSetValue(&cv_dummylives, max(players[consoleplayer].lives, 1));
 	CV_StealthSetValue(&cv_dummycontinues, players[consoleplayer].continues);
+	SR_PandorasBox[3].status = (continuesInSession) ? (IT_STRING | IT_CVAR) : (IT_GRAYEDOUT);
 	SR_PandorasBox[6].status = (players[consoleplayer].charflags & SF_SUPER) ? (IT_GRAYEDOUT) : (IT_STRING | IT_CALL);
 	SR_PandorasBox[7].status = (emeralds == ((EMERALD7)*2)-1) ? (IT_GRAYEDOUT) : (IT_STRING | IT_CALL);
 	M_SetupNextMenu(&SR_PandoraDef);
@@ -6967,7 +6967,7 @@ static boolean M_ExitPandorasBox(void)
 	}
 	if (cv_dummylives.value != players[consoleplayer].lives)
 		COM_ImmedExecute(va("setlives %d", cv_dummylives.value));
-	if (cv_dummycontinues.value != players[consoleplayer].continues)
+	if (continuesInSession && cv_dummycontinues.value != players[consoleplayer].continues)
 		COM_ImmedExecute(va("setcontinues %d", cv_dummycontinues.value));
 	return true;
 }
@@ -7531,6 +7531,7 @@ static void M_EmblemHints(INT32 choice)
 	SR_EmblemHintMenu[0].status = (local > NUMHINTS*2) ? (IT_STRING | IT_ARROWS) : (IT_DISABLED);
 	SR_EmblemHintMenu[1].status = (M_SecretUnlocked(SECRET_ITEMFINDER)) ? (IT_CVAR|IT_STRING) : (IT_SECRET);
 	hintpage = 1;
+	SR_EmblemHintDef.prevMenu = currentMenu;
 	M_SetupNextMenu(&SR_EmblemHintDef);
 	itemOn = 2; // always start on back.
 }
@@ -8211,12 +8212,20 @@ static void M_CustomLevelSelect(INT32 choice)
 static void M_SinglePlayerMenu(INT32 choice)
 {
 	(void)choice;
-	SP_MainMenu[sptutorial].status =
-		tutorialmap ? IT_CALL|IT_STRING : IT_NOTHING|IT_DISABLED;
-	SP_MainMenu[sprecordattack].status =
-		(M_SecretUnlocked(SECRET_RECORDATTACK)) ? IT_CALL|IT_STRING : IT_SECRET;
-	SP_MainMenu[spnightsmode].status =
-		(M_SecretUnlocked(SECRET_NIGHTSMODE)) ? IT_CALL|IT_STRING : IT_SECRET;
+
+	levellistmode = LLM_RECORDATTACK;
+	if (M_GametypeHasLevels(-1))
+		SP_MainMenu[sprecordattack].status = (M_SecretUnlocked(SECRET_RECORDATTACK)) ? IT_CALL|IT_STRING : IT_SECRET;
+	else
+		SP_MainMenu[sprecordattack].status = IT_NOTHING|IT_DISABLED;
+
+	levellistmode = LLM_NIGHTSATTACK;
+	if (M_GametypeHasLevels(-1))
+		SP_MainMenu[spnightsmode].status = (M_SecretUnlocked(SECRET_NIGHTSMODE)) ? IT_CALL|IT_STRING : IT_SECRET;
+	else
+		SP_MainMenu[spnightsmode].status = IT_NOTHING|IT_DISABLED;
+
+	SP_MainMenu[sptutorial].status = tutorialmap ? IT_CALL|IT_STRING : IT_NOTHING|IT_DISABLED;
 
 	M_SetupNextMenu(&SP_MainDef);
 }
@@ -8478,9 +8487,19 @@ static void M_DrawLoadGameData(void)
 				V_DrawRightAlignedThinString(x + 79, y, V_YELLOWMAP, savegameinfo[savetodraw].levelname);
 		}
 
-		if ((savegameinfo[savetodraw].lives == -42)
-		|| (savegameinfo[savetodraw].lives == -666))
+		if (savegameinfo[savetodraw].lives == -42)
+		{
+			if (!useContinues)
+				V_DrawRightAlignedThinString(x + 80, y+1+60+16, V_GRAYMAP, "00000000");
 			continue;
+		}
+
+		if (savegameinfo[savetodraw].lives == -666)
+		{
+			if (!useContinues)
+				V_DrawRightAlignedThinString(x + 80, y+1+60+16, V_REDMAP, "????????");
+			continue;
+		}
 
 		y += 64;
 
@@ -8497,7 +8516,7 @@ static void M_DrawLoadGameData(void)
 
 		y -= 4;
 
-		// character heads, lives, and continues
+		// character heads, lives, and continues/score
 		{
 			spritedef_t *sprdef;
 			spriteframe_t *sprframe;
@@ -8548,10 +8567,14 @@ skipbot:
 skipsign:
 			y += 16;
 
-			tempx = x + 10;
-			if (savegameinfo[savetodraw].lives != INFLIVES
-			&& savegameinfo[savetodraw].lives > 9)
-				tempx -= 4;
+			tempx = x;
+			if (useContinues)
+			{
+				tempx += 10;
+				if (savegameinfo[savetodraw].lives != INFLIVES
+				&& savegameinfo[savetodraw].lives > 9)
+					tempx -= 4;
+			}
 
 			if (!charskin) // shut up compiler
 				goto skiplife;
@@ -8581,22 +8604,45 @@ skiplife:
 			else
 				V_DrawString(tempx, y, 0, va("%d", savegameinfo[savetodraw].lives));
 
-			tempx = x + 47;
-			if (savegameinfo[savetodraw].continues > 9)
-				tempx -= 4;
-
-			// continues
-			if (savegameinfo[savetodraw].continues > 0)
+			if (!useContinues)
 			{
-				V_DrawSmallScaledPatch(tempx, y, 0, W_CachePatchName("CONTSAVE", PU_PATCH));
-				V_DrawScaledPatch(tempx + 9, y + 2, 0, patch);
-				V_DrawString(tempx + 16, y, 0, va("%d", savegameinfo[savetodraw].continues));
+				INT32 workingscorenum = savegameinfo[savetodraw].continuescore;
+				char workingscorestr[11] = " 000000000\0";
+				SINT8 j = 9;
+				// Change the above two lines if MAXSCORE ever changes from 8 digits long.
+				workingscorestr[0] = '\x86'; // done here instead of in initialiser 'cuz compiler complains
+				if (!workingscorenum)
+					j--; // just so ONE digit is not greyed out
+				else
+				{
+					while (workingscorenum)
+					{
+						workingscorestr[j--] = '0' + (workingscorenum % 10);
+						workingscorenum /= 10;
+					}
+				}
+				workingscorestr[j] = (savegameinfo[savetodraw].continuescore == MAXSCORE) ? '\x83' : '\x80';
+				V_DrawRightAlignedThinString(x + 80, y+1, 0, workingscorestr);
 			}
 			else
 			{
-				V_DrawSmallScaledPatch(tempx, y, 0, W_CachePatchName("CONTNONE", PU_PATCH));
-				V_DrawScaledPatch(tempx + 9, y + 2, 0, W_CachePatchName("STNONEX", PU_PATCH));
-				V_DrawString(tempx + 16, y, V_GRAYMAP, "0");
+				tempx = x + 47;
+				if (savegameinfo[savetodraw].continuescore > 9)
+					tempx -= 4;
+
+				// continues
+				if (savegameinfo[savetodraw].continuescore > 0)
+				{
+					V_DrawSmallScaledPatch(tempx, y, 0, W_CachePatchName("CONTSAVE", PU_PATCH));
+					V_DrawScaledPatch(tempx + 9, y + 2, 0, patch);
+					V_DrawString(tempx + 16, y, 0, va("%d", savegameinfo[savetodraw].continuescore));
+				}
+				else
+				{
+					V_DrawSmallScaledPatch(tempx, y, 0, W_CachePatchName("CONTNONE", PU_PATCH));
+					V_DrawScaledPatch(tempx + 9, y + 2, 0, W_CachePatchName("STNONEX", PU_PATCH));
+					V_DrawString(tempx + 16, y, V_GRAYMAP, "0");
+				}
 			}
 		}
 	}
@@ -8729,9 +8775,11 @@ static void M_ReadSavegameInfo(UINT32 slot)
 	CHECKPOS
 	savegameinfo[slot].lives = READSINT8(save_p); // lives
 	CHECKPOS
-	(void)READINT32(save_p); // Score
+	savegameinfo[slot].continuescore = READINT32(save_p); // score
 	CHECKPOS
-	savegameinfo[slot].continues = READINT32(save_p); // continues
+	fake = READINT32(save_p); // continues
+	if (useContinues)
+		savegameinfo[slot].continuescore = fake;
 
 	// File end marker check
 	CHECKPOS
@@ -10638,7 +10686,7 @@ static void M_DrawConnectMenu(void)
 	for (i = 0; i < min(serverlistcount - serverlistpage * SERVERS_PER_PAGE, SERVERS_PER_PAGE); i++)
 	{
 		INT32 slindex = i + serverlistpage * SERVERS_PER_PAGE;
-		UINT32 globalflags = ((serverlist[slindex].info.numberofplayer >= serverlist[slindex].info.maxplayer) ? V_TRANSLUCENT : 0)
+		UINT32 globalflags = (serverlist[slindex].info.refusereason ? V_TRANSLUCENT : 0)
 			|((itemOn == FIRSTSERVERLINE+i) ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE;
 
 		V_DrawString(currentMenu->x, S_LINEY(i), globalflags, serverlist[slindex].info.servername);
@@ -11002,7 +11050,8 @@ static void M_ServerOptions(INT32 choice)
 		OP_ServerOptionsMenu[ 3].status = IT_GRAYEDOUT; // Allow add-on downloading
 		OP_ServerOptionsMenu[ 4].status = IT_GRAYEDOUT; // Allow players to join
 		OP_ServerOptionsMenu[35].status = IT_GRAYEDOUT; // Master server
-		OP_ServerOptionsMenu[36].status = IT_GRAYEDOUT; // Attempts to resynchronise
+		OP_ServerOptionsMenu[36].status = IT_GRAYEDOUT; // Minimum delay between joins
+		OP_ServerOptionsMenu[37].status = IT_GRAYEDOUT; // Attempts to resynchronise
 	}
 	else
 	{
@@ -11014,6 +11063,7 @@ static void M_ServerOptions(INT32 choice)
 			? IT_GRAYEDOUT
 			: (IT_STRING | IT_CVAR | IT_CV_STRING));
 		OP_ServerOptionsMenu[36].status = IT_STRING | IT_CVAR;
+		OP_ServerOptionsMenu[37].status = IT_STRING | IT_CVAR;
 	}
 #endif
 
