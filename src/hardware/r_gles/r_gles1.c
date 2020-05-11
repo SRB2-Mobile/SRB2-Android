@@ -429,23 +429,18 @@ void SetStates(void)
 
 //	DBG_Printf("SetStates()\n");
 
-	// Hurdler: not necessary, is it?
+	pglEnableClientState(GL_VERTEX_ARRAY); // We always use this one
+
 	pglShadeModel(GL_SMOOTH);      // iterate vertice colors
-	//pglShadeModel(GL_FLAT);
 
 	pglEnable(GL_TEXTURE_2D);      // two-dimensional texturing
-
 	pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-
-	//pglBlendFunc(GL_ONE, GL_ZERO); // copy pixel to frame buffer (opaque)
 	pglEnable(GL_BLEND);           // enable color blending
 
 	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-	//pglDisable(GL_DITHER);         // faB: ??? (undocumented in OpenGL 1.1)
-	                              // Hurdler: yes, it is!
 	pglEnable(GL_DEPTH_TEST);    // check the depth buffer
 	pglDepthMask(GL_TRUE);             // enable writing to depth buffer
 	pglClearDepthf(1.0f);
@@ -460,14 +455,6 @@ void SetStates(void)
 	SetNoTexture();
 
 	pglPolygonOffset(-1.0f, -1.0f);
-
-	//pglEnable(GL_CULL_FACE);
-	//pglCullFace(GL_FRONT);
-
-	//glFogi(GL_FOG_MODE, GL_EXP);
-	//pglHint(GL_FOG_HINT, GL_FASTEST);
-	//pglFogfv(GL_FOG_COLOR, fogcolor);
-	//pglFogf(GL_FOG_DENSITY, 0.0005f);
 
 	// Lighting for models
 #ifdef GL_LIGHT_MODEL_AMBIENT
@@ -628,8 +615,7 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 	SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
 
 	pglClear(ClearMask);
-	pglEnableClientState(GL_VERTEX_ARRAY); // We always use this one
-	pglEnableClientState(GL_TEXTURE_COORD_ARRAY); // And mostly this one, too
+	pglEnableClientState(GL_TEXTURE_COORD_ARRAY); // We mostly use this one
 }
 
 

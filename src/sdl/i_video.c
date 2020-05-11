@@ -1677,6 +1677,8 @@ void VID_CheckRenderer(void)
 			if (vid_opengl_state == 0)
 			{
 				VID_StartupOpenGL();
+
+#if !defined(__ANDROID__)
 				// Loaded successfully!
 				if (vid_opengl_state == 1)
 				{
@@ -1700,6 +1702,7 @@ void VID_CheckRenderer(void)
 					// From there, the OpenGL context was already created.
 					contextcreated = true;
 				}
+#endif
 			}
 			else if (vid_opengl_state == -1)
 				rendererchanged = false;
@@ -1784,7 +1787,9 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		flags |= SDL_WINDOW_BORDERLESS;
 
 #ifdef HWRENDER
+#if !defined(__ANDROID__)
 	if (vid_opengl_state == 1)
+#endif
 		flags |= SDL_WINDOW_OPENGL;
 #endif
 
