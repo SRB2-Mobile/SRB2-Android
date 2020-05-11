@@ -33,6 +33,7 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/f_finale.c \
 			$(OBJDIR)/f_wipe.c   \
 			$(OBJDIR)/g_game.c   \
+			$(OBJDIR)/g_demo.c   \
 			$(OBJDIR)/g_input.c  \
 			$(OBJDIR)/am_map.c   \
 			$(OBJDIR)/command.c  \
@@ -114,6 +115,7 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(LUA_SOURCES)/ldo.c \
 	$(LUA_SOURCES)/lfunc.c \
 	$(LUA_SOURCES)/linit.c \
+	$(LUA_SOURCES)/liolib.c \
 	$(LUA_SOURCES)/llex.c \
 	$(LUA_SOURCES)/lmem.c \
 	$(LUA_SOURCES)/lobject.c \
