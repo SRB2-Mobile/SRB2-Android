@@ -15,8 +15,8 @@ android {
         }
         minSdkVersion 16
         targetSdkVersion 26
-        versionCode 222
-        versionName "2.2.2"
+        versionCode 2230
+        versionName "2.2.3"
         externalNativeBuild {
             ndkBuild {
                 arguments "APP_PLATFORM=android-16"
