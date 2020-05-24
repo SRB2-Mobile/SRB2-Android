@@ -1050,7 +1050,12 @@ void I_GetEvent(void)
 				Impl_HandleTouchEvent(evt.tfinger);
 				break;
 			case SDL_TEXTINPUT:
-				Impl_HandleTextInput(evt.text);
+				// If user pressed the console button, don't type the
+				// character into the console buffer.
+				if (evt.text.text[0] && !evt.text.text[1]
+					&& evt.text.text[0] != gamecontrol[gc_console][0] 
+					&& evt.text.text[0] != gamecontrol[gc_console][1])
+					Impl_HandleTextInput(evt.text);
 				break;
 #endif
 #if 0
