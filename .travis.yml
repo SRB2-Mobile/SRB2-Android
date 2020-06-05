@@ -9,6 +9,27 @@ dist: trusty
 
 matrix:
     include:
+        - os: linux
+          language: android
+          android:
+            components:
+              - build-tools-28.0.2
+              - android-26
+              - platform-tools
+          env: ANDROID=1
+          deploy:
+            provider: releases
+            api_key: $GITHUB_TOKEN
+            file_glob: true
+            file: app/build/outputs/apk/*/** # relative to [repo]/android, per `skip_cleanup`
+            skip_cleanup: true
+            draft: true
+            on:
+              branch: android-port
+          before_install: ~
+          install:
+            - echo y | sdkmanager 'ndk-bundle'
+          after_success: ~
 ################################
 # Test Buildbots
 # Deployer does not operate on these. See Deployer Buildbots, below.
@@ -698,13 +719,28 @@ before_script:
     fi;
 
   # Get optional files too
-  - if [[ "$__DPL_ACTIVE" == "1" ]] && [[ "$ASSET_FILES_OPTIONAL_GET" == "1" ]] && [[ "$ASSET_ARCHIVE_OPTIONAL_PATH" != "" ]]; then
+  - __DOWNLOAD_OPTIONAL_ASSETS=0
+  - if [[ "$ASSET_FILES_OPTIONAL_GET" == "1" ]] && [[ "$ASSET_ARCHIVE_OPTIONAL_PATH" != "" ]]; then
+      if [[ "$ANDROID" == "1" ]]; then
+        if [[ "$ANDROID_PACKAGE_ASSETS" == "1" ]]; then
+          __DOWNLOAD_OPTIONAL_ASSETS=1;
+        fi;
+      elif [[ "$__DPL_ACTIVE" == "1" ]]; then
+        __DOWNLOAD_OPTIONAL_ASSETS=1;
+      fi;
+    fi;
+  - if [[ "$__DOWNLOAD_OPTIONAL_ASSETS" == "1" ]]; then
       if [ -f "$(basename $ASSET_ARCHIVE_OPTIONAL_PATH)" ]; then
         echo "$(basename $ASSET_ARCHIVE_OPTIONAL_PATH) cache date -- $($STATCMD $(basename $ASSET_ARCHIVE_OPTIONAL_PATH))";
       fi;
       wget --verbose --server-response -N "$ASSET_ARCHIVE_OPTIONAL_PATH";
       7z x "$(basename $ASSET_ARCHIVE_OPTIONAL_PATH)" -o"$__ASSET_DIRECTORY" -aos;
     fi;
+
+  # If Android, copy the asset files to the packaging directory
+  - if [[ "$ANDROID" == "1" ]] && [[ "$ANDROID_PACKAGE_ASSETS" == "1" ]]; then
+      cp -R "$__ASSET_DIRECTORY/." "$OLDPWD/android/app/src/main/assets";
+    fi
 
   # Go back to root repo folder
   - cd "$OLDPWD"
@@ -715,25 +751,30 @@ before_script:
   - SRB2_ASSET_DIRECTORY="$__ASSET_DIRECTORY"
 
   # Prepare CMake
-  - mkdir build
-  - cd build
-  - mkdir package
-  - export CFLAGS="-Wall -W -Werror $WFLAGS"
-  - export CCACHE_COMPRESS=true
   # If OS X, set -march=core2 to build compatible binaries with old Macs
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      export CFLAGS="${CFLAGS} -march=core2";
+  - if [[ "$ANDROID" != "1" ]]; then
+      mkdir build;
+      cd build;
+      mkdir package;
+      export CFLAGS="-Wall -W -Werror $WFLAGS";
+      export CCACHE_COMPRESS=true;
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        export CFLAGS="${CFLAGS} -march=core2";
+      fi;
+      cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/bin -DCPACK_PACKAGE_DIRECTORY=$PWD/package
+        -DSRB2_ASSET_HASHED="${SRB2_ASSET_HASHED}" -DSRB2_ASSET_DOCS="${SRB2_ASSET_DOCS}"
+        -DSRB2_ASSET_DIRECTORY="${SRB2_ASSET_DIRECTORY}"
+        -DCPACK_PACKAGE_DESCRIPTION_SUMMARY="${PROGRAM_NAME}"
+        -DCPACK_PACKAGE_VENDOR="${PROGRAM_VENDOR}"
+        -DSRB2_SDL2_EXE_NAME="${PROGRAM_FILENAME}";
     fi;
-  - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/bin -DCPACK_PACKAGE_DIRECTORY=$PWD/package
-      -DSRB2_ASSET_HASHED="${SRB2_ASSET_HASHED}" -DSRB2_ASSET_DOCS="${SRB2_ASSET_DOCS}"
-      -DSRB2_ASSET_DIRECTORY="${SRB2_ASSET_DIRECTORY}"
-      -DCPACK_PACKAGE_DESCRIPTION_SUMMARY="${PROGRAM_NAME}"
-      -DCPACK_PACKAGE_VENDOR="${PROGRAM_VENDOR}"
-      -DSRB2_SDL2_EXE_NAME="${PROGRAM_FILENAME}"
 
 script:
   # Build our Makefile from Cmake!
-  - if [[ "$__DPL_ACTIVE" == "1" ]]; then
+  - if [[ "$ANDROID" == "1" ]]; then
+      cd ./android;
+      ./gradlew build;
+    elif [[ "$__DPL_ACTIVE" == "1" ]]; then
       . ../deployer/travis/deployer_build.sh;
     else
       make -k;
