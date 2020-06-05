@@ -604,6 +604,11 @@ void CON_ToggleOff(void)
 	con_clipviewtop = -1; // remove console clipping of view
 
 	I_UpdateMouseGrab();
+
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+#endif
 }
 
 boolean CON_Ready(void)
@@ -644,6 +649,10 @@ void CON_Ticker(void)
 			con_destlines = 0;
 			CON_ClearHUD();
 			I_UpdateMouseGrab();
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+			if (I_KeyboardOnScreen())
+				I_CloseScreenKeyboard();
+#endif
 		}
 		else
 			CON_ChangeHeight();
