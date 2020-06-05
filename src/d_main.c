@@ -1022,7 +1022,7 @@ static void IdentifyVersion(void)
 	D_AddFile(FILEPATH("patch.pk3"));
 #endif
 
-#if defined(__ANDROID__)
+#ifdef USE_ANDROID_PK3
 	// Android assets
 	D_AddFile(FILEPATH("android.pk3"));
 #endif
@@ -1280,7 +1280,7 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_DTA
 	W_VerifyFileMD5(3, ASSET_HASH_PATCH_PK3); // patch.pk3
 #endif
-#if defined(__ANDROID__)
+#ifdef USE_ANDROID_PK3
 	W_VerifyFileMD5(4, ASSET_HASH_ANDROID_PK3); // android.pk3
 #endif
 	// don't check music.dta because people like to modify it, and it doesn't matter if they do

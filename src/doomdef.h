@@ -157,6 +157,11 @@ extern char logfilename[1024];
 // Comment or uncomment this as necessary.
 #define USE_PATCH_DTA
 
+// Load Android assets
+#if defined(__ANDROID__)
+#define USE_ANDROID_PK3
+#endif
+
 // Use .kart extension addons
 //#define USE_KART
 

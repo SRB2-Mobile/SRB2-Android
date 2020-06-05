@@ -122,6 +122,14 @@ UINT8 *PutFileNeeded(void)
 		if (!wadfiles[i]->important)
 			continue;
 
+		nameonly(strcpy(wadfilename, wadfiles[i]->filename));
+
+#ifdef USE_ANDROID_PK3
+		// Don't put android.pk3 in the list
+		if (!strcmp(wadfilename, "android.pk3"))
+			continue;
+#endif
+
 		filestatus = 1; // Importance - not really used any more, holds 1 by default for backwards compat with MS
 
 		// Store in the upper four bits
@@ -136,7 +144,6 @@ UINT8 *PutFileNeeded(void)
 
 		count++;
 		WRITEUINT32(p, wadfiles[i]->filesize);
-		nameonly(strcpy(wadfilename, wadfiles[i]->filename));
 		WRITESTRINGN(p, wadfilename, MAX_WADPATH);
 		WRITEMEM(p, wadfiles[i]->md5sum, 16);
 	}
@@ -998,7 +1005,7 @@ void Got_Filetxpak(void)
 		&& strcmp(filename, "player.dta")
 		&& strcmp(filename, "patch.pk3")
 		&& strcmp(filename, "music.dta")
-#if defined(__ANDROID__)
+#ifdef USE_ANDROID_PK3
 		&& strcmp(filename, "android.pk3")
 #endif
 		))

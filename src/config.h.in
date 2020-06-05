@@ -37,8 +37,8 @@
 #ifdef USE_PATCH_DTA
 #define ASSET_HASH_PATCH_PK3  "bbbf6af3b20349612ee06e0b55979a76"
 #endif
-#if defined(__ANDROID__)
-#define ASSET_HASH_ANDROID_PK3 "b7e8be9383319ca99a038b99e6f24fe2"
+#ifdef USE_ANDROID_PK3
+#define ASSET_HASH_ANDROID_PK3 "679e1a9bc50b90d45a208ebb1bf34ed6"
 #endif
 
 #endif

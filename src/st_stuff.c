@@ -1234,7 +1234,7 @@ void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
 	fixed_t xscale, yscale;
-	patch_t *backing = W_CachePatchName("DSHADOW", PU_PATCH);
+	patch_t *backing = W_CachePatchLongName("JOY_BACKING", PU_PATCH);
 
 	// generate colormap
 	static UINT8 *colormap = NULL;
@@ -1424,7 +1424,7 @@ void ST_drawTouchDPad(
 
 void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
 {
-	patch_t *cursor = W_CachePatchName("DSHADOW", PU_PATCH);
+	patch_t *cursor = W_CachePatchLongName("JOY_CURSOR", PU_PATCH);
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
 	fixed_t pressure = max(FRACUNIT/2, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
