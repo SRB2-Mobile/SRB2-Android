@@ -44,6 +44,7 @@ typedef struct filehandle_s
 
 	int         (*close)     (void *);
 	const char *(*error)     (void *);
+	int         (*eof)       (void *);
 
 	void *lasterror;
 } filehandle_t;
@@ -60,6 +61,7 @@ int         File_CheckError(void *stream);
 #define File_GetChar(fhandle)                ((filehandle_t *)fhandle)->getchar(((filehandle_t *)fhandle))
 #define File_GetString(str, num, fhandle)    ((filehandle_t *)fhandle)->getstring(((filehandle_t *)fhandle), str, num)
 #define File_Error(fhandle)                  ((filehandle_t *)fhandle)->error(((filehandle_t *)fhandle))
+#define File_EOF(fhandle)                    ((filehandle_t *)fhandle)->eof(((filehandle_t *)fhandle))
 
 #else
 
@@ -73,6 +75,7 @@ int         File_CheckError(void *stream);
 #define File_CheckError ferror
 #define File_Close fclose
 #define File_Error M_FileError
+#define File_EOF feof
 
 #endif // HAVE_WHANDLE
 

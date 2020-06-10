@@ -32,7 +32,8 @@ char       *File_StandardGetString (void *f, char *str, int num);
 
 // File close / error
 int         File_StandardClose     (void *f);
-const char *File_StandardError     (void *handle);
+const char *File_StandardError     (void *f);
+int         File_StandardEOF       (void *f);
 
 //
 // SDL_RWops file operations
@@ -48,7 +49,8 @@ char       *File_SDLGetString (void *f, char *str, int num);
 
 // File close / error
 int         File_SDLClose     (void *f);
-const char *File_SDLError     (void *handle);
+const char *File_SDLError     (void *f);
+int         File_SDLEOF       (void *f);
 #endif
 
 // Open a file handle.
@@ -67,6 +69,7 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 		handle->getstring = &File_StandardGetString;
 		handle->close = &File_StandardClose;
 		handle->error = &File_StandardError;
+		handle->eof = &File_StandardEOF;
 		handle->file = fopen(filename, filemode);
 	}
 #ifdef HAVE_SDL
@@ -79,6 +82,7 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 		handle->getstring = &File_SDLGetString;
 		handle->close = &File_SDLClose;
 		handle->error = &File_SDLError;
+		handle->eof = &File_SDLEOF;
 		handle->file = SDL_RWFromFile(filename, filemode);
 	}
 #endif
@@ -176,6 +180,12 @@ const char *File_StandardError(void *f)
 	return M_FileError((FILE *)(((filehandle_t *)f)->file));
 }
 
+// Check for end-of-file.
+int File_StandardEOF(void *f)
+{
+	return feof((FILE *)(((filehandle_t *)f)->file));
+}
+
 //
 // SDL_RWops file operations
 //
@@ -260,6 +270,29 @@ int File_SDLClose(void *f)
 const char *File_SDLError(void *f)
 {
 	return (const char *)(((filehandle_t *)f)->lasterror);
+}
+
+// Check for end-of-file.
+int File_SDLEOF(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	long int filesize, position;
+
+	filesize = (long int)SDL_RWsize((struct SDL_RWops *)handle->file);
+	if (filesize < 0)
+	{
+		File_SDLSetError(handle);
+		return 1;
+	}
+
+	position = (long int)SDL_RWtell((struct SDL_RWops *)handle->file);
+	if (position == -1)
+		return 1;
+
+	if (position >= filesize)
+		return 1;
+
+	return 0;
 }
 
 #endif // HAVE_SDL
