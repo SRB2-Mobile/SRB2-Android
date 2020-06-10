@@ -467,6 +467,20 @@ static boolean filemenucmp(char *haystack, char *needle)
 	return (!strncmp(localhaystack, needle, menusearch[0]));
 }
 
+#if defined(__ANDROID__)
+static char *writedirmenu(char *text, UINT8 type)
+{
+	size_t len = strlen(text);
+	char *entry = Z_Malloc((len + 1 + DIR_STRING) * sizeof (char), PU_STATIC, NULL);
+
+	entry[DIR_TYPE] = type;
+	entry[DIR_LEN] = (UINT8)(len);
+	strlcpy(entry+DIR_STRING, text, len);
+
+	return entry;
+}
+#endif
+
 void closefilemenu(boolean validsize)
 {
 	// search
@@ -571,7 +585,11 @@ void searchfilemenu(char *tempname)
 	if (!sizedirmenu) // no results...
 	{
 		if ((!(dirmenu = Z_Realloc(dirmenu, sizeof(char *), PU_STATIC, NULL)))
+#if defined(__ANDROID__)
+			|| !(dirmenu[0] = writedirmenu("No results...", EXT_NORESULTS)))
+#else
 			|| !(dirmenu[0] = Z_StrDup(va("%c\13No results...", EXT_NORESULTS))))
+#endif
 				I_Error("searchfilemenu(): could not create \"No results...\".");
 		sizedirmenu = 1;
 		dir_on[menudepthleft] = 0;
@@ -784,7 +802,11 @@ boolean preparefilemenu(boolean samedepth)
 	closedir(dirhandle);
 
 	if ((menudepthleft != menudepth-1) // now for UP... entry
+#if defined(__ANDROID__)
+		&& !(coredirmenu[0] = writedirmenu("UP...", EXT_UP)))
+#else
 		&& !(coredirmenu[0] = Z_StrDup(va("%c\5UP...", EXT_UP))))
+#endif
 			I_Error("preparefilemenu(): could not create \"UP...\".");
 
 	menupath[menupathindex[menudepthleft]] = 0;
