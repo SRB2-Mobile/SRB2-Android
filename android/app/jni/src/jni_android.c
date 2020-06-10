@@ -187,6 +187,11 @@ char *JNI_ExternalStoragePath(void)
 
 		// get second file object
 		fileObject = (jobject)(*env)->GetObjectArrayElement(env, pathArray, 1);
+		if (fileObject == NULL)
+		{
+			CLEANREF
+			return NULL;
+		}
 
 		// path = fileObject.getAbsolutePath();
 		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject),
