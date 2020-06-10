@@ -1871,6 +1871,7 @@ void G_StartTitleCard(void)
 //
 void G_PreLevelTitleCard(void)
 {
+#ifndef NOWIPE
 	tic_t starttime = I_GetTime();
 	tic_t endtime = starttime + (PRELEVELTIME*NEWTICRATERATIO);
 	tic_t nowtime = starttime;
@@ -1893,6 +1894,7 @@ void G_PreLevelTitleCard(void)
 	}
 	if (!cv_showhud.value)
 		wipestyleflags = WSF_CROSSFADE;
+#endif
 }
 
 static boolean titlecardforreload = false;

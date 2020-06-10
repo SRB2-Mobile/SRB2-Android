@@ -232,7 +232,6 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	else
 	{
 		Impl_CreateWindow(fullscreen);
-		Impl_SetWindowIcon();
 		wasfullscreen = fullscreen;
 		SDL_SetWindowSize(window, width, height);
 		if (fullscreen)
@@ -1802,11 +1801,14 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	window = SDL_CreateWindow("SRB2 "VERSIONSTRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			realwidth, realheight, flags);
 
+
 	if (window == NULL)
 	{
 		CONS_Printf(M_GetText("Couldn't create window: %s\n"), SDL_GetError());
 		return SDL_FALSE;
 	}
+
+	Impl_SetWindowIcon();
 
 	return Impl_CreateContext();
 }
@@ -1824,12 +1826,8 @@ static void Impl_SetWindowName(const char *title)
 
 static void Impl_SetWindowIcon(void)
 {
-	if (window == NULL || icoSurface == NULL)
-	{
-		return;
-	}
-	//SDL2STUB(); // Monster Iestyn: why is this stubbed?
-	SDL_SetWindowIcon(window, icoSurface);
+	if (window && icoSurface)
+		SDL_SetWindowIcon(window, icoSurface);	
 }
 
 static void Impl_VideoSetupSDLBuffer(void)
@@ -1962,6 +1960,11 @@ void I_StartupGraphics(void)
 		VID_StartupOpenGL();
 #endif
 
+	// Window icon
+#ifdef HAVE_IMAGE
+	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
+#endif	
+
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
 
@@ -1980,11 +1983,6 @@ void I_StartupGraphics(void)
 #ifdef HAVE_TTF
 	I_ShutdownTTF();
 #endif
-	// Window icon
-#ifdef HAVE_IMAGE
-	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
-#endif
-	Impl_SetWindowIcon();
 
 #if defined(__ANDROID__)
 	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
