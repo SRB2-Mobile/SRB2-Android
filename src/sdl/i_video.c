@@ -33,7 +33,6 @@
 
 #if defined(__ANDROID__)
 #include "SDL_rwops.h"
-#include <lodepng.h>
 #endif
 
 #ifdef _MSC_VER
@@ -1052,7 +1051,7 @@ void I_GetEvent(void)
 				// If user pressed the console button, don't type the
 				// character into the console buffer.
 				if (evt.text.text[0] && !evt.text.text[1]
-					&& evt.text.text[0] != gamecontrol[gc_console][0] 
+					&& evt.text.text[0] != gamecontrol[gc_console][0]
 					&& evt.text.text[0] != gamecontrol[gc_console][1])
 					Impl_HandleTextInput(evt.text);
 				break;
@@ -1827,7 +1826,7 @@ static void Impl_SetWindowName(const char *title)
 static void Impl_SetWindowIcon(void)
 {
 	if (window && icoSurface)
-		SDL_SetWindowIcon(window, icoSurface);	
+		SDL_SetWindowIcon(window, icoSurface);
 }
 
 static void Impl_VideoSetupSDLBuffer(void)
@@ -1963,7 +1962,7 @@ void I_StartupGraphics(void)
 	// Window icon
 #ifdef HAVE_IMAGE
 	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
-#endif	
+#endif
 
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
@@ -2071,20 +2070,142 @@ void VID_StartupOpenGL(void)
 #endif
 }
 
+//
+// Android splash screen
+//
+
+#if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
+	// zlib defines and png.h include
+	#include "../r_patch.h"
+	#define SPLASH_SCREEN_SUPPORTED
+
+	// The lack of this define disables the splash screen.
+	#ifndef PNG_READ_SUPPORTED
+	#undef SPLASH_SCREEN_SUPPORTED
+	#endif
+#endif
+
+#ifdef SPLASH_SCREEN_SUPPORTED
+static UINT32 *LoadSplashScreenImage(const UINT8 *source, size_t source_size, UINT32 *dest_w, UINT32 *dest_h)
+{
+	png_structp png_ptr;
+	png_infop png_info_ptr;
+	png_uint_32 width, height;
+	int bit_depth, color_type;
+	png_uint_32 x, y;
+#ifdef PNG_SETJMP_SUPPORTED
+#ifdef USE_FAR_KEYWORD
+	jmp_buf jmpbuf;
+#endif
+#endif
+
+	UINT32 *dest_img, *dest_img_p;
+
+	png_io_t png_io;
+	png_bytep *row_pointers;
+
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr)
+		return NULL;
+
+	png_info_ptr = png_create_info_struct(png_ptr);
+	if (!png_info_ptr)
+	{
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
+		return NULL;
+	}
+
+#ifdef USE_FAR_KEYWORD
+	if (setjmp(jmpbuf))
+#else
+	if (setjmp(png_jmpbuf(png_ptr)))
+#endif
+	{
+		png_destroy_read_struct(&png_ptr, &png_info_ptr, NULL);
+		return NULL;
+	}
+#ifdef USE_FAR_KEYWORD
+	png_memcpy(png_jmpbuf(png_ptr), jmpbuf, sizeof jmp_buf);
+#endif
+
+	// set our own read function
+	png_io.buffer = source;
+	png_io.size = source_size;
+	png_io.position = 0;
+	png_set_read_fn(png_ptr, &png_io, PNG_IOReader);
+
+#ifdef PNG_SET_USER_LIMITS_SUPPORTED
+	png_set_user_limits(png_ptr, 2048, 2048);
+#endif
+
+	png_read_info(png_ptr, png_info_ptr);
+	png_get_IHDR(png_ptr, png_info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+	if (bit_depth == 16)
+		png_set_strip_16(png_ptr);
+
+	if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+		png_set_gray_to_rgb(png_ptr);
+	else if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_palette_to_rgb(png_ptr);
+
+	if (png_get_valid(png_ptr, png_info_ptr, PNG_INFO_tRNS))
+		png_set_tRNS_to_alpha(png_ptr);
+	else if (color_type != PNG_COLOR_TYPE_RGB_ALPHA && color_type != PNG_COLOR_TYPE_GRAY_ALPHA)
+	{
+#if PNG_LIBPNG_VER < 10207
+		png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
+#else
+		png_set_add_alpha(png_ptr, 0xFF, PNG_FILLER_AFTER);
+#endif
+	}
+
+	png_read_update_info(png_ptr, png_info_ptr);
+
+	row_pointers = (png_bytep*)malloc(sizeof(png_bytep) * height);
+	for (y = 0; y < height; y++)
+		row_pointers[y] = (png_byte*)malloc(png_get_rowbytes(png_ptr, png_info_ptr));
+	png_read_image(png_ptr, row_pointers);
+
+	dest_img = (UINT32 *)(malloc(width * height * sizeof(UINT32)));
+	dest_img_p = dest_img;
+
+	for (y = 0; y < height; y++)
+	{
+		png_bytep row = row_pointers[y];
+		for (x = 0; x < width; x++)
+		{
+			png_bytep px = &(row[x * 4]);
+			*dest_img_p = R_PutRgbaRGBA((UINT8)px[0], (UINT8)px[1], (UINT8)px[2], (UINT8)px[3]);
+			dest_img_p++;
+		}
+	}
+
+	free(row_pointers);
+	png_destroy_read_struct(&png_ptr, &png_info_ptr, NULL);
+
+	*dest_w = (UINT32)(width);
+	*dest_h = (UINT32)(height);
+	return dest_img;
+}
+#endif // SPLASH_SCREEN_SUPPORTED
+
 void I_SplashScreen(void)
 {
-#if defined(__ANDROID__)
+#ifdef SPLASH_SCREEN_SUPPORTED
 	struct SDL_RWops *file;
 	Sint64 filesize;
 	void *filedata;
-	unsigned char *splash;
-	unsigned swidth, sheight;
-	unsigned decoding_error;
+	UINT32 *splash;
+	UINT32 swidth, sheight;
 	tic_t starttime;
 
 	CONS_Printf("Displaying splash screen\n");
+#endif
+
 	Impl_InitVideoSubSystem();
 
+#ifdef SPLASH_SCREEN_SUPPORTED
 	// load splash.png
 	file = SDL_RWFromFile("splash.png", "rb");
 	if (!file) // not found?
@@ -2099,6 +2220,11 @@ void I_SplashScreen(void)
 		CONS_Alert(CONS_ERROR, "error getting the file size of the splash screen image\n");
 		return;
 	}
+	else if (filesize == 0)
+	{
+		CONS_Alert(CONS_ERROR, "the splash screen image is empty\n");
+		return;
+	}
 
 	filedata = malloc((size_t)filesize);
 	if (!filedata) // somehow couldn't malloc
@@ -2110,12 +2236,12 @@ void I_SplashScreen(void)
 	SDL_RWread(file, filedata, 1, filesize);
 	SDL_RWclose(file);
 
-	decoding_error = lodepng_decode32(&splash, &swidth, &sheight, filedata, (size_t)filesize);
+	splash = LoadSplashScreenImage((UINT8 *)filedata, (size_t)filesize, &swidth, &sheight);
 	free(filedata); // free the file data because it is not needed anymore
 
-	if (decoding_error)
+	if (splash == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "failed to decode the splash screen image: %s\n", lodepng_error_text(decoding_error));
+		CONS_Alert(CONS_ERROR, "failed to read the splash screen image");
 		return;
 	}
 
@@ -2134,7 +2260,7 @@ void I_SplashScreen(void)
 	}
 	else
 	{
-		// display splash.png
+		// display the splash screen image
 		SDL_Rect rect;
 
 		rect.x = 0;

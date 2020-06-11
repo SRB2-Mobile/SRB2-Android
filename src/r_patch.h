@@ -55,6 +55,34 @@ patch_t *R_PNGToPatch(const UINT8 *png, size_t size, size_t *destsize);
 boolean R_PNGDimensions(UINT8 *png, INT16 *width, INT16 *height, size_t size);
 #endif
 
+#ifdef HAVE_PNG
+
+#ifndef _MSC_VER
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
+#endif
+#endif
+
+#ifndef _LFS64_LARGEFILE
+#define _LFS64_LARGEFILE
+#endif
+
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 0
+#endif
+
+#include "png.h"
+
+typedef struct
+{
+	const UINT8 *buffer;
+	UINT32 size;
+	UINT32 position;
+} png_io_t;
+
+void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length);
+#endif
+
 // SpriteInfo
 extern spriteinfo_t spriteinfo[NUMSPRITES];
 void R_LoadSpriteInfoLumps(UINT16 wadnum, UINT16 numlumps);
