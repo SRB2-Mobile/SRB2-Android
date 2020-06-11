@@ -180,7 +180,7 @@ static void buffreplace (LexState *ls, char from, char to) {
 static void trydecpoint (LexState *ls, SemInfo *seminfo) {
   /* format error: try to update decimal point separator */
   char old = ls->decpoint;
-#ifndef LUA_NOLOCALECONV
+#ifndef LUA_NOLOCALE
   struct lconv *cv = localeconv();
   ls->decpoint = (cv ? cv->decimal_point[0] : '.');
 #else

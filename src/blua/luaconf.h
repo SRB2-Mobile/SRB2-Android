@@ -540,9 +540,9 @@
 #define LUAI_MAXNUMBER2STR	12 /* 10 digits, sign, and \0 */
 #define lua_str2number(s,p)	strtol((s), (p), 10)
 
-/* Disables localeconv() on Android builds. */
+/* Disables locale functions on Android builds. */
 #ifdef LUA_ANDROID
-#define LUA_NOLOCALECONV
+#define LUA_NOLOCALE
 #endif
 
 
