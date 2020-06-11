@@ -1146,7 +1146,7 @@ static void CV_LoadPlayerNames(UINT8 **p)
 static inline void CL_DrawConnectionStatus(void)
 {
 	INT32 bottombox = BASEVIDHEIGHT-24;
-	INT32 top = BASEVIDHEIGHT-24;
+	INT32 top = bottombox;
 	INT32 ccstime = I_GetTime();
 
 	// Draw background fade
@@ -1156,7 +1156,7 @@ static inline void CL_DrawConnectionStatus(void)
 	// Draw the bottom box.
 	M_DrawTextBox(BASEVIDWIDTH/2-128-8, bottombox-8, 32, 1);
 #ifndef TOUCHINPUTS
-	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-24-24, V_YELLOWMAP, "Press ESC to abort");
+	V_DrawCenteredString(BASEVIDWIDTH/2, bottombox-24, V_YELLOWMAP, "Press ESC to abort");
 #else
 	top += 16;
 #endif
@@ -1175,9 +1175,9 @@ static inline void CL_DrawConnectionStatus(void)
 				{
 					cltext = M_GetText("Downloading game state...");
 					Net_GetNetStat();
-					V_DrawString(BASEVIDWIDTH/2-128, top, V_20TRANS|V_MONOSPACE,
+					V_DrawString(BASEVIDWIDTH/2-128, bottombox, V_20TRANS|V_MONOSPACE,
 						va(" %4uK",fileneeded[lastfilenum].currentsize>>10));
-					V_DrawRightAlignedString(BASEVIDWIDTH/2+128, top, V_20TRANS|V_MONOSPACE,
+					V_DrawRightAlignedString(BASEVIDWIDTH/2+128, bottombox, V_20TRANS|V_MONOSPACE,
 						va("%3.1fK/s ", ((double)getbps)/1024));
 				}
 				else
@@ -1202,9 +1202,10 @@ static inline void CL_DrawConnectionStatus(void)
 				cltext = M_GetText("Connecting to server...");
 				break;
 		}
+
 		// 15 pal entries total.
 		for (i = 0; i < 16; ++i)
-			V_DrawFill((BASEVIDWIDTH/2-128) + (i * 16), BASEVIDHEIGHT-24, 16, 8, palstart + ((animtime - i) & 15));
+			V_DrawFill((BASEVIDWIDTH/2-128) + (i * 16), bottombox, 16, 8, palstart + ((animtime - i) & 15));
 		V_DrawCenteredString(BASEVIDWIDTH/2, top-32, V_YELLOWMAP, cltext);
 	}
 	else
