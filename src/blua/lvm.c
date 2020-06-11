@@ -203,7 +203,7 @@ static int l_strcmp (const TString *ls, const TString *rs) {
   const char *r = getstr(rs);
   size_t lr = rs->tsv.len;
   for (;;) {
-#if defined(__ANDROID__)
+#ifdef LUA_NOLOCALE
     int temp = strcmp(l, r);
 #else
     int temp = strcoll(l, r);
