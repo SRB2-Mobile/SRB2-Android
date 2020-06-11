@@ -195,9 +195,10 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	int bpp = 16;
 	int sw_texture_format = SDL_PIXELFORMAT_ABGR8888;
 
-	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
 #if defined(__ANDROID__)
-	fullscreen_type = SDL_WINDOW_FULLSCREEN;
+	int fullscreen_type = SDL_WINDOW_FULLSCREEN;
+#else
+	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
 #endif
 
 	realwidth = vid.width;
@@ -2249,7 +2250,9 @@ void I_SplashScreen(void)
 	vid.width = swidth;
 	vid.height = sheight;
 	rendermode = render_soft;
+
 	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
+	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
 	// create a surface from the image
 	bufSurface = SDL_CreateRGBSurfaceFrom(splash, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
