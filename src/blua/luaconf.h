@@ -51,6 +51,10 @@
 #define LUA_DL_DYLD		/* does not need extra library */
 #endif
 
+#if defined(__ANDROID__)
+#define LUA_ANDROID
+#endif
+
 
 
 /*
@@ -535,6 +539,11 @@
 #define lua_number2str(s,n)	sprintf((s), LUA_NUMBER_FMT, (n))
 #define LUAI_MAXNUMBER2STR	12 /* 10 digits, sign, and \0 */
 #define lua_str2number(s,p)	strtol((s), (p), 10)
+
+/* Disables localeconv() on Android builds. */
+#ifdef LUA_ANDROID
+#define LUA_NOLOCALECONV
+#endif
 
 
 /*

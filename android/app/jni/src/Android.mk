@@ -135,7 +135,6 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(LUA_SOURCES)/ltable.c \
 	$(LUA_SOURCES)/ltm.c \
 	$(LUA_SOURCES)/lvm.c \
-	$(JNIDIR)/localeconv.c
 
 # OpenGL
 LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c $(SDL2_SOURCES)/ogl_es_sdl.c \
