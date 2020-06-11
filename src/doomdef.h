@@ -478,9 +478,16 @@ extern char savegamename[256];
 void M_StartupLocale(void);
 
 char *va(const char *format, ...) FUNCPRINTF;
+
 #if defined(__ANDROID__)
-///\brief Android vsnprintf errors on characters beyond 0x80 and makes me want to die.
-int Android_vsnprintf(char *str, size_t size, const char *format, va_list argptr);
+#include <ndk_strings.h>
+#define M_sprintf Android_sprintf
+#define M_snprintf Android_snprintf
+#define M_vsnprintf Android_vsnprintf
+#else
+#define M_sprintf sprintf
+#define M_snprintf snprintf
+#define M_vsnprintf vsnprintf
 #endif
 
 char *sizeu1(size_t num);

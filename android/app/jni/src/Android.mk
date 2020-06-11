@@ -20,6 +20,7 @@ HWR_SOURCES := $(OBJDIR)/hardware/
 #
 
 LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
+			$(JNIDIR)/ndk_strings.c \
 			$(JNIDIR)/ndk_crash_handler.c \
 			$(OBJDIR)/comptime.c \
 			$(OBJDIR)/string.c   \
