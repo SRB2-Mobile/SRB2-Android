@@ -152,9 +152,6 @@ LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c $(SDL2_SOURCES)/ogl_es_sdl.c 
 		$(HWR_SOURCES)/hw_model.c \
 		$(HWR_SOURCES)/u_list.c
 
-# LodePNG
-LOCAL_SRC_FILES += $(JNIDIR)/lodepng.c
-
 #
 # SDL2 interface
 #

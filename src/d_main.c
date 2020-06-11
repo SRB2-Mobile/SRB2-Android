@@ -1134,7 +1134,7 @@ void D_SRB2Main(void)
 	"We do not claim ownership of SEGA's intellectual property used\n"
 	"in this program.\n\n");
 
-#if defined(__ANDROID__)
+#ifdef SPLASH_SCREEN
 	I_SplashScreen();
 #endif
 

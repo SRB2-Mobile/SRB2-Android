@@ -488,14 +488,8 @@ boolean R_IsLumpPNG(const UINT8 *d, size_t s)
 /*#if PNG_LIBPNG_VER_DLLNUM < 14
 typedef PNG_CONST png_byte *png_const_bytep;
 #endif*/
-typedef struct
-{
-	const UINT8 *buffer;
-	UINT32 size;
-	UINT32 position;
-} png_io_t;
 
-static void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length)
+void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length)
 {
 	png_io_t *f = png_get_io_ptr(png_ptr);
 	if (length > (f->size - f->position))
