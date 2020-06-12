@@ -1264,7 +1264,7 @@ void D_SRB2Main(void)
 #ifdef USE_PATCH_DTA
 	mainwads++;
 #endif
-#if defined(__ANDROID__)
+#ifdef USE_ANDROID_PK3
 	mainwads++;
 #endif
 
