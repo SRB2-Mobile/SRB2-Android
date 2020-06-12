@@ -1908,7 +1908,7 @@ void I_StartupGraphics(void)
 
 	keyboard_started = true;
 
-#if !defined(HAVE_TTF) && !defined(__ANDROID__)
+#if !defined(HAVE_TTF) && !defined(SPLASH_SCREEN)
 	// Previously audio was init here for questionable reasons?
 	Impl_InitVideoSubSystem();
 #endif
@@ -1924,7 +1924,7 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 
-#if defined(__ANDROID__)
+#ifdef SPLASH_SCREEN
 	// free old video surface
 	if (vidSurface)
 	{
