@@ -1265,6 +1265,33 @@ void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 		xscale, yscale, flags, backing, colormap);
 }
 
+static void ST_drawTouchDPadButton(
+	fixed_t x, fixed_t y, fixed_t w, fixed_t h,
+	INT32 shx, INT32 shy,
+	patch_t *patch, INT32 flags, boolean isdown,
+	UINT8 *colormap)
+{
+	fixed_t offs = (3*FRACUNIT);
+
+	x *= BASEVIDWIDTH * vid.dupx;
+	y *= BASEVIDHEIGHT * vid.dupy;
+
+	// draw shadow
+	if (!isdown)
+	{
+		static UINT8 *shadow = NULL;
+		size_t colsize = 256 * sizeof(UINT8);
+
+		if (shadow == NULL)
+			shadow = Z_Calloc(colsize, PU_STATIC, NULL);
+		memset(shadow, 31, colsize);
+		V_DrawStretchyFixedPatch(x + (offs * shx), y + (offs * shy), w, h, flags, patch, shadow);
+	}
+
+	// draw button
+	V_DrawStretchyFixedPatch(x, (isdown ? y+offs : y), w, h, flags, patch, (isdown ? colormap : NULL));
+}
+
 void ST_drawTouchDPad(
 					fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 					touchconfig_t *tleft, boolean moveleft,
@@ -1276,150 +1303,49 @@ void ST_drawTouchDPad(
 	INT32 x, y, w, h;
 	fixed_t dupx = vid.dupx * FRACUNIT;
 	fixed_t dupy = vid.dupy * FRACUNIT;
-	const INT32 shadow = max(1, FixedInt(FixedMul(dupy, touch_gui_scale) + (FRACUNIT / 2)));
-	const UINT32 alphalevel = (10 - ((flags & V_ALPHAMASK) >> V_ALPHASHIFT));
-	INT32 col, offs;
-	INT32 base, ybase;
-	INT32 xslant, yslant;
-	INT32 udw;
-	INT32 i, j;
+	fixed_t xscale, yscale;
 
-#define SCALEPAD(touch) \
-	SCALEBUTTON(touch); \
-	xslant = FixedMul(FixedDiv(touch->w, 2 * FRACUNIT), dupx) / FRACUNIT; \
-	yslant = FixedMul(FixedDiv(touch->h, 2 * FRACUNIT), dupy) / FRACUNIT; \
+	patch_t *up = W_CachePatchLongName("DPAD_UP", PU_PATCH);
+	patch_t *down = W_CachePatchLongName("DPAD_DOWN", PU_PATCH);
+	patch_t *left = W_CachePatchLongName("DPAD_LEFT", PU_PATCH);
+	patch_t *right = W_CachePatchLongName("DPAD_RIGHT", PU_PATCH);
+
+	// generate colormap
+	static UINT8 *colormap = NULL;
+	static UINT8 lastcolor = 0;
+	size_t colsize = 256 * sizeof(UINT8);
+
+	if (colormap == NULL)
+		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
+	if (accent != lastcolor)
+	{
+		memset(colormap, accent, colsize);
+		lastcolor = accent;
+	}
 
 	// O backing
 	if (backing)
 		ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
 
-	if (vid.dupx == 1)
-		udw = 2;
-	else
-		udw = vid.dupx * 3;
-	udw = FixedInt(FixedMul(udw * FRACUNIT, touch_gui_scale));
+	SCALEBUTTONFIXED(tup);
+	xscale = FixedDiv(tup->w, SHORT(up->width)*FRACUNIT);
+	yscale = FixedDiv(tup->h, SHORT(up->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tup->x, tup->y, xscale, yscale, 0, 1, up, flags, moveup, colormap);
 
-	// <
-	SCALEPAD(tleft);
+	SCALEBUTTONFIXED(tdown);
+	xscale = FixedDiv(tdown->w, SHORT(down->width)*FRACUNIT);
+	yscale = FixedDiv(tdown->h, SHORT(down->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tdown->x, tdown->y, xscale, yscale, 0, 1, down, flags, movedown, colormap);
 
-	base = (w - xslant);
-	ybase = (y + h) - vid.dupy;
+	SCALEBUTTONFIXED(tleft);
+	xscale = FixedDiv(tleft->w, SHORT(left->width)*FRACUNIT);
+	yscale = FixedDiv(tleft->h, SHORT(left->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tleft->x, tleft->y, xscale, yscale, -1, 1, left, flags, moveleft, colormap);
 
-#define drawleftbutton(color, offset) { \
-	drawfill(x, y+offset, base+(vid.dupx), h, color, flags); \
-	for (i = 0; i < xslant; i++) \
-		drawfill(x+base+i+(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color, flags); }
-
-	if (moveleft)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawleftbutton(29, shadow);
-	}
-
-	drawleftbutton(col, offs);
-
-	// ^
-	SCALEPAD(tup);
-
-	yslant /= 2;
-	yslant += (vid.dupy * 2) + 1;
-
-	base = w;
-	ybase = (y + h) - vid.dupy;
-
-#define drawupbutton(color, offset) { \
-	for (i = 0; i < yslant; i++) \
-		drawfill(x+i, y+offset, 1, (h-yslant)+i, color, flags); \
-	ybase = (h-yslant)+i; \
-	drawfill(x+i, y+offset, udw, ybase, color, flags); \
-	for (j = 0; j < yslant; j++) \
-		drawfill(x+i+j+udw, y+offset, 1, (ybase-(j+1)), color, flags); }
-
-	if (moveup)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawupbutton(29, shadow);
-	}
-
-	drawupbutton(col, offs);
-
-	// >
-	SCALEPAD(tright);
-
-	base = (w - xslant);
-	ybase = (y + h) - vid.dupy;
-
-#define drawrightbutton(color, offset) { \
-	drawfill(x+base-(vid.dupx), y+offset, base+(vid.dupx), h, color, flags); \
-	for (i = 0; i < xslant; i++) \
-		drawfill(x+(base-(vid.dupx))-i-(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color, flags); }
-
-	if (moveright)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawrightbutton(29, shadow);
-	}
-
-	drawrightbutton(col, offs);
-
-	// v
-	SCALEPAD(tdown);
-
-	yslant /= 2;
-	yslant += (vid.dupy * 2) + 1;
-
-	base = w;
-	ybase = (y + h);
-
-#define drawdownbutton(color, offset) { \
-	for (i = 0; i < yslant; i++) \
-		drawfill(x+i, (y+(yslant-i)) + offset, 1, (h-yslant)+i, color, flags); \
-	ybase = (h-yslant)+i; \
-	drawfill(x+i, y+offset, udw, ybase, color, flags); \
-	for (j = 0; j < yslant; j++) \
-		drawfill(x+i+j+udw, ((y+(yslant-i))+j) + 1 + offset, 1, (ybase-(j+1)), color, flags); }
-
-	if (movedown)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawdownbutton(29, shadow);
-	}
-
-	drawdownbutton(col, offs);
-
-#undef drawdownbutton
-#undef drawrightbutton
-#undef drawupbutton
-#undef drawleftbutton
-#undef SCALEPAD
+	SCALEBUTTONFIXED(tright);
+	xscale = FixedDiv(tright->w, SHORT(right->width)*FRACUNIT);
+	yscale = FixedDiv(tright->h, SHORT(right->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tright->x, tright->y, xscale, yscale, 1, 1, right, flags, moveright, colormap);
 }
 
 void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
@@ -1590,14 +1516,14 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 		return;
 
 	// Draw movement control
-	if (!promptblockcontrols && drawgamecontrols)
+	if (!promptblockcontrols && drawgamecontrols && (!config[gc_joystick].hidden))
 	{
 		// Draw the d-pad
 		if (touch_movementstyle == tms_dpad)
 		{
 			ST_drawTouchDPad(
-				touch_dpad_x, touch_dpad_y,
-				touch_dpad_w, touch_dpad_h,
+				touch_joystick_x, touch_joystick_y,
+				touch_joystick_w, touch_joystick_h,
 				tleft, (stplyr->cmd.sidemove < 0),
 				tright, (stplyr->cmd.sidemove > 0),
 				tup, (stplyr->cmd.forwardmove > 0),
@@ -1605,7 +1531,7 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 				true, flags, accent);
 		}
 		else // Draw the joystick
-			ST_drawTouchJoystick(touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h, accent, flags);
+			ST_drawTouchJoystick(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags);
 	}
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
@@ -1685,7 +1611,7 @@ void ST_drawTouchMenuInput(void)
 		} \
 		else \
 		{ \
-			col = 16; \
+			col = control->color; \
 			offs = 0; \
 			if (alphalevel >= 10) \
 				V_DrawFill(x, y + h, w, shadow, 29|flags); \

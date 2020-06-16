@@ -66,6 +66,9 @@ typedef enum
 	gc_straferight,
 	gc_turnleft,
 	gc_turnright,
+#ifdef TOUCHINPUTS
+	gc_joystick,
+#endif
 	gc_weaponnext,
 	gc_weaponprev,
 	gc_wepslot1,
@@ -196,12 +199,13 @@ typedef struct
 {
 	fixed_t x, y; // coordinates (normalized)
 	fixed_t w, h; // dimensions
-	const char *name, *tinyname; // key names
+	const char *name, *tinyname; // names
+	UINT8 color; // color
 
+	boolean dpad; // d-pad button
 	tic_t pressed; // touch navigation
-	boolean dpad; // d-pad key
-	boolean hidden; // key doesn't exist
-	boolean dontscale; // key isn't scaled
+	boolean hidden; // doesn't exist
+	boolean dontscale; // isn't scaled
 } touchconfig_t;
 
 // Screen buttons
@@ -219,7 +223,7 @@ typedef enum
 } touchpreset_e;
 
 // Input variables
-extern fixed_t touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h;
+extern fixed_t touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h;
 extern fixed_t touch_gui_scale;
 
 // Touch movement style
@@ -265,7 +269,7 @@ typedef struct
 	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
 	boolean promptblockcontrols; // promptblockcontrols
 	boolean canopenconsole; // modeattacking || metalrecording
-	boolean customizingcontrols; // M_IsCustomizingTouchControls
+	boolean customizingcontrols; // TS_IsCustomizingControls
 } touchconfigstatus_t;
 
 extern touchconfigstatus_t touchcontrolstatus;
@@ -283,8 +287,8 @@ extern consvar_t cv_touchsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 
 // Screen joystick movement
-#define TOUCHJOYEXTENDX (touch_dpad_w / 2) //(FixedDiv(touch_dpad_w, 2 * FRACUNIT))
-#define TOUCHJOYEXTENDY (touch_dpad_h / 2) //(FixedDiv(touch_dpad_h, 2 * FRACUNIT))
+#define TOUCHJOYEXTENDX (touch_joystick_w / 2)
+#define TOUCHJOYEXTENDY (touch_joystick_h / 2)
 extern float touchxmove, touchymove, touchpressure;
 #endif
 
@@ -368,8 +372,8 @@ void G_UpdateFingers(INT32 realtics);
 // Check if the finger (x, y) is touching the specified button (btn)
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn);
 
-// Check if the finger is touching the d-pad area.
-boolean G_FingerTouchesDPadArea(INT32 x, INT32 y);
+// Check if the finger is touching the joystick area.
+boolean G_FingerTouchesJoystickArea(INT32 x, INT32 y);
 
 // Check if the gamecontrol is a player control key
 boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
@@ -382,6 +386,9 @@ void G_NormalizeTouchButton(touchconfig_t *button);
 
 // Normalize a touch config
 void G_NormalizeTouchConfig(touchconfig_t *config, int configsize);
+
+// Setup a d-pad
+void G_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixed_t dw, boolean tiny);
 #endif
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen);

@@ -359,7 +359,6 @@ boolean M_MouseNeeded(void);
 #ifdef TOUCHINPUTS
 void M_UpdateTouchScreenNavigation(void);
 INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
-
 boolean M_IsCustomizingTouchControls(void);
 #endif
 
