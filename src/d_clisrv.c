@@ -2277,7 +2277,7 @@ static void CL_ConnectToServer(boolean viams)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 #ifdef TOUCHINPUTS
-	G_TouchNavigationPreset();
+	G_PositionTouchNavigation();
 #endif
 
 	displayplayer = consoleplayer;
@@ -4773,10 +4773,15 @@ static void Local_Maketic(INT32 realtics)
 	                   // game responder calls HU_Responder, AM_Responder,
 	                   // and G_MapEventsToControls
 	if (!dedicated) rendergametic = gametic;
+
 	// translate inputs (keyboard/mouse/joystick) into game controls
 	G_BuildTiccmd(&localcmds, realtics, 1);
 	if (splitscreen || botingame)
 		G_BuildTiccmd(&localcmds2, realtics, 2);
+
+#ifdef TOUCHINPUTS
+	G_UpdateFingers(realtics);
+#endif
 
 	localcmds.angleturn |= TICCMD_RECEIVED;
 	localcmds2.angleturn |= TICCMD_RECEIVED;

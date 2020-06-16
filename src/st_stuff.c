@@ -1203,8 +1203,8 @@ static void ST_drawInput(void)
 #ifdef TOUCHINPUTS
 
 #define SCALEBUTTONFIXED(touch) \
-	x = touch->x; \
-	y = touch->y; \
+	x = touch->x * BASEVIDWIDTH; \
+	y = touch->y * BASEVIDHEIGHT; \
 	w = touch->w; \
 	h = touch->h; \
 	if (!touch->dontscale) \
@@ -1491,9 +1491,9 @@ void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t d
 // Touch input in-game
 //
 
-static void ST_drawTouchGameInputButton(INT32 gctype, const char *str, INT32 keycol, const INT32 accent, INT32 alphalevel, INT32 flags)
+static void ST_drawTouchGameInputButton(touchconfig_t *config, INT32 gctype, const char *str, INT32 keycol, const INT32 accent, INT32 alphalevel, INT32 flags)
 {
-	touchconfig_t *control = &touchcontrols[gctype];
+	touchconfig_t *control = &config[gctype];
 	INT32 x, y, w, h;
 	INT32 col, offs;
 	INT32 shadow = vid.dupy;
@@ -1568,16 +1568,20 @@ static void ST_drawTouchGameInputButton(INT32 gctype, const char *str, INT32 key
 	}
 }
 
-void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
+void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT32 alphalevel)
 {
 	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = (stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
 
-	touchconfig_t *tleft = &touchcontrols[gc_strafeleft];
-	touchconfig_t *tright = &touchcontrols[gc_straferight];
-	touchconfig_t *tup = &touchcontrols[gc_forward];
-	touchconfig_t *tdown = &touchcontrols[gc_backward];
+	touchconfig_t *tleft = &config[gc_strafeleft];
+	touchconfig_t *tright = &config[gc_straferight];
+	touchconfig_t *tup = &config[gc_forward];
+	touchconfig_t *tdown = &config[gc_backward];
+
+	INT32 i;
+	INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
+	INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
 
 	if (!alphalevel)
 		return;
@@ -1605,52 +1609,42 @@ void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
 	}
 
 #define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
-#define drawbutton(gctype, str, keycol) ST_drawTouchGameInputButton(gctype, str, keycol, accent, alphalevel, flags)
-#define drawbutt(gctype) drawbutton(gctype, NULL, DEFAULTKEYCOL)
-#define drawbuttname(gctype, str) drawbutton(gctype, str, DEFAULTKEYCOL)
-#define drawcolbutt(gctype, col) drawbutton(gctype, NULL, col)
+#define drawbutton(gctype, str, keycol) ST_drawTouchGameInputButton(config, gctype, str, keycol, accent, alphalevel, flags)
+#define drawbtn(gctype) drawbutton(gctype, NULL, DEFAULTKEYCOL)
+#define drawbtnname(gctype, str) drawbutton(gctype, str, DEFAULTKEYCOL)
+#define drawcolbtn(gctype, col) drawbutton(gctype, NULL, col)
 
 	if (drawgamecontrols)
 	{
-		// Jump and spin
-		drawbutt(gc_jump);
-		drawbutt(gc_use);
-
-		// Fire and fire normal
-		drawbutt(gc_fire);
-		drawbutt(gc_firenormal);
-
-		// Toss flag
-		drawbutt(gc_tossflag);
+		for (i = 0; i < num_gamecontrols; i++)
+		{
+			if (G_TouchButtonIsPlayerControl(i) && (!config[i].hidden))
+				drawbtn(i);
+		}
 	}
 
 	//
 	// Non-control buttons
 	//
-
-	// Control panel
-	drawbutt(gc_systemmenu);
+	for (i = 0; i < numnoncontrolbtns; i++)
+	{
+		INT32 gc = noncontrolbtns[i];
+		if (!config[gc].hidden)
+			drawbtn(gc);
+	}
 
 	// Pause
-	drawbuttname(gc_pause, (paused ? "\x1D" : "II"));
-
-	// Spy mode
-	drawbutt(gc_viewpoint);
-
-	// Screenshot
-	drawbutt(gc_screenshot);
+	drawbtnname(gc_pause, (paused ? "\x1D" : "II"));
 
 	// Movie mode
-	drawcolbutt(gc_recordgif, (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
+	drawcolbtn(gc_recordgif, (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
 
-	// Talk key and team talk key
-	drawbutt(gc_talkkey);
-	drawcolbutt(gc_teamkey, accent);
+	// Team talk key
+	drawcolbtn(gc_teamkey, accent);
 
-#undef drawoffsbutt
-#undef drawcolbutt
-#undef drawbuttname
-#undef drawbutt
+#undef drawcolbtn
+#undef drawbtnname
+#undef drawbtn
 #undef drawbutton
 #undef DEFAULTKEYCOL
 }
@@ -1679,7 +1673,7 @@ void ST_drawTouchMenuInput(void)
 	if (!touch_screenexists)
 		return;
 
-#define drawbutt(keyname, symb) \
+#define drawbtn(keyname, symb) \
 	control = &touchnavigation[keyname]; \
 	if (!control->hidden) \
 	{ \
@@ -1703,11 +1697,11 @@ void ST_drawTouchMenuInput(void)
 						symb|flags, false); \
 	}
 
-	drawbutt(KEY_ESCAPE, 0x1C); // left arrow
-	drawbutt(KEY_ENTER, 0x1D); // right arrow
-	drawbutt(KEY_CONSOLE, '$');
+	drawbtn(KEY_ESCAPE, 0x1C); // left arrow
+	drawbtn(KEY_ENTER, 0x1D); // right arrow
+	drawbtn(KEY_CONSOLE, '$');
 
-#undef drawbutt
+#undef drawbtn
 }
 
 #undef drawfill
@@ -3276,7 +3270,7 @@ static void ST_overlayDrawer(void)
 		ST_drawInput();
 #ifdef TOUCHINPUTS
 	else if (G_InGameInput() && !demoplayback)
-		ST_drawTouchGameInput(drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
+		ST_drawTouchGameInput(touchcontrols, drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
 #endif
 
 	ST_drawDebugInfo();

@@ -849,7 +849,7 @@ void D_StartTitle(void)
 
 	currentMenu = &MainDef; // reset the current menu ID
 #ifdef TOUCHINPUTS
-	G_TouchNavigationPreset();
+	G_PositionTouchNavigation();
 #endif
 
 	// Reset the palette

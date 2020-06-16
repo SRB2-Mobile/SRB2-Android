@@ -41,6 +41,8 @@ extern INT32 gameovertics;
 extern UINT8 ammoremovaltics;
 extern tic_t timeinmap; // Ticker for time spent in level (used for levelcard display)
 extern INT16 rw_maximums[NUM_WEAPONS];
+
+extern INT32 camtoggledelay, camtoggledelay2;
 extern INT32 pausedelay;
 extern boolean pausebreakkey;
 

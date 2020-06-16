@@ -23,6 +23,8 @@
 #include "st_stuff.h"
 #include "d_net.h"
 #include "d_player.h"
+#include "r_main.h"
+#include "z_zone.h"
 #include "console.h"
 #include "i_system.h"
 #include "lua_hook.h"
@@ -62,6 +64,7 @@ UINT8 touchcontroldown[num_gamecontrols];
 // Screen buttons
 touchconfig_t touchcontrols[num_gamecontrols];
 touchconfig_t touchnavigation[NUMKEYS];
+touchconfig_t *usertouchcontrols = NULL;
 
 // Touch screen config. status
 touchconfigstatus_t touchcontrolstatus;
@@ -76,14 +79,23 @@ boolean touch_screenexists = false;
 
 // Touch screen settings
 touchmovementstyle_e touch_movementstyle;
-boolean touch_tinycontrols;
+touchpreset_e touch_preset;
 boolean touch_camera;
 
 // Console variables for the touch screen
-static CV_PossibleValue_t touchstyle_cons_t[] = {{tms_joystick, "Joystick"}, {tms_dpad, "D-Pad"}, {0, NULL}};
+static CV_PossibleValue_t touchstyle_cons_t[] = {
+	{tms_joystick, "Joystick"},
+	{tms_dpad, "D-Pad"},
+	{0, NULL}};
+
+static CV_PossibleValue_t touchpreset_cons_t[] = {
+	{touchpreset_none, "None"},
+	{touchpreset_normal, "Default"},
+	{touchpreset_tiny, "Tiny"},
+	{0, NULL}};
 
 consvar_t cv_touchstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchtiny = {"touch_tinycontrols", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
@@ -165,30 +177,49 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
 #ifdef TOUCHINPUTS
-void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean screenscale)
+void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale)
 {
+	fixed_t xs = FRACUNIT;
+	fixed_t ys = FRACUNIT;
+
+	if (normalized)
+	{
+		xs *= BASEVIDWIDTH;
+		ys *= BASEVIDHEIGHT;
+	}
+
 	if (screenscale)
 	{
-		fixed_t dupx = vid.dupx * FRACUNIT;
-		fixed_t dupy = vid.dupy * FRACUNIT;
-		*x = FixedMul((*x), dupx) / FRACUNIT;
-		*y = FixedMul((*y), dupy) / FRACUNIT;
-		*w = FixedMul((*w), dupx) / FRACUNIT;
-		*h = FixedMul((*h), dupy) / FRACUNIT;
+		xs *= vid.dupx;
+		ys *= vid.dupy;
+		if (w)
+			*w = FixedMul((*w), vid.dupx * FRACUNIT) / FRACUNIT;
+		if (h)
+			*h = FixedMul((*h), vid.dupy * FRACUNIT) / FRACUNIT;
 	}
 	else
 	{
-		*x = FixedInt(*x);
-		*y = FixedInt(*y);
-		*w = FixedInt(*w);
-		*h = FixedInt(*h);
+		if (w)
+			*w = FixedInt(*w);
+		if (h)
+			*h = FixedInt(*h);
 	}
+
+	*x = FixedMul((*x), xs) / FRACUNIT;
+	*y = FixedMul((*y), ys) / FRACUNIT;
 }
 
-boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *butt)
+boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn)
 {
-	INT32 tx = butt->x, ty = butt->y, tw = butt->w, th = butt->h;
-	G_ScaleTouchCoords(&tx, &ty, &tw, &th, (!butt->dontscale));
+	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
+	G_ScaleTouchCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
+}
+
+boolean G_FingerTouchesDPadArea(INT32 x, INT32 y)
+{
+	INT32 tx = touch_dpad_x, ty = touch_dpad_y, tw = touch_dpad_w, th = touch_dpad_h;
+	G_ScaleTouchCoords(&tx, &ty, &tw, &th, false, true);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
@@ -205,6 +236,8 @@ boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol)
 		case gc_screenshot:
 		case gc_recordgif:
 		case gc_viewpoint:
+		case gc_camtoggle:
+		case gc_camreset:
 			return false;
 		default:
 			break;
@@ -232,6 +265,9 @@ static void G_HandleNonPlayerControlButton(INT32 gamecontrol)
 	// Handle movie mode
 	else if (gamecontrol == gc_recordgif)
 		((moviemode) ? M_StopMovie : M_StartMovie)();
+	// Handle chasecam toggle
+	else if (gamecontrol == gc_camtoggle)
+		G_ToggleChaseCam();
 	// Handle talk buttons
 	else if (gamecontrol == gc_talkkey || gamecontrol == gc_teamkey)
 	{
@@ -256,6 +292,8 @@ static void G_HandleNonPlayerControlButton(INT32 gamecontrol)
 
 //
 // Remaps touch input events to game controls.
+// In case of moving the joystick, it sets touch axes.
+// Otherwise, it moves the camera.
 //
 static void G_HandleFingerEvent(event_t *ev)
 {
@@ -267,7 +305,7 @@ static void G_HandleFingerEvent(event_t *ev)
 	boolean movecamera = true;
 	INT32 gc = finger->u.gamecontrol, i;
 
-	if (gamestate != GS_LEVEL)
+	if (M_IsCustomizingTouchControls())
 		return;
 
 	switch (ev->type)
@@ -298,22 +336,18 @@ static void G_HandleFingerEvent(event_t *ev)
 			// check if they are below your finger.
 			for (i = 0; i < num_gamecontrols; i++)
 			{
-				touchconfig_t *butt = &touchcontrols[i];
+				touchconfig_t *btn = &touchcontrols[i];
 
 				// Ignore camera and joystick movement
 				if (finger->type.mouse)
 					break;
 
-				// Ignore undefined buttons
-				if (!butt->w)
-					continue;
-
 				// Ignore hidden buttons
-				if (butt->hidden)
+				if (btn->hidden)
 					continue;
 
 				// Ignore mismatching movement styles
-				if ((touch_movementstyle != tms_dpad) && butt->dpad)
+				if ((touch_movementstyle != tms_dpad) && btn->dpad)
 					continue;
 
 				// In a touch motion event, simulate a key up event by clearing touchcontroldown.
@@ -327,7 +361,7 @@ static void G_HandleFingerEvent(event_t *ev)
 				}
 
 				// Check if your finger touches this button.
-				if (G_FingerTouchesButton(x, y, butt) && (!touchcontroldown[i]))
+				if (G_FingerTouchesButton(x, y, btn) && (!touchcontroldown[i]))
 				{
 					finger->x = x;
 					finger->y = y;
@@ -342,13 +376,7 @@ static void G_HandleFingerEvent(event_t *ev)
 			// Check if your finger touches the d-pad area.
 			if (!foundbutton)
 			{
-				touchconfig_t dpad;
-				dpad.x = touch_dpad_x;
-				dpad.y = touch_dpad_y;
-				dpad.w = touch_dpad_w;
-				dpad.h = touch_dpad_h;
-				dpad.dontscale = false;
-				if (G_FingerTouchesButton(x, y, &dpad))
+				if (G_FingerTouchesDPadArea(x, y))
 				{
 					// Joystick
 					if (touch_movementstyle == tms_joystick && (!touchmotion))
@@ -410,7 +438,7 @@ static void G_HandleFingerEvent(event_t *ev)
 						INT32 padx = touch_dpad_x, pady = touch_dpad_y;
 						INT32 padw = touch_dpad_w, padh = touch_dpad_h;
 
-						G_ScaleTouchCoords(&padx, &pady, &padw, &padh, true);
+						G_ScaleTouchCoords(&padx, &pady, &padw, &padh, false, true);
 
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
@@ -465,6 +493,29 @@ static void G_HandleFingerEvent(event_t *ev)
 
 		default:
 			break;
+	}
+}
+
+void G_UpdateFingers(INT32 realtics)
+{
+	INT32 i;
+
+	for (i = 0; i < NUMTOUCHFINGERS; i++)
+	{
+		touchfinger_t *finger = &touchfingers[i];
+
+		// Run finger long press action
+		if (finger->longpressaction)
+		{
+			boolean done = finger->longpressaction(finger);
+			finger->longpress += realtics;
+
+			if (done)
+			{
+				finger->longpressaction = NULL;
+				finger->longpress = 0;
+			}
+		}
 	}
 }
 #endif
@@ -680,6 +731,30 @@ boolean G_DoViewpointSwitch(void)
 		return true;
 	}
 
+	return false;
+}
+
+// Handles the camera toggle key being pressed.
+boolean G_ToggleChaseCam(void)
+{
+	if (!camtoggledelay)
+	{
+		camtoggledelay = NEWTICRATE / 7;
+		CV_SetValue(&cv_chasecam, cv_chasecam.value ? 0 : 1);
+		return true;
+	}
+	return false;
+}
+
+// Handles the camera toggle key being pressed by the second player.
+boolean G_ToggleChaseCam2(void)
+{
+	if (!camtoggledelay2)
+	{
+		camtoggledelay2 = NEWTICRATE / 7;
+		CV_SetValue(&cv_chasecam2, cv_chasecam2.value ? 0 : 1);
+		return true;
+	}
 	return false;
 }
 
@@ -1227,7 +1302,7 @@ void G_DefineDefaultControls(void)
 	CV_RegisterVar(&cv_touchtrans);
 
 	CV_RegisterVar(&cv_touchcamera);
-	CV_RegisterVar(&cv_touchtiny);
+	CV_RegisterVar(&cv_touchpreset);
 	CV_RegisterVar(&cv_touchstyle);
 
 	CV_RegisterVar(&cv_touchguiscale);
@@ -1242,7 +1317,7 @@ void G_SetupTouchSettings(void)
 {
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
-	touch_tinycontrols = !!cv_touchtiny.value;
+	touch_preset = cv_touchpreset.value;
 	touch_gui_scale = cv_touchguiscale.value;
 }
 
@@ -1254,73 +1329,73 @@ void G_UpdateTouchControls(void)
 	G_DefineTouchButtons();
 }
 
-static void G_DPadPreset(fixed_t scale, fixed_t dw)
+static void G_DPadPreset(touchconfig_t *controls, fixed_t scale, fixed_t dw, boolean tiny)
 {
 	fixed_t w, h;
 
-	if (touch_tinycontrols)
+	if (tiny)
 	{
 		// Up
 		w = 20 * FRACUNIT;
 		h = 16 * FRACUNIT;
-		touchcontrols[gc_forward].w = SCALECOORD(w);
-		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(8 * FRACUNIT);
+		controls[gc_forward].w = SCALECOORD(w);
+		controls[gc_forward].h = SCALECOORD(h);
+		controls[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedCeil(FixedMul(w, scale) / 3);
+		controls[gc_forward].y = touch_dpad_y - SCALECOORD(8 * FRACUNIT);
 
 		// Down
-		touchcontrols[gc_backward].w = SCALECOORD(w);
-		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - FixedCeil(FixedDiv(FixedMul(w, scale), 3 * FRACUNIT));
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(8 * FRACUNIT);
+		controls[gc_backward].w = SCALECOORD(w);
+		controls[gc_backward].h = SCALECOORD(h);
+		controls[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - FixedCeil(FixedMul(w, scale) / 3);
+		controls[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - controls[gc_backward].h) + SCALECOORD(8 * FRACUNIT);
 
 		// Left
 		w = 16 * FRACUNIT;
 		h = 14 * FRACUNIT;
-		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
-		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8 * FRACUNIT);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
+		controls[gc_strafeleft].w = SCALECOORD(w);
+		controls[gc_strafeleft].h = SCALECOORD(h);
+		controls[gc_strafeleft].x = touch_dpad_x - SCALECOORD(8 * FRACUNIT);
+		controls[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (controls[gc_strafeleft].h / 2);
 
 		// Right
-		touchcontrols[gc_straferight].w = SCALECOORD(w);
-		touchcontrols[gc_straferight].h = SCALECOORD(h);
-		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(8 * FRACUNIT);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
+		controls[gc_straferight].w = SCALECOORD(w);
+		controls[gc_straferight].h = SCALECOORD(h);
+		controls[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - controls[gc_straferight].w) + SCALECOORD(8 * FRACUNIT);
+		controls[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (controls[gc_straferight].h / 2);
 	}
 	else
 	{
 		// Up
 		w = 40 * FRACUNIT;
 		h = 32 * FRACUNIT;
-		touchcontrols[gc_forward].w = SCALECOORD(w);
-		touchcontrols[gc_forward].h = SCALECOORD(h);
-		touchcontrols[gc_forward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
-		touchcontrols[gc_forward].y = touch_dpad_y - SCALECOORD(16 * FRACUNIT);
+		controls[gc_forward].w = SCALECOORD(w);
+		controls[gc_forward].h = SCALECOORD(h);
+		controls[gc_forward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
+		controls[gc_forward].y = touch_dpad_y - SCALECOORD(16 * FRACUNIT);
 
 		// Down
-		touchcontrols[gc_backward].w = SCALECOORD(w);
-		touchcontrols[gc_backward].h = SCALECOORD(h);
-		touchcontrols[gc_backward].x = (touch_dpad_x + SCALECOORD(FixedDiv(dw, 2 * FRACUNIT))) - SCALECOORD(FixedDiv(w, 3 * FRACUNIT));
-		touchcontrols[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - touchcontrols[gc_backward].h) + SCALECOORD(16 * FRACUNIT);
+		controls[gc_backward].w = SCALECOORD(w);
+		controls[gc_backward].h = SCALECOORD(h);
+		controls[gc_backward].x = (touch_dpad_x + SCALECOORD(dw / 2)) - SCALECOORD(w / 3);
+		controls[gc_backward].y = ((touch_dpad_y + touch_dpad_h) - controls[gc_backward].h) + SCALECOORD(16 * FRACUNIT);
 
 		// Left
 		w = 32 * FRACUNIT;
 		h = 28 * FRACUNIT;
-		touchcontrols[gc_strafeleft].w = SCALECOORD(w);
-		touchcontrols[gc_strafeleft].h = SCALECOORD(h);
-		touchcontrols[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16 * FRACUNIT);
-		touchcontrols[gc_strafeleft].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_strafeleft].h, 2 * FRACUNIT);
+		controls[gc_strafeleft].w = SCALECOORD(w);
+		controls[gc_strafeleft].h = SCALECOORD(h);
+		controls[gc_strafeleft].x = touch_dpad_x - SCALECOORD(16 * FRACUNIT);
+		controls[gc_strafeleft].y = (touch_dpad_y + (touch_dpad_h / 2)) - (controls[gc_strafeleft].h / 2);
 
 		// Right
-		touchcontrols[gc_straferight].w = SCALECOORD(w);
-		touchcontrols[gc_straferight].h = SCALECOORD(h);
-		touchcontrols[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - touchcontrols[gc_straferight].w) + SCALECOORD(16 * FRACUNIT);
-		touchcontrols[gc_straferight].y = (touch_dpad_y + FixedDiv(touch_dpad_h, 2 * FRACUNIT)) - FixedDiv(touchcontrols[gc_straferight].h, 2 * FRACUNIT);
+		controls[gc_straferight].w = SCALECOORD(w);
+		controls[gc_straferight].h = SCALECOORD(h);
+		controls[gc_straferight].x = ((touch_dpad_x + touch_dpad_w) - controls[gc_straferight].w) + SCALECOORD(16 * FRACUNIT);
+		controls[gc_straferight].y = (touch_dpad_y + (touch_dpad_h / 2)) - (touchcontrols[gc_straferight].h / 2);
 	}
 }
 
-static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
+static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, boolean tiny, fixed_t offs, fixed_t bottomalign)
 {
 	touch_dpad_w = SCALECOORD(dw);
 	touch_dpad_h = SCALECOORD(dh);
@@ -1332,7 +1407,7 @@ static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixe
 	touch_dpad_y += (offs + bottomalign);
 
 	// Offset d-pad base
-	if (touch_tinycontrols)
+	if (tiny)
 	{
 		if (touch_movementstyle == tms_joystick)
 		{
@@ -1356,33 +1431,109 @@ static void G_ScaleDPadBase(fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixe
 	}
 }
 
-void G_TouchControlPreset(void)
+void G_NormalizeTouchButton(touchconfig_t *button)
 {
-	touchconfigstatus_t *status = &touchcontrolstatus;
+	button->x = FixedDiv(button->x, BASEVIDWIDTH * FRACUNIT);
+	button->y = FixedDiv(button->y, BASEVIDHEIGHT * FRACUNIT);
+}
 
+void G_NormalizeTouchConfig(touchconfig_t *config, int configsize)
+{
+	INT32 i;
+	for (i = 0; i < configsize; i++)
+		G_NormalizeTouchButton(&config[i]);
+}
+
+struct {
+	const char *name;
+	const char *tinyname;
+} const touchbuttonnames[num_gamecontrols] = {
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{"WEP.NEXT", "WNX"},
+	{"WEP.PREV", "WPV"},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{"FIRE", "FRE"},
+	{"F.NORMAL", "FRN"},
+	{"TOSSFLAG", "FLG"},
+	{"SPIN", "SPN"},
+	{"CHASECAM", "CHASE"},
+	{"RESET CAM", "R.CAM"},
+	{"LOOK UP", "L.UP"},
+	{"LOOK DOWN", "L.DW"},
+	{"CENTER VIEW", "CVW"},
+	{"MOUSEAIM", "AIM"},
+	{"TALK", "TLK"},
+	{"TEAM", "TTK"},
+	{"SCORES", "TAB"},
+	{"JUMP", "JMP"},
+	{"CONSOLE", "CON"},
+	{NULL, NULL},
+	{"MENU", "MNU"},
+	{"SCRCAP", "SCR"},
+	{"REC", NULL},
+	{"F12", NULL},
+	{"CUSTOM1", "C1"},
+	{"CUSTOM2", "C2"},
+	{"CUSTOM3", "C3"},
+};
+
+const char *G_GetTouchButtonName(INT32 gc)
+{
+	return touchbuttonnames[gc].name;
+}
+
+const char *G_GetTouchButtonShortName(INT32 gc)
+{
+	return touchbuttonnames[gc].tinyname;
+}
+
+static void G_SetTouchButtonNames(touchconfig_t *controls)
+{
+	INT32 i;
+
+	for (i = 0; i < num_gamecontrols; i++)
+	{
+		controls[i].name = G_GetTouchButtonName(i);
+		controls[i].tinyname = G_GetTouchButtonShortName(i);
+	}
+}
+
+static void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *status, fixed_t scale, boolean tiny)
+{
 	fixed_t x, y, w, h;
 	fixed_t dx, dy, dw, dh;
 	fixed_t corneroffset = 4 * FRACUNIT;
 	fixed_t rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
 	fixed_t bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
-	fixed_t jsoffs = G_RingSlingerGametype() ? (-4 * FRACUNIT) : 0, jumph;
+	fixed_t jsoffs = status->ringslinger ? (-4 * FRACUNIT) : 0, jumph;
 	fixed_t offs = (promptactive ? -16 : 0);
 	fixed_t nonjoyoffs = -12 * FRACUNIT;
 	fixed_t bottomalign = 0;
-	fixed_t scale = touch_gui_scale;
 
 	touchconfig_t *ref;
 	boolean bothvisible;
 	boolean eithervisible;
-	INT32 i, wep, dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 
+	// For the D-Pad
 	if (vid.height != BASEVIDHEIGHT * vid.dupy)
 		bottomalign = ((vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy) * FRACUNIT;
 
-	// clear all
-	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
-
-	if (touch_tinycontrols)
+	if (tiny)
 	{
 		dx = 24 * FRACUNIT;
 		dy = 128 * FRACUNIT;
@@ -1398,84 +1549,243 @@ void G_TouchControlPreset(void)
 	}
 
 	// D-Pad
-	G_ScaleDPadBase(dx, dy, dw, dh, scale, offs, bottomalign);
-	G_DPadPreset(scale, dw);
+	G_ScaleDPadBase(dx, dy, dw, dh, scale, tiny, offs, bottomalign);
+	G_DPadPreset(controls, scale, dw, tiny);
 
 	// Jump and spin
-	if (touch_tinycontrols)
+	if (tiny)
 	{
 		// Jump
 		w = 40 * FRACUNIT;
 		h = jumph = 32 * FRACUNIT;
-		touchcontrols[gc_jump].w = SCALECOORD(w);
-		touchcontrols[gc_jump].h = SCALECOORD(h);
-		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
-		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
+		controls[gc_jump].w = SCALECOORD(w);
+		controls[gc_jump].h = SCALECOORD(h);
+		controls[gc_jump].x = (rightcorner - controls[gc_jump].w - corneroffset - (12 * FRACUNIT));
+		controls[gc_jump].y = (bottomcorner - controls[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
 
 		// Spin
 		w = 32 * FRACUNIT;
 		h = 24 * FRACUNIT;
-		touchcontrols[gc_use].w = SCALECOORD(w);
-		touchcontrols[gc_use].h = SCALECOORD(h);
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + (8 * FRACUNIT);
+		controls[gc_use].w = SCALECOORD(w);
+		controls[gc_use].h = SCALECOORD(h);
+		controls[gc_use].x = (controls[gc_jump].x - controls[gc_use].w - (12 * FRACUNIT));
+		controls[gc_use].y = controls[gc_jump].y + (8 * FRACUNIT);
 	}
 	else
 	{
 		// Jump
 		w = 48 * FRACUNIT;
 		h = jumph = 48 * FRACUNIT;
-		touchcontrols[gc_jump].w = SCALECOORD(w);
-		touchcontrols[gc_jump].h = SCALECOORD(h);
-		touchcontrols[gc_jump].x = (rightcorner - touchcontrols[gc_jump].w - corneroffset - (12 * FRACUNIT));
-		touchcontrols[gc_jump].y = (bottomcorner - touchcontrols[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
+		controls[gc_jump].w = SCALECOORD(w);
+		controls[gc_jump].h = SCALECOORD(h);
+		controls[gc_jump].x = (rightcorner - controls[gc_jump].w - corneroffset - (12 * FRACUNIT));
+		controls[gc_jump].y = (bottomcorner - controls[gc_jump].h - corneroffset - (12 * FRACUNIT)) + jsoffs + offs + nonjoyoffs;
 
 		// Spin
 		w = 40 * FRACUNIT;
 		h = 32 * FRACUNIT;
-		touchcontrols[gc_use].w = SCALECOORD(w);
-		touchcontrols[gc_use].h = SCALECOORD(h);
-		touchcontrols[gc_use].x = (touchcontrols[gc_jump].x - touchcontrols[gc_use].w - (12 * FRACUNIT));
-		touchcontrols[gc_use].y = touchcontrols[gc_jump].y + (12 * FRACUNIT);
+		controls[gc_use].w = SCALECOORD(w);
+		controls[gc_use].h = SCALECOORD(h);
+		controls[gc_use].x = (controls[gc_jump].x - controls[gc_use].w - (12 * FRACUNIT));
+		controls[gc_use].y = controls[gc_jump].y + (12 * FRACUNIT);
 	}
 
 	// Fire, fire normal, and toss flag
 	if (status->ringslinger)
 	{
 		offs = SCALECOORD(8 * FRACUNIT);
-		h = SCALECOORD(FixedDiv(jumph, 2 * FRACUNIT)) + SCALECOORD(4 * FRACUNIT);
-		touchcontrols[gc_use].h = h;
-		touchcontrols[gc_use].y = ((touchcontrols[gc_jump].y + touchcontrols[gc_jump].h) - h) + offs;
+		h = SCALECOORD(jumph / 2) + SCALECOORD(4 * FRACUNIT);
+		controls[gc_use].h = h;
+		controls[gc_use].y = ((controls[gc_jump].y + controls[gc_jump].h) - h) + offs;
 
-		touchcontrols[gc_fire].w = touchcontrols[gc_use].w;
-		touchcontrols[gc_fire].h = h;
-		touchcontrols[gc_fire].x = touchcontrols[gc_use].x;
-		touchcontrols[gc_fire].y = touchcontrols[gc_jump].y - offs;
+		controls[gc_fire].w = controls[gc_use].w;
+		controls[gc_fire].h = h;
+		controls[gc_fire].x = controls[gc_use].x;
+		controls[gc_fire].y = controls[gc_jump].y - offs;
 
 		if (status->ctfgametype)
 		{
-			ref = &touchcontrols[gc_tossflag];
-			touchcontrols[gc_firenormal].hidden = true;
+			ref = &controls[gc_tossflag];
+			controls[gc_firenormal].hidden = true;
 		}
 		else
 		{
-			ref = &touchcontrols[gc_firenormal];
-			touchcontrols[gc_tossflag].hidden = true;
+			ref = &controls[gc_firenormal];
+			controls[gc_tossflag].hidden = true;
 		}
 
-		ref->w = touchcontrols[gc_jump].w;
-		ref->h = touchcontrols[gc_fire].h;
-		if (!touch_tinycontrols)
-			ref->h = FixedDiv(ref->h, 2 * FRACUNIT);
+		ref->w = controls[gc_jump].w;
+		ref->h = controls[gc_fire].h;
+		if (!tiny)
+			ref->h = (ref->h / 2);
 
-		ref->x = touchcontrols[gc_jump].x;
-		ref->y = touchcontrols[gc_jump].y - ref->h - SCALECOORD(4 * FRACUNIT);
+		ref->x = controls[gc_jump].x;
+		ref->y = controls[gc_jump].y - ref->h - SCALECOORD(4 * FRACUNIT);
 	}
 	else
 	{
-		touchcontrols[gc_fire].hidden = true;
-		touchcontrols[gc_firenormal].hidden = true;
-		touchcontrols[gc_tossflag].hidden = true;
+		controls[gc_fire].hidden = true;
+		controls[gc_firenormal].hidden = true;
+		controls[gc_tossflag].hidden = true;
+	}
+
+	//
+	// Non-control buttons
+	//
+
+	offs = SCALECOORD(8 * FRACUNIT);
+
+	// Menu
+	controls[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
+	controls[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
+	controls[gc_systemmenu].x = (rightcorner - controls[gc_systemmenu].w - corneroffset);
+	controls[gc_systemmenu].y = corneroffset;
+
+	// Pause
+	controls[gc_pause].x = controls[gc_systemmenu].x;
+	controls[gc_pause].y = controls[gc_systemmenu].y;
+	controls[gc_pause].w = SCALECOORD(24 * FRACUNIT);
+	controls[gc_pause].h = SCALECOORD(24 * FRACUNIT);
+	if (status->canpause)
+		controls[gc_pause].x -= (controls[gc_pause].w + SCALECOORD(4 * FRACUNIT));
+	else
+		controls[gc_pause].hidden = true;
+
+	// Spy mode
+	controls[gc_viewpoint].hidden = true;
+	controls[gc_viewpoint].x = controls[gc_pause].x;
+	controls[gc_viewpoint].y = controls[gc_pause].y;
+	if (status->canviewpointswitch)
+	{
+		controls[gc_viewpoint].w = SCALECOORD(32 * FRACUNIT);
+		controls[gc_viewpoint].h = SCALECOORD(24 * FRACUNIT);
+		controls[gc_viewpoint].x -= (controls[gc_viewpoint].w + SCALECOORD(4 * FRACUNIT));
+		controls[gc_viewpoint].hidden = false;
+	}
+
+	// Align screenshot and movie mode buttons
+	w = SCALECOORD(40 * FRACUNIT);
+	h = SCALECOORD(24 * FRACUNIT);
+
+	bothvisible = ((!controls[gc_viewpoint].hidden) && (!controls[gc_pause].hidden));
+	eithervisible = (controls[gc_viewpoint].hidden ^ controls[gc_pause].hidden);
+
+	if (bothvisible || eithervisible)
+	{
+		if (bothvisible)
+			ref = &controls[gc_pause];
+		else // only if one of either are visible, but not both
+			ref = (controls[gc_viewpoint].hidden ? &controls[gc_pause] : &controls[gc_viewpoint]);
+
+		x = ref->x - (w - ref->w);
+		y = ref->y + ref->h + offs;
+	}
+	else
+	{
+		x = (controls[gc_viewpoint].x - w - SCALECOORD(4 * FRACUNIT));
+		y = controls[gc_viewpoint].y;
+	}
+
+	controls[gc_screenshot].w = controls[gc_recordgif].w = w;
+	controls[gc_screenshot].h = controls[gc_recordgif].h = h;
+
+	// Screenshot
+	controls[gc_screenshot].x = x;
+	controls[gc_screenshot].y = y;
+
+	// Movie mode
+	controls[gc_recordgif].x = x;
+	controls[gc_recordgif].y = (controls[gc_screenshot].y + controls[gc_screenshot].h + offs);
+
+	// Talk key and team talk key
+	controls[gc_talkkey].hidden = true; // hidden by default
+	controls[gc_teamkey].hidden = true; // hidden outside of team games
+
+	// if netgame + chat not muted
+	if (status->cantalk)
+	{
+		controls[gc_talkkey].w = SCALECOORD(32 * FRACUNIT);
+		controls[gc_talkkey].h = SCALECOORD(24 * FRACUNIT);
+		controls[gc_talkkey].x = (rightcorner - controls[gc_talkkey].w - corneroffset);
+		controls[gc_talkkey].y = (controls[gc_systemmenu].y + controls[gc_systemmenu].h + offs);
+		controls[gc_talkkey].hidden = false;
+
+		if (status->canteamtalk)
+		{
+			controls[gc_teamkey].w = SCALECOORD(32 * FRACUNIT);
+			controls[gc_teamkey].h = SCALECOORD(24 * FRACUNIT);
+			controls[gc_teamkey].x = controls[gc_talkkey].x;
+			controls[gc_teamkey].y = controls[gc_talkkey].y + controls[gc_talkkey].h + offs;
+			controls[gc_teamkey].hidden = false;
+		}
+	}
+
+	// Normalize all buttons
+	G_NormalizeTouchConfig(controls, num_gamecontrols);
+
+	// Mark movement controls as d-pad buttons
+	controls[gc_forward].dpad = true;
+	controls[gc_backward].dpad = true;
+	controls[gc_strafeleft].dpad = true;
+	controls[gc_straferight].dpad = true;
+
+	// Set button names
+	G_SetTouchButtonNames(controls);
+
+	// Mark undefined buttons as hidden
+	for (x = 0; x < num_gamecontrols; x++)
+	{
+		if (!controls[x].w)
+			controls[x].hidden = true;
+	}
+}
+
+static void G_DefaultCustomTouchControls(boolean tiny)
+{
+	static touchconfigstatus_t status;
+
+	usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+
+	status.ringslinger = true;
+	status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
+	status.canpause = true;
+	status.canviewpointswitch = true;
+	status.cantalk = true;
+	status.canteamtalk = true;
+
+	G_BuildTouchPreset(usertouchcontrols, &status, touch_gui_scale, tiny);
+}
+
+void G_PositionTouchButtons(void)
+{
+	touchconfigstatus_t *status = &touchcontrolstatus;
+
+	INT32 i, wep, dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
+	fixed_t x, y, w, h;
+
+	// clear all
+	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
+
+	if (touch_preset != touchpreset_none)
+	{
+		// Build preset
+		touchconfig_t *controls = touchcontrols;
+		boolean tiny = (touch_preset == touchpreset_tiny);
+
+		G_BuildTouchPreset(controls, status, touch_gui_scale, tiny);
+
+		// Make a default custom controls set
+		if (usertouchcontrols == NULL)
+			G_DefaultCustomTouchControls(tiny);
+	}
+	else
+	{
+		// Make a default custom controls set
+		if (usertouchcontrols == NULL)
+			G_DefaultCustomTouchControls(false);
+
+		// Copy custom controls
+		M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
 	}
 
 	// Weapon select slots
@@ -1513,97 +1823,6 @@ void G_TouchControlPreset(void)
 		wep++;
 	}
 
-	//
-	// Non-control buttons
-	//
-
-	offs = SCALECOORD(8 * FRACUNIT);
-
-	// Menu
-	touchcontrols[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
-	touchcontrols[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
-	touchcontrols[gc_systemmenu].x = (rightcorner - touchcontrols[gc_systemmenu].w - corneroffset);
-	touchcontrols[gc_systemmenu].y = corneroffset;
-
-	// Pause
-	touchcontrols[gc_pause].x = touchcontrols[gc_systemmenu].x;
-	touchcontrols[gc_pause].y = touchcontrols[gc_systemmenu].y;
-	touchcontrols[gc_pause].w = SCALECOORD(24 * FRACUNIT);
-	touchcontrols[gc_pause].h = SCALECOORD(24 * FRACUNIT);
-	if (status->canpause)
-		touchcontrols[gc_pause].x -= (touchcontrols[gc_pause].w + SCALECOORD(4 * FRACUNIT));
-	else
-		touchcontrols[gc_pause].hidden = true;
-
-	// Spy mode
-	touchcontrols[gc_viewpoint].hidden = true;
-	touchcontrols[gc_viewpoint].x = touchcontrols[gc_pause].x;
-	touchcontrols[gc_viewpoint].y = touchcontrols[gc_pause].y;
-	if (status->canviewpointswitch)
-	{
-		touchcontrols[gc_viewpoint].w = SCALECOORD(32 * FRACUNIT);
-		touchcontrols[gc_viewpoint].h = SCALECOORD(24 * FRACUNIT);
-		touchcontrols[gc_viewpoint].x -= (touchcontrols[gc_viewpoint].w + SCALECOORD(4 * FRACUNIT));
-		touchcontrols[gc_viewpoint].hidden = false;
-	}
-
-	// Align screenshot and movie mode buttons
-	w = SCALECOORD(40 * FRACUNIT);
-	h = SCALECOORD(24 * FRACUNIT);
-
-	bothvisible = ((!touchcontrols[gc_viewpoint].hidden) && (!touchcontrols[gc_pause].hidden));
-	eithervisible = (touchcontrols[gc_viewpoint].hidden ^ touchcontrols[gc_pause].hidden);
-
-	if (bothvisible || eithervisible)
-	{
-		if (bothvisible)
-			ref = &touchcontrols[gc_pause];
-		else // only if one of either are visible, but not both
-			ref = (touchcontrols[gc_viewpoint].hidden ? &touchcontrols[gc_pause] : &touchcontrols[gc_viewpoint]);
-
-		x = ref->x - (w - ref->w);
-		y = ref->y + ref->h + offs;
-	}
-	else
-	{
-		x = (touchcontrols[gc_viewpoint].x - w - SCALECOORD(4 * FRACUNIT));
-		y = touchcontrols[gc_viewpoint].y;
-	}
-
-	touchcontrols[gc_screenshot].w = touchcontrols[gc_recordgif].w = w;
-	touchcontrols[gc_screenshot].h = touchcontrols[gc_recordgif].h = h;
-
-	// Screenshot
-	touchcontrols[gc_screenshot].x = x;
-	touchcontrols[gc_screenshot].y = y;
-
-	// Movie mode
-	touchcontrols[gc_recordgif].x = x;
-	touchcontrols[gc_recordgif].y = (touchcontrols[gc_screenshot].y + touchcontrols[gc_screenshot].h + offs);
-
-	// Talk key and team talk key
-	touchcontrols[gc_talkkey].hidden = true; // hidden by default
-	touchcontrols[gc_teamkey].hidden = true; // hidden outside of team games
-
-	// if netgame + chat not muted
-	if (status->cantalk)
-	{
-		touchcontrols[gc_talkkey].w = SCALECOORD(32 * FRACUNIT);
-		touchcontrols[gc_talkkey].h = SCALECOORD(24 * FRACUNIT);
-		touchcontrols[gc_talkkey].x = (rightcorner - touchcontrols[gc_talkkey].w - corneroffset);
-		touchcontrols[gc_talkkey].y = (touchcontrols[gc_systemmenu].y + touchcontrols[gc_systemmenu].h + offs);
-		touchcontrols[gc_talkkey].hidden = false;
-
-		if (status->canteamtalk)
-		{
-			touchcontrols[gc_teamkey].w = SCALECOORD(32 * FRACUNIT);
-			touchcontrols[gc_teamkey].h = SCALECOORD(24 * FRACUNIT);
-			touchcontrols[gc_teamkey].x = touchcontrols[gc_talkkey].x;
-			touchcontrols[gc_teamkey].y = touchcontrols[gc_talkkey].y + touchcontrols[gc_talkkey].h + offs;
-			touchcontrols[gc_teamkey].hidden = false;
-		}
-	}
-
 	// Hide movement controls in prompts that block controls
 	if (status->promptblockcontrols)
 	{
@@ -1614,43 +1833,11 @@ void G_TouchControlPreset(void)
 				touchcontrols[i].hidden = true;
 		}
 	}
-
-	// Mark movement controls as d-pad buttons
-	touchcontrols[gc_forward].dpad = true;
-	touchcontrols[gc_backward].dpad = true;
-	touchcontrols[gc_strafeleft].dpad = true;
-	touchcontrols[gc_straferight].dpad = true;
-
-	// Set button names
-	touchcontrols[gc_jump].name = "JUMP";
-	touchcontrols[gc_use].name = "SPIN";
-	touchcontrols[gc_fire].name = "FIRE";
-	touchcontrols[gc_firenormal].name = "F.NORMAL";
-	touchcontrols[gc_tossflag].name = "TOSSFLAG";
-
-	touchcontrols[gc_systemmenu].name = "MENU";
-	touchcontrols[gc_viewpoint].name = "F12";
-	touchcontrols[gc_screenshot].name = "SCRCAP";
-	touchcontrols[gc_recordgif].name = "REC";
-	touchcontrols[gc_talkkey].name = "TALK";
-	touchcontrols[gc_teamkey].name = "TEAM";
-
-	// Set abbreviated button names
-	touchcontrols[gc_jump].tinyname = "JMP";
-	touchcontrols[gc_use].tinyname = "SPN";
-	touchcontrols[gc_fire].tinyname = "FRE";
-	touchcontrols[gc_firenormal].tinyname = "FRN";
-	touchcontrols[gc_tossflag].tinyname = "TSS";
-
-	touchcontrols[gc_systemmenu].tinyname = "MNU";
-	touchcontrols[gc_screenshot].tinyname = "SCR";
-	touchcontrols[gc_talkkey].tinyname = "TLK";
-	touchcontrols[gc_teamkey].tinyname = "TTK";
 }
 
 #undef SCALECOORD
 
-void G_TouchNavigationPreset(void)
+void G_PositionTouchNavigation(void)
 {
 	INT32 corneroffset = 4 * FRACUNIT;
 
@@ -1664,10 +1851,15 @@ void G_TouchNavigationPreset(void)
 	touchnavigation[KEY_ESCAPE].h = 24 * FRACUNIT;
 
 	// Confirm
-	touchnavigation[KEY_ENTER].w = 24 * FRACUNIT;
-	touchnavigation[KEY_ENTER].h = 24 * FRACUNIT;
-	touchnavigation[KEY_ENTER].x = (((vid.width / vid.dupx) * FRACUNIT) - touchnavigation[KEY_ENTER].w - corneroffset);
-	touchnavigation[KEY_ENTER].y = corneroffset;
+	if (touchnavigationstatus.customizingcontrols)
+		touchnavigation[KEY_ENTER].hidden = true;
+	else
+	{
+		touchnavigation[KEY_ENTER].w = 24 * FRACUNIT;
+		touchnavigation[KEY_ENTER].h = 24 * FRACUNIT;
+		touchnavigation[KEY_ENTER].x = (((vid.width / vid.dupx) * FRACUNIT) - touchnavigation[KEY_ENTER].w - corneroffset);
+		touchnavigation[KEY_ENTER].y = corneroffset;
+	}
 
 	// Console
 	if (touchnavigationstatus.canopenconsole)
@@ -1675,11 +1867,14 @@ void G_TouchNavigationPreset(void)
 	else
 	{
 		touchnavigation[KEY_CONSOLE].x = corneroffset;
-		touchnavigation[KEY_CONSOLE].y = touchnavigation[KEY_ENTER].y + touchnavigation[KEY_ENTER].h + (8 * FRACUNIT);
+		touchnavigation[KEY_CONSOLE].y = touchnavigation[KEY_ESCAPE].y + touchnavigation[KEY_ESCAPE].h + (8 * FRACUNIT);
 		touchnavigation[KEY_CONSOLE].w = 24 * FRACUNIT;
 		touchnavigation[KEY_CONSOLE].h = 24 * FRACUNIT;
 		touchnavigation[KEY_CONSOLE].hidden = false;
 	}
+
+	// Normalize all buttons
+	G_NormalizeTouchConfig(touchnavigation, NUMKEYS);
 }
 
 void G_DefineTouchButtons(void)
@@ -1693,10 +1888,10 @@ void G_DefineTouchButtons(void)
 
 	status.vidwidth = vid.width;
 	status.vidheight = vid.height;
-
 	status.guiscale = touch_gui_scale;
+
+	status.preset = touch_preset;
 	status.movementstyle = touch_movementstyle;
-	status.tiny = touch_tinycontrols;
 
 	status.ringslinger = G_RingSlingerGametype();
 	status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
@@ -1709,7 +1904,7 @@ void G_DefineTouchButtons(void)
 	if (memcmp(&status, &touchcontrolstatus, size))
 	{
 		M_Memcpy(&touchcontrolstatus, &status, size);
-		G_TouchControlPreset();
+		G_PositionTouchButtons();
 	}
 
 	//
@@ -1719,11 +1914,12 @@ void G_DefineTouchButtons(void)
 	navstatus.vidwidth = vid.width;
 	navstatus.vidheight = vid.height;
 	navstatus.canopenconsole = (modeattacking || metalrecording);
+	navstatus.customizingcontrols = M_IsCustomizingTouchControls();
 
 	if (memcmp(&navstatus, &touchnavigationstatus, size))
 	{
 		M_Memcpy(&touchnavigationstatus, &navstatus, size);
-		G_TouchNavigationPreset();
+		G_PositionTouchNavigation();
 	}
 }
 #endif

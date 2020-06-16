@@ -1929,7 +1929,7 @@ boolean G_IsTitleCardAvailable(void)
 
 INT32 pausedelay = 0;
 boolean pausebreakkey = false;
-static INT32 camtoggledelay, camtoggledelay2 = 0;
+INT32 camtoggledelay, camtoggledelay2 = 0;
 
 //
 // G_Responder
@@ -2038,20 +2038,12 @@ boolean G_Responder(event_t *ev)
 			if (ev->key == gamecontrol[gc_camtoggle][0]
 				|| ev->key == gamecontrol[gc_camtoggle][1])
 			{
-				if (!camtoggledelay)
-				{
-					camtoggledelay = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam, cv_chasecam.value ? 0 : 1);
-				}
+				G_ToggleChaseCam();
 			}
 			if (ev->key == gamecontrolbis[gc_camtoggle][0]
 				|| ev->key == gamecontrolbis[gc_camtoggle][1])
 			{
-				if (!camtoggledelay2)
-				{
-					camtoggledelay2 = NEWTICRATE / 7;
-					CV_SetValue(&cv_chasecam2, cv_chasecam2.value ? 0 : 1);
-				}
+				G_ToggleChaseCam2();
 			}
 			return true;
 

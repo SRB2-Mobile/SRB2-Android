@@ -188,7 +188,7 @@ extern char logfilename[1024];
 "the Master Server until you update to\n"\
 "the newest version of the game.\n"\
 "\n"\
-"(Press a key)\n"
+PRESS_A_KEY_MESSAGE
 
 // The string used in the I_Error alert upon trying to host through command line parameters.
 // Generally less filled with newlines, since Windows gives you lots more room to work with.

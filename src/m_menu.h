@@ -86,6 +86,7 @@ typedef enum
 	MN_OP_P2CAMERA,
 
 	MN_OP_TOUCHSCREEN,
+	MN_OP_TOUCHCONTROLS,
 
 	MN_OP_PLAYSTYLE,
 
@@ -288,7 +289,7 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_HEADER      (IT_SPACE  +IT_HEADERTEXT)
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
 
-// Confirm (press 'Y') / Return (press 'N') / ESC messages
+// Confirm (press 'Y') / Return (press 'N') / Press a key / ESC messages
 #ifdef TOUCHINPUTS
 #define PRESS_Y_MESSAGE   "Tap 'Confirm'"
 #define PRESS_Y_MESSAGE_L "tap 'Confirm'"
@@ -296,6 +297,8 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define PRESS_N_MESSAGE_L "tap 'Back'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE
 #define PRESS_ESC_MESSAGE "Tap anywhere\n"
+#define PRESS_A_KEY_MESSAGE PRESS_ESC_MESSAGE
+#define PRESS_A_KEY_MESSAGE_ALT PRESS_ESC_MESSAGE
 #else
 #define PRESS_Y_MESSAGE   "Press 'Y'"
 #define PRESS_Y_MESSAGE_L "press 'Y'"
@@ -303,6 +306,8 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define PRESS_N_MESSAGE_L "Press 'N'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE " to confirm"
 #define PRESS_ESC_MESSAGE "Press ESC\n"
+#define PRESS_A_KEY_MESSAGE "(Press a key)\n"
+#define PRESS_A_KEY_MESSAGE_ALT "Press a key.\n"
 #endif
 
 #define MAXSTRINGLENGTH 32
@@ -354,6 +359,8 @@ boolean M_MouseNeeded(void);
 #ifdef TOUCHINPUTS
 void M_UpdateTouchScreenNavigation(void);
 INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
+
+boolean M_IsCustomizingTouchControls(void);
 #endif
 
 extern menu_t *currentMenu;
