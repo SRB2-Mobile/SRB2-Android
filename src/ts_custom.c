@@ -29,6 +29,7 @@
 #include "f_finale.h" // curfadevalue
 #include "v_video.h"
 #include "st_stuff.h" // ST_drawTouchGameInput
+#include "hu_stuff.h" // shiftxform
 #include "z_zone.h"
 
 #include "console.h" // CON_Ready()
@@ -59,6 +60,8 @@ static INT32 touchcust_addbutton_y = 0;
 
 static boolean touchcust_customizing = false;
 static char *touchcust_deferredmessage = NULL;
+
+static touchlayout_t *touchcust_layoutlist_renaming = NULL;
 
 // ==========
 // Prototypes
@@ -139,11 +142,9 @@ boolean TS_ExitCustomization(void)
 
 	if (touchcust_submenu != touchcust_submenu_none)
 	{
-		if (touchcust_submenu == touchcust_submenu_layouts)
-			return true;
-
+		touchcust_submenu_e lastmenu = touchcust_submenu;
 		CloseSubmenu();
-		return false;
+		return (lastmenu == touchcust_submenu_layouts);
 	}
 
 	ClearAllSelections();
@@ -154,9 +155,29 @@ boolean TS_ExitCustomization(void)
 	return true;
 }
 
+#define MAXMESSAGELAYOUTNAME 24
+
 static void DisplayMessage(const char *message)
 {
 	touchcust_deferredmessage = Z_StrDup(message);
+}
+
+static void StopRenamingLayout(touchlayout_t *layout)
+{
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+
+	if (layout)
+	{
+		if (!strlen(layout->name))
+			strlcpy(layout->name, "Unnamed layout", MAXTOUCHLAYOUTNAME+1);
+		TS_SaveLayouts();
+	}
+
+	touchcust_layoutlist_renaming = NULL;
+
+	if (touchcust_submenu == touchcust_submenu_layouts)
+		TS_MakeLayoutList();
 }
 
 // =======
@@ -345,7 +366,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 			"\x82%s\n"
 			"\x85""Failed to load layout!\n"
 			"\n" PRESS_A_KEY_MESSAGE),
-			layout->name));
+			TS_GetShortLayoutName(layout, MAXMESSAGELAYOUTNAME)));
 		return false;
 	}
 
@@ -425,6 +446,19 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 
 	fclose(f);
 	return true;
+}
+
+const char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen)
+{
+	if (strlen(layout->name) > maxlen)
+	{
+		static char name[MAXTOUCHLAYOUTNAME + 4];
+		strlcpy(name, layout->name, min(maxlen, MAXTOUCHLAYOUTNAME));
+		strcat(name, "...");
+		return name;
+	}
+
+	return layout->name;
 }
 
 static void CreateAndSetupNewLayout(boolean setupnew)
@@ -523,7 +557,7 @@ static void SubmenuMessageResponse_LayoutList_Load(INT32 ch)
 				"\x82%s\n"
 				"\x84Layout loaded!\n"
 				"\n" PRESS_A_KEY_MESSAGE),
-				(touchlayouts + usertouchlayoutnum)->name));
+				TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME)));
 			touchcust_submenu_highlight = usertouchlayoutnum;
 		}
 	}
@@ -531,7 +565,7 @@ static void SubmenuMessageResponse_LayoutList_Load(INT32 ch)
 
 static void Submenu_LayoutList_Load(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
-	const char *layoutname = (touchlayouts + touchcust_submenu_selection)->name;
+	const char *layoutname = TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME);
 
 	(void)x;
 	(void)y;
@@ -618,7 +652,7 @@ static void SaveLayoutOnList(void)
 		"\x82%s\n"
 		"\x83Layout saved!\n"
 		"\n" PRESS_A_KEY_MESSAGE),
-	(touchlayouts + usertouchlayoutnum)->name));
+	TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME)));
 
 	TS_MakeLayoutList();
 }
@@ -649,8 +683,8 @@ static void Submenu_LayoutList_Save(INT32 x, INT32 y, touchfinger_t *finger, eve
 			"\x80Save over the \x82%s \x80layout?\n"
 			"\n("PRESS_Y_MESSAGE" to save"
 			"\nor "PRESS_N_MESSAGE_L" to return)\n"),
-			(touchlayouts + usertouchlayoutnum)->name,
-			(touchlayouts + touchcust_submenu_selection)->name),
+			TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME),
+			TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME)),
 		SubmenuMessageResponse_LayoutList_Save, MM_YESNO);
 		return;
 	}
@@ -682,7 +716,7 @@ static void DeleteLayoutOnList(INT32 layoutnum)
 			"\x82%s\n"
 			"\x85""Layout deleted.\n"
 			"\n" PRESS_A_KEY_MESSAGE),
-			layout->name));
+			TS_GetShortLayoutName(layout, MAXMESSAGELAYOUTNAME)));
 	}
 	else
 	{
@@ -715,7 +749,7 @@ static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, e
 		"\x80""%s this layout %s?\n"
 		"You'll still be able to edit it.\n"
 		"\n("PRESS_Y_MESSAGE" to delete)\n"),
-		layout->name,
+		TS_GetShortLayoutName(layout, MAXMESSAGELAYOUTNAME),
 		(layout->saved ? "Delete" : "Remove"),
 		(layout->saved ? "from your device" : "from the list")),
 	SubmenuMessageResponse_LayoutList_Delete, MM_YESNO);
@@ -723,10 +757,17 @@ static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, e
 
 static void Submenu_LayoutList_Rename(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
+	touchlayout_t *layout = (touchlayouts + touchcust_submenu_selection);
+
 	(void)x;
 	(void)y;
 	(void)finger;
 	(void)event;
+
+	touchcust_layoutlist_renaming = layout;
+#if defined(__ANDROID__)
+	I_RaiseScreenKeyboard(layout->name, MAXTOUCHLAYOUTNAME);
+#endif
 }
 
 static void Submenu_LayoutList_Exit(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
@@ -861,17 +902,65 @@ void TS_MakeLayoutList(void)
 
 	for (i = 0; i < numtouchlayouts; i++)
 	{
+		char *string;
 		const char *unsavedstr = " \x85(unsaved)";
 		const char *modifiedstr = " \x87(modified)";
-		size_t extlen = strlen(unsavedstr) + strlen(modifiedstr);
+		size_t len = strlen(layout->name);
+		size_t extlen = 0;
+		size_t maxlen = 30;
 
-		layoutnames[i] = Z_Malloc(MAXTOUCHLAYOUTNAME+1+extlen, PU_STATIC, NULL);
-		strcpy(layoutnames[i], layout->name);
+		boolean unsaved = (!layout->saved);
+		boolean modified = ((layout == usertouchlayout) && (!userlayoutsaved));
 
-		if ((layout == usertouchlayout) && (!userlayoutsaved))
-			strcat(layoutnames[i], modifiedstr);
-		if (!layout->saved)
-			strcat(layoutnames[i], unsavedstr);
+		if (unsaved)
+		{
+			size_t ln = strlen(unsavedstr);
+			len += ln;
+			extlen += ln;
+		}
+		if (modified)
+		{
+			size_t ln = strlen(modifiedstr);
+			len += ln;
+			extlen += ln;
+		}
+
+		string = Z_Malloc(len+1, PU_STATIC, NULL);
+		strcpy(string, layout->name);
+
+		if (unsaved)
+			strcat(string, unsavedstr);
+		if (modified)
+			strcat(string, modifiedstr);
+
+		if (len > maxlen)
+		{
+			len = (maxlen+1);
+			layoutnames[i] = Z_Malloc(len, PU_STATIC, NULL);
+
+			if (extlen)
+			{
+				size_t dot;
+
+				extlen--;
+				strlcpy(layoutnames[i], string, len);
+
+				len = (strlen(string) - extlen - 3);
+				for (dot = 0; dot < 3; dot++)
+					string[len + dot] = '.';
+
+				strlcpy(layoutnames[i] + (maxlen + 1) - ((maxlen+1) - extlen - 3), (string + len), (maxlen+1));
+			}
+			else
+			{
+				string[maxlen - 3] = '\0';
+				snprintf(layoutnames[i], (maxlen+1), "%s...", string);
+			}
+		}
+		else
+			layoutnames[i] = Z_StrDup(string);
+
+		Z_Free(string);
 
 		layout++;
 	}
@@ -1321,6 +1410,12 @@ static void OpenSubmenu(touchcust_submenu_e submenu)
 
 static void CloseSubmenu(void)
 {
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+
+	if (touchcust_submenu == touchcust_submenu_layouts)
+		StopRenamingLayout(touchcust_layoutlist_renaming);
+
 	touchcust_submenu = touchcust_submenu_none;
 }
 
@@ -1501,26 +1596,32 @@ static void GetSubmenuScrollbar(INT32 basex, INT32 basey, INT32 *x, INT32 *y, IN
 	*h = m;
 }
 
+static void DrawSubmenuBox(INT32 x, INT32 y)
+{
+	V_DrawFill(x, (y - 16) + (16 - 3), touchcust_submenu_width, 1, 0);
+	V_DrawFill(x, (y - 16) + (16 - 2), touchcust_submenu_width, 1, 30);
+	V_DrawFill(x, y - 1, touchcust_submenu_width, touchcust_submenu_height, 159);
+}
+
+static void DrawSubmenuScrollbar(INT32 x, INT32 y)
+{
+	INT32 sx, sy, sw, sh;
+	GetSubmenuScrollbar(x, y, &sx, &sy, &sw, &sh, true);
+	V_DrawFill(sx, sy, sw, sh, 0);
+}
+
 static void DrawSubmenuList(INT32 x, INT32 y)
 {
 	size_t i, m;
-	size_t t, b; // top and bottom item #s to draw in directory
+	size_t t, b;
 
-	V_DrawFill(x, (y - 16) + (16 - 3), touchcust_submenu_width, 1, 0);
-	V_DrawFill(x, (y - 16) + (16 - 2), touchcust_submenu_width, 1, 30);
+	DrawSubmenuBox(x, y);
 
-	m = touchcust_submenu_height;
-	V_DrawFill(x, y - 1, touchcust_submenu_width, m, 159);
-
+	m = (size_t)touchcust_submenu_height;
 	GetSubmenuListItems(&t, &i, &b, &m, true);
 
 	// draw the scroll bar
-	{
-		INT32 sx, sy, sw, sh;
-		GetSubmenuScrollbar(x, y, &sx, &sy, &sw, &sh, true);
-		V_DrawFill(sx, sy, sw, sh, 0);
-	}
-	V_DrawFill(x + touchcust_submenu_width-1 - TOUCHCUST_SUBMENU_SBARWIDTH, (y - 1) + i, TOUCHCUST_SUBMENU_SBARWIDTH, m, 0);
+	DrawSubmenuScrollbar(x, y);
 
 	if (!touchcust_submenu_listsize)
 		return;
@@ -1680,10 +1781,12 @@ static void Submenu_Generic_Drawer(void)
 	Submenu_Generic_DrawListAndButtons();
 }
 
+#if 0
 static void Submenu_GenericNoFade_Drawer(void)
 {
 	Submenu_Generic_DrawListAndButtons();
 }
+#endif
 
 //
 // New button submenu
@@ -1696,11 +1799,97 @@ static void Submenu_AddNewButton_NewButtonAction(INT32 x, INT32 y, touchfinger_t
 
 	CloseSubmenu();
 
-	btnstatus->isselecting = true;
+	btnstatus->isselecting = false;
 	btnstatus->selected = true;
 	btnstatus->moving = false;
 	btnstatus->finger = finger;
 	btnstatus->isresizing = touchcust_resizepoint_none;
+
+	finger->u.gamecontrol = gc;
+	finger->x = x;
+	finger->y = y;
+}
+
+//
+// Layout list submenu
+//
+
+static void Submenu_LayoutList_Drawer(void)
+{
+	INT32 x = touchcust_submenu_x;
+	INT32 y = touchcust_submenu_y;
+
+	size_t i, m;
+	size_t t, b;
+	size_t renaming = 0;
+
+	static INT32 blink;
+	if (--blink <= 0)
+		blink = 8;
+
+	DrawSubmenuButtons();
+	DrawSubmenuBox(x, y);
+
+	m = (size_t)touchcust_submenu_height;
+	GetSubmenuListItems(&t, &i, &b, &m, true);
+
+	// draw the scroll bar
+	DrawSubmenuScrollbar(x, y);
+
+	if (!touchcust_submenu_listsize)
+		return;
+
+	if (touchcust_layoutlist_renaming)
+		renaming = (touchcust_layoutlist_renaming - touchlayouts);
+
+	// draw list items
+	for (i = t; i <= b; i++)
+	{
+		INT32 left = (x + 11);
+		INT32 top = (y + 8);
+		UINT32 flags = V_ALLOWLOWERCASE;
+		const char *str;
+
+		if (i >= (size_t)touchcust_submenu_listsize)
+			break;
+
+		if (y > BASEVIDHEIGHT)
+			break;
+
+		if ((INT32)i == touchcust_submenu_selection)
+			V_DrawFill(left - 4, top - 4, touchcust_submenu_width - 12 - TOUCHCUST_SUBMENU_SBARWIDTH, 16, 149);
+
+		str = touchcust_submenu_listnames[i];
+		if ((INT32)i == touchcust_submenu_highlight)
+			str = va("\x82%s", touchcust_submenu_listnames[i]);
+
+		if (touchcust_layoutlist_renaming)
+		{
+			if (i == renaming)
+			{
+				char *layoutname = touchcust_layoutlist_renaming->name;
+				INT32 nlen = strlen(layoutname) + 1;
+				static char lname[MAXTOUCHLAYOUTNAME+1];
+				size_t maxlen = 30;
+
+				if (nlen > (INT32)maxlen)
+					strlcpy(lname, layoutname + (nlen - maxlen), min(maxlen, MAXTOUCHLAYOUTNAME));
+				else
+					strlcpy(lname, layoutname, min(maxlen, MAXTOUCHLAYOUTNAME));
+
+				if (blink < 4)
+					str = va("%s_", lname);
+				else
+					str = lname;
+			}
+			else
+				flags |= V_TRANSLUCENT;
+		}
+
+		V_DrawString(left, top, flags, str);
+
+		y += 20;
+	}
 }
 
 //
@@ -1718,7 +1907,7 @@ static void (*touchcust_submenudrawfuncs[num_touchcust_submenus]) (void) =
 {
 	NULL,
 	Submenu_Generic_Drawer,
-	Submenu_GenericNoFade_Drawer,
+	Submenu_LayoutList_Drawer,
 };
 
 //
@@ -1935,6 +2124,8 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[0], *lastbtn;
 	touchcust_submenu_numbuttons = 0;
 
+	OpenSubmenu(touchcust_submenu_newbtn);
+
 	// "Add" button
 	btn->w = 32;
 	btn->h = 24;
@@ -2002,9 +2193,7 @@ static boolean HandleLongPress(void *f)
 	if (finger->longpress >= (TICRATE/2))
 	{
 		if (!SetupNewButtonSubmenu(finger))
-			return true;
-
-		OpenSubmenu(touchcust_submenu_newbtn);
+			CloseSubmenu();
 		return true;
 	}
 
@@ -2031,6 +2220,70 @@ static boolean CheckNavigation(INT32 x, INT32 y)
 	return false;
 }
 
+boolean TS_HandleKeyEvent(INT32 key, event_t *event)
+{
+	touchlayout_t *layout = NULL;
+
+	if (touchcust_submenu != touchcust_submenu_layouts)
+		return false;
+
+	(void)event;
+
+	if (touchcust_layoutlist_renaming)
+	{
+		size_t l;
+
+		layout = touchcust_layoutlist_renaming;
+		l = strlen(layout->name);
+
+		switch (key)
+		{
+			case KEY_ENTER:
+				StopRenamingLayout(layout);
+				return true;
+
+			case KEY_ESCAPE:
+				StopRenamingLayout(layout);
+				return true;
+
+			case KEY_BACKSPACE:
+				if (l > 0)
+					layout->name[l-1] = '\0';
+				return true;
+
+			case KEY_DEL:
+				if (l > 0)
+					layout->name[0] = '\0';
+				return true;
+
+			default:
+				if (I_KeyboardOnScreen())
+					return true;
+
+				if (key < 32 || key > 127)
+					return true;
+
+				if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z'))
+				{
+					if (shiftdown ^ capslock)
+						key = shiftxform[key];
+				}
+				else if (shiftdown)
+					key = shiftxform[key];
+
+				if (l < MAXTOUCHLAYOUTNAME)
+				{
+					layout->name[l] = (char)(key);
+					layout->name[l+1] = '\0';
+				}
+
+				return true;
+		}
+	}
+
+	return false;
+}
+
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
 	boolean touchmotion = (event->type == ev_touchmotion);
@@ -2041,11 +2294,18 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 	touchconfig_t *btn = NULL;
 	touchcust_buttonstatus_t *btnstatus = NULL;
 
+	if (touchcust_layoutlist_renaming)
+	{
+		StopRenamingLayout(touchcust_layoutlist_renaming);
+		return true;
+	}
+
 	if (touchcust_submenufuncs[touchcust_submenu])
 	{
 		if (touchcust_submenu == touchcust_submenu_layouts && CheckNavigation(x, y))
 			return false;
 		(touchcust_submenufuncs[touchcust_submenu])(x, y, finger, event);
+		return true;
 	}
 
 	switch (event->type)
@@ -2225,6 +2485,11 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 void TS_UpdateCustomization(void)
 {
+#if 0
+	if (touchcust_layoutlist_renaming && !I_KeyboardOnScreen())
+		StopRenamingLayout(touchcust_layoutlist_renaming);
+#endif
+
 	if (touchcust_deferredmessage)
 	{
 		M_StartMessage(touchcust_deferredmessage, NULL, MM_NOTHING);

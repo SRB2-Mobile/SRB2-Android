@@ -26,8 +26,7 @@ boolean TS_IsCustomizingControls(void);
 void TS_OpenLayoutList(void);
 void TS_MakeLayoutList(void);
 
-// If you change this, also change TS_LoadLayouts
-#define MAXTOUCHLAYOUTNAME     64
+#define MAXTOUCHLAYOUTNAME     40
 #define MAXTOUCHLAYOUTFILENAME 10
 
 #define TOUCHLAYOUTSFILE "layouts.cfg"
@@ -65,7 +64,10 @@ void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from);
 boolean TS_LoadSingleLayout(INT32 ilayout);
 boolean TS_SaveSingleLayout(INT32 ilayout);
 
+const char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen);
+
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event);
+boolean TS_HandleKeyEvent(INT32 key, event_t *event);
 
 void TS_UpdateCustomization(void);
 void TS_DrawCustomization(void);

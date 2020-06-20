@@ -986,6 +986,9 @@ static void Impl_HandleTextInput(SDL_TextInputEvent evt)
 	if (textinputbuffer == NULL)
 		return;
 
+	if (strlen(textinputbuffer) >= textbufferlength)
+		return;
+
 	for (i = 0; i < length; i++)
 	{
 		char thischar = text[i];

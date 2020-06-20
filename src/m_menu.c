@@ -3618,6 +3618,14 @@ boolean M_Responder(event_t *ev)
 		return true;
 	}
 
+#ifdef TOUCHINPUTS
+	if (TS_IsCustomizingControls())
+	{
+		if (TS_HandleKeyEvent(ch, ev))
+			return true;
+	}
+#endif
+
 	if (currentMenu->menuitems[itemOn].status == IT_MSGHANDLER)
 	{
 		if (currentMenu->menuitems[itemOn].alphaKey != MM_EVENTHANDLER)
@@ -12519,7 +12527,10 @@ static void M_DrawTouchControlsMenu(void)
 	const char *string;
 
 	if ((usertouchlayoutnum >= 0) && (!G_TouchPresetActive()))
-		string = va(M_GetText("\x82""Currrent layout: \x80""%s"), (touchlayouts + usertouchlayoutnum)->name);
+	{
+		char *name = TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), 16);
+		string = va(M_GetText("\x82""Currrent layout: \x80""%s"), name);
+	}
 	else
 		string = M_GetText("\x86""No layout selected");
 
