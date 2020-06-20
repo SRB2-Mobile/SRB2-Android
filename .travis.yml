@@ -16,20 +16,37 @@ matrix:
               - build-tools-28.0.2
               - android-26
               - platform-tools
-          env: ANDROID=1
-          deploy:
-            provider: releases
-            api_key: $GITHUB_TOKEN
-            file_glob: true
-            file: app/build/outputs/apk/*/** # relative to [repo]/android, per `skip_cleanup`
-            skip_cleanup: true
-            draft: true
-            on:
-              branch: android-port
+          env: 
+            - ANDROID=1
           before_install: ~
           install:
             - echo y | sdkmanager 'ndk-bundle'
-          after_success: ~
+          script:
+            - cd $TRAVIS_BUILD_DIR/android
+            - ./gradlew build
+          after_success:
+            # Give unique names to APK
+            - if [[ "$TRAVIS_TAG" != "" ]]; then
+                PACKAGE_FILENAME="$TRAVIS_JOB_ID-$TRAVIS_TAG";
+              else
+                PACKAGE_FILENAME="$TRAVIS_JOB_ID"-${TRAVIS_COMMIT:0:8};
+              fi
+            - shopt -s globstar
+            - for f in $TRAVIS_BUILD_DIR/android/app/build/outputs/apk/**/*.apk; do [[ -f $f ]] && mv "$f" "$(dirname "$f")/srb2-android-${PACKAGE_FILENAME}-$(basename "$f")"; done
+            - shopt -u globstar
+          deploy:
+            - provider: releases
+              api_key: $DPL_GITHUB_TOKEN
+              file_glob: true
+              file: app/build/outputs/apk/*/** # relative to [repo]/android, per `skip_cleanup`
+              skip_cleanup: true
+              draft: true
+              on:
+                all_branches: true
+                condition: >
+                          "$DPL_DISABLED" != "1" &&
+                          "$DPL_GITHUB_TOKEN" != ""
+        # Android NDK
 ################################
 # Test Buildbots
 # Deployer does not operate on these. See Deployer Buildbots, below.
@@ -771,10 +788,7 @@ before_script:
 
 script:
   # Build our Makefile from Cmake!
-  - if [[ "$ANDROID" == "1" ]]; then
-      cd ./android;
-      ./gradlew build;
-    elif [[ "$__DPL_ACTIVE" == "1" ]]; then
+  - if [[ "$__DPL_ACTIVE" == "1" ]]; then
       . ../deployer/travis/deployer_build.sh;
     else
       make -k;
