@@ -325,6 +325,7 @@ static void M_ChangeControl(INT32 choice);
 
 #ifdef TOUCHINPUTS
 static void M_LoadTouchControlLayout(void);
+static void M_ClearTouchControlLayout(void);
 static void M_CustomizeTouchControls(void);
 #endif
 
@@ -1256,6 +1257,8 @@ static menuitem_t OP_TouchControlsMenu[] =
 
 	{IT_STRING | IT_CALL, NULL, "Customize...", M_CustomizeTouchControls, 40},
 	{IT_STRING | IT_CALL, NULL, "Manage Layouts...", M_LoadTouchControlLayout, 50},
+
+	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 70},
 };
 
 static menuitem_t OP_TouchCustomizationMenu[] =
@@ -12161,6 +12164,25 @@ static void M_LoadTouchControlLayout(void)
 	{
 		TS_OpenLayoutList();
 		M_SetupNextMenu(&OP_TouchCustomizationDef);
+	}
+}
+
+static void M_LayoutClearResponse(INT32 ch)
+{
+	if (ch != 'y' && ch != KEY_ENTER)
+		return;
+
+	TS_ClearLayout();
+	S_StartSound(NULL, sfx_appear);
+	//M_StartMessage(M_GetText("Layout cleared.\n" PRESS_A_KEY_MESSAGE),NULL,MM_NOTHING);
+}
+
+static void M_ClearTouchControlLayout(void)
+{
+	if (!M_TouchPresetActiveMessage())
+	{
+		TS_OpenLayoutList();
+		M_StartMessage(M_GetText("Are you sure you want to\nclear the current layout?\n\n("CONFIRM_MESSAGE")\n"),M_LayoutClearResponse,MM_YESNO);
 	}
 }
 

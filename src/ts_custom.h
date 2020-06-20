@@ -37,7 +37,7 @@ typedef struct
 	touchconfig_t *config;
 	char name[MAXTOUCHLAYOUTNAME+1];
 	char filename[MAXTOUCHLAYOUTFILENAME+1];
-	boolean saved;
+	boolean saved, loaded;
 } touchlayout_t;
 
 extern touchlayout_t *touchlayouts;
@@ -56,7 +56,11 @@ void TS_LoadLayouts(void);
 void TS_SaveLayouts(void);
 
 void TS_NewLayout(void);
-void TS_DeleteLayout(void);
+void TS_ClearLayout(void);
+void TS_DeleteLayout(INT32 layoutnum);
+
+void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from);
+void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from);
 
 boolean TS_LoadSingleLayout(INT32 ilayout);
 boolean TS_SaveSingleLayout(INT32 ilayout);

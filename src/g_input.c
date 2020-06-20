@@ -1842,11 +1842,9 @@ static void G_HidePlayerControlButtons(touchconfigstatus_t *status)
 
 static touchconfigstatus_t usertouchconfigstatus;
 
-void G_DefaultCustomTouchControls(void)
+void G_DefaultCustomTouchControls(touchconfig_t *config)
 {
-	if (usertouchcontrols == NULL)
-		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
-	G_BuildTouchPreset(usertouchcontrols, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
+	G_BuildTouchPreset(config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
 }
 
 void G_PositionTouchButtons(void)
@@ -1911,7 +1909,9 @@ void G_TouchPresetChanged(void)
 		// Make a default custom controls set
 		if (usertouchcontrols == NULL)
 		{
-			G_DefaultCustomTouchControls();
+			if (usertouchcontrols == NULL)
+				usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+			G_DefaultCustomTouchControls(usertouchcontrols);
 			usertouchlayout->config = usertouchcontrols;
 		}
 

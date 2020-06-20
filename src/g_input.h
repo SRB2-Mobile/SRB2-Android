@@ -371,8 +371,8 @@ void G_TouchPresetChanged(void);
 void G_DefineTouchButtons(void);
 void G_PositionTouchButtons(void);
 void G_PositionTouchNavigation(void);
-void G_DefaultCustomTouchControls(void);
 void G_PositionExtraUserTouchButtons(void);
+void G_DefaultCustomTouchControls(touchconfig_t *config);
 
 // Returns the names of a touch button
 const char *G_GetTouchButtonName(INT32 gc);
