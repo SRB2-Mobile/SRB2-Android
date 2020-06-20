@@ -176,11 +176,18 @@ typedef struct
 	INT32 x, y;
 	float pressure;
 
+	// A finger has either a game control or a key input down.
 	union {
 		INT32 gamecontrol;
 		INT32 keyinput;
-		INT32 selection;
 	} u;
+
+	// Alternate selections that don't interfere with the above.
+	union {
+		INT32 selection;
+	} extra;
+
+	// What kind of finger is this?
 	union {
 		boolean menu;
 		INT32 mouse;
@@ -352,42 +359,65 @@ void G_ClearAllControlKeys(void);
 void Command_Setcontrol_f(void);
 void Command_Setcontrol2_f(void);
 
+const char *gamecontrolname[num_gamecontrols];
+
 void G_DefineDefaultControls(void);
 
 #ifdef TOUCHINPUTS
-// Define/update touch controls
+// Defines/updates touch controls
 void G_SetupTouchSettings(void);
 void G_UpdateTouchControls(void);
+void G_TouchPresetChanged(void);
 void G_DefineTouchButtons(void);
 void G_PositionTouchButtons(void);
 void G_PositionTouchNavigation(void);
+void G_DefaultCustomTouchControls(void);
+void G_PositionExtraUserTouchButtons(void);
 
 // Returns the names of a touch button
 const char *G_GetTouchButtonName(INT32 gc);
 const char *G_GetTouchButtonShortName(INT32 gc);
 
-// Update touch fingers
+// Sets all button names for a touch config
+void G_SetTouchButtonNames(touchconfig_t *controls);
+
+// Returns true if a touch preset is active
+boolean G_TouchPresetActive(void);
+
+// Updates touch fingers
 void G_UpdateFingers(INT32 realtics);
 
-// Check if the finger (x, y) is touching the specified button (btn)
+// Checks if the finger (x, y) is touching the specified button (btn)
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn);
 
-// Check if the finger is touching the joystick area.
+// Checks if the finger (x, y) is touching the specified navigation button (btn)
+boolean G_FingerTouchesNavigationButton(INT32 x, INT32 y, touchconfig_t *btn);
+
+// Checks if the finger is touching the joystick area.
 boolean G_FingerTouchesJoystickArea(INT32 x, INT32 y);
 
-// Check if the gamecontrol is a player control key
+// Checks if the game control is a player control key
 boolean G_TouchButtonIsPlayerControl(INT32 gamecontrol);
 
-// Scale a touch button
+// Scales a touch button
 void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale);
 
-// Normalize a touch button
+// Normalizes a touch button
 void G_NormalizeTouchButton(touchconfig_t *button);
 
-// Normalize a touch config
+// Normalizes a touch config
 void G_NormalizeTouchConfig(touchconfig_t *config, int configsize);
 
-// Setup a d-pad
+// Denormalizes XY coordinates
+void G_DenormalizeCoords(fixed_t *x, fixed_t *y);
+
+// Centers coordinates
+void G_CenterCoords(fixed_t *x, fixed_t *y);
+
+// Centers integer coordinates
+void G_CenterIntegerCoords(INT32 *x, INT32 *y);
+
+// Defines a d-pad
 void G_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixed_t dw, boolean tiny);
 #endif
 

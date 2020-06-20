@@ -99,7 +99,7 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 	{0, NULL}};
 
 consvar_t cv_touchstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, G_TouchPresetChanged, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, G_UpdateTouchControls, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
@@ -181,16 +181,18 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
 #ifdef TOUCHINPUTS
+boolean G_TouchPresetActive(void)
+{
+	return (touch_preset != touchpreset_none);
+}
+
 void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale)
 {
 	fixed_t xs = FRACUNIT;
 	fixed_t ys = FRACUNIT;
 
 	if (normalized)
-	{
-		xs *= BASEVIDWIDTH;
-		ys *= BASEVIDHEIGHT;
-	}
+		G_DenormalizeCoords(&xs, &ys);
 
 	if (screenscale)
 	{
@@ -213,17 +215,30 @@ void G_ScaleTouchCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normaliz
 	*y = FixedMul((*y), ys) / FRACUNIT;
 }
 
-boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn)
+static boolean IsFingerTouchingButton(INT32 x, INT32 y, touchconfig_t *btn, boolean center)
 {
 	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
 	G_ScaleTouchCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	if (center && (!btn->dontscale))
+		G_CenterIntegerCoords(&tx, &ty);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
+}
+
+boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn)
+{
+	return IsFingerTouchingButton(x, y, btn, true);
+}
+
+boolean G_FingerTouchesNavigationButton(INT32 x, INT32 y, touchconfig_t *btn)
+{
+	return IsFingerTouchingButton(x, y, btn, false);
 }
 
 boolean G_FingerTouchesJoystickArea(INT32 x, INT32 y)
 {
 	INT32 tx = touch_joystick_x, ty = touch_joystick_y, tw = touch_joystick_w, th = touch_joystick_h;
 	G_ScaleTouchCoords(&tx, &ty, &tw, &th, false, true);
+	G_CenterIntegerCoords(&tx, &ty);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
@@ -273,7 +288,7 @@ static void G_HandleNonPlayerControlButton(INT32 gamecontrol)
 	else if (gamecontrol == gc_camtoggle)
 		G_ToggleChaseCam();
 	// Handle talk buttons
-	else if (gamecontrol == gc_talkkey || gamecontrol == gc_teamkey)
+	else if ((gamecontrol == gc_talkkey || gamecontrol == gc_teamkey) && netgame)
 	{
 		// Raise the screen keyboard if not muted
 		boolean raise = (!CHAT_MUTE);
@@ -451,6 +466,7 @@ static void G_HandleFingerEvent(event_t *ev)
 						INT32 padw = touch_joystick_w, padh = touch_joystick_h;
 
 						G_ScaleTouchCoords(&padx, &pady, &padw, &padh, false, true);
+						G_CenterIntegerCoords(&padx, &pady);
 
 						dx = x - (padx + (padw / 2));
 						dy = y - (pady + (padh / 2));
@@ -1098,7 +1114,7 @@ static keyname_t keynames[] =
 
 };
 
-static const char *gamecontrolname[num_gamecontrols] =
+const char *gamecontrolname[num_gamecontrols] =
 {
 	"nothing", // a key/button mapped to gc_null has no effect
 	"forward",
@@ -1321,8 +1337,6 @@ void G_DefineDefaultControls(void)
 	CV_RegisterVar(&cv_touchstyle);
 
 	CV_RegisterVar(&cv_touchguiscale);
-
-	G_UpdateTouchControls();
 #endif
 }
 
@@ -1330,6 +1344,9 @@ void G_DefineDefaultControls(void)
 #ifdef TOUCHINPUTS
 void G_SetupTouchSettings(void)
 {
+	if (!TS_Ready())
+		return;
+
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	touch_preset = cv_touchpreset.value;
@@ -1440,6 +1457,36 @@ void G_NormalizeTouchConfig(touchconfig_t *config, int configsize)
 		G_NormalizeTouchButton(&config[i]);
 }
 
+void G_DenormalizeCoords(fixed_t *x, fixed_t *y)
+{
+	*x *= BASEVIDWIDTH;
+	*y *= BASEVIDHEIGHT;
+}
+
+void G_CenterCoords(fixed_t *x, fixed_t *y)
+{
+	if (!G_TouchPresetActive())
+	{
+		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
+		if (vid.width != BASEVIDWIDTH * dup)
+			*x += ((vid.width - (BASEVIDWIDTH * dup)) / 2) * FRACUNIT;
+		if (vid.height != BASEVIDHEIGHT * dup)
+			*y += ((vid.height - (BASEVIDHEIGHT * dup)) / 2) * FRACUNIT;
+	}
+}
+
+void G_CenterIntegerCoords(INT32 *x, INT32 *y)
+{
+	if (!G_TouchPresetActive())
+	{
+		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
+		if (vid.width != BASEVIDWIDTH * dup)
+			*x += (vid.width - (BASEVIDWIDTH * dup)) / 2;
+		if (vid.height != BASEVIDHEIGHT * dup)
+			*y += (vid.height - (BASEVIDHEIGHT * dup)) / 2;
+	}
+}
+
 struct {
 	const char *name;
 	const char *tinyname;
@@ -1499,7 +1546,7 @@ const char *G_GetTouchButtonShortName(INT32 gc)
 	return touchbuttonnames[gc].tinyname;
 }
 
-static void G_SetTouchButtonNames(touchconfig_t *controls)
+void G_SetTouchButtonNames(touchconfig_t *controls)
 {
 	INT32 i;
 
@@ -1508,6 +1555,14 @@ static void G_SetTouchButtonNames(touchconfig_t *controls)
 		controls[i].name = G_GetTouchButtonName(i);
 		controls[i].tinyname = G_GetTouchButtonShortName(i);
 	}
+}
+
+static void G_MarkDPadButtons(touchconfig_t *controls)
+{
+	controls[gc_forward].dpad = true;
+	controls[gc_backward].dpad = true;
+	controls[gc_strafeleft].dpad = true;
+	controls[gc_straferight].dpad = true;
 }
 
 static void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny)
@@ -1717,10 +1772,7 @@ static void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *sta
 	G_NormalizeTouchConfig(controls, num_gamecontrols);
 
 	// Mark movement controls as d-pad buttons
-	controls[gc_forward].dpad = true;
-	controls[gc_backward].dpad = true;
-	controls[gc_strafeleft].dpad = true;
-	controls[gc_straferight].dpad = true;
+	G_MarkDPadButtons(controls);
 
 	// Set button names
 	G_SetTouchButtonNames(controls);
@@ -1733,46 +1785,11 @@ static void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *sta
 	}
 }
 
-static void G_DefaultCustomTouchControls(void)
+static void G_BuildWeaponButtons(touchconfigstatus_t *status)
 {
-	static touchconfigstatus_t status;
-
-	usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
-
-	status.ringslinger = true;
-	status.ctfgametype = true;
-	status.canpause = true;
-	status.canviewpointswitch = true;
-	status.cantalk = true;
-	status.canteamtalk = true;
-
-	G_BuildTouchPreset(usertouchcontrols, &status, tms_joystick, TS_GetDefaultScale(), false);
-}
-
-void G_PositionTouchButtons(void)
-{
-	touchconfigstatus_t *status = &touchcontrolstatus;
-
 	INT32 i, wep, dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 	fixed_t x, y, w, h;
 
-	// clear all
-	memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
-
-	// Build preset
-	if (touch_preset != touchpreset_none)
-		G_BuildTouchPreset(touchcontrols, status, touch_movementstyle, touch_gui_scale, (touch_preset == touchpreset_tiny));
-	else
-	{
-		// Make a default custom controls set
-		if (usertouchcontrols == NULL)
-			G_DefaultCustomTouchControls();
-
-		// Copy custom controls
-		M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
-	}
-
-	// Weapon select slots
 	x = (ST_WEAPONS_X * FRACUNIT) + (6 * FRACUNIT);
 	y = (ST_WEAPONS_Y * FRACUNIT) - (2 * FRACUNIT);
 	w = ST_WEAPONS_W * FRACUNIT;
@@ -1801,13 +1818,17 @@ void G_PositionTouchButtons(void)
 			touchcontrols[wep].h = FixedMul(h, dup * FRACUNIT);
 			touchcontrols[wep].dontscale = true;
 		}
-		else
-			touchcontrols[wep].hidden = true;
+
+		touchcontrols[wep].hidden = (!status->ringslinger);
+
+		G_NormalizeTouchButton(&touchcontrols[wep]);
 
 		wep++;
 	}
+}
 
-	// Hide movement controls in prompts that block controls
+static void G_HidePlayerControlButtons(touchconfigstatus_t *status)
+{
 	if (status->promptblockcontrols)
 	{
 		INT32 i;
@@ -1817,6 +1838,94 @@ void G_PositionTouchButtons(void)
 				touchcontrols[i].hidden = true;
 		}
 	}
+}
+
+static touchconfigstatus_t usertouchconfigstatus;
+
+void G_DefaultCustomTouchControls(void)
+{
+	if (usertouchcontrols == NULL)
+		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+	G_BuildTouchPreset(usertouchcontrols, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
+}
+
+void G_PositionTouchButtons(void)
+{
+	touchconfigstatus_t *status = &touchcontrolstatus;
+
+	// Build preset
+	if (G_TouchPresetActive())
+	{
+		memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
+		G_BuildTouchPreset(touchcontrols, status, touch_movementstyle, touch_gui_scale, (touch_preset == touchpreset_tiny));
+	}
+
+	// Weapon select slots
+	G_BuildWeaponButtons(status);
+
+	// Hide movement controls in prompts that block controls
+	G_HidePlayerControlButtons(status);
+
+	// Mark movement controls as d-pad buttons
+	G_MarkDPadButtons(touchcontrols);
+}
+
+void G_PositionExtraUserTouchButtons(void)
+{
+	// Position joystick
+	touch_joystick_x = touchcontrols[gc_joystick].x;
+	touch_joystick_y = touchcontrols[gc_joystick].y;
+
+	G_DenormalizeCoords(&touch_joystick_x, &touch_joystick_y);
+
+	touch_joystick_w = touchcontrols[gc_joystick].w;
+	touch_joystick_h = touchcontrols[gc_joystick].h;
+
+	// Weapon select slots
+	G_BuildWeaponButtons(&usertouchconfigstatus);
+
+	// Hide movement controls in prompts that block controls
+	G_HidePlayerControlButtons(&usertouchconfigstatus);
+
+	// Mark movement controls as d-pad buttons
+	G_MarkDPadButtons(usertouchcontrols);
+}
+
+void G_TouchPresetChanged(void)
+{
+	if (!TS_Ready())
+		return;
+
+	// set touch_preset
+	G_SetupTouchSettings();
+
+	if (!G_TouchPresetActive())
+	{
+		usertouchconfigstatus.ringslinger = true;
+		usertouchconfigstatus.ctfgametype = true;
+		usertouchconfigstatus.canpause = true;
+		usertouchconfigstatus.canviewpointswitch = true;
+		usertouchconfigstatus.cantalk = true;
+		usertouchconfigstatus.canteamtalk = true;
+
+		// Make a default custom controls set
+		if (usertouchcontrols == NULL)
+		{
+			G_DefaultCustomTouchControls();
+			usertouchlayout->config = usertouchcontrols;
+		}
+
+		// Copy custom controls
+		M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
+
+		// Position joystick, weapon buttons, etc.
+		G_PositionExtraUserTouchButtons();
+
+		// Mark movement controls as d-pad buttons
+		G_MarkDPadButtons(touchcontrols);
+	}
+	else
+		G_DefineTouchButtons();
 }
 
 #undef SCALECOORD
@@ -1881,11 +1990,14 @@ void G_DefineTouchButtons(void)
 	static touchconfigstatus_t status, navstatus;
 	size_t size = sizeof(touchconfigstatus_t);
 
+	if (!TS_Ready())
+		return;
+
 	//
 	// Touch controls
 	//
 
-	if (touch_preset != touchpreset_none)
+	if (G_TouchPresetActive())
 	{
 		status.vidwidth = vid.width;
 		status.vidheight = vid.height;
@@ -1905,11 +2017,25 @@ void G_DefineTouchButtons(void)
 		if (memcmp(&status, &touchcontrolstatus, size))
 		{
 			M_Memcpy(&touchcontrolstatus, &status, size);
+
 			G_PositionTouchButtons();
+
+			if (!G_TouchPresetActive())
+				G_TouchPresetChanged();
 		}
 	}
 	else
-		G_PositionTouchButtons();
+	{
+		status.vidwidth = vid.width;
+		status.vidheight = vid.height;
+		status.promptblockcontrols = promptblockcontrols;
+
+		if (memcmp(&status, &touchcontrolstatus, size))
+		{
+			M_Memcpy(&touchcontrolstatus, &status, size);
+			G_TouchPresetChanged();
+		}
+	}
 
 	//
 	// Touch navigation

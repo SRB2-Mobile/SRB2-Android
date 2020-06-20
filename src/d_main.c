@@ -79,6 +79,10 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "config.h.in"
 #endif
 
+#ifdef TOUCHINPUTS
+#include "ts_custom.h"
+#endif
+
 #ifdef HWRENDER
 #include "hardware/hw_main.h" // 3D View Rendering
 #endif
@@ -1328,6 +1332,12 @@ void D_SRB2Main(void)
 
 	G_LoadGameData();
 
+#ifdef TOUCHINPUTS
+	TS_InitLayouts();
+	TS_LoadLayouts();
+	G_UpdateTouchControls();
+#endif
+
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	VID_PrepareModeList(); // Regenerate Modelist according to cv_fullscreen
 #endif
@@ -1675,6 +1685,10 @@ void D_SetupHome(void)
 		// can't use sprintf since there is %u in savegamename
 		strcatbf(savegamename, srb2home, PATHSEP);
 
+#ifdef TOUCHINPUTS
+		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", srb2home);
+#endif
+
 		snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", srb2home);
 #else // DEFAULTDIR
 		snprintf(srb2home, sizeof srb2home, "%s", userhome);
@@ -1686,6 +1700,10 @@ void D_SetupHome(void)
 
 		// can't use sprintf since there is %u in savegamename
 		strcatbf(savegamename, userhome, PATHSEP);
+
+#ifdef TOUCHINPUTS
+		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", userhome);
+#endif
 
 		snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
 #endif // DEFAULTDIR

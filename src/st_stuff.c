@@ -1202,9 +1202,10 @@ static void ST_drawInput(void)
 
 #ifdef TOUCHINPUTS
 
-#define SCALEBUTTONFIXED(touch) \
-	x = touch->x * BASEVIDWIDTH; \
-	y = touch->y * BASEVIDHEIGHT; \
+#define SCALEBUTTONFIXED(touch, notonmenu) \
+	x = touch->x; \
+	y = touch->y; \
+	G_DenormalizeCoords(&x, &y); \
 	w = touch->w; \
 	h = touch->h; \
 	if (!touch->dontscale) \
@@ -1213,10 +1214,19 @@ static void ST_drawInput(void)
 		y = FixedMul(y, dupy); \
 		w = FixedMul(w, dupx); \
 		h = FixedMul(h, dupy); \
+		if (notonmenu) \
+			G_CenterCoords(&x, &y); \
 	}
 
 #define SCALEBUTTON(touch) \
-	SCALEBUTTONFIXED(touch) \
+	SCALEBUTTONFIXED(touch, true) \
+	x /= FRACUNIT; \
+	y /= FRACUNIT; \
+	w /= FRACUNIT; \
+	h /= FRACUNIT;
+
+#define SCALEMENUBUTTON(touch) \
+	SCALEBUTTONFIXED(touch, false) \
 	x /= FRACUNIT; \
 	y /= FRACUNIT; \
 	w /= FRACUNIT; \
@@ -1255,6 +1265,8 @@ void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 	w = FixedMul(padw, dupx);
 	h = FixedMul(padh, dupy);
 
+	G_CenterCoords(&x, &y);
+
 	xscale = FixedMul(FixedDiv(padw, SHORT(backing->width)*FRACUNIT), scale);
 	yscale = FixedMul(FixedDiv(padh, SHORT(backing->height)*FRACUNIT), scale);
 
@@ -1275,6 +1287,8 @@ static void ST_drawTouchDPadButton(
 
 	x *= BASEVIDWIDTH * vid.dupx;
 	y *= BASEVIDHEIGHT * vid.dupy;
+
+	G_CenterCoords(&x, &y);
 
 	// draw shadow
 	if (!isdown)
@@ -1327,22 +1341,22 @@ void ST_drawTouchDPad(
 	if (backing)
 		ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
 
-	SCALEBUTTONFIXED(tup);
+	SCALEBUTTONFIXED(tup, true);
 	xscale = FixedDiv(tup->w, SHORT(up->width)*FRACUNIT);
 	yscale = FixedDiv(tup->h, SHORT(up->height)*FRACUNIT);
 	ST_drawTouchDPadButton(tup->x, tup->y, xscale, yscale, 0, 1, up, flags, moveup, colormap);
 
-	SCALEBUTTONFIXED(tdown);
+	SCALEBUTTONFIXED(tdown, true);
 	xscale = FixedDiv(tdown->w, SHORT(down->width)*FRACUNIT);
 	yscale = FixedDiv(tdown->h, SHORT(down->height)*FRACUNIT);
 	ST_drawTouchDPadButton(tdown->x, tdown->y, xscale, yscale, 0, 1, down, flags, movedown, colormap);
 
-	SCALEBUTTONFIXED(tleft);
+	SCALEBUTTONFIXED(tleft, true);
 	xscale = FixedDiv(tleft->w, SHORT(left->width)*FRACUNIT);
 	yscale = FixedDiv(tleft->h, SHORT(left->height)*FRACUNIT);
 	ST_drawTouchDPadButton(tleft->x, tleft->y, xscale, yscale, -1, 1, left, flags, moveleft, colormap);
 
-	SCALEBUTTONFIXED(tright);
+	SCALEBUTTONFIXED(tright, true);
 	xscale = FixedDiv(tright->w, SHORT(right->width)*FRACUNIT);
 	yscale = FixedDiv(tright->h, SHORT(right->height)*FRACUNIT);
 	ST_drawTouchDPadButton(tright->x, tright->y, xscale, yscale, 1, 1, right, flags, moveright, colormap);
@@ -1384,6 +1398,8 @@ void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t d
 	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
 	fixed_t xextend = TOUCHJOYEXTENDX;
 	fixed_t yextend = TOUCHJOYEXTENDY;
+
+	G_CenterCoords(&x, &y);
 
 	// set stick position
 	xmove = touchxmove;
@@ -1456,7 +1472,7 @@ static void ST_drawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 		drawfill(x, y + offs, w, h, col, flags);
 
 		// Draw the button name
-		SCALEBUTTONFIXED(control);
+		SCALEBUTTONFIXED(control, true);
 
 		// String width
 		strwidth = V_StringWidth(keystr, strflags) * FRACUNIT;
@@ -1603,7 +1619,7 @@ void ST_drawTouchMenuInput(void)
 	control = &touchnavigation[keyname]; \
 	if (!control->hidden) \
 	{ \
-		SCALEBUTTON(control); \
+		SCALEMENUBUTTON(control); \
 		if (control->pressed > I_GetTime()) \
 		{ \
 			col = accent; \

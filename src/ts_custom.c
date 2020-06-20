@@ -24,10 +24,12 @@
 
 #include "d_event.h"
 #include "g_input.h"
+#include "i_system.h" // I_mkdir
 
 #include "f_finale.h" // curfadevalue
 #include "v_video.h"
 #include "st_stuff.h" // ST_drawTouchGameInput
+#include "z_zone.h"
 
 #include "console.h" // CON_Ready()
 
@@ -39,6 +41,7 @@ static touchcust_submenu_button_t touchcust_submenu_buttons[TOUCHCUST_SUBMENU_MA
 static INT32 touchcust_submenu_numbuttons = 0;
 
 static INT32 touchcust_submenu_selection = 0;
+static INT32 touchcust_submenu_highlight = -1;
 static INT32 touchcust_submenu_listsize = 0;
 static INT32 touchcust_submenu_list[TOUCHCUST_SUBMENU_MAXLISTSIZE];
 static const char *touchcust_submenu_listnames[TOUCHCUST_SUBMENU_MAXLISTSIZE];
@@ -48,6 +51,9 @@ static INT32 touchcust_submenu_scroll = 0;
 
 static INT32 touchcust_addbutton_x = 0;
 static INT32 touchcust_addbutton_y = 0;
+
+static boolean touchcust_customizing = false;
+static char *touchcust_deferredmessage = NULL;
 
 // ==========
 // Prototypes
@@ -78,6 +84,7 @@ static void ClearAllSelections(void);
 static void OpenSubmenu(touchcust_submenu_e submenu);
 static void CloseSubmenu(void);
 
+static void FocusSubmenuOnSelection(INT32 selection);
 static boolean HandleSubmenuButtons(INT32 fx, INT32 fy, touchfinger_t *finger, event_t *event);
 
 static void GetSubmenuListItems(size_t *t, size_t *i, size_t *b, size_t *height, boolean scrolled);
@@ -92,6 +99,13 @@ static boolean IsFingerTouchingButtonOptions(INT32 x, INT32 y, touchfinger_t *fi
 
 // =====================================================
 
+static boolean ts_ready = false;
+
+boolean TS_Ready(void)
+{
+	return ts_ready;
+}
+
 boolean TS_IsCustomizingControls(void)
 {
 	return M_IsCustomizingTouchControls();
@@ -102,7 +116,10 @@ void TS_SetupCustomization(void)
 	INT32 i;
 
 	touch_screenexists = true;
+	touchcust_customizing = true;
+
 	ClearAllSelections();
+	CloseSubmenu();
 
 	for (i = 0; i < num_gamecontrols; i++)
 	{
@@ -113,8 +130,13 @@ void TS_SetupCustomization(void)
 
 boolean TS_ExitCustomization(void)
 {
+	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+
 	if (touchcust_submenu != touchcust_submenu_none)
 	{
+		if (touchcust_submenu == touchcust_submenu_layouts)
+			return true;
+
 		CloseSubmenu();
 		return false;
 	}
@@ -122,9 +144,585 @@ boolean TS_ExitCustomization(void)
 	ClearAllSelections();
 
 	// Copy custom controls
-	M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
+	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
 
 	return true;
+}
+
+static void DisplayMessage(const char *string)
+{
+	touchcust_deferredmessage = Z_StrDup(string);
+}
+
+// =======
+// Layouts
+// =======
+
+touchlayout_t *touchlayouts = NULL;
+INT32 numtouchlayouts = 0;
+
+touchlayout_t *usertouchlayout = NULL;
+INT32 usertouchlayoutnum = -1;
+boolean userlayoutsaved = true;
+
+char touchlayoutfolder[512] = "touchlayouts";
+
+#define LAYOUTLISTLOADFORMAT "%d %64s %10s"
+#define LAYOUTLISTSAVEFORMAT "%d %s %s" "\n"
+
+void TS_InitLayouts(void)
+{
+	I_mkdir(touchlayoutfolder, 0755);
+	ts_ready = true;
+}
+
+void TS_LoadLayouts(void)
+{
+	FILE *f;
+
+	INT32 layoutindex;
+	char name[MAXTOUCHLAYOUTNAME+1], filename[MAXTOUCHLAYOUTFILENAME+1];
+
+	if (usertouchlayout == NULL)
+		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
+
+	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, TOUCHLAYOUTSFILE), "rt");
+	if (!f)
+		return;
+
+	numtouchlayouts = 0;
+
+	while (fscanf(f, LAYOUTLISTLOADFORMAT, &layoutindex, name, filename) == 3)
+	{
+		touchlayout_t *layout;
+
+		TS_NewLayout();
+
+		layout = touchlayouts + (numtouchlayouts - 1);
+		layout->saved = true;
+
+		strlcpy(layout->name, name, MAXTOUCHLAYOUTNAME+1);
+		strlcpy(layout->filename, filename, MAXTOUCHLAYOUTFILENAME+1);
+	}
+
+	fclose(f);
+}
+
+void TS_SaveLayouts(void)
+{
+	FILE *f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, TOUCHLAYOUTSFILE), "w");
+	touchlayout_t *layout = touchlayouts;
+	INT32 i;
+
+	for (i = 0; i < numtouchlayouts; i++)
+	{
+		const char *line = va(LAYOUTLISTSAVEFORMAT, i, layout->name, layout->filename);
+		fwrite(line, strlen(line), 1, f);
+		layout++;
+	}
+
+	fclose(f);
+}
+
+void TS_NewLayout(void)
+{
+	numtouchlayouts++;
+	touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
+	memset(touchlayouts + (numtouchlayouts - 1), 0x00, sizeof(touchlayout_t));
+}
+
+void TS_DeleteLayout(void)
+{
+
+}
+
+#define BUTTONLOADFORMAT "%64s %f %f %f %f"
+#define BUTTONSAVEFORMAT "%s %f %f %f %f" "\n"
+
+boolean TS_LoadSingleLayout(INT32 ilayout)
+{
+	touchlayout_t *layout = touchlayouts + ilayout;
+
+	FILE *f;
+	char filename[MAXTOUCHLAYOUTFILENAME+5];
+	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+
+	float x, y, w, h;
+	char gc[65];
+	INT32 igc;
+	touchconfig_t *button = NULL;
+
+	strcpy(filename, layout->filename);
+	FIL_ForceExtension(filename, ".cfg");
+
+	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, filename), "rt");
+	if (!f)
+	{
+		DisplayMessage(va(M_GetText(
+			"\x82%s\n"
+			"\x85""Failed to load layout!\n"
+			"\x80""(Have you saved it?)\n"
+			"\n" PRESS_A_KEY_MESSAGE),
+			layout->name));
+		return false;
+	}
+
+	if (layout->config == NULL)
+		layout->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
+
+	memset(layout->config, 0x00, layoutsize);
+	for (igc = 0; igc < num_gamecontrols; igc++)
+	{
+		button = &(layout->config[igc]);
+		button->hidden = true;
+	}
+
+	while (fscanf(f, BUTTONLOADFORMAT, gc, &x, &y, &w, &h) == 5)
+	{
+		for (igc = 0; igc < num_gamecontrols; igc++)
+		{
+			if (!strcmp(gc, gamecontrolname[igc]))
+				break;
+		}
+
+		if (igc == gc_null || (igc >= gc_wepslot1 && igc <= gc_wepslot10) || igc == num_gamecontrols)
+			continue;
+
+		button = &(layout->config[igc]);
+		button->x = FloatToFixed(x);
+		button->y = FloatToFixed(y);
+		button->w = FloatToFixed(w);
+		button->h = FloatToFixed(h);
+		button->hidden = false;
+	}
+
+	G_SetTouchButtonNames(layout->config);
+
+	fclose(f);
+	return true;
+}
+
+boolean TS_SaveSingleLayout(INT32 ilayout)
+{
+	FILE *f;
+	char filename[MAXTOUCHLAYOUTFILENAME+5];
+
+	touchlayout_t *layout = touchlayouts + ilayout;
+	INT32 gc;
+
+	strcpy(filename, layout->filename);
+	FIL_ForceExtension(filename, ".cfg");
+
+	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, filename), "w");
+	if (!f)
+	{
+		DisplayMessage(va(M_GetText(
+			"\x82%s\n"
+			"\x85""Failed to save layout!\n"
+			"\n\x80" PRESS_A_KEY_MESSAGE),
+			layout->name));
+		return false;
+	}
+
+	for (gc = (gc_null+1); gc < num_gamecontrols; gc++)
+	{
+		touchconfig_t *button = &(layout->config[gc]);
+		const char *line;
+
+		if (button->hidden)
+			continue;
+
+		line = va(BUTTONSAVEFORMAT,
+				gamecontrolname[gc],
+				FixedToFloat(button->x), FixedToFloat(button->y),
+				FixedToFloat(button->w), FixedToFloat(button->h));
+		fwrite(line, strlen(line), 1, f);
+	}
+
+	fclose(f);
+	return true;
+}
+
+static void CreateAndSetupNewLayout(boolean setupnew)
+{
+	TS_NewLayout();
+
+	usertouchlayoutnum = (numtouchlayouts - 1);
+	usertouchlayout = touchlayouts + usertouchlayoutnum;
+
+	FocusSubmenuOnSelection(numtouchlayouts - 1);
+	touchcust_submenu_highlight = usertouchlayoutnum;
+
+	strlcpy(usertouchlayout->name, va("Layout-%d", numtouchlayouts), MAXTOUCHLAYOUTNAME+1);
+	strlcpy(usertouchlayout->filename, va("layout%d", numtouchlayouts), MAXTOUCHLAYOUTFILENAME+1);
+
+	// Copy or create config
+	usertouchlayout->config = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+
+	if (setupnew)
+	{
+		M_Memcpy(usertouchcontrols, usertouchlayout->config, sizeof(touchconfig_t) * num_gamecontrols);
+		G_DefaultCustomTouchControls();
+	}
+	else
+		usertouchlayout->config = usertouchcontrols;
+
+	userlayoutsaved = true;
+	TS_MakeLayoutList();
+}
+
+//
+// Layout list
+//
+
+static void SubmenuMessageResponse_LayoutList_New(INT32 ch)
+{
+	if (ch == 'y' || ch == KEY_ENTER)
+		CreateAndSetupNewLayout(true);
+}
+
+static void Submenu_LayoutList_New(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
+{
+	(void)x;
+	(void)y;
+	(void)finger;
+	(void)event;
+
+	if (usertouchlayoutnum >= 0)
+	{
+		if (!userlayoutsaved)
+		{
+			M_StartMessage(M_GetText(
+				"Override the current layout?\n"
+				"You will lose your unsaved changes."
+				"\n\n("CONFIRM_MESSAGE")\n"),
+			SubmenuMessageResponse_LayoutList_New, MM_YESNO);
+
+		}
+		else
+		{
+			M_StartMessage(M_GetText(
+				"Create a new layout?\n"
+				"\n("CONFIRM_MESSAGE")\n"),
+			SubmenuMessageResponse_LayoutList_New, MM_YESNO);
+		}
+		return;
+	}
+
+	CreateAndSetupNewLayout(usertouchlayoutnum >= 0);
+}
+
+static boolean LoadLayoutOnList(void)
+{
+	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+
+	if (!TS_LoadSingleLayout(touchcust_submenu_selection))
+		return false;
+
+	usertouchlayout = (touchlayouts + touchcust_submenu_selection);
+	usertouchlayoutnum = touchcust_submenu_selection;
+
+	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
+	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
+
+	G_PositionExtraUserTouchButtons();
+
+	return true;
+}
+
+static void SubmenuMessageResponse_LayoutList_Load(INT32 ch)
+{
+	if (ch == 'y' || ch == KEY_ENTER)
+	{
+		if (LoadLayoutOnList())
+		{
+			DisplayMessage(va(M_GetText(
+				"\x82%s\n"
+				"\x84Layout loaded!\n"
+				"\n" PRESS_A_KEY_MESSAGE),
+				(touchlayouts + usertouchlayoutnum)->name));
+			touchcust_submenu_highlight = usertouchlayoutnum;
+		}
+	}
+}
+
+static void Submenu_LayoutList_Load(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
+{
+	const char *layoutname = (touchlayouts + touchcust_submenu_selection)->name;
+
+	(void)x;
+	(void)y;
+	(void)finger;
+	(void)event;
+
+	if (userlayoutsaved && (usertouchlayoutnum == touchcust_submenu_selection))
+	{
+		DisplayMessage(va(M_GetText(
+			"\x82%s\n"
+			"This layout is already loaded!\n"
+			"\n" PRESS_A_KEY_MESSAGE),
+		layoutname));
+		return;
+	}
+
+	if (!userlayoutsaved)
+	{
+		M_StartMessage(va(M_GetText(
+			"\x82%s\n"
+			"Load this layout?\n"
+			"You will lose your unsaved changes."
+			"\n\n("CONFIRM_MESSAGE")\n"),
+		layoutname), SubmenuMessageResponse_LayoutList_Load, MM_YESNO);
+	}
+	else
+	{
+		M_StartMessage(va(M_GetText(
+			"\x82%s\n"
+			"Load this layout?\n"
+			"\n("CONFIRM_MESSAGE")\n"),
+		layoutname), SubmenuMessageResponse_LayoutList_Load, MM_YESNO);
+	}
+}
+
+static void SaveLayoutOnList(void)
+{
+	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+
+	if (usertouchlayoutnum == -1)
+		CreateAndSetupNewLayout(false);
+	else if (touchcust_submenu_selection != usertouchlayoutnum)
+	{
+		char filename[MAXTOUCHLAYOUTFILENAME+1];
+		touchlayout_t *saveover = touchlayouts + touchcust_submenu_selection;
+
+		strcpy(filename, saveover->filename);
+		M_Memcpy(saveover, usertouchlayout, sizeof(touchlayout_t));
+
+		if (saveover->config)
+			Z_Free(saveover->config);
+		saveover->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
+		M_Memcpy(saveover->config, usertouchcontrols, layoutsize);
+
+		usertouchlayout = saveover;
+		usertouchlayoutnum = touchcust_submenu_selection;
+
+		strcpy(usertouchlayout->filename, filename);
+	}
+	else
+	{
+		touchlayout_t *savelayout = touchlayouts + usertouchlayoutnum;
+
+		M_Memcpy(savelayout, usertouchlayout, sizeof(touchlayout_t));
+		savelayout->saved = true;
+
+		if (savelayout->config)
+			Z_Free(savelayout->config);
+		savelayout->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
+		M_Memcpy(savelayout->config, usertouchcontrols, layoutsize);
+	}
+
+	TS_SaveSingleLayout(usertouchlayoutnum);
+	TS_SaveLayouts();
+
+	usertouchlayout->saved = true;
+	userlayoutsaved = true;
+
+	DisplayMessage(va(M_GetText(
+		"\x82%s\n"
+		"\x83Layout saved!\n"
+		"\n" PRESS_A_KEY_MESSAGE),
+	(touchlayouts + usertouchlayoutnum)->name));
+
+	TS_MakeLayoutList();
+}
+
+static void SubmenuMessageResponse_LayoutList_Save(INT32 ch)
+{
+	(void)ch;
+	SaveLayoutOnList();
+}
+
+static void Submenu_LayoutList_Save(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
+{
+	(void)x;
+	(void)y;
+	(void)finger;
+	(void)event;
+
+	if (usertouchlayoutnum == -1)
+	{
+		SaveLayoutOnList();
+		return;
+	}
+
+	if (touchcust_submenu_selection != usertouchlayoutnum)
+	{
+		M_StartMessage(va(M_GetText(
+			"\x82%s\n"
+			"\x80Save over the \x82%s \x80layout?\n"
+			"\n("PRESS_Y_MESSAGE" to save"
+			"\nor "PRESS_N_MESSAGE_L" to return)\n"),
+			(touchlayouts + usertouchlayoutnum)->name,
+			(touchlayouts + touchcust_submenu_selection)->name),
+		SubmenuMessageResponse_LayoutList_Save, MM_YESNO);
+		return;
+	}
+
+	SaveLayoutOnList();
+}
+
+static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
+{
+	(void)x;
+	(void)y;
+	(void)finger;
+	(void)event;
+}
+
+static void Submenu_LayoutList_Exit(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
+{
+	(void)x;
+	(void)y;
+	(void)finger;
+	(void)event;
+	CloseSubmenu();
+	M_SetupNextMenu(currentMenu->prevMenu);
+}
+
+void TS_OpenLayoutList(void)
+{
+	touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[0], *lastbtn;
+	touchcust_submenu_numbuttons = 0;
+
+	touchcust_submenu_selection = 0;
+	touchcust_submenu_highlight = -1;
+	TS_MakeLayoutList();
+
+	touchcust_submenu_scroll = 0;
+	memset(&touchcust_submenu_scrollbar, 0x00, sizeof(touchcust_submenu_scrollbar_t) * NUMTOUCHFINGERS);
+
+	// "Load" button
+	btn->w = 40;
+	btn->h = 24;
+	btn->x = ((TOUCHCUST_SUBMENU_BASEX + TOUCHCUST_SUBMENU_WIDTH) - btn->w) - 4;
+	btn->y = (TOUCHCUST_SUBMENU_BASEY + TOUCHCUST_SUBMENU_HEIGHT) + 4;
+
+	btn->color = 151;
+	btn->name = "LOAD";
+	btn->action = Submenu_LayoutList_Load;
+
+	TOUCHCUST_NEXTSUBMENUBUTTON
+
+	// "New" button
+	btn->w = 32;
+	btn->h = 24;
+	btn->x = (lastbtn->x - btn->w) - 4;
+	btn->y = lastbtn->y;
+
+	btn->color = 112;
+	btn->name = "NEW";
+	btn->action = Submenu_LayoutList_New;
+
+	TOUCHCUST_NEXTSUBMENUBUTTON
+
+	// "Save" button
+	btn->w = 32;
+	btn->h = 24;
+	btn->x = (lastbtn->x - btn->w) - 4;
+	btn->y = lastbtn->y;
+
+	btn->color = 54;
+	btn->name = "SAV";
+	btn->action = Submenu_LayoutList_Save;
+
+	TOUCHCUST_NEXTSUBMENUBUTTON
+
+	// "Delete" button
+	btn->w = 32;
+	btn->h = 24;
+	btn->x = (lastbtn->x - btn->w) - 4;
+	btn->y = lastbtn->y;
+
+	btn->color = 35;
+	btn->name = "DEL";
+	btn->action = Submenu_LayoutList_Delete;
+
+	TOUCHCUST_NEXTSUBMENUBUTTON
+
+	// "Exit" button
+	btn->w = 42;
+	btn->h = 24;
+	btn->x = TOUCHCUST_SUBMENU_BASEX;
+	btn->y = lastbtn->y;
+
+	btn->color = 16;
+	btn->name = "EXIT";
+	btn->action = Submenu_LayoutList_Exit;
+
+	TOUCHCUST_LASTSUBMENUBUTTON
+
+	touch_screenexists = true;
+	touchcust_customizing = false;
+
+	ClearAllSelections();
+	OpenSubmenu(touchcust_submenu_layouts);
+
+	if (usertouchlayoutnum >= 0)
+	{
+		FocusSubmenuOnSelection(usertouchlayoutnum);
+		touchcust_submenu_highlight = touchcust_submenu_selection;
+	}
+}
+
+void TS_MakeLayoutList(void)
+{
+	static char **layoutnames = NULL;
+	static INT32 numlayoutnames = 0;
+
+	touchlayout_t *layout = touchlayouts;
+	INT32 i;
+
+	touchcust_submenu_listsize = 0;
+	//TS_LoadLayouts();
+
+	if (layoutnames)
+	{
+		for (i = 0; i < numlayoutnames; i++)
+		{
+			if (layoutnames[i])
+				Z_Free(layoutnames[i]);
+		}
+		Z_Free(layoutnames);
+	}
+
+	layoutnames = Z_Calloc(numtouchlayouts * sizeof(char *), PU_STATIC, NULL);
+	numlayoutnames = numtouchlayouts;
+
+	for (i = 0; i < numtouchlayouts; i++)
+	{
+		const char *unsavedstr = " \x85(unsaved)";
+
+		layoutnames[i] = Z_Malloc(MAXTOUCHLAYOUTNAME+1+strlen(unsavedstr), PU_STATIC, NULL);
+		strcpy(layoutnames[i], layout->name);
+		if (!layout->saved)
+			strcat(layoutnames[i], unsavedstr);
+
+		layout++;
+	}
+
+	layout = touchlayouts;
+
+	for (i = 0; i < numtouchlayouts; i++)
+	{
+		if (touchcust_submenu_listsize >= TOUCHCUST_SUBMENU_MAXLISTSIZE)
+			break;
+
+		touchcust_submenu_list[touchcust_submenu_listsize] = i;
+		touchcust_submenu_listnames[touchcust_submenu_listsize] = layoutnames[i];
+		touchcust_submenu_listsize++;
+
+		layout++;
+	}
 }
 
 //
@@ -143,6 +741,7 @@ static void GetButtonRect(touchconfig_t *btn, INT32 *x, INT32 *y, INT32 *w, INT3
 	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
 
 	G_ScaleTouchCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	G_CenterIntegerCoords(&tx, &ty);
 
 	*x = tx;
 	*y = ty;
@@ -302,10 +901,23 @@ static void MoveButtonTo(touchconfig_t *btn, INT32 x, INT32 y)
 //
 static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy)
 {
-	btn->x *= BASEVIDWIDTH;
-	btn->y *= BASEVIDHEIGHT;
+	fixed_t w = (BASEVIDWIDTH * FRACUNIT);
+	fixed_t h = (BASEVIDHEIGHT * FRACUNIT);
+
+	G_DenormalizeCoords(&btn->x, &btn->y);
+
 	btn->x += offsx;
 	btn->y += offsy;
+
+	if (btn->x < 0)
+		btn->x = 0;
+	if (btn->x + btn->w > w)
+		btn->x = (w - btn->w);
+
+	if (btn->y < 0)
+		btn->y = 0;
+	if (btn->y + btn->h > h)
+		btn->y = (h - btn->h);
 
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
@@ -345,8 +957,7 @@ static void SnapButtonToGrid(touchconfig_t *btn)
 	INT32 gridy = TOUCHGRIDSIZE * FRACUNIT;
 #endif
 
-	btn->x *= BASEVIDWIDTH;
-	btn->y *= BASEVIDHEIGHT;
+	G_DenormalizeCoords(&btn->x, &btn->y);
 
 	btn->x = RoundSnapCoord(btn->x, gridx);
 	btn->y = RoundSnapCoord(btn->y, gridy);
@@ -464,8 +1075,7 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 
 	if (btn == &usertouchcontrols[gc_joystick])
 	{
-		btn->x *= BASEVIDWIDTH;
-		btn->y *= BASEVIDHEIGHT;
+		G_DenormalizeCoords(&btn->x, &btn->y);
 		UpdateJoystickBase(btn);
 		G_NormalizeTouchButton(btn);
 	}
@@ -532,6 +1142,12 @@ static void CloseSubmenu(void)
 	touchcust_submenu = touchcust_submenu_none;
 }
 
+static void FocusSubmenuOnSelection(INT32 selection)
+{
+	touchcust_submenu_selection = selection;
+	touchcust_submenu_scroll = (touchcust_submenu_selection * vid.dupy * TOUCHCUST_SUBMENU_DISPLAYITEMS);
+}
+
 static boolean HandleSubmenuButtons(INT32 fx, INT32 fy, touchfinger_t *finger, event_t *event)
 {
 	INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
@@ -562,7 +1178,7 @@ static boolean HandleSubmenuButtons(INT32 fx, INT32 fy, touchfinger_t *finger, e
 				if (FingerTouchesRect(fx, fy, bx, by, bw, bh))
 				{
 					btn->isdown = finger;
-					finger->u.selection = (i+1);
+					finger->extra.selection = (i+1);
 					return true;
 				}
 			}
@@ -570,9 +1186,9 @@ static boolean HandleSubmenuButtons(INT32 fx, INT32 fy, touchfinger_t *finger, e
 			break;
 
 		case ev_touchup:
-			if (finger->u.selection)
+			if (finger->extra.selection)
 			{
-				touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[finger->u.selection-1];
+				touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[finger->extra.selection-1];
 
 				bx = btn->x * vid.dupx;
 				by = btn->y * vid.dupy;
@@ -587,7 +1203,7 @@ static boolean HandleSubmenuButtons(INT32 fx, INT32 fy, touchfinger_t *finger, e
 				if (FingerTouchesRect(fx, fy, bx, by, bw, bh))
 					btn->action(fx, fy, finger, event);
 
-				finger->u.selection = 0;
+				finger->extra.selection = 0;
 				return true;
 			}
 			break;
@@ -628,6 +1244,10 @@ static void DrawSubmenuButtons(void)
 		strheight = 8;
 		sx = (bx + (bw / 2)) - (strwidth / 2);
 		sy = (by + (bh / 2)) - ((strheight) / 2);
+
+		if (btn->isdown)
+			sy++;
+
 		V_DrawString(sx, sy, V_ALLOWLOWERCASE, str);
 	}
 }
@@ -720,6 +1340,9 @@ static void DrawSubmenuList(INT32 x, INT32 y)
 	}
 	V_DrawFill(x + TOUCHCUST_SUBMENU_WIDTH-1 - TOUCHCUST_SUBMENU_SBARWIDTH, (y - 1) + i, TOUCHCUST_SUBMENU_SBARWIDTH, m, 0);
 
+	if (!touchcust_submenu_listsize)
+		return;
+
 	// draw list items
 	for (i = t; i <= b; i++)
 	{
@@ -727,14 +1350,18 @@ static void DrawSubmenuList(INT32 x, INT32 y)
 		INT32 top = (y + 8);
 		UINT32 flags = V_ALLOWLOWERCASE;
 
+		if (i >= (size_t)touchcust_submenu_listsize)
+			break;
+
 		if (y > BASEVIDHEIGHT)
 			break;
 
 		if ((INT32)i == touchcust_submenu_selection)
 			V_DrawFill(left - 4, top - 4, TOUCHCUST_SUBMENU_WIDTH - 12 - TOUCHCUST_SUBMENU_SBARWIDTH, 16, 149);
 
-		if (touchcust_submenu_list[i])
-			V_DrawString(left, top, flags, touchcust_submenu_listnames[i]);
+		if ((INT32)i == touchcust_submenu_highlight)
+			flags |= V_YELLOWMAP;
+		V_DrawString(left, top, flags, touchcust_submenu_listnames[i]);
 
 		y += 20;
 	}
@@ -753,11 +1380,7 @@ static boolean IsMovingSubmenuScrollbar(void)
 	return false;
 }
 
-//
-// New button submenu
-//
-
-static void Submenu_AddNewButton_OnFingerEvent(INT32 fx, INT32 fy, touchfinger_t *finger, event_t *event)
+static void Submenu_GenericList_OnFingerEvent(INT32 fx, INT32 fy, touchfinger_t *finger, event_t *event)
 {
 	INT32 fingernum = (finger - touchfingers);
 	touchcust_submenu_scrollbar_t *scrollbar = &touchcust_submenu_scrollbar[fingernum];
@@ -791,12 +1414,18 @@ static void Submenu_AddNewButton_OnFingerEvent(INT32 fx, INT32 fy, touchfinger_t
 			if (CON_Ready())
 				break;
 
+			if (!touchcust_submenu_listsize)
+				break;
+
 			for (i = t; i <= b; i++)
 			{
 				INT32 left = (mx + 7);
 				INT32 top = (my + 4);
 				INT32 mw = (TOUCHCUST_SUBMENU_WIDTH - 12 - TOUCHCUST_SUBMENU_SBARWIDTH);
 				INT32 mh = 16;
+
+				if (i >= (size_t)touchcust_submenu_listsize)
+					break;
 
 				if (my > BASEVIDHEIGHT)
 					break;
@@ -853,6 +1482,29 @@ static void Submenu_AddNewButton_OnFingerEvent(INT32 fx, INT32 fy, touchfinger_t
 	}
 }
 
+static void Submenu_Generic_DrawListAndButtons(void)
+{
+	DrawSubmenuList(TOUCHCUST_SUBMENU_BASEX, TOUCHCUST_SUBMENU_BASEY);
+	DrawSubmenuButtons();
+}
+
+static void Submenu_Generic_Drawer(void)
+{
+	if (curfadevalue)
+		V_DrawFadeScreen(0xFF00, curfadevalue);
+
+	Submenu_Generic_DrawListAndButtons();
+}
+
+static void Submenu_GenericNoFade_Drawer(void)
+{
+	Submenu_Generic_DrawListAndButtons();
+}
+
+//
+// New button submenu
+//
+
 static void Submenu_AddNewButton_NewButtonAction(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
 	INT32 gc = AddButton(x, y, finger, event);
@@ -867,25 +1519,22 @@ static void Submenu_AddNewButton_NewButtonAction(INT32 x, INT32 y, touchfinger_t
 	btnstatus->isresizing = touchcust_resizepoint_none;
 }
 
-static void Submenu_AddNewButton_Drawer(void)
-{
-	if (curfadevalue)
-		V_DrawFadeScreen(0xFF00, curfadevalue);
-
-	DrawSubmenuList(TOUCHCUST_SUBMENU_BASEX, TOUCHCUST_SUBMENU_BASEY);
-	DrawSubmenuButtons();
-}
+//
+// Submenu info
+//
 
 static void (*touchcust_submenufuncs[num_touchcust_submenus]) (INT32 x, INT32 y, touchfinger_t *finger, event_t *event) =
 {
 	NULL,
-	Submenu_AddNewButton_OnFingerEvent,
+	Submenu_GenericList_OnFingerEvent,
+	Submenu_GenericList_OnFingerEvent,
 };
 
 static void (*touchcust_submenudrawfuncs[num_touchcust_submenus]) (void) =
 {
 	NULL,
-	Submenu_AddNewButton_Drawer,
+	Submenu_Generic_Drawer,
+	Submenu_GenericNoFade_Drawer,
 };
 
 //
@@ -969,14 +1618,13 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 
 		if (btn == &usertouchcontrols[gc_joystick])
 		{
-			// Scale button
-			btn->x *= BASEVIDWIDTH;
-			btn->y *= BASEVIDHEIGHT;
+			// Denormalize button
+			G_DenormalizeCoords(&btn->x, &btn->y);
 
 			// Update joystick
 			UpdateJoystickBase(btn);
 
-			// Normalize again
+			// Normalize button
 			G_NormalizeTouchButton(btn);
 		}
 
@@ -1113,9 +1761,7 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	btn->name = "ADD";
 	btn->action = Submenu_AddNewButton_NewButtonAction;
 
-	lastbtn = btn;
-	btn++;
-	touchcust_submenu_numbuttons++;
+	TOUCHCUST_NEXTSUBMENUBUTTON
 
 	// "Exit" button
 	btn->w = 42;
@@ -1127,10 +1773,11 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	btn->name = "EXIT";
 	btn->action = Submenu_Generic_ExitAction;
 
-	touchcust_submenu_numbuttons++;
+	TOUCHCUST_LASTSUBMENUBUTTON
 
 	// Create button list
 	touchcust_submenu_selection = 0;
+	touchcust_submenu_highlight = -1;
 	touchcust_submenu_listsize = 0;
 
 	touchcust_submenu_scroll = 0;
@@ -1180,6 +1827,26 @@ static boolean HandleLongPress(void *f)
 	return false;
 }
 
+static boolean CheckNavigation(INT32 x, INT32 y)
+{
+	INT32 i;
+
+	for (i = 0; i < NUMKEYS; i++)
+	{
+		touchconfig_t *btn = &touchnavigation[i];
+
+		// Ignore hidden buttons
+		if (btn->hidden)
+			continue;
+
+		// Check if your finger touches this button.
+		if (G_FingerTouchesButton(x, y, btn))
+			return true;
+	}
+
+	return false;
+}
+
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
 	boolean touchmotion = (event->type == ev_touchmotion);
@@ -1192,8 +1859,9 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 	if (touchcust_submenufuncs[touchcust_submenu])
 	{
+		if (touchcust_submenu == touchcust_submenu_layouts && CheckNavigation(x, y))
+			return false;
 		(touchcust_submenufuncs[touchcust_submenu])(x, y, finger, event);
-		return true;
 	}
 
 	switch (event->type)
@@ -1239,6 +1907,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				{
 					finger->u.gamecontrol = i;
 					foundbutton = true;
+					userlayoutsaved = false;
 					break;
 				}
 				// Move selected button
@@ -1248,6 +1917,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 					{
 						HandleResizePointSelection(x, y, finger, btn, btnstatus);
 						foundbutton = true;
+						userlayoutsaved = false;
 						break;
 					}
 
@@ -1259,6 +1929,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 						fixed_t dy = FixedDiv((y - finger->y) * FRACUNIT, vid.dupy * FRACUNIT);
 						OffsetButtonBy(btn, dx, dy);
 						btnstatus->moving = true;
+						userlayoutsaved = false;
 					}
 
 					btnstatus->isselecting = false;
@@ -1301,18 +1972,8 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			}
 			else if (!foundbutton && (!touchmotion))
 			{
-				for (i = 0; i < NUMKEYS; i++)
-				{
-					touchconfig_t *btn = &touchnavigation[i];
-
-					// Ignore hidden buttons
-					if (btn->hidden)
-						continue;
-
-					// Check if your finger touches this button.
-					if (G_FingerTouchesButton(x, y, btn))
-						return false;
-				}
+				if (CheckNavigation(x, y))
+					return false;
 
 				finger->longpressaction = HandleLongPress;
 				return true;
@@ -1378,6 +2039,16 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 	return false;
 }
 
+void TS_UpdateCustomization(void)
+{
+	if (touchcust_deferredmessage)
+	{
+		M_StartMessage(touchcust_deferredmessage, NULL, MM_NOTHING);
+		Z_Free(touchcust_deferredmessage);
+		touchcust_deferredmessage = NULL;
+	}
+}
+
 static void DrawGrid(void)
 {
 	INT32 i;
@@ -1426,6 +2097,13 @@ void TS_DrawCustomization(void)
 	INT32 green = 112;
 	INT32 yellow = 72;
 	INT32 orange = 54;
+
+	if (!touchcust_customizing)
+	{
+		if (touchcust_submenudrawfuncs[touchcust_submenu])
+			(touchcust_submenudrawfuncs[touchcust_submenu])();
+		return;
+	}
 
 	DrawGrid();
 	ST_drawTouchGameInput(usertouchcontrols, true, 10);

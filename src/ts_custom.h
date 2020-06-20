@@ -17,12 +17,53 @@
 #include "g_input.h"
 
 #ifdef TOUCHINPUTS
+boolean TS_Ready(void);
 
 void TS_SetupCustomization(void);
 boolean TS_ExitCustomization(void);
 boolean TS_IsCustomizingControls(void);
 
+void TS_OpenLayoutList(void);
+void TS_MakeLayoutList(void);
+
+// If you change this, also change TS_LoadLayouts
+#define MAXTOUCHLAYOUTNAME     64
+#define MAXTOUCHLAYOUTFILENAME 10
+
+#define TOUCHLAYOUTSFILE "layouts.cfg"
+
+typedef struct
+{
+	touchconfig_t *config;
+	char name[MAXTOUCHLAYOUTNAME+1];
+	char filename[MAXTOUCHLAYOUTFILENAME+1];
+	boolean saved;
+} touchlayout_t;
+
+extern touchlayout_t *touchlayouts;
+extern INT32 numtouchlayouts;
+
+extern touchlayout_t *usertouchlayout;
+extern INT32 usertouchlayoutnum;
+extern boolean userlayoutsaved;
+
+extern char touchlayoutfolder[512];
+
+extern boolean ts_init;
+
+void TS_InitLayouts(void);
+void TS_LoadLayouts(void);
+void TS_SaveLayouts(void);
+
+void TS_NewLayout(void);
+void TS_DeleteLayout(void);
+
+boolean TS_LoadSingleLayout(INT32 ilayout);
+boolean TS_SaveSingleLayout(INT32 ilayout);
+
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event);
+
+void TS_UpdateCustomization(void);
 void TS_DrawCustomization(void);
 
 fixed_t TS_GetDefaultScale(void);
@@ -35,11 +76,19 @@ typedef enum
 	touchcust_submenu_none = 0,
 
 	touchcust_submenu_newbtn,
+	touchcust_submenu_layouts,
 
 	num_touchcust_submenus,
 } touchcust_submenu_e;
 
 #define TOUCHCUST_SUBMENU_MAXBUTTONS 16
+
+#define TOUCHCUST_NEXTSUBMENUBUTTON \
+	lastbtn = btn; \
+	btn++; \
+	touchcust_submenu_numbuttons++;
+
+#define TOUCHCUST_LASTSUBMENUBUTTON touchcust_submenu_numbuttons++;
 
 typedef struct
 {
@@ -90,8 +139,8 @@ typedef enum
 #define MINBTNWIDTH 8*FRACUNIT
 #define MINBTNHEIGHT 8*FRACUNIT
 
-#define TOUCHGRIDSIZE 		16
-#define TOUCHSMALLGRIDSIZE 	(TOUCHGRIDSIZE / 2)
+#define TOUCHGRIDSIZE      16
+#define TOUCHSMALLGRIDSIZE (TOUCHGRIDSIZE / 2)
 
 #define BUTTONEXTENDH (4 * vid.dupx)
 #define BUTTONEXTENDV (4 * vid.dupy)
