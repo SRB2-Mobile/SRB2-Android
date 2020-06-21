@@ -1514,7 +1514,7 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 {
 	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = (stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
+	const INT32 accent = (stplyr && stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
 
 	touchconfig_t *tleft = &config[gc_strafeleft];
 	touchconfig_t *tright = &config[gc_straferight];
@@ -1540,10 +1540,10 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 			ST_drawTouchDPad(
 				touch_joystick_x, touch_joystick_y,
 				touch_joystick_w, touch_joystick_h,
-				tleft, (stplyr->cmd.sidemove < 0),
-				tright, (stplyr->cmd.sidemove > 0),
-				tup, (stplyr->cmd.forwardmove > 0),
-				tdown, (stplyr->cmd.forwardmove < 0),
+				tleft, (stplyr ? stplyr->cmd.sidemove < 0 : false),
+				tright, (stplyr ? stplyr->cmd.sidemove > 0 : false),
+				tup, (stplyr ? stplyr->cmd.forwardmove > 0 : false),
+				tdown, (stplyr ? stplyr->cmd.forwardmove < 0 : false),
 				true, flags, accent);
 		}
 		else // Draw the joystick
