@@ -730,7 +730,8 @@ static void DeleteLayoutOnList(INT32 layoutnum)
 static void SubmenuMessageResponse_LayoutList_Delete(INT32 ch)
 {
 	(void)ch;
-	DeleteLayoutOnList(touchcust_submenu_selection);
+	if (ch == 'y' || ch == KEY_ENTER)
+		DeleteLayoutOnList(touchcust_submenu_selection);
 }
 
 static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
@@ -949,7 +950,7 @@ void TS_MakeLayoutList(void)
 				for (dot = 0; dot < 3; dot++)
 					string[len + dot] = '.';
 
-				offs = (maxlen + 1) - ((maxlen+1) - extlen - 3);;
+				offs = (maxlen+1) - ((maxlen+1) - extlen - 3);
 				strlcpy(layoutnames[i] + offs, (string + len), (maxlen+1) - offs);
 			}
 			else
