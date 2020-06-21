@@ -798,7 +798,7 @@ void TS_OpenLayoutList(void)
 	// "Load" button
 	btn->w = 40;
 	btn->h = 24;
-	btn->x = ((touchcust_submenu_x + touchcust_submenu_width) - btn->w) - 4;
+	btn->x = ((touchcust_submenu_x + touchcust_submenu_width) - btn->w);
 	btn->y = (touchcust_submenu_y + touchcust_submenu_height) + 4;
 
 	btn->color = 151;
@@ -903,7 +903,7 @@ void TS_MakeLayoutList(void)
 
 	for (i = 0; i < numtouchlayouts; i++)
 	{
-		char *string;
+		char *string, *append;
 		const char *unsavedstr = " \x85(unsaved)";
 		const char *modifiedstr = " \x87(modified)";
 		size_t len = strlen(layout->name);
@@ -929,6 +929,8 @@ void TS_MakeLayoutList(void)
 		string = Z_Malloc(len+1, PU_STATIC, NULL);
 		strcpy(string, layout->name);
 
+		append = string + strlen(string);
+
 		if (unsaved)
 			strcat(string, unsavedstr);
 		if (modified)
@@ -936,22 +938,21 @@ void TS_MakeLayoutList(void)
 
 		if (len > maxlen)
 		{
-			len = (maxlen+1);
-			layoutnames[i] = Z_Malloc(len, PU_STATIC, NULL);
+			layoutnames[i] = Z_Malloc(maxlen+1, PU_STATIC, NULL);
 
 			if (extlen)
 			{
-				size_t offs, dot;
+				const char *attach;
+				size_t len, offs;
 
-				extlen--;
-				strlcpy(layoutnames[i], string, len);
+				append++;
+				attach = va("...%s", append);
+				len = strlen(attach) + 1;
 
-				len = (strlen(string) - extlen - 3);
-				for (dot = 0; dot < 3; dot++)
-					string[len + dot] = '.';
+				strlcpy(layoutnames[i], string, maxlen+1);
 
-				offs = (maxlen+1) - ((maxlen+1) - extlen - 3);
-				strlcpy(layoutnames[i] + offs, (string + len), (maxlen+1) - offs);
+				offs = (maxlen + 1) - len;
+				strlcpy(layoutnames[i] + offs, attach, (maxlen + 1) - offs);
 			}
 			else
 			{
