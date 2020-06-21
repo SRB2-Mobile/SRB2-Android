@@ -940,7 +940,7 @@ void TS_MakeLayoutList(void)
 
 			if (extlen)
 			{
-				size_t dot;
+				size_t offs, dot;
 
 				extlen--;
 				strlcpy(layoutnames[i], string, len);
@@ -949,7 +949,8 @@ void TS_MakeLayoutList(void)
 				for (dot = 0; dot < 3; dot++)
 					string[len + dot] = '.';
 
-				strlcpy(layoutnames[i] + (maxlen + 1) - ((maxlen+1) - extlen - 3), (string + len), (maxlen+1));
+				offs = (maxlen + 1) - ((maxlen+1) - extlen - 3);;
+				strlcpy(layoutnames[i] + offs, (string + len), (maxlen+1) - offs);
 			}
 			else
 			{
