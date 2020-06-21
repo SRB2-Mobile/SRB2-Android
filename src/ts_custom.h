@@ -64,7 +64,7 @@ void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from);
 boolean TS_LoadSingleLayout(INT32 ilayout);
 boolean TS_SaveSingleLayout(INT32 ilayout);
 
-const char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen);
+char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen);
 
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event);
 boolean TS_HandleKeyEvent(INT32 key, event_t *event);

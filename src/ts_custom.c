@@ -30,6 +30,7 @@
 #include "v_video.h"
 #include "st_stuff.h" // ST_drawTouchGameInput
 #include "hu_stuff.h" // shiftxform
+#include "s_sound.h" // S_StartSound
 #include "z_zone.h"
 
 #include "console.h" // CON_Ready()
@@ -448,7 +449,7 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 	return true;
 }
 
-const char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen)
+char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen)
 {
 	if (strlen(layout->name) > maxlen)
 	{
