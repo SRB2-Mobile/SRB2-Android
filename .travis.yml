@@ -29,7 +29,7 @@ matrix:
             - if [[ "$TRAVIS_TAG" != "" ]]; then
                 PACKAGE_FILENAME="$TRAVIS_JOB_ID-$TRAVIS_TAG";
               else
-                PACKAGE_FILENAME="$TRAVIS_JOB_ID"-${TRAVIS_COMMIT:0:8};
+                PACKAGE_FILENAME="$TRAVIS_JOB_ID-${TRAVIS_COMMIT:0:8}";
               fi
             - shopt -s globstar
             - for f in $TRAVIS_BUILD_DIR/android/app/build/outputs/apk/**/*.apk; do [[ -f $f ]] && mv "$f" "$(dirname "$f")/srb2-android-${PACKAGE_FILENAME}-$(basename "$f")"; done
