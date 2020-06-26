@@ -285,6 +285,7 @@ extern touchconfigstatus_t touchnavigationstatus;
 // Console variables for the touch screen
 extern consvar_t cv_touchstyle;
 extern consvar_t cv_touchpreset;
+extern consvar_t cv_touchlayout;
 extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
 extern consvar_t cv_touchguiscale;
@@ -364,15 +365,16 @@ const char *gamecontrolname[num_gamecontrols];
 void G_DefineDefaultControls(void);
 
 #ifdef TOUCHINPUTS
-// Defines/updates touch controls
 void G_SetupTouchSettings(void);
 void G_UpdateTouchControls(void);
-void G_TouchPresetChanged(void);
 void G_DefineTouchButtons(void);
+
 void G_PositionTouchButtons(void);
 void G_PositionTouchNavigation(void);
 void G_PositionExtraUserTouchButtons(void);
-void G_DefaultCustomTouchControls(touchconfig_t *config);
+
+void G_TouchPresetChanged(void);
+void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny);
 
 // Returns the names of a touch button
 const char *G_GetTouchButtonName(INT32 gc);

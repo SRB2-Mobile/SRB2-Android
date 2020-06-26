@@ -46,6 +46,8 @@ extern touchlayout_t *usertouchlayout;
 extern INT32 usertouchlayoutnum;
 extern boolean userlayoutsaved;
 
+extern touchconfigstatus_t usertouchconfigstatus;
+
 extern char touchlayoutfolder[512];
 
 extern boolean ts_init;
@@ -58,11 +60,17 @@ void TS_NewLayout(void);
 void TS_ClearLayout(void);
 void TS_DeleteLayout(INT32 layoutnum);
 
+void TS_DefaultLayout(void);
+void TS_BuildLayoutFromPreset(touchconfig_t *config);
+
 void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from);
 void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from);
 
 boolean TS_LoadSingleLayout(INT32 ilayout);
 boolean TS_SaveSingleLayout(INT32 ilayout);
+
+void TS_LoadUserLayouts(void); // called at startup
+void TS_LoadLayoutFromCVar(void); // called at cvar change
 
 char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen);
 

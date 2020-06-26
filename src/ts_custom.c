@@ -68,6 +68,10 @@ static touchlayout_t *touchcust_layoutlist_renaming = NULL;
 // Prototypes
 // ==========
 
+static boolean LoadLayoutAtIndex(INT32 idx);
+static boolean LoadLayoutFromName(const char *layoutname);
+static boolean LoadLayoutOnList(void);
+
 static boolean FingerTouchesRect(INT32 fx, INT32 fy, INT32 rx, INT32 ry, INT32 rw, INT32 rh);
 static boolean FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn, boolean inside);
 
@@ -165,7 +169,7 @@ static void DisplayMessage(const char *message)
 
 static void StopRenamingLayout(touchlayout_t *layout)
 {
-	if (I_KeyboardOnScreen())
+	if (I_KeyboardOnScreen() && !CON_Ready())
 		I_CloseScreenKeyboard();
 
 	if (layout)
@@ -199,6 +203,11 @@ char touchlayoutfolder[512] = "touchlayouts";
 void TS_InitLayouts(void)
 {
 	I_mkdir(touchlayoutfolder, 0755);
+
+	if (usertouchlayout == NULL)
+		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
+	TS_DefaultLayout();
+
 	ts_ready = true;
 }
 
@@ -211,9 +220,6 @@ void TS_LoadLayouts(void)
 	char name[MAXTOUCHLAYOUTNAME+1], filename[MAXTOUCHLAYOUTFILENAME+1];
 
 	memset(line, 0x00, sizeof(line));
-
-	if (usertouchlayout == NULL)
-		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
 
 	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, TOUCHLAYOUTSFILE), "rt");
 	if (!f)
@@ -297,8 +303,36 @@ void TS_NewLayout(void)
 
 void TS_ClearLayout(void)
 {
-	G_DefaultCustomTouchControls(usertouchcontrols);
+	// AAAANNDD this is where I would put my
+	// function that clears touchlayout_t...
+	// IF I HAD ONE!!!!
+	TS_BuildLayoutFromPreset(usertouchcontrols);
+	M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
 	userlayoutsaved = false;
+}
+
+touchconfigstatus_t usertouchconfigstatus;
+
+void TS_BuildLayoutFromPreset(touchconfig_t *config)
+{
+	G_BuildTouchPreset(config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
+}
+
+void TS_DefaultLayout(void)
+{
+	usertouchconfigstatus.ringslinger = true;
+	usertouchconfigstatus.ctfgametype = true;
+	usertouchconfigstatus.canpause = true;
+	usertouchconfigstatus.canviewpointswitch = true;
+	usertouchconfigstatus.cantalk = true;
+	usertouchconfigstatus.canteamtalk = true;
+
+	if (usertouchcontrols == NULL)
+	{
+		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+		TS_BuildLayoutFromPreset(usertouchcontrols);
+		usertouchlayout->config = usertouchcontrols;
+	}
 }
 
 void TS_DeleteLayout(INT32 layoutnum)
@@ -449,6 +483,69 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 	return true;
 }
 
+static boolean NoLayoutInCVar(const char *layoutname)
+{
+	return (!layoutname || strlen(layoutname) < 1 || !strcmp(layoutname, "None"));
+}
+
+static boolean CanLoadLayoutFromCVar(const char *layoutname)
+{
+	if (!ts_ready || NoLayoutInCVar(layoutname))
+		return false;
+	return true;
+}
+
+static void ResetLayoutMenus(void)
+{
+	if (touchcust_customizing)
+	{
+		CloseSubmenu();
+		ClearAllSelections();
+	}
+	else if (touchcust_submenu == touchcust_submenu_layouts)
+	{
+		TS_MakeLayoutList();
+		touchcust_submenu_highlight = usertouchlayoutnum;
+	}
+}
+
+void TS_LoadLayoutFromCVar(void)
+{
+	const char *layoutname = cv_touchlayout.string;
+
+	if (!CanLoadLayoutFromCVar(layoutname))
+	{
+		if (NoLayoutInCVar(layoutname))
+		{
+			usertouchlayoutnum = -1;
+			userlayoutsaved = true;
+			ResetLayoutMenus();
+		}
+		return;
+	}
+
+	if (touchcust_submenu == touchcust_submenu_layouts)
+		StopRenamingLayout(touchcust_layoutlist_renaming);
+
+	TS_LoadLayouts();
+
+	if (!LoadLayoutFromName(layoutname))
+		return;
+
+	userlayoutsaved = true;
+	ResetLayoutMenus();
+}
+
+void TS_LoadUserLayouts(void)
+{
+	const char *layoutname = cv_touchlayout.string;
+	if (CanLoadLayoutFromCVar(layoutname))
+	{
+		TS_LoadLayouts();
+		userlayoutsaved = LoadLayoutFromName(layoutname);
+	}
+}
+
 char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen)
 {
 	if (strlen(layout->name) > maxlen)
@@ -486,7 +583,7 @@ static void CreateAndSetupNewLayout(boolean setupnew)
 		size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
 
 		newlayout->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
-		G_DefaultCustomTouchControls(usertouchlayout->config);
+		TS_BuildLayoutFromPreset(usertouchlayout->config);
 
 		M_Memcpy(usertouchcontrols, newlayout->config, layoutsize);
 	}
@@ -526,20 +623,55 @@ static void Submenu_LayoutList_New(INT32 x, INT32 y, touchfinger_t *finger, even
 	SubmenuMessageResponse_LayoutList_New, MM_YESNO);
 }
 
-static boolean LoadLayoutOnList(void)
+static boolean LoadLayoutAtIndex(INT32 idx)
 {
 	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
 
-	if (!TS_LoadSingleLayout(touchcust_submenu_selection))
+	if (!TS_LoadSingleLayout(idx))
 		return false;
 
-	usertouchlayout = (touchlayouts + touchcust_submenu_selection);
-	usertouchlayoutnum = touchcust_submenu_selection;
+	usertouchlayout = (touchlayouts + idx);
+	usertouchlayoutnum = idx;
 
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
 	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
 
 	G_PositionExtraUserTouchButtons();
+
+	return true;
+}
+
+static boolean LoadLayoutFromName(const char *layoutname)
+{
+	touchlayout_t *userlayout = touchlayouts;
+	INT32 i;
+
+	for (i = 0; i < numtouchlayouts; i++)
+	{
+		if (!strcmp(userlayout->name, layoutname))
+			break;
+		userlayout++;
+	}
+
+	if (i == numtouchlayouts)
+	{
+		CONS_Alert(CONS_ERROR, "Touch layout \"%s\" not found\n", layoutname);
+		return false;
+	}
+
+	if (!LoadLayoutAtIndex(i))
+	{
+		CONS_Alert(CONS_ERROR, "Could not load touch layout \"%s\"\n", layoutname);
+		return false;
+	}
+
+	return true;
+}
+
+static boolean LoadLayoutOnList(void)
+{
+	if (!LoadLayoutAtIndex(touchcust_submenu_selection))
+		return false;
 
 	userlayoutsaved = true;
 	TS_MakeLayoutList();
@@ -787,6 +919,7 @@ void TS_OpenLayoutList(void)
 	touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[0], *lastbtn;
 	touchcust_submenu_numbuttons = 0;
 
+	TS_LoadLayouts();
 	OpenSubmenu(touchcust_submenu_layouts);
 
 	touchcust_submenu_selection = 0;
@@ -887,7 +1020,6 @@ void TS_MakeLayoutList(void)
 	INT32 i;
 
 	touchcust_submenu_listsize = 0;
-	//TS_LoadLayouts();
 
 	if (layoutnames)
 	{
