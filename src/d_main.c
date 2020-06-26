@@ -1334,7 +1334,7 @@ void D_SRB2Main(void)
 
 #ifdef TOUCHINPUTS
 	TS_InitLayouts();
-	TS_LoadUserLayouts(); // calls TS_LoadLayouts
+	TS_LoadUserLayouts(); // will call TS_LoadLayouts
 	G_UpdateTouchControls();
 #endif
 

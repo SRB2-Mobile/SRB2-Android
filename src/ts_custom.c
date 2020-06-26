@@ -527,8 +527,6 @@ void TS_LoadLayoutFromCVar(void)
 	if (touchcust_submenu == touchcust_submenu_layouts)
 		StopRenamingLayout(touchcust_layoutlist_renaming);
 
-	TS_LoadLayouts();
-
 	if (!LoadLayoutFromName(layoutname))
 		return;
 
@@ -539,11 +537,11 @@ void TS_LoadLayoutFromCVar(void)
 void TS_LoadUserLayouts(void)
 {
 	const char *layoutname = cv_touchlayout.string;
+
+	TS_LoadLayouts();
+
 	if (CanLoadLayoutFromCVar(layoutname))
-	{
-		TS_LoadLayouts();
 		userlayoutsaved = LoadLayoutFromName(layoutname);
-	}
 }
 
 char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen)
@@ -919,7 +917,6 @@ void TS_OpenLayoutList(void)
 	touchcust_submenu_button_t *btn = &touchcust_submenu_buttons[0], *lastbtn;
 	touchcust_submenu_numbuttons = 0;
 
-	TS_LoadLayouts();
 	OpenSubmenu(touchcust_submenu_layouts);
 
 	touchcust_submenu_selection = 0;
