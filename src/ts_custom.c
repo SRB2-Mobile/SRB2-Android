@@ -303,6 +303,10 @@ void TS_NewLayout(void)
 
 void TS_ClearLayout(void)
 {
+	INT32 i;
+	// reset hidden value so that all buttons are properly populated
+	for (i = 0; i < num_gamecontrols; i++)
+		usertouchcontrols[i].hidden = false;
 	// AAAANNDD this is where I would put my
 	// function that clears touchlayout_t...
 	// IF I HAD ONE!!!!
