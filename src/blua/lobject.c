@@ -20,6 +20,7 @@
 #include "lobject.h"
 #include "lstate.h"
 #include "lstring.h"
+#include "lauxlib.h"
 #include "lvm.h"
 
 
@@ -113,7 +114,7 @@ const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
   int n = 1;
   pushstr(L, "");
   for (;;) {
-    const char *e = strchr(fmt, '%');
+    const char *e = luaL_strchr(fmt, '%');
     if (e == NULL) break;
     setsvalue2s(L, L->top, luaS_newlstr(L, fmt, e-fmt));
     incr_top(L);

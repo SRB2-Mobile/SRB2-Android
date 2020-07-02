@@ -17,6 +17,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+char *Android_strchr(const char *str, int character)
+{
+	const char *p = str;
+	while (*p)
+	{
+		if (*p == (char)character)
+			return ((char *)p);
+		p++;
+	}
+	return NULL;
+}
+
 static unsigned char extsyms[1024];
 static size_t numsyms;
 static size_t appliedsyms;
@@ -93,8 +105,6 @@ int Android_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
-///\brief Android vsnprintf errors on characters beyond 0x80 and makes me want to die.
-// Lactozilla: Seems to happen with other string functions due to Bionic and vfprintf, left above \brief because it is funny
 int Android_vsnprintf(char *str, size_t size, const char *format, va_list argptr)
 {
 	int ret;

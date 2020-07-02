@@ -726,7 +726,7 @@ static void addquoted (lua_State *L, luaL_Buffer *b, int arg) {
 
 static const char *scanformat (lua_State *L, const char *strfrmt, char *form) {
   const char *p = strfrmt;
-  while (*p != '\0' && strchr(FLAGS, *p) != NULL) p++;  /* skip flags */
+  while (*p != '\0' && luaL_strchr(FLAGS, *p) != NULL) p++;  /* skip flags */
   if ((size_t)(p - strfrmt) >= sizeof(FLAGS))
     luaL_error(L, "invalid format (repeated flags)");
   if (isdigit(uchar(*p))) p++;  /* skip width */
@@ -800,7 +800,7 @@ static int str_format (lua_State *L) {
         case 's': {
           size_t l;
           const char *s = luaL_checklstring(L, arg, &l);
-          if (!strchr(form, '.') && l >= 100) {
+          if (!luaL_strchr(form, '.') && l >= 100) {
             /* no precision and string is too long to be formatted;
                keep original string */
             lua_pushvalue(L, arg);

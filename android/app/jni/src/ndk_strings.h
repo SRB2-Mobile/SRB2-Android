@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+char *Android_strchr(const char *str, int character);
+
 int Android_sprintf(char *str, const char *format, ...);
 int Android_snprintf(char *str, size_t size, const char *format, ...);
 int Android_vsnprintf(char *str, size_t size, const char *format, va_list argptr);

@@ -141,6 +141,13 @@ typedef struct luaL_Buffer {
 
 #define luaL_addsize(B,n)	((B)->p += (n))
 
+#ifdef LUA_ANDROID
+#include <ndk_strings.h>
+#define luaL_strchr         Android_strchr
+#else
+#define luaL_strchr         strchr
+#endif
+
 LUALIB_API void (luaL_buffinit) (lua_State *L, luaL_Buffer *B);
 LUALIB_API char *(luaL_prepbuffer) (luaL_Buffer *B);
 LUALIB_API void (luaL_addlstring) (luaL_Buffer *B, const char *s, size_t l);

@@ -345,7 +345,7 @@ LUALIB_API const char *luaL_findtable (lua_State *L, int idx,
   const char *e;
   lua_pushvalue(L, idx);
   do {
-    e = strchr(fname, '.');
+    e = luaL_strchr(fname, '.');
     if (e == NULL) e = fname + strlen(fname);
     lua_pushlstring(L, fname, e - fname);
     lua_rawget(L, -2);

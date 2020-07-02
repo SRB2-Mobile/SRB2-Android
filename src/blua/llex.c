@@ -20,6 +20,7 @@
 #include "lparser.h"
 #include "lstate.h"
 #include "lstring.h"
+#include "lauxlib.h"
 #include "ltable.h"
 #include "lzio.h"
 
@@ -162,7 +163,7 @@ void luaX_setinput (lua_State *L, LexState *ls, ZIO *z, TString *source) {
 
 
 static int check_next (LexState *ls, const char *set) {
-  if (!strchr(set, ls->current))
+  if (!luaL_strchr(set, ls->current))
     return 0;
   save_and_next(ls);
   return 1;

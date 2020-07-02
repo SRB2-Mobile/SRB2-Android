@@ -11,6 +11,7 @@
 
 #include "lua.h"
 
+#include "lauxlib.h"
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
@@ -164,8 +165,8 @@ static int traversetable (global_State *g, Table *h) {
     markobject(g, h->metatable);
   mode = gfasttm(g, h->metatable, TM_MODE);
   if (mode && ttisstring(mode)) {  /* is there a weak mode? */
-    weakkey = (strchr(svalue(mode), 'k') != NULL);
-    weakvalue = (strchr(svalue(mode), 'v') != NULL);
+    weakkey = (luaL_strchr(svalue(mode), 'k') != NULL);
+    weakvalue = (luaL_strchr(svalue(mode), 'v') != NULL);
     if (weakkey || weakvalue) {  /* is really weak? */
       h->marked &= ~(KEYWEAK | VALUEWEAK);  /* clear bits */
       h->marked |= cast_byte((weakkey << KEYWEAKBIT) |
