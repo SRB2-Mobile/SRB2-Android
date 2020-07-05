@@ -193,7 +193,7 @@ touchlayout_t *touchlayouts = NULL;
 INT32 numtouchlayouts = 0;
 
 touchlayout_t *usertouchlayout = NULL;
-INT32 usertouchlayoutnum = -1;
+INT32 usertouchlayoutnum = UNSAVEDTOUCHLAYOUT;
 boolean userlayoutsaved = true;
 
 char touchlayoutfolder[512] = "touchlayouts";
@@ -204,9 +204,11 @@ void TS_InitLayouts(void)
 {
 	I_mkdir(touchlayoutfolder, 0755);
 
-	if (usertouchlayout == NULL)
-		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
-	TS_DefaultLayout();
+	usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
+
+	TS_DefaultControlLayout();
+	TS_SetDefaultLayoutSettings(usertouchlayout);
+	TS_SynchronizeLayoutCvarsToSettings(usertouchlayout);
 
 	ts_ready = true;
 }
@@ -294,24 +296,92 @@ void TS_SaveLayouts(void)
 	fclose(f);
 }
 
-void TS_NewLayout(void)
+void TS_RegisterVariables(void)
 {
-	numtouchlayouts++;
-	touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
-	memset(touchlayouts + (numtouchlayouts - 1), 0x00, sizeof(touchlayout_t));
+	// Display settings
+	CV_RegisterVar(&cv_touchmenutrans);
+	CV_RegisterVar(&cv_touchtrans);
+
+	// Layout settings
+	CV_RegisterVar(&cv_touchlayoutusegrid);
+
+	// Preset settings
+	CV_RegisterVar(&cv_touchguiscale);
+
+	// Main options
+	CV_RegisterVar(&cv_touchcamera);
+	CV_RegisterVar(&cv_touchpreset);
+	CV_RegisterVar(&cv_touchlayout);
+	CV_RegisterVar(&cv_touchstyle);
 }
 
-void TS_ClearLayout(void)
+void TS_NewLayout(void)
 {
-	INT32 i;
+	touchlayout_t *layout;
+
+	numtouchlayouts++;
+	touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
+
+	layout = touchlayouts + (numtouchlayouts - 1);
+	memset(layout, 0x00, sizeof(touchlayout_t));
+}
+
+// Sets default settings for a layout
+void TS_SetDefaultLayoutSettings(touchlayout_t *layout)
+{
+	layout->usegridlimits = true;
+}
+
+// Sets layout cvars from layout settings
+void TS_SynchronizeLayoutCvarsToSettings(touchlayout_t *layout)
+{
+	CV_StealthSetValue(&cv_touchlayoutusegrid, layout->usegridlimits);
+}
+
+// Sets layout settings from layout cvars
+void TS_SynchronizeLayoutSettingsToCvars(touchlayout_t *layout)
+{
+	layout->usegridlimits = cv_touchlayoutusegrid.value;
+}
+
+// Sets layout settings from cvars when they're changed
+void TS_SynchronizeCurrentLayout(void)
+{
+	if (!ts_ready)
+		return;
+
+	if (usertouchlayoutnum != UNSAVEDTOUCHLAYOUT)
+	{
+		TS_SynchronizeLayoutSettingsToCvars(touchlayouts + usertouchlayoutnum);
+		userlayoutsaved = false;
+	}
+}
+
+static void ShowAllConfigButtons(touchconfig_t *config)
+{
 	// reset hidden value so that all buttons are properly populated
+	INT32 i;
 	for (i = 0; i < num_gamecontrols; i++)
-		usertouchcontrols[i].hidden = false;
-	// AAAANNDD this is where I would put my
-	// function that clears touchlayout_t...
-	// IF I HAD ONE!!!!
-	TS_BuildLayoutFromPreset(usertouchcontrols);
-	M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
+		config->hidden = false;
+}
+
+void TS_ClearLayout(touchlayout_t *layout)
+{
+	ShowAllConfigButtons(layout->config);
+	TS_BuildLayoutFromPreset(layout->config);
+}
+
+void TS_ClearCurrentLayout(void)
+{
+	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+
+	TS_ClearLayout(usertouchlayout);
+	TS_SetDefaultLayoutSettings(usertouchlayout);
+	TS_SynchronizeLayoutCvarsToSettings(usertouchlayout);
+
+	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
+	M_Memcpy(&touchcontrols, usertouchlayout->config, layoutsize);
+
 	userlayoutsaved = false;
 }
 
@@ -322,7 +392,7 @@ void TS_BuildLayoutFromPreset(touchconfig_t *config)
 	G_BuildTouchPreset(config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
 }
 
-void TS_DefaultLayout(void)
+void TS_DefaultControlLayout(void)
 {
 	usertouchconfigstatus.ringslinger = true;
 	usertouchconfigstatus.ctfgametype = true;
@@ -342,14 +412,31 @@ void TS_DefaultLayout(void)
 void TS_DeleteLayout(INT32 layoutnum)
 {
 	touchlayout_t *todelete = (touchlayouts + layoutnum);
-	usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
-	TS_CopyLayoutTo(usertouchlayout, todelete);
+
+	if (usertouchlayout == todelete)
+	{
+		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
+		usertouchlayoutnum = UNSAVEDTOUCHLAYOUT;
+		TS_CopyLayoutTo(usertouchlayout, todelete);
+		CV_StealthSet(&cv_touchlayout, "None");
+	}
+
+	if (usertouchlayoutnum >= layoutnum)
+	{
+		usertouchlayoutnum--;
+		touchcust_submenu_highlight = usertouchlayoutnum;
+	}
 
 	if (layoutnum < numtouchlayouts-1)
 		memmove(todelete, (todelete + 1), (numtouchlayouts - (layoutnum + 1)) * sizeof(touchlayout_t));
 
 	numtouchlayouts--;
 	touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
+
+	if (usertouchlayoutnum != UNSAVEDTOUCHLAYOUT)
+		usertouchlayout = (touchlayouts + usertouchlayoutnum);
+	else
+		touchcust_submenu_highlight = -1;
 
 	if (touchcust_submenu_selection >= numtouchlayouts)
 		FocusSubmenuOnSelection(numtouchlayouts - 1);
@@ -365,18 +452,43 @@ void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from)
 	M_Memcpy(to->config, from, layoutsize);
 }
 
+#define sizeofmember(type, member) sizeof(((type *)NULL)->member)
+
 void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from)
 {
 	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+	size_t offs = offsetof(touchlayout_t, usegridlimits);
 
 	if (!to->config)
-		to->config = Z_Malloc(layoutsize, PU_STATIC, NULL);
+		to->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
 
-	M_Memcpy(to->config, from->config, layoutsize);
+	if (from->config)
+		M_Memcpy(to->config, from->config, layoutsize);
+	else
+		I_Error("TS_CopyLayoutTo: no layout to copy from!");
+
+	// whatever the last element is
+	layoutsize = (offsetof(touchlayout_t, usegridlimits) + sizeofmember(touchlayout_t, usegridlimits)) - offs;
+	M_Memcpy(to + offs, from + offs, layoutsize);
 }
+
+#undef sizeofmember
 
 #define BUTTONLOADFORMAT "%64s %f %f %f %f"
 #define BUTTONSAVEFORMAT "%s %f %f %f %f" "\n"
+
+#define OPTIONLOADFORMAT "%64s %d"
+#define OPTIONSAVEFORMAT "%s %d" "\n"
+
+#define LAYOUTFILEDELIM "---\n"
+
+struct {
+	const char *name;
+	consvar_t *cvar;
+} const layoutoptions[] = {
+	{"usegridlimits", &cv_touchlayoutusegrid},
+	{NULL,            NULL},
+};
 
 boolean TS_LoadSingleLayout(INT32 ilayout)
 {
@@ -388,6 +500,10 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 
 	float x, y, w, h;
 	char gc[65];
+
+	char option[65];
+	INT32 optionvalue;
+
 	INT32 igc;
 	touchconfig_t *button = NULL;
 
@@ -438,6 +554,24 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 		button->hidden = false;
 	}
 
+	// Read options
+	TS_SetDefaultLayoutSettings(layout); // set defaults
+
+	while (fscanf(f, OPTIONLOADFORMAT, option, &optionvalue) == 2)
+	{
+		for (igc = 0; layoutoptions[igc].cvar; igc++)
+		{
+			if (!strcmp(option, layoutoptions[igc].name))
+			{
+				CV_StealthSetValue(layoutoptions[igc].cvar, optionvalue);
+				break;
+			}
+		}
+	}
+
+	// set cvars
+	TS_SynchronizeLayoutSettingsToCvars(layout);
+
 	G_SetTouchButtonNames(layout->config);
 	layout->loaded = true;
 
@@ -452,6 +586,7 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 
 	touchlayout_t *layout = touchlayouts + ilayout;
 	INT32 gc;
+	const char *line;
 
 	strcpy(filename, layout->filename);
 	FIL_ForceExtension(filename, ".cfg");
@@ -471,7 +606,6 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 	for (gc = (gc_null+1); gc < num_gamecontrols; gc++)
 	{
 		touchconfig_t *button = &(layout->config[gc]);
-		const char *line;
 
 		if (button->hidden)
 			continue;
@@ -480,6 +614,16 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 				gamecontrolname[gc],
 				FixedToFloat(button->x), FixedToFloat(button->y),
 				FixedToFloat(button->w), FixedToFloat(button->h));
+		fwrite(line, strlen(line), 1, f);
+	}
+
+	fwrite(LAYOUTFILEDELIM, strlen(LAYOUTFILEDELIM), 1, f);
+
+	// Save options
+	for (gc = 0; layoutoptions[gc].cvar; gc++)
+	{
+		consvar_t *cvar = layoutoptions[gc].cvar;
+		line = va(OPTIONSAVEFORMAT, layoutoptions[gc].name, cvar->value);
 		fwrite(line, strlen(line), 1, f);
 	}
 
@@ -521,7 +665,7 @@ void TS_LoadLayoutFromCVar(void)
 	{
 		if (NoLayoutInCVar(layoutname))
 		{
-			usertouchlayoutnum = -1;
+			usertouchlayoutnum = UNSAVEDTOUCHLAYOUT;
 			userlayoutsaved = true;
 			ResetLayoutMenus();
 		}
@@ -588,6 +732,9 @@ static void CreateAndSetupNewLayout(boolean setupnew)
 		TS_BuildLayoutFromPreset(usertouchlayout->config);
 
 		M_Memcpy(usertouchcontrols, newlayout->config, layoutsize);
+
+		TS_SetDefaultLayoutSettings(newlayout);
+		TS_SynchronizeLayoutCvarsToSettings(newlayout);
 	}
 	else
 		TS_CopyLayoutTo(newlayout, usertouchlayout);
@@ -634,6 +781,9 @@ static boolean LoadLayoutAtIndex(INT32 idx)
 
 	usertouchlayout = (touchlayouts + idx);
 	usertouchlayoutnum = idx;
+
+	CV_StealthSet(&cv_touchlayout, usertouchlayout->name);
+	TS_SynchronizeLayoutCvarsToSettings(usertouchlayout);
 
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
 	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
@@ -741,16 +891,6 @@ static void SaveLayoutOnList(void)
 {
 	touchlayout_t *savelayout = NULL;
 
-#if 0
-	boolean savelayout = true;
-
-	if (usertouchlayoutnum == -1)
-	{
-		savelayout = false;
-		CreateAndSetupNewLayout(false);
-	}
-	else
-#endif
 	if (touchcust_submenu_selection != usertouchlayoutnum)
 	{
 		savelayout = touchlayouts + touchcust_submenu_selection;
@@ -758,7 +898,7 @@ static void SaveLayoutOnList(void)
 		TS_CopyConfigTo(usertouchlayout, usertouchcontrols);
 		TS_CopyLayoutTo(savelayout, usertouchlayout);
 
-		usertouchlayout->saved = true;
+		//usertouchlayout->saved = true;
 		usertouchlayout = savelayout;
 		usertouchlayoutnum = touchcust_submenu_selection;
 
@@ -772,15 +912,9 @@ static void SaveLayoutOnList(void)
 	}
 
 	userlayoutsaved = true;
-
-#if 0
-	if (savelayout)
-#endif
-	{
-		savelayout->saved = true;
-		TS_SaveSingleLayout(usertouchlayoutnum);
-		TS_SaveLayouts();
-	}
+	savelayout->saved = true;
+	TS_SaveSingleLayout(usertouchlayoutnum);
+	TS_SaveLayouts();
 
 	S_StartSound(NULL, sfx_strpst);
 	DisplayMessage(va(M_GetText(
@@ -805,7 +939,7 @@ static void Submenu_LayoutList_Save(INT32 x, INT32 y, touchfinger_t *finger, eve
 	(void)finger;
 	(void)event;
 
-	if (usertouchlayoutnum == -1)
+	if (usertouchlayoutnum == UNSAVEDTOUCHLAYOUT)
 	{
 		SaveLayoutOnList();
 		return;
@@ -883,11 +1017,12 @@ static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, e
 	M_StartMessage(va(M_GetText(
 		"\x82%s\n"
 		"\x80""%s this layout %s?\n"
-		"You'll still be able to edit it.\n"
+		"You will %s be able to edit it.\n"
 		"\n("PRESS_Y_MESSAGE" to delete)\n"),
 		TS_GetShortLayoutName(layout, MAXMESSAGELAYOUTNAME),
 		(layout->saved ? "Delete" : "Remove"),
-		(layout->saved ? "from your device" : "from the list")),
+		(layout->saved ? "from your device" : "from the list"),
+		((layout->saved || (!layout->saved && usertouchlayout == layout)) ? "still" : "not")),
 	SubmenuMessageResponse_LayoutList_Delete, MM_YESNO);
 }
 
@@ -1005,7 +1140,7 @@ void TS_OpenLayoutList(void)
 	touch_screenexists = true;
 	touchcust_customizing = false;
 
-	if (usertouchlayoutnum >= 0)
+	if (usertouchlayoutnum != UNSAVEDTOUCHLAYOUT)
 	{
 		FocusSubmenuOnSelection(usertouchlayoutnum);
 		touchcust_submenu_highlight = touchcust_submenu_selection;
@@ -1301,15 +1436,18 @@ static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy)
 	btn->x += offsx;
 	btn->y += offsy;
 
-	if (btn->x < 0)
-		btn->x = 0;
-	if (btn->x + btn->w > w)
-		btn->x = (w - btn->w);
+	if (cv_touchlayoutusegrid.value)
+	{
+		if (btn->x < 0)
+			btn->x = 0;
+		if (btn->x + btn->w > w)
+			btn->x = (w - btn->w);
 
-	if (btn->y < 0)
-		btn->y = 0;
-	if (btn->y + btn->h > h)
-		btn->y = (h - btn->h);
+		if (btn->y < 0)
+			btn->y = 0;
+		if (btn->y + btn->h > h)
+			btn->y = (h - btn->h);
+	}
 
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
@@ -2622,11 +2760,6 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 void TS_UpdateCustomization(void)
 {
-#if 0
-	if (touchcust_layoutlist_renaming && !I_KeyboardOnScreen())
-		StopRenamingLayout(touchcust_layoutlist_renaming);
-#endif
-
 	if (touchcust_deferredmessage)
 	{
 		M_StartMessage(touchcust_deferredmessage, NULL, MM_NOTHING);

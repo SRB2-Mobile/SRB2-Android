@@ -1251,14 +1251,16 @@ static menuitem_t OP_TouchOptionsMenu[] =
 
 static menuitem_t OP_TouchControlsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Use Preset",   &cv_touchpreset,          10},
+	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           10},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Preset Scale", &cv_touchguiscale,        20},
+	                      NULL, "Preset Scale",         &cv_touchguiscale,         20},
 
-	{IT_STRING | IT_CALL, NULL, "Customize...", M_CustomizeTouchControls, 40},
-	{IT_STRING | IT_CALL, NULL, "Manage Layouts...", M_LoadTouchControlLayout, 50},
+	{IT_STRING | IT_CALL, NULL, "Customize...",         M_CustomizeTouchControls,  40},
+	{IT_STRING | IT_CALL, NULL, "Manage Layouts...",    M_LoadTouchControlLayout,  50},
 
-	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 70},
+	{IT_STRING | IT_CVAR, NULL, "Use Grid Limits",      &cv_touchlayoutusegrid,    70},
+
+	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 90},
 };
 
 static menuitem_t OP_TouchCustomizationMenu[] =
@@ -12182,7 +12184,7 @@ static void M_LayoutClearResponse(INT32 ch)
 	if (ch != 'y' && ch != KEY_ENTER)
 		return;
 
-	TS_ClearLayout();
+	TS_ClearCurrentLayout();
 	S_StartSound(NULL, sfx_appear);
 	//M_StartMessage(M_GetText("Layout cleared.\n" PRESS_A_KEY_MESSAGE),NULL,MM_NOTHING);
 }
@@ -12529,10 +12531,10 @@ static void M_DrawTouchControlsMenu(void)
 	INT32 flags = V_ALLOWLOWERCASE;
 	const char *string;
 
-	if ((usertouchlayoutnum >= 0) && (!G_TouchPresetActive()))
+	if ((usertouchlayoutnum != UNSAVEDTOUCHLAYOUT) && (!G_TouchPresetActive()))
 	{
 		char *name = TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), 16);
-		string = va(M_GetText("\x82""Currrent layout: \x80""%s"), name);
+		string = va(M_GetText("\x82""Current layout: \x80""%s"), name);
 	}
 	else
 		string = M_GetText("\x86""No layout selected");

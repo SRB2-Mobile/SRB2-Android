@@ -110,6 +110,9 @@ static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NU
 consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchmenutrans = {"touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// Touch layout options
+consvar_t cv_touchlayoutusegrid = {"touch_layoutusegrid", "On", CV_CALL|CV_NOINIT, CV_OnOff, TS_SynchronizeCurrentLayout, 0, NULL, NULL, 0, 0, NULL};
+
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
 static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
@@ -1330,15 +1333,7 @@ void G_DefineDefaultControls(void)
 	}
 
 #ifdef TOUCHINPUTS
-	CV_RegisterVar(&cv_touchmenutrans);
-	CV_RegisterVar(&cv_touchtrans);
-
-	CV_RegisterVar(&cv_touchcamera);
-	CV_RegisterVar(&cv_touchpreset);
-	CV_RegisterVar(&cv_touchlayout);
-	CV_RegisterVar(&cv_touchstyle);
-
-	CV_RegisterVar(&cv_touchguiscale);
+	TS_RegisterVariables();
 #endif
 }
 
@@ -1895,7 +1890,7 @@ void G_TouchPresetChanged(void)
 	if (!G_TouchPresetActive())
 	{
 		// Make a default custom controls set
-		TS_DefaultLayout();
+		TS_DefaultControlLayout();
 
 		// Copy custom controls
 		M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);

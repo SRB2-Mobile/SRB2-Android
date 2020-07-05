@@ -290,6 +290,9 @@ extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
 extern consvar_t cv_touchguiscale;
 
+// Touch layout options
+extern consvar_t cv_touchlayoutusegrid;
+
 // Touch screen sensitivity
 extern consvar_t cv_touchsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
