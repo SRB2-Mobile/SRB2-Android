@@ -60,13 +60,7 @@ void ST_drawWipeTitleCard(void);
 #ifdef TOUCHINPUTS
 void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT32 alphalevel);
 void ST_drawTouchMenuInput(void);
-void ST_drawTouchDPad(
-	fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
-	touchconfig_t *tleft, boolean moveleft,
-	touchconfig_t *tright, boolean moveright,
-	touchconfig_t *tup, boolean moveup,
-	touchconfig_t *tdown, boolean movedown,
-	boolean backing, INT32 flags, INT32 accent);
+void ST_drawTouchDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing);
 void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags);
 void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags);
 #endif

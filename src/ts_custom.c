@@ -573,6 +573,8 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 	TS_SynchronizeLayoutSettingsToCvars(layout);
 
 	G_SetTouchButtonNames(layout->config);
+	G_MarkDPadButtons(layout->config);
+
 	layout->loaded = true;
 
 	fclose(f);
@@ -607,7 +609,7 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 	{
 		touchconfig_t *button = &(layout->config[gc]);
 
-		if (button->hidden)
+		if (button->hidden || (gc >= gc_wepslot1 && gc <= gc_wepslot10))
 			continue;
 
 		line = va(BUTTONSAVEFORMAT,
@@ -1536,10 +1538,13 @@ static void UpdateJoystickSize(touchconfig_t *btn)
 
 static void NormalizeDPad(void)
 {
-	G_NormalizeTouchButton(&usertouchcontrols[gc_forward]);
-	G_NormalizeTouchButton(&usertouchcontrols[gc_backward]);
-	G_NormalizeTouchButton(&usertouchcontrols[gc_strafeleft]);
-	G_NormalizeTouchButton(&usertouchcontrols[gc_straferight]);
+	INT32 i;
+
+	for (i = 0; i < num_gamecontrols; i++)
+	{
+		if (G_IsDPadButton(i))
+			G_NormalizeTouchButton(&usertouchcontrols[i]);
+	}
 }
 
 fixed_t TS_GetDefaultScale(void)

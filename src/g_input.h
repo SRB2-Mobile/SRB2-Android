@@ -68,6 +68,10 @@ typedef enum
 	gc_turnright,
 #ifdef TOUCHINPUTS
 	gc_joystick,
+	gc_dpadul,
+	gc_dpadur,
+	gc_dpaddl,
+	gc_dpaddr,
 #endif
 	gc_weaponnext,
 	gc_weaponprev,
@@ -375,6 +379,9 @@ void G_DefineTouchButtons(void);
 void G_PositionTouchButtons(void);
 void G_PositionTouchNavigation(void);
 void G_PositionExtraUserTouchButtons(void);
+
+boolean G_IsDPadButton(INT32 gc);
+void G_MarkDPadButtons(touchconfig_t *controls);
 
 void G_TouchPresetChanged(void);
 void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny);

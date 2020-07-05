@@ -1154,6 +1154,13 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	movefkey = PLAYERINPUTDOWN(ssplayer, gc_forward);
 	movebkey = PLAYERINPUTDOWN(ssplayer, gc_backward);
 
+#ifdef TOUCHINPUTS
+	straferkey = (straferkey || PLAYERINPUTDOWN(ssplayer, gc_dpadur) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
+	strafelkey = (strafelkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpaddl));
+	movefkey = (movefkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpadur));
+	movebkey = (movebkey || PLAYERINPUTDOWN(ssplayer, gc_dpaddl) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
+#endif
+
 	if (strafeisturn)
 	{
 		turnright |= straferkey;

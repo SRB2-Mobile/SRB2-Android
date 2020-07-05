@@ -1306,23 +1306,43 @@ static void ST_drawTouchDPadButton(
 	V_DrawStretchyFixedPatch(x, (isdown ? y+offs : y), w, h, flags, patch, (isdown ? colormap : NULL));
 }
 
-void ST_drawTouchDPad(
-					fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
-					touchconfig_t *tleft, boolean moveleft,
-					touchconfig_t *tright, boolean moveright,
-					touchconfig_t *tup, boolean moveup,
-					touchconfig_t *tdown, boolean movedown,
-					boolean backing, INT32 flags, INT32 accent)
+void ST_drawTouchDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing)
 {
+	// any spare macromancer to help me reduce all of those lines?
 	INT32 x, y, w, h;
 	fixed_t dupx = vid.dupx * FRACUNIT;
 	fixed_t dupy = vid.dupy * FRACUNIT;
 	fixed_t xscale, yscale;
 
+	touchconfig_t *tleft = &config[gc_strafeleft];
+	touchconfig_t *tright = &config[gc_straferight];
+	touchconfig_t *tup = &config[gc_forward];
+	touchconfig_t *tdown = &config[gc_backward];
+
+	touchconfig_t *tul = &config[gc_dpadul];
+	touchconfig_t *tur = &config[gc_dpadur];
+	touchconfig_t *tdl = &config[gc_dpaddl];
+	touchconfig_t *tdr = &config[gc_dpaddr];
+
 	patch_t *up = W_CachePatchLongName("DPAD_UP", PU_PATCH);
 	patch_t *down = W_CachePatchLongName("DPAD_DOWN", PU_PATCH);
 	patch_t *left = W_CachePatchLongName("DPAD_LEFT", PU_PATCH);
 	patch_t *right = W_CachePatchLongName("DPAD_RIGHT", PU_PATCH);
+
+	patch_t *ul = W_CachePatchLongName("DPAD_UL", PU_PATCH);
+	patch_t *ur = W_CachePatchLongName("DPAD_UR", PU_PATCH);
+	patch_t *dl = W_CachePatchLongName("DPAD_DL", PU_PATCH);
+	patch_t *dr = W_CachePatchLongName("DPAD_DR", PU_PATCH);
+
+	boolean moveleft = touchcontroldown[gc_strafeleft];
+	boolean moveright = touchcontroldown[gc_straferight];
+	boolean moveup = touchcontroldown[gc_forward];
+	boolean movedown = touchcontroldown[gc_backward];
+
+	boolean moveul = touchcontroldown[gc_dpadul];
+	boolean moveur = touchcontroldown[gc_dpadur];
+	boolean movedl = touchcontroldown[gc_dpaddl];
+	boolean movedr = touchcontroldown[gc_dpaddr];
 
 	// generate colormap
 	static UINT8 *colormap = NULL;
@@ -1360,6 +1380,27 @@ void ST_drawTouchDPad(
 	xscale = FixedDiv(tright->w, SHORT(right->width)*FRACUNIT);
 	yscale = FixedDiv(tright->h, SHORT(right->height)*FRACUNIT);
 	ST_drawTouchDPadButton(tright->x, tright->y, xscale, yscale, 1, 1, right, flags, moveright, colormap);
+
+	// diagonals
+	SCALEBUTTONFIXED(tul, true);
+	xscale = FixedDiv(tul->w, SHORT(ul->width)*FRACUNIT);
+	yscale = FixedDiv(tul->h, SHORT(ul->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tul->x, tul->y, xscale, yscale, 1, 1, ul, flags, moveul, colormap);
+
+	SCALEBUTTONFIXED(tur, true);
+	xscale = FixedDiv(tur->w, SHORT(ur->width)*FRACUNIT);
+	yscale = FixedDiv(tur->h, SHORT(ur->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tur->x, tur->y, xscale, yscale, -1, 1, ur, flags, moveur, colormap);
+
+	SCALEBUTTONFIXED(tdl, true);
+	xscale = FixedDiv(tdl->w, SHORT(dl->width)*FRACUNIT);
+	yscale = FixedDiv(tdl->h, SHORT(dl->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tdl->x, tdl->y, xscale, yscale, 1, 1, dl, flags, movedl, colormap);
+
+	SCALEBUTTONFIXED(tdr, true);
+	xscale = FixedDiv(tdr->w, SHORT(dr->width)*FRACUNIT);
+	yscale = FixedDiv(tdr->h, SHORT(dr->height)*FRACUNIT);
+	ST_drawTouchDPadButton(tdr->x, tdr->y, xscale, yscale, -1, 1, dr, flags, movedr, colormap);
 }
 
 void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
@@ -1516,11 +1557,6 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = (stplyr && stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
 
-	touchconfig_t *tleft = &config[gc_strafeleft];
-	touchconfig_t *tright = &config[gc_straferight];
-	touchconfig_t *tup = &config[gc_forward];
-	touchconfig_t *tdown = &config[gc_backward];
-
 	INT32 i;
 	INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
 	INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
@@ -1536,16 +1572,7 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 	{
 		// Draw the d-pad
 		if (touch_movementstyle == tms_dpad)
-		{
-			ST_drawTouchDPad(
-				touch_joystick_x, touch_joystick_y,
-				touch_joystick_w, touch_joystick_h,
-				tleft, (stplyr ? stplyr->cmd.sidemove < 0 : false),
-				tright, (stplyr ? stplyr->cmd.sidemove > 0 : false),
-				tup, (stplyr ? stplyr->cmd.forwardmove > 0 : false),
-				tdown, (stplyr ? stplyr->cmd.forwardmove < 0 : false),
-				true, flags, accent);
-		}
+			ST_drawTouchDPad(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags, config, true);
 		else // Draw the joystick
 			ST_drawTouchJoystick(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags);
 	}

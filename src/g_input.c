@@ -1129,6 +1129,10 @@ const char *gamecontrolname[num_gamecontrols] =
 	"turnright",
 #ifdef TOUCHINPUTS
 	"touchjoystick",
+	"dpadul",
+	"dpadur",
+	"dpaddl",
+	"dpaddr",
 #endif
 	"weaponnext",
 	"weaponprev",
@@ -1361,8 +1365,11 @@ void G_UpdateTouchControls(void)
 void G_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixed_t dw, boolean tiny)
 {
 	fixed_t w, h;
+	fixed_t scaledw, scaledh;
 	fixed_t scaledxoffs = FixedMul(16*FRACUNIT, xscale);
 	fixed_t scaledyoffs = FixedMul(14*FRACUNIT, yscale);
+	fixed_t diagxoffs = FixedMul(48*FRACUNIT, xscale);
+	fixed_t diagyoffs = FixedMul(16*FRACUNIT, yscale);
 	fixed_t middlealign = xscale;
 
 	if (tiny)
@@ -1379,29 +1386,56 @@ void G_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixed
 		scaledyoffs *= 2;
 	}
 
+	scaledw = FixedMul(w, xscale);
+	scaledh = FixedMul(h, yscale);
+
 	// Up
-	controls[gc_forward].w = FixedMul(w, xscale);
-	controls[gc_forward].h = FixedMul(h, yscale);
+	controls[gc_forward].w = scaledw;
+	controls[gc_forward].h = scaledh;
 	controls[gc_forward].x = (touch_joystick_x + (dw / 2)) - FixedFloor(FixedMul(w, xscale) / 2) + middlealign;
 	controls[gc_forward].y = touch_joystick_y - scaledyoffs;
 
 	// Down
-	controls[gc_backward].w = FixedMul(w, xscale);
-	controls[gc_backward].h = FixedMul(h, yscale);
+	controls[gc_backward].w = scaledw;
+	controls[gc_backward].h = scaledh;
 	controls[gc_backward].x = (touch_joystick_x + (dw / 2)) - FixedFloor(FixedMul(w, xscale) / 2) + middlealign;
 	controls[gc_backward].y = ((touch_joystick_y + touch_joystick_h) - controls[gc_backward].h) + scaledyoffs;
 
 	// Left
-	controls[gc_strafeleft].w = FixedMul(w, xscale);
-	controls[gc_strafeleft].h = FixedMul(h, yscale);
+	controls[gc_strafeleft].w = scaledw;
+	controls[gc_strafeleft].h = scaledh;
 	controls[gc_strafeleft].x = touch_joystick_x - scaledxoffs;
 	controls[gc_strafeleft].y = (touch_joystick_y + (touch_joystick_h / 2)) - (controls[gc_strafeleft].h / 2);
 
 	// Right
-	controls[gc_straferight].w = FixedMul(w, xscale);
-	controls[gc_straferight].h = FixedMul(h, yscale);
+	controls[gc_straferight].w = scaledw;
+	controls[gc_straferight].h = scaledh;
 	controls[gc_straferight].x = ((touch_joystick_x + touch_joystick_w) - controls[gc_straferight].w) + scaledxoffs;
-	controls[gc_straferight].y = controls[gc_strafeleft].y; //(touch_joystick_y + (touch_joystick_h / 2)) - (touchcontrols[gc_straferight].h / 2);
+	controls[gc_straferight].y = controls[gc_strafeleft].y;
+
+	// Up left
+	controls[gc_dpadul].w = scaledw;
+	controls[gc_dpadul].h = scaledh;
+	controls[gc_dpadul].x = controls[gc_forward].x - diagxoffs;
+	controls[gc_dpadul].y = controls[gc_forward].y + diagyoffs;
+
+	// Up right
+	controls[gc_dpadur].w = scaledw;
+	controls[gc_dpadur].h = scaledh;
+	controls[gc_dpadur].x = controls[gc_forward].x + diagxoffs;
+	controls[gc_dpadur].y = controls[gc_forward].y + diagyoffs;
+
+	// Down left
+	controls[gc_dpaddl].w = scaledw;
+	controls[gc_dpaddl].h = scaledh;
+	controls[gc_dpaddl].x = controls[gc_backward].x - diagxoffs;
+	controls[gc_dpaddl].y = controls[gc_backward].y - diagyoffs;
+
+	// Down right
+	controls[gc_dpaddr].w = scaledw;
+	controls[gc_dpaddr].h = scaledh;
+	controls[gc_dpaddr].x = controls[gc_backward].x + diagxoffs;
+	controls[gc_dpaddr].y = controls[gc_backward].y - diagyoffs;
 }
 
 static void G_ScaleDPadBase(touchmovementstyle_e tms, boolean ringslinger, boolean tiny, fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
@@ -1496,6 +1530,10 @@ struct {
 	{NULL, NULL},
 	{NULL, NULL},
 	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
+	{NULL, NULL},
 	{"WEP.NEXT", "WNX"},
 	{"WEP.PREV", "WPV"},
 	{NULL, NULL},
@@ -1554,12 +1592,35 @@ void G_SetTouchButtonNames(touchconfig_t *controls)
 	}
 }
 
-static void G_MarkDPadButtons(touchconfig_t *controls)
+boolean G_IsDPadButton(INT32 gc)
 {
-	controls[gc_forward].dpad = true;
-	controls[gc_backward].dpad = true;
-	controls[gc_strafeleft].dpad = true;
-	controls[gc_straferight].dpad = true;
+	switch (gc)
+	{
+		case gc_forward:
+		case gc_backward:
+		case gc_strafeleft:
+		case gc_straferight:
+		case gc_dpadul:
+		case gc_dpadur:
+		case gc_dpaddl:
+		case gc_dpaddr:
+			return true;
+		default:
+			break;
+	}
+
+	return false;
+}
+
+void G_MarkDPadButtons(touchconfig_t *controls)
+{
+	INT32 i;
+
+	for (i = 0; i < num_gamecontrols; i++)
+	{
+		if (G_IsDPadButton(i))
+			controls[i].dpad = true;
+	}
 }
 
 void G_BuildTouchPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny)
