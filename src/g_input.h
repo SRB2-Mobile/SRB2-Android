@@ -179,6 +179,7 @@ typedef struct
 {
 	INT32 x, y;
 	float pressure;
+	boolean down;
 
 	// A finger has either a game control or a key input down.
 	union {
@@ -189,6 +190,7 @@ typedef struct
 	// Alternate selections that don't interfere with the above.
 	union {
 		INT32 selection;
+		INT32 snake;
 	} extra;
 
 	// What kind of finger is this?
@@ -256,6 +258,9 @@ enum
 
 // Is the touch screen available?
 extern boolean touch_screenexists;
+
+// Finger event handler
+extern void (*touch_fingerhandler)(touchfinger_t *, event_t *);
 
 // Touch screen settings
 extern touchmovementstyle_e touch_movementstyle;
@@ -398,6 +403,9 @@ boolean G_TouchPresetActive(void);
 
 // Updates touch fingers
 void G_UpdateFingers(INT32 realtics);
+
+// Gets a key from a finger event
+INT32 G_MapFingerEventToKey(event_t *event);
 
 // Checks if the finger (x, y) is touching the specified button (btn)
 boolean G_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn);

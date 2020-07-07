@@ -81,6 +81,9 @@ fixed_t touch_gui_scale;
 // Is the touch screen available?
 boolean touch_screenexists = false;
 
+// Finger event handler
+void (*touch_fingerhandler)(touchfinger_t *, event_t *) = NULL;
+
 // Touch screen settings
 touchmovementstyle_e touch_movementstyle;
 touchpreset_e touch_preset;
@@ -331,6 +334,13 @@ static void G_HandleFingerEvent(event_t *ev)
 	if (TS_IsCustomizingControls())
 		return;
 
+	finger->x = x;
+	finger->y = y;
+	finger->pressure = ev->pressure;
+
+	if (touch_fingerhandler)
+		touch_fingerhandler(finger, ev);
+
 	switch (ev->type)
 	{
 		case ev_touchdown:
@@ -345,15 +355,9 @@ static void G_HandleFingerEvent(event_t *ev)
 			// This finger ignores touch motion events, so don't do anything.
 			// Non-control keys ignore touch motion events.
 			if (touchmotion && (finger->ignoremotion || (!G_TouchButtonIsPlayerControl(gc))))
-			{
-				// Update finger position at least
-				if (!finger->ignoremotion)
-				{
-					finger->x = x;
-					finger->y = y;
-				}
 				break;
-			}
+
+			finger->down = true;
 
 			// Lactozilla: Find every on-screen button and
 			// check if they are below your finger.
@@ -394,9 +398,6 @@ static void G_HandleFingerEvent(event_t *ev)
 				// Check if your finger touches this button.
 				if (G_FingerTouchesButton(x, y, btn) && (!touchcontroldown[i]))
 				{
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = ev->pressure;
 					finger->u.gamecontrol = i;
 					touchcontroldown[i] = 1;
 					foundbutton = true;
@@ -412,9 +413,6 @@ static void G_HandleFingerEvent(event_t *ev)
 					// Joystick
 					if (touch_movementstyle == tms_joystick && (!touchmotion))
 					{
-						finger->x = x;
-						finger->y = y;
-						finger->pressure = ev->pressure;
 						finger->type.joystick = FINGERMOTION_JOYSTICK;
 						finger->u.gamecontrol = -1;
 						foundbutton = true;
@@ -440,9 +438,6 @@ static void G_HandleFingerEvent(event_t *ev)
 
 				if (gc != gc_null)
 				{
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = ev->pressure;
 					finger->ignoremotion = true;
 					finger->u.gamecontrol = gc;
 					touchcontroldown[gc] = 1;
@@ -486,16 +481,9 @@ static void G_HandleFingerEvent(event_t *ev)
 						mousey = movey;
 						mlooky = (INT32)(dy*((cv_touchvertsens.value*cv_touchsens.value)/110.0f + 0.1f));
 					}
-
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = ev->pressure;
 				}
 				else if (touch_camera && movecamera)
 				{
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = ev->pressure;
 					finger->type.mouse = FINGERMOTION_MOUSE;
 					finger->u.gamecontrol = gc_null;
 				}
@@ -514,6 +502,7 @@ static void G_HandleFingerEvent(event_t *ev)
 
 			finger->u.gamecontrol = gc_null;
 			finger->ignoremotion = false;
+			finger->down = false;
 
 			// Reset joystick movement.
 			if (finger->type.joystick == FINGERMOTION_JOYSTICK)
@@ -526,6 +515,30 @@ static void G_HandleFingerEvent(event_t *ev)
 		default:
 			break;
 	}
+}
+
+INT32 G_MapFingerEventToKey(event_t *event)
+{
+	INT32 i;
+
+	// Check for any buttons
+	if (event->type == ev_touchmotion) // Ignore motion events
+		return KEY_NULL;
+
+	for (i = 0; i < NUMKEYS; i++)
+	{
+		touchconfig_t *btn = &touchnavigation[i];
+
+		// Ignore hidden buttons
+		if (btn->hidden)
+			continue;
+
+		// Check if your finger touches this button.
+		if (G_FingerTouchesNavigationButton(event->x, event->y, btn))
+			return i;
+	}
+
+	return KEY_NULL;
 }
 
 void G_UpdateFingers(INT32 realtics)
