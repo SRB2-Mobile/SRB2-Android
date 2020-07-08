@@ -9,7 +9,6 @@
 /// \file
 /// \brief SDL Mixer interface for sound
 
-#ifdef HAVE_LIBGME
 #ifdef HAVE_ZLIB
 #ifndef _MSC_VER
 #ifndef _LARGEFILE64_SOURCE
@@ -27,7 +26,6 @@
 
 #include <zlib.h>
 #endif // HAVE_ZLIB
-#endif // HAVE_LIBGME
 
 #include "../doomdef.h"
 #include "../doomstat.h" // menuactive

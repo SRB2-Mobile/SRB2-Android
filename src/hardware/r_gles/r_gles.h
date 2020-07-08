@@ -69,13 +69,4 @@ extern GLint            maximumAnisotropy;
 */
 extern GLint            textureformatGL;
 
-struct GLRGBAFloat
-{
-	GLfloat red;
-	GLfloat green;
-	GLfloat blue;
-	GLfloat alpha;
-};
-typedef struct GLRGBAFloat GLRGBAFloat;
-
 #endif

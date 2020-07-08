@@ -121,60 +121,6 @@ static const GLfloat byte2float[256] = {
 	0.972549f, 0.976471f, 0.980392f, 0.984314f, 0.988235f, 0.992157f, 0.996078f, 1.000000f
 };
 
-// -----------------+
-// GL_DBG_Printf    : Output debug messages to debug log if DEBUG_TO_FILE is defined,
-//                  : else do nothing
-// Returns          :
-// -----------------+
-
-#ifdef DEBUG_TO_FILE
-FILE *gllogstream;
-#endif
-
-FUNCPRINTF void GL_DBG_Printf(const char *format, ...)
-{
-#ifdef DEBUG_TO_FILE
-	char str[4096] = "";
-	va_list arglist;
-
-	if (!gllogstream)
-		gllogstream = fopen("ogllog.txt", "w");
-
-	va_start(arglist, format);
-	vsnprintf(str, 4096, format, arglist);
-	va_end(arglist);
-
-	fwrite(str, strlen(str), 1, gllogstream);
-#else
-	(void)format;
-#endif
-}
-
-// -----------------+
-// GL_MSG_Warning   : Raises a warning.
-//                  :
-// Returns          :
-// -----------------+
-
-static void GL_MSG_Warning(const char *format, ...)
-{
-	char str[4096] = "";
-	va_list arglist;
-
-	va_start(arglist, format);
-	vsnprintf(str, 4096, format, arglist);
-	va_end(arglist);
-
-#ifdef HAVE_SDL
-	CONS_Alert(CONS_WARNING, "%s", str);
-#endif
-#ifdef DEBUG_TO_FILE
-	if (!gllogstream)
-		gllogstream = fopen("ogllog.txt", "w");
-	fwrite(str, strlen(str), 1, gllogstream);
-#endif
-}
-
 #ifdef STATIC_OPENGL
 /* 1.0 functions */
 /* Miscellaneous */

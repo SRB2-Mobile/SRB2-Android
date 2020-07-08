@@ -17,26 +17,26 @@ boolean gl_allowshaders = false;
 boolean gl_shadersenabled = false;
 
 #ifdef GL_SHADERS
-typedef GLuint 	(APIENTRY *PFNglCreateShader)		(GLenum);
-typedef void 	(APIENTRY *PFNglShaderSource)		(GLuint, GLsizei, const GLchar**, GLint*);
-typedef void 	(APIENTRY *PFNglCompileShader)		(GLuint);
-typedef void 	(APIENTRY *PFNglGetShaderiv)		(GLuint, GLenum, GLint*);
-typedef void 	(APIENTRY *PFNglGetShaderInfoLog)	(GLuint, GLsizei, GLsizei*, GLchar*);
-typedef void 	(APIENTRY *PFNglDeleteShader)		(GLuint);
-typedef GLuint 	(APIENTRY *PFNglCreateProgram)		(void);
-typedef void 	(APIENTRY *PFNglAttachShader)		(GLuint, GLuint);
-typedef void 	(APIENTRY *PFNglLinkProgram)		(GLuint);
-typedef void 	(APIENTRY *PFNglGetProgramiv)		(GLuint, GLenum, GLint*);
-typedef void 	(APIENTRY *PFNglUseProgram)			(GLuint);
-typedef void 	(APIENTRY *PFNglUniform1i)			(GLint, GLint);
-typedef void 	(APIENTRY *PFNglUniform1f)			(GLint, GLfloat);
-typedef void 	(APIENTRY *PFNglUniform2f)			(GLint, GLfloat, GLfloat);
-typedef void 	(APIENTRY *PFNglUniform3f)			(GLint, GLfloat, GLfloat, GLfloat);
-typedef void 	(APIENTRY *PFNglUniform4f)			(GLint, GLfloat, GLfloat, GLfloat, GLfloat);
-typedef void 	(APIENTRY *PFNglUniform1fv)			(GLint, GLsizei, const GLfloat*);
-typedef void 	(APIENTRY *PFNglUniform2fv)			(GLint, GLsizei, const GLfloat*);
-typedef void 	(APIENTRY *PFNglUniform3fv)			(GLint, GLsizei, const GLfloat*);
-typedef GLint 	(APIENTRY *PFNglGetUniformLocation)	(GLuint, const GLchar*);
+typedef GLuint (R_GL_APIENTRY *PFNglCreateShader)       (GLenum);
+typedef void   (R_GL_APIENTRY *PFNglShaderSource)       (GLuint, GLsizei, const GLchar**, GLint*);
+typedef void   (R_GL_APIENTRY *PFNglCompileShader)      (GLuint);
+typedef void   (R_GL_APIENTRY *PFNglGetShaderiv)        (GLuint, GLenum, GLint*);
+typedef void   (R_GL_APIENTRY *PFNglGetShaderInfoLog)   (GLuint, GLsizei, GLsizei*, GLchar*);
+typedef void   (R_GL_APIENTRY *PFNglDeleteShader)       (GLuint);
+typedef GLuint (R_GL_APIENTRY *PFNglCreateProgram)      (void);
+typedef void   (R_GL_APIENTRY *PFNglAttachShader)       (GLuint, GLuint);
+typedef void   (R_GL_APIENTRY *PFNglLinkProgram)        (GLuint);
+typedef void   (R_GL_APIENTRY *PFNglGetProgramiv)       (GLuint, GLenum, GLint*);
+typedef void   (R_GL_APIENTRY *PFNglUseProgram)         (GLuint);
+typedef void   (R_GL_APIENTRY *PFNglUniform1i)          (GLint, GLint);
+typedef void   (R_GL_APIENTRY *PFNglUniform1f)          (GLint, GLfloat);
+typedef void   (R_GL_APIENTRY *PFNglUniform2f)          (GLint, GLfloat, GLfloat);
+typedef void   (R_GL_APIENTRY *PFNglUniform3f)          (GLint, GLfloat, GLfloat, GLfloat);
+typedef void   (R_GL_APIENTRY *PFNglUniform4f)          (GLint, GLfloat, GLfloat, GLfloat, GLfloat);
+typedef void   (R_GL_APIENTRY *PFNglUniform1fv)         (GLint, GLsizei, const GLfloat*);
+typedef void   (R_GL_APIENTRY *PFNglUniform2fv)         (GLint, GLsizei, const GLfloat*);
+typedef void   (R_GL_APIENTRY *PFNglUniform3fv)         (GLint, GLsizei, const GLfloat*);
+typedef GLint  (R_GL_APIENTRY *PFNglGetUniformLocation) (GLuint, const GLchar*);
 
 static PFNglCreateShader pglCreateShader;
 static PFNglShaderSource pglShaderSource;
@@ -334,31 +334,6 @@ void Shader_SetupGLFunc(void)
 #endif
 }
 
-// -----------------+
-// GL_MSG_Error     : Raises an error.
-//                  :
-// Returns          :
-// -----------------+
-
-static void GL_MSG_Error(const char *format, ...)
-{
-	char str[4096] = "";
-	va_list arglist;
-
-	va_start(arglist, format);
-	vsnprintf(str, 4096, format, arglist);
-	va_end(arglist);
-
-#ifdef HAVE_SDL
-	CONS_Alert(CONS_ERROR, "%s", str);
-#endif
-#ifdef DEBUG_TO_FILE
-	if (!gllogstream)
-		gllogstream = fopen("ogllog.txt", "w");
-	fwrite(str, strlen(str), 1, gllogstream);
-#endif
-}
-
 //
 // Shader info
 // Those are given to the uniforms.
@@ -416,6 +391,8 @@ boolean Shader_InitCustom(void)
 #ifdef GL_SHADERS
 	Shader_Kill();
 	return Shader_Compile();
+#else
+	return false;
 #endif
 }
 

@@ -42,6 +42,10 @@
 	#endif
 #endif
 
+#include "../../doomdata.h"
+#include "../../doomtype.h"
+#include "../../doomdef.h"
+
 boolean LoadGL(void);
 void *GetGLFunc(const char *proc);
 boolean SetupGLfunc(void);
@@ -50,6 +54,14 @@ void Flush(void);
 INT32 isExtAvailable(const char *extension, const GLubyte *start);
 void SetModelView(GLint w, GLint h);
 void SetStates(void);
+
+void GL_DBG_Printf(const char *format, ...);
+void GL_MSG_Warning(const char *format, ...);
+void GL_MSG_Error(const char *format, ...);
+
+#ifdef DEBUG_TO_FILE
+extern FILE *gllogstream;
+#endif
 
 #ifndef GL_EXT_texture_filter_anisotropic
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE

@@ -36,7 +36,7 @@ android {
             externalNativeBuild {
                 ndkBuild {
                     arguments "BUILD_TYPE=release"
-                    cFlags "-DLOGCAT=0"
+                    cFlags "-DDEVELOP=0"
                 }
             }
         }
@@ -44,7 +44,7 @@ android {
             externalNativeBuild {
                 ndkBuild {
                     arguments "BUILD_TYPE=debug"
-                    cFlags "-DLOGCAT=1"
+                    cFlags "-DDEVELOP=1"
                 }
             }
         }

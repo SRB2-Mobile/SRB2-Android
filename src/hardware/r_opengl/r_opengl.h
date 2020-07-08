@@ -51,8 +51,6 @@
 //                                                                DEFINITIONS
 // ==========================================================================
 
-#include "../r_glcommon/r_glcommon.h"
-
 #define MIN(x,y) (((x)<(y)) ? (x) : (y))
 #define MAX(x,y) (((x)>(y)) ? (x) : (y))
 
@@ -68,9 +66,7 @@
 //#undef DEBUG_TO_FILE
 //#endif
 
-#ifdef DEBUG_TO_FILE
-extern FILE             *gllogstream;
-#endif
+#include "../r_glcommon/r_glcommon.h"
 
 // ==========================================================================
 //                                                                     PROTOS

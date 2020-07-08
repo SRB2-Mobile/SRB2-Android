@@ -54,6 +54,7 @@
 // cl loading screen
 #include "v_video.h"
 #include "f_finale.h"
+#include "s_sound.h"
 #endif
 
 //

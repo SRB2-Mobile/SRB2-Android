@@ -108,7 +108,7 @@ int TimeFunction(int requested_frequency);
 #endif
 #endif
 
-#if (defined (__unix__) && !defined (_MSDOS)) || (defined (UNIXCOMMON) && !defined(__ANDROID__) && !defined(__APPLE__))
+#if ((defined (__unix__) && !defined (_MSDOS)) || defined (UNIXCOMMON)) && !(defined(__APPLE__) || defined(__ANDROID__))
 #include <errno.h>
 #include <sys/wait.h>
 #define NEWSIGNALHANDLER
