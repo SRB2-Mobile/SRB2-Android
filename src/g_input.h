@@ -215,8 +215,8 @@ typedef struct
 	const char *name, *tinyname; // names
 	UINT8 color; // color
 
+	boolean down; // is down
 	boolean dpad; // d-pad button
-	tic_t pressed; // touch navigation
 	boolean hidden; // doesn't exist
 	boolean dontscale; // isn't scaled
 } touchconfig_t;
@@ -258,6 +258,7 @@ enum
 
 // Is the touch screen available?
 extern boolean touch_screenexists;
+extern consvar_t cv_showfingers;
 
 // Finger event handler
 extern void (*touch_fingerhandler)(touchfinger_t *, event_t *);

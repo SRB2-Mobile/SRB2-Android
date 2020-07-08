@@ -299,6 +299,7 @@ void TS_SaveLayouts(void)
 void TS_RegisterVariables(void)
 {
 	// Display settings
+	CV_RegisterVar(&cv_showfingers);
 	CV_RegisterVar(&cv_touchmenutrans);
 	CV_RegisterVar(&cv_touchtrans);
 
@@ -2660,6 +2661,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 					finger->x = x;
 					finger->y = y;
+					finger->pressure = event->pressure;
 
 					foundbutton = true;
 					break;
@@ -2679,6 +2681,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 					finger->x = x;
 					finger->y = y;
+					finger->pressure = event->pressure;
 
 					foundbutton = true;
 					break;
@@ -2687,6 +2690,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 
 			finger->x = x;
 			finger->y = y;
+			finger->pressure = event->pressure;
 
 			// long press
 			if (finger->longpressaction && touchmotion)
@@ -2711,6 +2715,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			// Let go of this finger.
 			finger->x = x;
 			finger->y = y;
+			finger->pressure = event->pressure;
 
 			if (finger->longpressaction)
 			{

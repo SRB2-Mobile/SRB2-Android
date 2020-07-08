@@ -80,6 +80,7 @@ fixed_t touch_gui_scale;
 
 // Is the touch screen available?
 boolean touch_screenexists = false;
+consvar_t cv_showfingers = {"showfingers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Finger event handler
 void (*touch_fingerhandler)(touchfinger_t *, event_t *) = NULL;

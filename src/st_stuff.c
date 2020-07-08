@@ -1647,7 +1647,7 @@ void ST_drawTouchMenuInput(void)
 	if (!control->hidden) \
 	{ \
 		SCALEMENUBUTTON(control); \
-		if (control->pressed > I_GetTime()) \
+		if (control->down) \
 		{ \
 			col = accent; \
 			offs = shadow; \

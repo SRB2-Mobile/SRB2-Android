@@ -3521,8 +3521,9 @@ boolean M_Responder(event_t *ev)
 				INT32 touchkey = G_MapFingerEventToKey(ev);
 				if (touchkey != KEY_NULL)
 				{
-					touchnavigation[touchkey].pressed = I_GetTime() + (TICRATE/10);
-					ch = touchkey;
+					finger->u.keyinput = touchkey;
+					finger->type.menu = true;
+					touchnavigation[touchkey].down = true;
 					button = true;
 				}
 			}
@@ -3578,7 +3579,27 @@ boolean M_Responder(event_t *ev)
 			finger->pressure = ev->pressure;
 
 			if (finger->type.menu)
-				ch = finger->u.keyinput;
+			{
+				INT32 key = finger->u.keyinput;
+				touchconfig_t *btn = &touchnavigation[key];
+
+				switch (key)
+				{
+					case KEY_UPARROW:
+					case KEY_DOWNARROW:
+					case KEY_LEFTARROW:
+					case KEY_RIGHTARROW:
+						ch = key;
+						break;
+					default:
+						if (!btn->hidden && G_FingerTouchesNavigationButton(x, y, btn))
+							ch = key;
+						break;
+				}
+
+				touchnavigation[key].down = false;
+			}
+
 			finger->type.menu = false;
 		}
 #endif

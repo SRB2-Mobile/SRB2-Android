@@ -1383,6 +1383,11 @@ void I_FinishUpdate(void)
 	if (cv_showping.value && netgame && consoleplayer != serverplayer)
 		SCR_DisplayLocalPing();
 
+#ifdef TOUCHINPUTS
+	if (touch_screenexists && cv_showfingers.value)
+		SCR_DisplayFingers();
+#endif
+
 	if (rendermode == render_soft && screens[0])
 	{
 		SDL_Rect rect;
