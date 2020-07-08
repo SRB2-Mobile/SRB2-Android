@@ -51,6 +51,8 @@
 //                                                                DEFINITIONS
 // ==========================================================================
 
+#include "../r_glcommon/r_glcommon.h"
+
 #define MIN(x,y) (((x)<(y)) ? (x) : (y))
 #define MAX(x,y) (((x)>(y)) ? (x) : (y))
 
@@ -73,20 +75,6 @@ extern FILE             *gllogstream;
 // ==========================================================================
 //                                                                     PROTOS
 // ==========================================================================
-
-boolean LoadGL(void);
-void *GetGLFunc(const char *proc);
-boolean SetupGLfunc(void);
-void SetupGLFunc4(void);
-void Flush(void);
-INT32 isExtAvailable(const char *extension, const GLubyte *start);
-void SetModelView(GLint w, GLint h);
-void SetStates(void);
-
-#ifndef GL_EXT_texture_filter_anisotropic
-#define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
-#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
-#endif
 
 #ifdef USE_WGL_SWAP
 typedef BOOL (APIENTRY *PFNWGLEXTSWAPCONTROLPROC) (int);
@@ -117,20 +105,9 @@ static PFNglEnableClientState pglEnableClientState;
 //                                                                     GLOBAL
 // ==========================================================================
 
-extern const GLubyte	*gl_version;
-extern const GLubyte	*gl_renderer;
-extern const GLubyte	*gl_extensions;
-
-extern RGBA_t			myPaletteData[];
-extern GLint			screen_width;
-extern GLint			screen_height;
-extern GLbyte			screen_depth;
-extern GLint			maximumAnisotropy;
-
 /**	\brief OpenGL flags for video driver
 */
 extern INT32            oglflags;
-extern GLint            textureformatGL;
 
 typedef enum
 {

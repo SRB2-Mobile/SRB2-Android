@@ -452,10 +452,13 @@ if(${SRB2_CONFIG_HWRENDER})
 
 	set(SRB2_R_OPENGL_SOURCES
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_opengl/r_opengl.c
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/shaders/gl_shaders.c
 	)
 
 	set(SRB2_R_OPENGL_HEADERS
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_opengl/r_opengl.h
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/shaders/gl_shaders.h
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_glcommon/r_glcommon.h
 	)
 
 endif()

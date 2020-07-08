@@ -34,23 +34,14 @@
 #include "../hw_drv.h"
 
 // ==========================================================================
-//                                                                     PROTOS
+//                                                                DEFINITIONS
 // ==========================================================================
 
-boolean LoadGL(void);
-void *GetGLFunc(const char *proc);
-boolean SetupGLfunc(void);
-boolean SetupGLFunc13(void);
-void Flush(void);
-INT32 isExtAvailable(const char *extension, const GLubyte *start);
-int SetupPixelFormat(INT32 WantColorBits, INT32 WantStencilBits, INT32 WantDepthBits);
-void SetModelView(GLint w, GLint h);
-void SetStates(void);
+#include "../r_glcommon/r_glcommon.h"
 
-#ifndef GL_EXT_texture_filter_anisotropic
-#define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
-#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
-#endif
+// ==========================================================================
+//                                                                     PROTOS
+// ==========================================================================
 
 /* 1.0 Miscellaneous functions */
 typedef void (*PFNglClear) (GLbitfield mask);
@@ -64,7 +55,10 @@ extern PFNglGetString pglGetString;
 //                                                                     GLOBAL
 // ==========================================================================
 
-extern const GLubyte    *gl_extensions;
+extern const GLubyte	*gl_version;
+extern const GLubyte	*gl_renderer;
+extern const GLubyte	*gl_extensions;
+
 extern RGBA_t           myPaletteData[];
 extern GLint            screen_width;
 extern GLint            screen_height;
@@ -74,5 +68,14 @@ extern GLint            maximumAnisotropy;
 /**	\brief OpenGL flags for video driver
 */
 extern GLint            textureformatGL;
+
+struct GLRGBAFloat
+{
+	GLfloat red;
+	GLfloat green;
+	GLfloat blue;
+	GLfloat alpha;
+};
+typedef struct GLRGBAFloat GLRGBAFloat;
 
 #endif
