@@ -33,6 +33,9 @@
 #include "g_game.h" // ditto
 #include "p_local.h" // P_AutoPause()
 
+#ifdef TOUCHINPUTS
+#include "ts_main.h" // touchfingers, NUMTOUCHFINGERS
+#endif
 
 #if defined (USEASM) && !defined (NORUSEASM)//&& (!defined (_MSC_VER) || (_MSC_VER <= 1200))
 #define RUSEASM //MSC.NET can't patch itself

@@ -47,6 +47,8 @@
 #include "lua_hook.h"
 
 #ifdef TOUCHINPUTS
+#include "ts_main.h"
+#include "ts_draw.h"
 #include "ts_custom.h"
 #endif
 
@@ -3902,7 +3904,7 @@ void M_Drawer(void)
 		}
 
 #ifdef TOUCHINPUTS
-		ST_drawTouchMenuInput();
+		TS_DrawMenuNavigation();
 #endif
 	}
 

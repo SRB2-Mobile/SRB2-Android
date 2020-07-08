@@ -48,6 +48,10 @@
 
 #include "lua_hud.h"
 
+#ifdef TOUCHINPUTS
+#include "ts_main.h"
+#endif
+
 gameaction_t gameaction;
 gamestate_t gamestate = GS_NULL;
 UINT8 ultimatemode = false;

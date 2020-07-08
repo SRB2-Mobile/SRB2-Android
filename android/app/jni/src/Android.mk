@@ -37,6 +37,7 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/g_demo.c   \
 			$(OBJDIR)/g_input.c  \
 			$(OBJDIR)/ts_main.c  \
+			$(OBJDIR)/ts_draw.c  \
 			$(OBJDIR)/ts_custom.c\
 			$(OBJDIR)/am_map.c   \
 			$(OBJDIR)/command.c  \

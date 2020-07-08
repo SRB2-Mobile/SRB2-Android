@@ -47,6 +47,7 @@
 
 #ifdef TOUCHINPUTS
 #include "ts_main.h"
+#include "ts_draw.h"
 #endif
 
 #ifndef NONET
@@ -1831,7 +1832,7 @@ static inline void CL_DrawConnectionStatus(void)
 
 #ifdef TOUCHINPUTS
 	// Draw touch input
-	ST_drawTouchMenuInput();
+	TS_DrawMenuNavigation();
 #endif
 }
 #endif

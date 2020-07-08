@@ -56,16 +56,6 @@ void ST_preDrawTitleCard(void);
 void ST_preLevelTitleCardDrawer(void);
 void ST_drawWipeTitleCard(void);
 
-// Touch screen inputs
-#ifdef TOUCHINPUTS
-#include "ts_main.h"
-void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT32 alphalevel);
-void ST_drawTouchMenuInput(void);
-void ST_drawTouchDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing);
-void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags);
-void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags);
-#endif
-
 extern tic_t lt_ticker, lt_lasttic;
 extern tic_t lt_exitticker, lt_endtime;
 

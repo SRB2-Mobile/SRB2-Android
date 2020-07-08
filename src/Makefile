@@ -428,6 +428,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/g_game.o   \
 		$(OBJDIR)/g_input.o  \
 		$(OBJDIR)/ts_main.o \
+		$(OBJDIR)/ts_draw.o \
 		$(OBJDIR)/ts_custom.o  \
 		$(OBJDIR)/am_map.o   \
 		$(OBJDIR)/command.o  \

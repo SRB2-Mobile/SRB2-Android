@@ -7,7 +7,7 @@
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 /// \file  ts_main.c
-/// \brief Touch controls
+/// \brief Touch screen
 
 #include "doomdata.h"
 #include "doomtype.h"
@@ -25,6 +25,7 @@
 #include "st_stuff.h"
 #include "hu_stuff.h" // chat (:LMFAOOO1:)
 
+#ifdef TOUCHINPUTS
 boolean ts_ready = false;
 
 boolean TS_Ready(void)
@@ -1295,3 +1296,5 @@ void TS_DefineButtons(void)
 		TS_PositionNavigation();
 	}
 }
+
+#endif // TOUCHINPUTS

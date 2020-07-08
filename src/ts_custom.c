@@ -14,6 +14,7 @@
 #include "doomdef.h"
 
 #include "ts_main.h"
+#include "ts_draw.h"
 #include "ts_custom.h"
 
 #include "d_event.h"
@@ -29,7 +30,7 @@
 
 #include "f_finale.h" // curfadevalue
 #include "v_video.h"
-#include "st_stuff.h" // ST_drawTouchGameInput
+#include "st_stuff.h" // TS_DrawControls
 #include "hu_stuff.h" // shiftxform
 #include "s_sound.h" // S_StartSound
 #include "z_zone.h"
@@ -2757,7 +2758,7 @@ void TS_DrawCustomization(void)
 	}
 
 	DrawGrid();
-	ST_drawTouchGameInput(usertouchcontrols, true, 10);
+	TS_DrawControls(usertouchcontrols, true, 10);
 
 	for (i = 0; i < num_gamecontrols; i++)
 	{

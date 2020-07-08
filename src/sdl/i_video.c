@@ -80,12 +80,17 @@
 #include "../r_main.h"
 #include "../lua_hook.h"
 #include "sdlmain.h"
+
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
 // For dynamic referencing of HW rendering functions
 #include "hwsym_sdl.h"
 #include "ogl_sdl.h"
+#endif
+
+#ifdef TOUCHINPUTS
+#include "../ts_main.h"
 #endif
 
 // maximum number of windowed modes (see windowedModes[][])
