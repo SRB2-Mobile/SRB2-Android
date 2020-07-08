@@ -955,7 +955,7 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	}
 
 	D_PostEvent(&event);
-	G_PostFingerEvent(&event);
+	TS_PostFingerEvent(&event);
 
 	if (!touch_screenexists)
 	{

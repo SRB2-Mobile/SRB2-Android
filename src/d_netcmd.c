@@ -833,13 +833,6 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_mousemove);
 	CV_RegisterVar(&cv_mousemove2);
 
-#ifdef TOUCHINPUTS
-	CV_RegisterVar(&cv_touchsens);
-	CV_RegisterVar(&cv_touchvertsens);
-	CV_RegisterVar(&cv_touchjoyvertsens);
-	CV_RegisterVar(&cv_touchjoyhorzsens);
-#endif
-
 	CV_RegisterVar(&cv_usejoystick);
 	CV_RegisterVar(&cv_usejoystick2);
 #if defined(__ANDROID__)

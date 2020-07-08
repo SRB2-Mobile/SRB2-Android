@@ -3513,7 +3513,7 @@ boolean M_Responder(event_t *ev)
 			// Check for any buttons first
 			if (ev->type != ev_touchmotion) // Ignore motion events
 			{
-				INT32 touchkey = G_MapFingerEventToKey(ev);
+				INT32 touchkey = TS_MapFingerEventToKey(ev);
 				if (touchkey != KEY_NULL)
 				{
 					finger->u.keyinput = touchkey;
@@ -3582,7 +3582,7 @@ boolean M_Responder(event_t *ev)
 						ch = key;
 						break;
 					default:
-						if (!btn->hidden && G_FingerTouchesNavigationButton(x, y, btn))
+						if (!btn->hidden && TS_FingerTouchesNavigationButton(x, y, btn))
 							ch = key;
 						break;
 				}
@@ -4060,7 +4060,7 @@ void M_UpdateTouchScreenNavigation(void)
 {
 	memset(touchfingers, 0x00, sizeof(touchfingers)); // clear all fingers
 	memset(touchcontroldown, 0x00, sizeof(touchcontroldown)); // clear all controls
-	G_UpdateTouchControls();
+	TS_UpdateControls();
 }
 
 //
@@ -12863,7 +12863,7 @@ static void M_Setup2PControlsMenu(INT32 choice)
 #ifdef TOUCHINPUTS
 static boolean M_TouchPresetActiveMessage(void)
 {
-	if (G_TouchPresetActive())
+	if (TS_IsPresetActive())
 	{
 		M_StartMessage(M_GetText("You must have no preset selected\nto access this menu.\n\n" PRESS_A_KEY_MESSAGE), NULL, MM_NOTHING);
 		return true;
@@ -13244,7 +13244,7 @@ static void M_DrawTouchControlsMenu(void)
 	INT32 flags = V_ALLOWLOWERCASE;
 	const char *string;
 
-	if ((usertouchlayoutnum != UNSAVEDTOUCHLAYOUT) && (!G_TouchPresetActive()))
+	if ((usertouchlayoutnum != UNSAVEDTOUCHLAYOUT) && (!TS_IsPresetActive()))
 	{
 		char *name = TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), 16);
 		string = va(M_GetText("\x82""Current layout: \x80""%s"), name);

@@ -45,6 +45,10 @@
 #include "lua_hook.h"
 #include "md5.h"
 
+#ifdef TOUCHINPUTS
+#include "ts_main.h"
+#endif
+
 #ifndef NONET
 // cl loading screen
 #include "v_video.h"
@@ -2681,7 +2685,7 @@ static boolean CL_ServerConnectionTicker(boolean viams, const char *tmpsave, tic
 		{
 			G_MapEventsToControls(&events[eventtail]);
 #ifdef TOUCHINPUTS
-			if (touch_screenexists && G_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
+			if (touch_screenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
 				exit = true;
 #endif
 		}
@@ -2838,7 +2842,7 @@ static void CL_ConnectToServer(boolean viams)
 	DEBFILE(va("Synchronisation Finished\n"));
 
 #ifdef TOUCHINPUTS
-	G_PositionTouchNavigation();
+	TS_PositionNavigation();
 #endif
 
 	displayplayer = consoleplayer;
@@ -5359,7 +5363,7 @@ static void Local_Maketic(INT32 realtics)
 		G_BuildTiccmd(&localcmds2, realtics, 2);
 
 #ifdef TOUCHINPUTS
-	G_UpdateFingers(realtics);
+	TS_UpdateFingers(realtics);
 #endif
 
 	localcmds.angleturn |= TICCMD_RECEIVED;

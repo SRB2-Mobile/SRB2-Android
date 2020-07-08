@@ -9,6 +9,9 @@
 /// \file  ts_custom.h
 /// \brief Touch controls customization
 
+#ifndef __TS_CUSTOM_H__
+#define __TS_CUSTOM_H__
+
 #include "doomdata.h"
 #include "doomtype.h"
 #include "doomdef.h"
@@ -16,9 +19,9 @@
 #include "d_event.h"
 #include "g_input.h"
 
-#ifdef TOUCHINPUTS
-boolean TS_Ready(void);
+#include "ts_main.h"
 
+#ifdef TOUCHINPUTS
 void TS_SetupCustomization(void);
 boolean TS_ExitCustomization(void);
 boolean TS_IsCustomizingControls(void);
@@ -53,8 +56,6 @@ extern boolean userlayoutsaved;
 extern touchconfigstatus_t usertouchconfigstatus;
 
 extern char touchlayoutfolder[512];
-
-extern boolean ts_init;
 
 void TS_InitLayouts(void);
 void TS_LoadLayouts(void);
@@ -91,9 +92,6 @@ boolean TS_HandleKeyEvent(INT32 key, event_t *event);
 
 void TS_UpdateCustomization(void);
 void TS_DrawCustomization(void);
-
-fixed_t TS_GetDefaultScale(void);
-void TS_GetJoystick(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean tiny);
 
 #define MTOUCH_SNAPTOSMALLGRID
 
@@ -199,3 +197,4 @@ typedef struct
 } touchcust_submenu_scrollbar_t;
 
 #endif // TOUCHINPUTS
+#endif // __TS_CUSTOM_H__

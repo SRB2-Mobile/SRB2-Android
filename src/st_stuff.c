@@ -47,6 +47,7 @@
 
 #ifdef TOUCHINPUTS
 #include "i_joy.h"
+#include "ts_main.h"
 #endif
 
 UINT16 objectsdrawn = 0;
@@ -1205,7 +1206,7 @@ static void ST_drawInput(void)
 #define SCALEBUTTONFIXED(touch, notonmenu) \
 	x = touch->x; \
 	y = touch->y; \
-	G_DenormalizeCoords(&x, &y); \
+	TS_DenormalizeCoords(&x, &y); \
 	w = touch->w; \
 	h = touch->h; \
 	if (!touch->dontscale) \
@@ -1215,7 +1216,7 @@ static void ST_drawInput(void)
 		w = FixedMul(w, dupx); \
 		h = FixedMul(h, dupy); \
 		if (notonmenu) \
-			G_CenterCoords(&x, &y); \
+			TS_CenterCoords(&x, &y); \
 	}
 
 #define SCALEBUTTON(touch) \
@@ -1265,7 +1266,7 @@ void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 	w = FixedMul(padw, dupx);
 	h = FixedMul(padh, dupy);
 
-	G_CenterCoords(&x, &y);
+	TS_CenterCoords(&x, &y);
 
 	xscale = FixedMul(FixedDiv(padw, SHORT(backing->width)*FRACUNIT), scale);
 	yscale = FixedMul(FixedDiv(padh, SHORT(backing->height)*FRACUNIT), scale);
@@ -1288,7 +1289,7 @@ static void ST_drawTouchDPadButton(
 	x *= BASEVIDWIDTH * vid.dupx;
 	y *= BASEVIDHEIGHT * vid.dupy;
 
-	G_CenterCoords(&x, &y);
+	TS_CenterCoords(&x, &y);
 
 	// draw shadow
 	if (!isdown)
@@ -1440,7 +1441,7 @@ void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t d
 	fixed_t xextend = TOUCHJOYEXTENDX;
 	fixed_t yextend = TOUCHJOYEXTENDY;
 
-	G_CenterCoords(&x, &y);
+	TS_CenterCoords(&x, &y);
 
 	// set stick position
 	xmove = touchxmove;
@@ -1587,7 +1588,7 @@ void ST_drawTouchGameInput(touchconfig_t *config, boolean drawgamecontrols, INT3
 	{
 		for (i = 0; i < num_gamecontrols; i++)
 		{
-			if (G_TouchButtonIsPlayerControl(i) && (!config[i].hidden))
+			if (TS_ButtonIsPlayerControl(i) && (!config[i].hidden))
 				drawbtn(i);
 		}
 	}

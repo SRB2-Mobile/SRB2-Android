@@ -13,6 +13,7 @@
 #include "doomtype.h"
 #include "doomdef.h"
 
+#include "ts_main.h"
 #include "ts_custom.h"
 
 #include "d_event.h"
@@ -20,7 +21,7 @@
 
 #include "m_fixed.h"
 #include "m_misc.h"
-#include "m_menu.h" // M_IsCustomizingTouchControls
+#include "m_menu.h"
 
 #include "d_event.h"
 #include "g_input.h"
@@ -111,18 +112,6 @@ static boolean HandleButtonOptions(INT32 x, INT32 y, touchfinger_t *finger, touc
 static boolean IsFingerTouchingButtonOptions(INT32 x, INT32 y, touchfinger_t *finger, touchconfig_t *btn, touchcust_buttonstatus_t *btnstatus);
 
 // =====================================================
-
-static boolean ts_ready = false;
-
-boolean TS_Ready(void)
-{
-	return ts_ready;
-}
-
-boolean TS_IsCustomizingControls(void)
-{
-	return M_IsCustomizingTouchControls();
-}
 
 void TS_SetupCustomization(void)
 {
@@ -296,26 +285,6 @@ void TS_SaveLayouts(void)
 	fclose(f);
 }
 
-void TS_RegisterVariables(void)
-{
-	// Display settings
-	CV_RegisterVar(&cv_showfingers);
-	CV_RegisterVar(&cv_touchmenutrans);
-	CV_RegisterVar(&cv_touchtrans);
-
-	// Layout settings
-	CV_RegisterVar(&cv_touchlayoutusegrid);
-
-	// Preset settings
-	CV_RegisterVar(&cv_touchguiscale);
-
-	// Main options
-	CV_RegisterVar(&cv_touchcamera);
-	CV_RegisterVar(&cv_touchpreset);
-	CV_RegisterVar(&cv_touchlayout);
-	CV_RegisterVar(&cv_touchstyle);
-}
-
 void TS_NewLayout(void)
 {
 	touchlayout_t *layout;
@@ -390,7 +359,7 @@ touchconfigstatus_t usertouchconfigstatus;
 
 void TS_BuildLayoutFromPreset(touchconfig_t *config)
 {
-	G_BuildTouchPreset(config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
+	TS_BuildPreset(config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false);
 }
 
 void TS_DefaultControlLayout(void)
@@ -573,8 +542,8 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 	// set cvars
 	TS_SynchronizeLayoutSettingsToCvars(layout);
 
-	G_SetTouchButtonNames(layout->config);
-	G_MarkDPadButtons(layout->config);
+	TS_SetButtonNames(layout->config);
+	TS_MarkDPadButtons(layout->config);
 
 	layout->loaded = true;
 
@@ -791,7 +760,7 @@ static boolean LoadLayoutAtIndex(INT32 idx)
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
 	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
 
-	G_PositionExtraUserTouchButtons();
+	TS_PositionExtraUserButtons();
 
 	return true;
 }
@@ -1270,8 +1239,8 @@ static void GetButtonRect(touchconfig_t *btn, INT32 *x, INT32 *y, INT32 *w, INT3
 {
 	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
 
-	G_ScaleTouchCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
-	G_CenterIntegerCoords(&tx, &ty);
+	TS_ScaleCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	TS_CenterIntegerCoords(&tx, &ty);
 
 	*x = tx;
 	*y = ty;
@@ -1423,7 +1392,7 @@ static void MoveButtonTo(touchconfig_t *btn, INT32 x, INT32 y)
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
 
-	G_NormalizeTouchButton(btn);
+	TS_NormalizeButton(btn);
 }
 
 //
@@ -1434,7 +1403,7 @@ static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy)
 	fixed_t w = (BASEVIDWIDTH * FRACUNIT);
 	fixed_t h = (BASEVIDHEIGHT * FRACUNIT);
 
-	G_DenormalizeCoords(&btn->x, &btn->y);
+	TS_DenormalizeCoords(&btn->x, &btn->y);
 
 	btn->x += offsx;
 	btn->y += offsy;
@@ -1455,7 +1424,7 @@ static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy)
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
 
-	G_NormalizeTouchButton(btn);
+	TS_NormalizeButton(btn);
 }
 
 //
@@ -1490,7 +1459,7 @@ static void SnapButtonToGrid(touchconfig_t *btn)
 	INT32 gridy = TOUCHGRIDSIZE * FRACUNIT;
 #endif
 
-	G_DenormalizeCoords(&btn->x, &btn->y);
+	TS_DenormalizeCoords(&btn->x, &btn->y);
 
 	btn->x = RoundSnapCoord(btn->x, gridx);
 	btn->y = RoundSnapCoord(btn->y, gridy);
@@ -1501,7 +1470,7 @@ static void SnapButtonToGrid(touchconfig_t *btn)
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
 
-	G_NormalizeTouchButton(btn);
+	TS_NormalizeButton(btn);
 }
 
 //
@@ -1525,7 +1494,7 @@ static void UpdateJoystickBase(touchconfig_t *btn)
 	scale = TS_GetDefaultScale();
 	xscale = FixedMul(FixedDiv(btn->w, jw), scale);
 	yscale = FixedMul(FixedDiv(btn->h, jh), scale);
-	G_DPadPreset(usertouchcontrols, xscale, yscale, btn->w, false);
+	TS_DPadPreset(usertouchcontrols, xscale, yscale, btn->w, false);
 
 	// Normalize d-pad
 	NormalizeDPad();
@@ -1543,39 +1512,8 @@ static void NormalizeDPad(void)
 
 	for (i = 0; i < num_gamecontrols; i++)
 	{
-		if (G_IsDPadButton(i))
-			G_NormalizeTouchButton(&usertouchcontrols[i]);
-	}
-}
-
-fixed_t TS_GetDefaultScale(void)
-{
-	return (fixed_t)(atof(cv_touchguiscale.defaultvalue) * FRACUNIT);
-}
-
-void TS_GetJoystick(fixed_t *x, fixed_t *y, fixed_t *w, fixed_t *h, boolean tiny)
-{
-	if (tiny)
-	{
-		if (x)
-			*x = 24 * FRACUNIT;
-		if (y)
-			*y = 128 * FRACUNIT;
-		if (w)
-			*w = 32 * FRACUNIT;
-		if (h)
-			*h = 32 * FRACUNIT;
-	}
-	else
-	{
-		if (x)
-			*x = 24 * FRACUNIT;
-		if (y)
-			*y = 92 * FRACUNIT;
-		if (w)
-			*w = 64 * FRACUNIT;
-		if (h)
-			*h = 64 * FRACUNIT;
+		if (TS_IsDPadButton(i))
+			TS_NormalizeButton(&usertouchcontrols[i]);
 	}
 }
 
@@ -1611,13 +1549,13 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 
 	if (btn == &usertouchcontrols[gc_joystick])
 	{
-		G_DenormalizeCoords(&btn->x, &btn->y);
+		TS_DenormalizeCoords(&btn->x, &btn->y);
 		UpdateJoystickBase(btn);
-		G_NormalizeTouchButton(btn);
+		TS_NormalizeButton(btn);
 	}
 
-	btn->name = G_GetTouchButtonName(gc);
-	btn->tinyname = G_GetTouchButtonShortName(gc);
+	btn->name = TS_GetButtonName(gc);
+	btn->tinyname = TS_GetButtonShortName(gc);
 
 	btn->hidden = false;
 
@@ -2269,13 +2207,13 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 		if (btn == &usertouchcontrols[gc_joystick])
 		{
 			// Denormalize button
-			G_DenormalizeCoords(&btn->x, &btn->y);
+			TS_DenormalizeCoords(&btn->x, &btn->y);
 
 			// Update joystick
 			UpdateJoystickBase(btn);
 
 			// Normalize button
-			G_NormalizeTouchButton(btn);
+			TS_NormalizeButton(btn);
 		}
 
 		return true;
@@ -2488,7 +2426,7 @@ static boolean CheckNavigation(INT32 x, INT32 y)
 			continue;
 
 		// Check if your finger touches this button.
-		if (G_FingerTouchesButton(x, y, btn))
+		if (TS_FingerTouchesButton(x, y, btn))
 			return true;
 	}
 

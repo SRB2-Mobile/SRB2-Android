@@ -342,7 +342,7 @@ static void D_Display(void)
 		wipetypepre = -1;
 
 #ifdef TOUCHINPUTS
-	G_UpdateTouchControls();
+	TS_UpdateControls();
 #endif
 
 	// do buffered drawing
@@ -802,7 +802,7 @@ void D_SRB2Loop(void)
 			realtics = 1;
 
 #ifdef TOUCHINPUTS
-		G_UpdateTouchControls();
+		TS_UpdateControls();
 #endif
 
 		// process tics (but maybe not if realtic == 0)
@@ -934,7 +934,7 @@ void D_StartTitle(void)
 
 	currentMenu = &MainDef; // reset the current menu ID
 #ifdef TOUCHINPUTS
-	G_PositionTouchNavigation();
+	TS_PositionNavigation();
 #endif
 
 	// Reset the palette
@@ -1424,7 +1424,7 @@ void D_SRB2Main(void)
 #ifdef TOUCHINPUTS
 	TS_InitLayouts();
 	TS_LoadUserLayouts(); // will call TS_LoadLayouts
-	G_UpdateTouchControls();
+	TS_UpdateControls();
 #endif
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
