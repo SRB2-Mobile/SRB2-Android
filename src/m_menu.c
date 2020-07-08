@@ -3518,10 +3518,14 @@ boolean M_Responder(event_t *ev)
 				INT32 touchkey = TS_MapFingerEventToKey(ev);
 				if (touchkey != KEY_NULL)
 				{
-					finger->u.keyinput = touchkey;
 					finger->type.menu = true;
 					touchnavigation[touchkey].down = true;
 					button = true;
+
+					if (TS_IsCustomizingControls())
+						ch = touchkey;
+					else
+						finger->u.keyinput = touchkey;
 				}
 			}
 

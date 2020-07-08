@@ -1282,8 +1282,8 @@ static void GetButtonResizePoint(touchconfig_t *btn, vector2_t *point, INT32 *x,
 {
 	INT32 tx, ty, tw, th;
 
-	INT32 psizew = 5 * vid.dupx;
-	INT32 psizeh = 5 * vid.dupy;
+	INT32 psizew = 12 * vid.dupx;
+	INT32 psizeh = 12 * vid.dupy;
 
 	GetButtonRect(btn, &tx, &ty, &tw, &th, false);
 
@@ -2749,6 +2749,7 @@ void TS_DrawCustomization(void)
 	INT32 green = 112;
 	INT32 yellow = 72;
 	INT32 orange = 54;
+	INT32 alpha = 8;
 
 	if (!touchcust_customizing)
 	{
@@ -2786,7 +2787,7 @@ void TS_DrawCustomization(void)
 		col = (btnstatus->moving ? green : blinkcol);
 
 		V_DrawFill(tx, ty, tw, vid.dupy, col|V_NOSCALESTART);
-		V_DrawFill(tx, ty + th, tw, vid.dupy, col|V_NOSCALESTART);
+		V_DrawFill(tx, ty + th, (tw + vid.dupx), vid.dupy, col|V_NOSCALESTART);
 
 		V_DrawFill(tx, ty, vid.dupx, th, col|V_NOSCALESTART);
 		V_DrawFill(tx + tw, ty, vid.dupx, th, col|V_NOSCALESTART);
@@ -2804,7 +2805,12 @@ void TS_DrawCustomization(void)
 				INT32 px, py, pw, ph;
 				vector2_t *point = &touchcust_resizepoints[j];
 				GetButtonResizePoint(btn, point, &px, &py, &pw, &ph);
-				V_DrawFill(px, py, pw, ph, orange|V_NOSCALESTART);
+
+				V_DrawFadeFill(px + vid.dupx, py + vid.dupy, pw - vid.dupx, ph - vid.dupy, V_NOSCALESTART, orange, alpha);
+				V_DrawFadeFill(px, py, pw, vid.dupy, V_NOSCALESTART, (orange + 3), alpha);
+				V_DrawFadeFill(px, py + ph, (pw + vid.dupx), vid.dupy, V_NOSCALESTART, (orange + 3), alpha);
+				V_DrawFadeFill(px, py, vid.dupx, ph, V_NOSCALESTART, (orange + 3), alpha);
+				V_DrawFadeFill(px + pw, py, vid.dupx, ph, V_NOSCALESTART, (orange + 3), alpha);
 			}
 		}
 	}
