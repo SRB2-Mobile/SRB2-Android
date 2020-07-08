@@ -3510,11 +3510,6 @@ boolean M_Responder(event_t *ev)
 					return true;
 			}
 
-			finger->x = x;
-			finger->y = y;
-			finger->down = true;
-			finger->pressure = ev->pressure;
-
 			// Check for any buttons first
 			if (ev->type != ev_touchmotion) // Ignore motion events
 			{
@@ -3572,11 +3567,6 @@ boolean M_Responder(event_t *ev)
 				TS_HandleCustomization(x, y, finger, ev);
 				return true;
 			}
-
-			finger->x = x;
-			finger->y = y;
-			finger->down = false;
-			finger->pressure = ev->pressure;
 
 			if (finger->type.menu)
 			{

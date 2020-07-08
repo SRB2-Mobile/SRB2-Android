@@ -335,10 +335,6 @@ static void G_HandleFingerEvent(event_t *ev)
 	if (TS_IsCustomizingControls())
 		return;
 
-	finger->x = x;
-	finger->y = y;
-	finger->pressure = ev->pressure;
-
 	if (touch_fingerhandler)
 		touch_fingerhandler(finger, ev);
 
@@ -357,8 +353,6 @@ static void G_HandleFingerEvent(event_t *ev)
 			// Non-control keys ignore touch motion events.
 			if (touchmotion && (finger->ignoremotion || (!G_TouchButtonIsPlayerControl(gc))))
 				break;
-
-			finger->down = true;
 
 			// Lactozilla: Find every on-screen button and
 			// check if they are below your finger.
@@ -503,7 +497,6 @@ static void G_HandleFingerEvent(event_t *ev)
 
 			finger->u.gamecontrol = gc_null;
 			finger->ignoremotion = false;
-			finger->down = false;
 
 			// Reset joystick movement.
 			if (finger->type.joystick == FINGERMOTION_JOYSTICK)
@@ -550,6 +543,9 @@ void G_UpdateFingers(INT32 realtics)
 	{
 		touchfinger_t *finger = &touchfingers[i];
 
+		finger->lastx = finger->x;
+		finger->lasty = finger->y;
+
 		// Run finger long press action
 		if (finger->longpressaction)
 		{
@@ -563,6 +559,20 @@ void G_UpdateFingers(INT32 realtics)
 			}
 		}
 	}
+}
+
+void G_PostFingerEvent(event_t *event)
+{
+	touchfinger_t *finger = &touchfingers[event->key];
+
+	finger->x = event->x;
+	finger->y = event->y;
+	finger->pressure = event->pressure;
+
+	if (event->type == ev_touchdown)
+		finger->down = true;
+	else if (event->type == ev_touchup)
+		finger->down = false;
 }
 #endif
 

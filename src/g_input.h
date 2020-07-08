@@ -181,6 +181,12 @@ typedef struct
 	float pressure;
 	boolean down;
 
+	tic_t longpress;
+	longpressaction_t longpressaction;
+
+	INT32 lastx, lasty;
+	boolean ignoremotion;
+
 	// A finger has either a game control or a key input down.
 	union {
 		INT32 gamecontrol;
@@ -199,10 +205,6 @@ typedef struct
 		INT32 mouse;
 		INT32 joystick;
 	} type;
-
-	tic_t longpress;
-	longpressaction_t longpressaction;
-	boolean ignoremotion;
 } touchfinger_t;
 extern touchfinger_t touchfingers[NUMTOUCHFINGERS];
 extern UINT8 touchcontroldown[num_gamecontrols];
@@ -404,6 +406,9 @@ boolean G_TouchPresetActive(void);
 
 // Updates touch fingers
 void G_UpdateFingers(INT32 realtics);
+
+// Finger event received
+void G_PostFingerEvent(event_t *event);
 
 // Gets a key from a finger event
 INT32 G_MapFingerEventToKey(event_t *event);

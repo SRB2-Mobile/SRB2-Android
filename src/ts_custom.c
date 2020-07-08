@@ -2087,8 +2087,6 @@ static void Submenu_AddNewButton_NewButtonAction(INT32 x, INT32 y, touchfinger_t
 	btnstatus->isresizing = touchcust_resizepoint_none;
 
 	finger->u.gamecontrol = gc;
-	finger->x = x;
-	finger->y = y;
 }
 
 //
@@ -2208,8 +2206,6 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 			GetButtonResizePoint(btn, point, &px, &py, &pw, &ph);
 			if (FingerTouchesRect(x, y, px, py, pw, ph))
 			{
-				finger->x = x;
-				finger->y = y;
 				btnstatus->isresizing = i;
 				resizing = true;
 				break;
@@ -2218,8 +2214,8 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 	}
 	else
 	{
-		fixed_t dx = FixedDiv((x - finger->x) * FRACUNIT, vid.dupx * FRACUNIT);
-		fixed_t dy = FixedDiv((y - finger->y) * FRACUNIT, vid.dupy * FRACUNIT);
+		fixed_t dx = FixedDiv((x - finger->lastx) * FRACUNIT, vid.fdupx);
+		fixed_t dy = FixedDiv((y - finger->lasty) * FRACUNIT, vid.fdupy);
 		INT32 corner = btnstatus->isresizing;
 
 		switch (corner)
@@ -2282,8 +2278,6 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 			G_NormalizeTouchButton(btn);
 		}
 
-		finger->x = x;
-		finger->y = y;
 		return true;
 	}
 
@@ -2638,6 +2632,8 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				// Move selected button
 				else if (btnstatus->selected && touchmotion && (i == finger->u.gamecontrol))
 				{
+					boolean resized = false;
+
 					if (btnstatus->resizearea && (!btnstatus->moving))
 					{
 						HandleResizePointSelection(x, y, finger, btn, btnstatus);
@@ -2646,23 +2642,23 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 						break;
 					}
 
-					if (HandleResizePointSelection(x, y, finger, btn, btnstatus) && (!btnstatus->moving))
-						btnstatus->resizearea = true;
-					else
+					if (!btnstatus->moving)
 					{
-						fixed_t dx = FixedDiv((x - finger->x) * FRACUNIT, vid.dupx * FRACUNIT);
-						fixed_t dy = FixedDiv((y - finger->y) * FRACUNIT, vid.dupy * FRACUNIT);
+						resized = HandleResizePointSelection(x, y, finger, btn, btnstatus);
+						if (resized)
+							btnstatus->resizearea = true;
+					}
+
+					if (!btnstatus->resizearea)
+					{
+						fixed_t dx = FixedDiv((x - finger->lastx) * FRACUNIT, vid.fdupx);
+						fixed_t dy = FixedDiv((y - finger->lasty) * FRACUNIT, vid.fdupy);
 						OffsetButtonBy(btn, dx, dy);
 						btnstatus->moving = true;
 						userlayoutsaved = false;
 					}
 
 					btnstatus->isselecting = false;
-
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = event->pressure;
-
 					foundbutton = true;
 					break;
 				}
@@ -2679,18 +2675,10 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 					btnstatus->finger = finger;
 					btnstatus->isresizing = touchcust_resizepoint_none;
 
-					finger->x = x;
-					finger->y = y;
-					finger->pressure = event->pressure;
-
 					foundbutton = true;
 					break;
 				}
 			}
-
-			finger->x = x;
-			finger->y = y;
-			finger->pressure = event->pressure;
 
 			// long press
 			if (finger->longpressaction && touchmotion)
@@ -2713,10 +2701,6 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			break;
 		case ev_touchup:
 			// Let go of this finger.
-			finger->x = x;
-			finger->y = y;
-			finger->pressure = event->pressure;
-
 			if (finger->longpressaction)
 			{
 				finger->longpressaction = NULL;

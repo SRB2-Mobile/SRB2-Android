@@ -1596,12 +1596,10 @@ static void Snake_HandleFingerEvent(touchfinger_t *finger, event_t *event)
 					finger->extra.snake = KEY_UPARROW;
 			}
 
-			finger->down = true;
 			gamekeydown[finger->extra.snake] = 1;
 			break;
 
 		case ev_touchup:
-			finger->down = false;
 			gamekeydown[finger->extra.snake] = 0;
 			break;
 

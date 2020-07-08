@@ -953,7 +953,9 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 		event.dx = (INT32)lround(deltax * ((float)wwidth / (float)realwidth));
 		event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
 	}
+
 	D_PostEvent(&event);
+	G_PostFingerEvent(&event);
 
 	if (!touch_screenexists)
 	{
