@@ -184,7 +184,7 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 			if ((handle = File_Open(*filename, "rb", type)) == NULL)
 			{
 				if (useerrors)
-					CONS_Alert(CONS_ERROR, M_GetText("Can't open %s\n"), *filename);
+					W_FileLoadError(M_GetText("Can't open %s"), *filename);
 				return NULL;
 			}
 		}
@@ -197,7 +197,7 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 				return handle;
 #endif
 			if (useerrors)
-				CONS_Alert(CONS_ERROR, M_GetText("File %s not found.\n"), *filename);
+				W_FileLoadError(M_GetText("File %s not found."), *filename);
 			return NULL;
 		}
 	}
@@ -706,14 +706,44 @@ static lumpinfo_t* ResGetLumpsZip (void* handle, UINT16* nlmp)
 	return lumpinfo;
 }
 
+#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
+static const char *fileloaderror = NULL;
+#endif
+
+void W_FileLoadError(const char *fmt, ...)
+{
+	va_list argptr;
+	static char *error = NULL;
+
+	if (error == NULL)
+		error = malloc(8192);
+
+	va_start(argptr, fmt);
+	M_vsnprintf(error, 8192, fmt, argptr);
+	va_end(argptr);
+
+#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
+	if (fileloaderror)
+		Z_Free(fileloaderror);
+	fileloaderror = Z_StrDup(error);
+#endif
+
+	CONS_Alert(CONS_ERROR, "%s\n", error);
+}
+
 static UINT16 W_InitFileError (const char *filename, boolean exitworthy)
 {
 	if (exitworthy)
 	{
+		const char *defaulterror = "A WAD file was not found or not valid.\nCheck the log to see which ones.";
 #ifdef _DEBUG
-		CONS_Error("A WAD file was not found or not valid.\nCheck the log to see which ones.\n");
+		CONS_Error("%s\n", defaulterror);
 #else
-		I_Error("A WAD file was not found or not valid.\nCheck the log to see which ones.\n");
+#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
+		if (fileloaderror)
+			I_Error("%s", fileloaderror);
+#endif
+		I_Error("%s", defaulterror);
 #endif
 	}
 	else
@@ -765,7 +795,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	//
 	if (numwadfiles >= MAX_WADFILES)
 	{
-		CONS_Alert(CONS_ERROR, M_GetText("Maximum wad files reached\n"));
+		W_FileLoadError(M_GetText("Maximum wad files reached"));
 		refreshdirmenu |= REFRESHDIR_MAX;
 		return W_InitFileError(filename, startup);
 	}
@@ -783,7 +813,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 
 		if (packetsize > MAXFILENEEDED*sizeof(UINT8))
 		{
-			CONS_Alert(CONS_ERROR, M_GetText("Maximum wad files reached\n"));
+			W_FileLoadError(M_GetText("Maximum wad files reached"));
 			refreshdirmenu |= REFRESHDIR_MAX;
 			if (handle)
 				File_Close(handle);
@@ -805,7 +835,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	{
 		if (!memcmp(wadfiles[i]->md5sum, md5sum, 16))
 		{
-			CONS_Alert(CONS_ERROR, M_GetText("%s is already loaded\n"), filename);
+			W_FileLoadError(M_GetText("%s is already loaded"), filename);
 			if (handle)
 				File_Close(handle);
 			return W_InitFileError(filename, false);
@@ -828,7 +858,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 		lumpinfo = ResGetLumpsWad(handle, &numlumps, filename);
 		break;
 	default:
-		CONS_Alert(CONS_ERROR, "Unsupported file format\n");
+		W_FileLoadError("Unsupported file format");
 	}
 
 	if (lumpinfo == NULL)
@@ -1893,7 +1923,13 @@ void W_VerifyFileMD5(UINT16 wadfilenum, const char *matchmd5)
 #else
 		I_Error
 #endif
-			(M_GetText("File is corrupt or has been modified: %s (found md5: %s, wanted: %s)\n"), wadfiles[wadfilenum]->filename, actualmd5text, matchmd5);
+			(M_GetText(
+#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
+			"File %s has the wrong checksum!\nAre you sure you have the correct "VERSIONSTRING" files?\n"
+#else
+			"File is corrupt or has been modified: %s "
+#endif
+			"(found md5: %s, wanted: %s)"), wadfiles[wadfilenum]->filename, actualmd5text, matchmd5);
 	}
 #endif
 }
