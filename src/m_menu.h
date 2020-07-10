@@ -21,6 +21,9 @@
 #include "r_skins.h" // for SKINNAMESIZE
 #include "f_finale.h" // for ttmode_enum
 
+// Compatibility with old-style named NiGHTS replay files.
+#define OLDNREPLAYNAME
+
 //
 // MENUS
 //
@@ -61,6 +64,8 @@ typedef enum
 	MN_SP_NIGHTS_REPLAY,
 	MN_SP_NIGHTS_GHOST,
 
+	MN_SP_MARATHON,
+
 	// Multiplayer
 	MN_MP_MAIN,
 	MN_MP_SPLITSCREEN, // SplitServer
@@ -86,6 +91,7 @@ typedef enum
 	MN_OP_P2CAMERA,
 
 	MN_OP_TOUCHSCREEN,
+	MN_OP_TOUCHCONTROLS,
 
 	MN_OP_PLAYSTYLE,
 
@@ -94,8 +100,6 @@ typedef enum
 	MN_OP_COLOR,
 	MN_OP_OPENGL,
 	MN_OP_OPENGL_LIGHTING,
-	MN_OP_OPENGL_FOG,
-	MN_OP_OPENGL_COLOR,
 
 	MN_OP_SOUND,
 
@@ -288,7 +292,7 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_HEADER      (IT_SPACE  +IT_HEADERTEXT)
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
 
-// Confirm (press 'Y') / Return (press 'N') / ESC messages
+// Confirm (press 'Y') / Return (press 'N') / Press a key / ESC messages
 #ifdef TOUCHINPUTS
 #define PRESS_Y_MESSAGE   "Tap 'Confirm'"
 #define PRESS_Y_MESSAGE_L "tap 'Confirm'"
@@ -296,6 +300,8 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define PRESS_N_MESSAGE_L "tap 'Back'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE
 #define PRESS_ESC_MESSAGE "Tap anywhere\n"
+#define PRESS_A_KEY_MESSAGE PRESS_ESC_MESSAGE
+#define PRESS_A_KEY_MESSAGE_ALT PRESS_ESC_MESSAGE
 #else
 #define PRESS_Y_MESSAGE   "Press 'Y'"
 #define PRESS_Y_MESSAGE_L "press 'Y'"
@@ -303,6 +309,8 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define PRESS_N_MESSAGE_L "Press 'N'"
 #define CONFIRM_MESSAGE   PRESS_Y_MESSAGE " to confirm"
 #define PRESS_ESC_MESSAGE "Press ESC\n"
+#define PRESS_A_KEY_MESSAGE "(Press a key)\n"
+#define PRESS_A_KEY_MESSAGE_ALT "Press a key.\n"
 #endif
 
 #define MAXSTRINGLENGTH 32
@@ -354,6 +362,7 @@ boolean M_MouseNeeded(void);
 #ifdef TOUCHINPUTS
 void M_UpdateTouchScreenNavigation(void);
 INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
+boolean M_IsCustomizingTouchControls(void);
 #endif
 
 extern menu_t *currentMenu;
@@ -379,11 +388,11 @@ typedef struct
 	// new character select
 	char displayname[SKINNAMESIZE+1];
 	SINT8 skinnum[2];
-	UINT8 oppositecolor;
+	UINT16 oppositecolor;
 	char nametag[8];
 	patch_t *namepic;
-	UINT8 tagtextcolor;
-	UINT8 tagoutlinecolor;
+	UINT16 tagtextcolor;
+	UINT16 tagoutlinecolor;
 } description_t;
 
 // level select platter
@@ -443,6 +452,7 @@ extern INT16 char_on, startchar;
 
 #define MAXSAVEGAMES 31
 #define NOSAVESLOT 0 //slot where Play Without Saving appears
+#define MARATHONSLOT 420 // just has to be nonzero, but let's use one that'll show up as an obvious error if something goes wrong while not using our existing saves
 
 #define BwehHehHe() S_StartSound(NULL, sfx_bewar1+M_RandomKey(4)) // Bweh heh he
 
@@ -466,6 +476,23 @@ void Addons_option_Onchange(void);
 
 // Moviemode menu updating
 void Moviemode_option_Onchange(void);
+
+// Player Setup menu colors linked list
+typedef struct menucolor_s {
+	struct menucolor_s *next;
+	struct menucolor_s *prev;
+	UINT16 color;
+} menucolor_t;
+
+extern menucolor_t *menucolorhead, *menucolortail;
+
+void M_AddMenuColor(UINT16 color);
+void M_MoveColorBefore(UINT16 color, UINT16 targ);
+void M_MoveColorAfter(UINT16 color, UINT16 targ);
+UINT16 M_GetColorBefore(UINT16 color);
+UINT16 M_GetColorAfter(UINT16 color);
+void M_InitPlayerSetupColors(void);
+void M_FreePlayerSetupColors(void);
 
 // These defines make it a little easier to make menus
 #define DEFAULTMENUSTYLE(id, header, source, prev, x, y)\

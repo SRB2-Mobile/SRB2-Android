@@ -66,33 +66,11 @@
 //#undef DEBUG_TO_FILE
 //#endif
 
-#ifdef DEBUG_TO_FILE
-extern FILE             *gllogstream;
-#endif
-
-#ifndef DRIVER_STRING
-#define DRIVER_STRING "HWRAPI Init(): SRB2 OpenGL renderer" // Tails
-#endif
+#include "../r_glcommon/r_glcommon.h"
 
 // ==========================================================================
 //                                                                     PROTOS
 // ==========================================================================
-
-boolean LoadGL(void);
-void *GetGLFunc(const char *proc);
-boolean SetupGLfunc(void);
-boolean SetupGLFunc13(void);
-void Flush(void);
-INT32 isExtAvailable(const char *extension, const GLubyte *start);
-int SetupPixelFormat(INT32 WantColorBits, INT32 WantStencilBits, INT32 WantDepthBits);
-void SetModelView(GLint w, GLint h);
-void SetStates(void);
-FUNCMATH float byteasfloat(UINT8 fbyte);
-
-#ifndef GL_EXT_texture_filter_anisotropic
-#define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
-#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
-#endif
 
 #ifdef USE_WGL_SWAP
 typedef BOOL (APIENTRY *PFNWGLEXTSWAPCONTROLPROC) (int);
@@ -123,17 +101,9 @@ static PFNglEnableClientState pglEnableClientState;
 //                                                                     GLOBAL
 // ==========================================================================
 
-extern const GLubyte    *gl_extensions;
-extern RGBA_t           myPaletteData[];
-extern GLint            screen_width;
-extern GLint            screen_height;
-extern GLbyte           screen_depth;
-extern GLint            maximumAnisotropy;
-
 /**	\brief OpenGL flags for video driver
 */
 extern INT32            oglflags;
-extern GLint            textureformatGL;
 
 typedef enum
 {

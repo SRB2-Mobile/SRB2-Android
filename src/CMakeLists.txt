@@ -418,6 +418,7 @@ endif()
 if(${SRB2_CONFIG_HWRENDER})
 	add_definitions(-DHWRENDER)
 	set(SRB2_HWRENDER_SOURCES
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_batching.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_bsp.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_cache.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_clip.c
@@ -428,11 +429,11 @@ if(${SRB2_CONFIG_HWRENDER})
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md2load.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_md3load.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_model.c
-		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_trick.c
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/u_list.c
 	)
 
 	set (SRB2_HWRENDER_HEADERS
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_batching.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_clip.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_data.h
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/hw_defs.h
@@ -451,10 +452,14 @@ if(${SRB2_CONFIG_HWRENDER})
 
 	set(SRB2_R_OPENGL_SOURCES
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_opengl/r_opengl.c
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/shaders/gl_shaders.c
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_glcommon/r_glcommon.c
 	)
 
 	set(SRB2_R_OPENGL_HEADERS
 		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_opengl/r_opengl.h
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/shaders/gl_shaders.h
+		${CMAKE_CURRENT_SOURCE_DIR}/hardware/r_glcommon/r_glcommon.h
 	)
 
 endif()

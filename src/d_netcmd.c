@@ -226,6 +226,7 @@ consvar_t cv_allowseenames = {"allowseenames", "Yes", CV_NETVAR, CV_YesNo, NULL,
 consvar_t cv_playername = {"name", "Sonic", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Name_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_playername2 = {"name2", "Tails", CV_SAVE|CV_CALL|CV_NOINIT, NULL, Name2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // player colors
+UINT16 lastgoodcolor = SKINCOLOR_BLUE, lastgoodcolor2 = SKINCOLOR_BLUE;
 consvar_t cv_playercolor = {"color", "Blue", CV_CALL|CV_NOINIT, Color_cons_t, Color_OnChange, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_playercolor2 = {"color2", "Orange", CV_CALL|CV_NOINIT, Color_cons_t, Color2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 // player's skin, saved for commodity, when using a favorite skins wad..
@@ -511,6 +512,8 @@ void D_RegisterServerCommands(void)
 	COM_AddCommand("archivetest", Command_Archivetest_f);
 #endif
 
+	COM_AddCommand("downloads", Command_Downloads_f);
+
 	// for master server connection
 	AddMServCommands();
 
@@ -633,7 +636,7 @@ void D_RegisterClientCommands(void)
 	for (i = 0; i < MAXSKINCOLORS; i++)
 	{
 		Color_cons_t[i].value = i;
-		Color_cons_t[i].strvalue = Color_Names[i];
+		Color_cons_t[i].strvalue = skincolors[i].name;
 	}
 	Color_cons_t[MAXSKINCOLORS].value = 0;
 	Color_cons_t[MAXSKINCOLORS].strvalue = NULL;
@@ -686,6 +689,7 @@ void D_RegisterClientCommands(void)
 	// GIF variables
 	CV_RegisterVar(&cv_gif_optimize);
 	CV_RegisterVar(&cv_gif_downscale);
+	CV_RegisterVar(&cv_gif_dynamicdelay);
 	CV_RegisterVar(&cv_gif_localcolortable);
 
 #ifdef WALLSPLATS
@@ -828,13 +832,6 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_mouseysens2);
 	CV_RegisterVar(&cv_mousemove);
 	CV_RegisterVar(&cv_mousemove2);
-
-#ifdef TOUCHINPUTS
-	CV_RegisterVar(&cv_touchsens);
-	CV_RegisterVar(&cv_touchvertsens);
-	CV_RegisterVar(&cv_touchjoyvertsens);
-	CV_RegisterVar(&cv_touchjoyhorzsens);
-#endif
 
 	CV_RegisterVar(&cv_usejoystick);
 	CV_RegisterVar(&cv_usejoystick2);
@@ -1193,7 +1190,7 @@ UINT8 CanChangeSkin(INT32 playernum)
 	// Server has skin change restrictions.
 	if (cv_restrictskinchange.value)
 	{
-		if (gametype == GT_COOP)
+		if (gametyperules & GTR_FRIENDLY)
 			return true;
 
 		// Can change skin during initial countdown.
@@ -1261,15 +1258,20 @@ static void SendNameAndColor(void)
 			CV_StealthSetValue(&cv_playercolor, skincolor_blueteam);
 	}
 
-	// never allow the color "none"
-	if (!cv_playercolor.value)
+	// don't allow inaccessible colors
+	if (!skincolors[cv_playercolor.value].accessible)
 	{
-		if (players[consoleplayer].skincolor)
+		if (players[consoleplayer].skincolor && skincolors[players[consoleplayer].skincolor].accessible)
 			CV_StealthSetValue(&cv_playercolor, players[consoleplayer].skincolor);
-		else if (skins[players[consoleplayer].skin].prefcolor)
-			CV_StealthSetValue(&cv_playercolor, skins[players[consoleplayer].skin].prefcolor);
-		else
+		else if (skincolors[atoi(cv_playercolor.defaultvalue)].accessible)
 			CV_StealthSet(&cv_playercolor, cv_playercolor.defaultvalue);
+		else if (skins[players[consoleplayer].skin].prefcolor && skincolors[skins[players[consoleplayer].skin].prefcolor].accessible)
+			CV_StealthSetValue(&cv_playercolor, skins[players[consoleplayer].skin].prefcolor);
+		else {
+			UINT16 i = 0;
+			while (i<numskincolors && !skincolors[i].accessible) i++;
+			CV_StealthSetValue(&cv_playercolor, (i != numskincolors) ? i : SKINCOLOR_BLUE);
+		}
 	}
 
 	if (!strcmp(cv_playername.string, player_names[consoleplayer])
@@ -1316,10 +1318,10 @@ static void SendNameAndColor(void)
 			{
 				CV_StealthSetValue(&cv_playercolor, skins[cv_skin.value].prefcolor);
 
-				players[consoleplayer].skincolor = cv_playercolor.value % MAXSKINCOLORS;
+				players[consoleplayer].skincolor = cv_playercolor.value % numskincolors;
 
 				if (players[consoleplayer].mo)
-					players[consoleplayer].mo->color = (UINT8)players[consoleplayer].skincolor;
+					players[consoleplayer].mo->color = (UINT16)players[consoleplayer].skincolor;
 			}*/
 		}
 		else
@@ -1357,7 +1359,7 @@ static void SendNameAndColor(void)
 	// Finally write out the complete packet and send it off.
 	WRITESTRINGN(p, cv_playername.zstring, MAXPLAYERNAME);
 	WRITEUINT32(p, (UINT32)players[consoleplayer].availabilities);
-	WRITEUINT8(p, (UINT8)cv_playercolor.value);
+	WRITEUINT16(p, (UINT16)cv_playercolor.value);
 	WRITEUINT8(p, (UINT8)cv_skin.value);
 	SendNetXCmd(XD_NAMEANDCOLOR, buf, p - buf);
 }
@@ -1384,15 +1386,20 @@ static void SendNameAndColor2(void)
 			CV_StealthSetValue(&cv_playercolor2, skincolor_blueteam);
 	}
 
-	// never allow the color "none"
-	if (!cv_playercolor2.value)
+	// don't allow inaccessible colors
+	if (!skincolors[cv_playercolor2.value].accessible)
 	{
-		if (players[secondplaya].skincolor)
+		if (players[secondplaya].skincolor && skincolors[players[secondplaya].skincolor].accessible)
 			CV_StealthSetValue(&cv_playercolor2, players[secondplaya].skincolor);
-		else if (skins[players[secondplaya].skin].prefcolor)
+		else if (skincolors[atoi(cv_playercolor2.defaultvalue)].accessible)
+			CV_StealthSet(&cv_playercolor, cv_playercolor2.defaultvalue);
+		else if (skins[players[secondplaya].skin].prefcolor && skincolors[skins[players[secondplaya].skin].prefcolor].accessible)
 			CV_StealthSetValue(&cv_playercolor2, skins[players[secondplaya].skin].prefcolor);
-		else
-			CV_StealthSet(&cv_playercolor2, cv_playercolor2.defaultvalue);
+		else {
+			UINT16 i = 0;
+			while (i<numskincolors && !skincolors[i].accessible) i++;
+			CV_StealthSetValue(&cv_playercolor2, (i != numskincolors) ? i : SKINCOLOR_BLUE);
+		}
 	}
 
 	players[secondplaya].availabilities = R_GetSkinAvailabilities();
@@ -1445,7 +1452,7 @@ static void SendNameAndColor2(void)
 			{
 				CV_StealthSetValue(&cv_playercolor2, skins[players[secondplaya].skin].prefcolor);
 
-				players[secondplaya].skincolor = cv_playercolor2.value % MAXSKINCOLORS;
+				players[secondplaya].skincolor = cv_playercolor2.value % numskincolors;
 
 				if (players[secondplaya].mo)
 					players[secondplaya].mo->color = players[secondplaya].skincolor;
@@ -1468,7 +1475,8 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 {
 	player_t *p = &players[playernum];
 	char name[MAXPLAYERNAME+1];
-	UINT8 color, skin;
+	UINT16 color;
+	UINT8 skin;
 
 #ifdef PARANOIA
 	if (playernum < 0 || playernum > MAXPLAYERS)
@@ -1487,7 +1495,7 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 
 	READSTRINGN(*cp, name, MAXPLAYERNAME);
 	p->availabilities = READUINT32(*cp);
-	color = READUINT8(*cp);
+	color = READUINT16(*cp);
 	skin = READUINT8(*cp);
 
 	// set name
@@ -1495,9 +1503,9 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 		SetPlayerName(playernum, name);
 
 	// set color
-	p->skincolor = color % MAXSKINCOLORS;
+	p->skincolor = color % numskincolors;
 	if (p->mo)
-		p->mo->color = (UINT8)p->skincolor;
+		p->mo->color = (UINT16)p->skincolor;
 
 	// normal player colors
 	if (server && (p != &players[consoleplayer] && p != &players[secondarydisplayplayer]))
@@ -1514,8 +1522,8 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 				kick = true;
 		}
 
-		// don't allow color "none"
-		if (!p->skincolor)
+		// don't allow inaccessible colors
+		if (skincolors[p->skincolor].accessible == false)
 			kick = true;
 
 		// availabilities
@@ -1773,7 +1781,7 @@ void D_MapChange(INT32 mapnum, INT32 newgametype, boolean pultmode, boolean rese
 	}
 	CONS_Debug(DBG_GAMELOGIC, "Map change: mapnum=%d gametype=%d ultmode=%d resetplayers=%d delay=%d skipprecutscene=%d\n",
 	           mapnum, newgametype, pultmode, resetplayers, delay, skipprecutscene);
-	if ((netgame || multiplayer) && !((gametype == newgametype) && (newgametype == GT_COOP)))
+	if ((netgame || multiplayer) && !((gametype == newgametype) && (gametypedefaultrules[newgametype] & GTR_CAMPAIGN)))
 		FLS = false;
 
 	if (delay != 2)
@@ -2015,7 +2023,7 @@ static void Command_Map_f(void)
 			fromlevelselect =
 				( netgame || multiplayer ) &&
 				newgametype == gametype    &&
-				newgametype == GT_COOP;
+				gametypedefaultrules[newgametype] & GTR_CAMPAIGN;
 		}
 	}
 
@@ -2805,7 +2813,7 @@ static void Got_Teamchange(UINT8 **cp, INT32 playernum)
 			players[playernum].spectator = false;
 
 			//If joining after hidetime in normal tag, default to being IT.
-			if (gametype == GT_TAG && (leveltime > (hidetime * TICRATE)))
+			if (((gametyperules & (GTR_TAG|GTR_HIDEFROZEN)) == GTR_TAG) && (leveltime > (hidetime * TICRATE)))
 			{
 				NetPacket.packet.newteam = 1; //minor hack, causes the "is it" message to be printed later.
 				players[playernum].pflags |= PF_TAGIT; //make the player IT.
@@ -3598,6 +3606,8 @@ static void Command_Playintro_f(void)
   */
 FUNCNORETURN static ATTRNORETURN void Command_Quit_f(void)
 {
+	if (Playing())
+		LUAh_GameQuit();
 	I_Quit();
 }
 
@@ -3655,7 +3665,7 @@ static void PointLimit_OnChange(void)
 static void NumLaps_OnChange(void)
 {
 	// Just don't be verbose
-	if (gametype == GT_RACE)
+	if ((gametyperules & (GTR_RACE|GTR_LIVES)) == GTR_RACE)
 		CONS_Printf(M_GetText("Number of laps set to %d\n"), cv_numlaps.value);
 }
 
@@ -3769,7 +3779,7 @@ static void ExitMove_OnChange(void)
 {
 	UINT8 i;
 
-	if (!(netgame || multiplayer) || gametype != GT_COOP)
+	if (!(netgame || multiplayer) || !(gametyperules & GTR_FRIENDLY))
 		return;
 
 	if (cv_exitmove.value)
@@ -4259,6 +4269,9 @@ void Command_ExitGame_f(void)
 {
 	INT32 i;
 
+	if (Playing())
+		LUAh_GameQuit();
+
 	D_QuitNetGame();
 	CL_Reset();
 	CV_ClearChangedFlags();
@@ -4515,25 +4528,30 @@ static void Skin2_OnChange(void)
   */
 static void Color_OnChange(void)
 {
-	if (!Playing())
-		return; // do whatever you want
-
-	if (!(cv_debug || devparm) && !(multiplayer || netgame)) // In single player.
-	{
-		CV_StealthSet(&cv_skin, skins[players[consoleplayer].skin].name);
-		return;
-	}
-
-	if (!P_PlayerMoving(consoleplayer))
-	{
-		// Color change menu scrolling fix is no longer necessary
-		SendNameAndColor();
+	if (!Playing()) {
+		if (!cv_playercolor.value || !skincolors[cv_playercolor.value].accessible)
+			CV_StealthSetValue(&cv_playercolor, lastgoodcolor);
 	}
 	else
 	{
-		CV_StealthSetValue(&cv_playercolor,
-			players[consoleplayer].skincolor);
+		if (!(cv_debug || devparm) && !(multiplayer || netgame)) // In single player.
+		{
+			CV_StealthSet(&cv_skin, skins[players[consoleplayer].skin].name);
+			return;
+		}
+
+		if (!P_PlayerMoving(consoleplayer) && skincolors[players[consoleplayer].skincolor].accessible == true)
+		{
+			// Color change menu scrolling fix is no longer necessary
+			SendNameAndColor();
+		}
+		else
+		{
+			CV_StealthSetValue(&cv_playercolor,
+				players[consoleplayer].skincolor);
+		}
 	}
+	lastgoodcolor = cv_playercolor.value;
 }
 
 /** Sends a color change for the secondary splitscreen player, unless that
@@ -4544,18 +4562,24 @@ static void Color_OnChange(void)
 static void Color2_OnChange(void)
 {
 	if (!Playing() || !splitscreen)
-		return; // do whatever you want
-
-	if (!P_PlayerMoving(secondarydisplayplayer))
 	{
-		// Color change menu scrolling fix is no longer necessary
-		SendNameAndColor2();
+		if (!cv_playercolor2.value || !skincolors[cv_playercolor2.value].accessible)
+			CV_StealthSetValue(&cv_playercolor2, lastgoodcolor2);
 	}
 	else
 	{
-		CV_StealthSetValue(&cv_playercolor2,
-			players[secondarydisplayplayer].skincolor);
+		if (!P_PlayerMoving(secondarydisplayplayer) && skincolors[players[secondarydisplayplayer].skincolor].accessible == true)
+		{
+			// Color change menu scrolling fix is no longer necessary
+			SendNameAndColor2();
+		}
+		else
+		{
+			CV_StealthSetValue(&cv_playercolor2,
+				players[secondarydisplayplayer].skincolor);
+		}
 	}
+	lastgoodcolor2 = cv_playercolor2.value;
 }
 
 /** Displays the result of the chat being muted or unmuted.
@@ -4633,7 +4657,7 @@ static void Command_ShowTime_f(void)
 
 static void BaseNumLaps_OnChange(void)
 {
-	if (gametype == GT_RACE)
+	if ((gametyperules & (GTR_RACE|GTR_LIVES)) == GTR_RACE)
 	{
 		if (cv_basenumlaps.value)
 			CONS_Printf(M_GetText("Number of laps will be changed to map defaults next round.\n"));

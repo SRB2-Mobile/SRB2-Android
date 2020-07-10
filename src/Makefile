@@ -222,12 +222,10 @@ endif
 ifdef NOHW
 	OPTS+=-DNOHW
 else
-	#Hurdler: not really supported and not tested recently
-	#OPTS+=-DUSE_PALETTED_TEXTURE
 	OPTS+=-DHWRENDER
 	OBJS+=$(OBJDIR)/hw_bsp.o $(OBJDIR)/hw_draw.o $(OBJDIR)/hw_light.o \
-		 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o $(OBJDIR)/hw_trick.o \
-		 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o
+		 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o \
+		 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o $(OBJDIR)/hw_batching.o
 endif
 
 ifdef NOHS
@@ -429,6 +427,9 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/g_demo.o   \
 		$(OBJDIR)/g_game.o   \
 		$(OBJDIR)/g_input.o  \
+		$(OBJDIR)/ts_main.o \
+		$(OBJDIR)/ts_draw.o \
+		$(OBJDIR)/ts_custom.o  \
 		$(OBJDIR)/am_map.o   \
 		$(OBJDIR)/command.o  \
 		$(OBJDIR)/console.o  \
@@ -606,7 +607,7 @@ ifdef MINGW
 all_dll: opengl_dll ds3d_dll fmod_dll openal_dll
 
 opengl_dll: $(BIN)/r_opengl.dll
-$(BIN)/r_opengl.dll: $(OBJDIR)/ogl_win.o $(OBJDIR)/r_opengl.o
+$(BIN)/r_opengl.dll: $(OBJDIR)/ogl_win.o $(OBJDIR)/r_opengl.o $(OBJDIR)/r_glcommon.o $(OBJDIR)/gl_shaders.o
 	-$(MKDIR) $(BIN)
 	@echo Linking R_OpenGL.dll...
 	$(CC) --shared  $^ -o $@ -g -Wl,--add-stdcall-alias -lgdi32 -static-libgcc
@@ -649,7 +650,14 @@ endif
 else
 ifdef SDL
 ifdef MINGW
+$(OBJDIR)/gl_shaders.o: hardware/shaders/gl_shaders.c hardware/shaders/gl_shaders.h \
+ hardware/r_opengl/r_opengl.h doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+$(OBJDIR)/r_glcommon.o: hardware/r_glcommon/r_glcommon.c hardware/r_glcommon/r_glcommon.h \
+ doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
+ hardware/r_glcommon/r_glcommon.h hardware/shaders/gl_shaders.h \
  doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
  command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
  hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
@@ -658,7 +666,14 @@ $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h 
  p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 else
+$(OBJDIR)/gl_shaders.o: hardware/shaders/gl_shaders.c hardware/shaders/gl_shaders.h \
+ hardware/r_opengl/r_opengl.h doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -I/usr/X11R6/include -c $< -o $@
+$(OBJDIR)/r_glcommon.o: hardware/r_glcommon/r_glcommon.c hardware/r_glcommon/r_glcommon.h \
+ doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -I/usr/X11R6/include -c $< -o $@
 $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
+ hardware/r_glcommon/r_glcommon.h hardware/shaders/gl_shaders.h \
  doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
  command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
  hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
@@ -736,7 +751,14 @@ $(OBJDIR)/SRB2.res: win32/Srb2win.rc win32/afxres.h win32/resource.h
 ifdef MINGW
 ifndef SDL
 ifndef NOHW
+$(OBJDIR)/gl_shaders.o: hardware/shaders/gl_shaders.c hardware/shaders/gl_shaders.h \
+ hardware/r_opengl/r_opengl.h doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+$(OBJDIR)/r_glcommon.o: hardware/r_glcommon/r_glcommon.c hardware/r_glcommon/r_glcommon.h \
+ doomdef.h doomtype.h doomdata.h hardware/hw_dll.h
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
+ hardware/r_glcommon/r_glcommon.h hardware/shaders/gl_shaders.h \
  doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
  command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
  hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
@@ -746,6 +768,7 @@ $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h 
 	$(CC) $(CFLAGS) $(WFLAGS) -D_WINDOWS -mwindows -c $< -o $@
 
 $(OBJDIR)/ogl_win.o: hardware/r_opengl/ogl_win.c hardware/r_opengl/r_opengl.h \
+ hardware/r_glcommon/r_glcommon.h hardware/shaders/gl_shaders.h \
  doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
  command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
  hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \

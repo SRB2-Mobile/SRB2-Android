@@ -15,8 +15,8 @@ android {
         }
         minSdkVersion 16
         targetSdkVersion 26
-        versionCode 2240
-        versionName "2.2.4"
+        versionCode 2250
+        versionName "2.2.5"
         externalNativeBuild {
             ndkBuild {
                 arguments "APP_PLATFORM=android-16"
@@ -36,7 +36,7 @@ android {
             externalNativeBuild {
                 ndkBuild {
                     arguments "BUILD_TYPE=release"
-                    cFlags "-DLOGCAT=0"
+                    cFlags "-DDEVELOP=0"
                 }
             }
         }
@@ -44,7 +44,7 @@ android {
             externalNativeBuild {
                 ndkBuild {
                     arguments "BUILD_TYPE=debug"
-                    cFlags "-DLOGCAT=1"
+                    cFlags "-DDEVELOP=1"
                 }
             }
         }

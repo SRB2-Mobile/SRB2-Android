@@ -17,16 +17,10 @@
 #include "r_gles.h"
 #include "../r_opengl/r_vbo.h"
 
+#include "../shaders/gl_shaders.h"
+
 #if defined (HWRENDER) && !defined (NOROPENGL)
 
-struct GLRGBAFloat
-{
-	GLfloat red;
-	GLfloat green;
-	GLfloat blue;
-	GLfloat alpha;
-};
-typedef struct GLRGBAFloat GLRGBAFloat;
 static const GLfloat white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 // ==========================================================================
@@ -66,6 +60,8 @@ static GLint mag_filter = GL_LINEAR;
 static GLint anisotropic_filter = 0;
 static boolean model_lighting = true;
 
+const GLubyte *gl_version = NULL;
+const GLubyte *gl_renderer = NULL;
 const GLubyte *gl_extensions = NULL;
 
 // Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
@@ -329,9 +325,7 @@ boolean SetupGLfunc(void)
 	return true;
 }
 
-// This has to be done after the context is created so the version number can be obtained
-// This is stupid -- even some of the oldest usable OpenGL hardware today supports 1.3-level featureset.
-boolean SetupGLFunc13(void)
+void SetupGLFunc4(void)
 {
 	pglActiveTexture = GetGLFunc("glActiveTexture");
 	pglMultiTexCoord2f = GetGLFunc("glMultiTexCoord2f");
@@ -344,7 +338,45 @@ boolean SetupGLFunc13(void)
 	pglBufferData = GetGLFunc("glBufferData");
 	pglDeleteBuffers = GetGLFunc("glDeleteBuffers");
 
-	return true;
+#ifdef GL_SHADERS
+	Shader_SetupGLFunc();
+#endif
+}
+
+// jimita
+EXPORT boolean HWRAPI(LoadShaders) (void)
+{
+	return Shader_Compile();
+}
+
+EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
+{
+	Shader_SetInfo(info, value);
+}
+
+EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boolean fragment)
+{
+	Shader_LoadCustom(number, shader, size, fragment);
+}
+
+EXPORT boolean HWRAPI(InitCustomShaders) (void)
+{
+	return Shader_InitCustom();
+}
+
+EXPORT void HWRAPI(SetShader) (int shader)
+{
+	Shader_Set(shader);
+}
+
+EXPORT void HWRAPI(UnSetShader) (void)
+{
+	Shader_UnSet();
+}
+
+EXPORT void HWRAPI(KillShaders) (void)
+{
+	Shader_Kill();
 }
 
 // -----------------+
@@ -521,10 +553,8 @@ INT32 isExtAvailable(const char *extension, const GLubyte *start)
 // Init             : Initialise the OpenGL ES interface API
 // Returns          :
 // -----------------+
-EXPORT boolean HWRAPI(Init) (I_Error_t FatalErrorFunction)
+EXPORT boolean HWRAPI(Init) (void)
 {
-	(void)FatalErrorFunction;
-	DBG_Printf ("HWRAPI Init(): SRB2 %s renderer %s\n", DRIVER_STRING, VERSIONSTRING);
 	return LoadGL();
 }
 
@@ -805,6 +835,147 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 	CurrentPolyFlags = PolyFlags;
 }
 
+// -----------------+
+// UpdateTexture    : Updates the texture data.
+// -----------------+
+EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
+{
+	// Download a mipmap
+	boolean updatemipmap = true;
+	static RGBA_t   tex[2048*2048];
+	const GLvoid   *ptex = tex;
+	INT32             w, h;
+	GLuint texnum = 0;
+
+	if (!pTexInfo->downloaded)
+	{
+		pglGenTextures(1, &texnum);
+		pTexInfo->downloaded = texnum;
+		updatemipmap = false;
+	}
+	else
+		texnum = pTexInfo->downloaded;
+
+	//GL_DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->grInfo.data);
+
+	w = pTexInfo->width;
+	h = pTexInfo->height;
+
+	if ((pTexInfo->grInfo.format == GR_TEXFMT_P_8) ||
+		(pTexInfo->grInfo.format == GR_TEXFMT_AP_88))
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				if ((*pImgData == HWR_PATCHES_CHROMAKEY_COLORINDEX) &&
+					(pTexInfo->flags & TF_CHROMAKEYED))
+				{
+					tex[w*j+i].s.red   = 0;
+					tex[w*j+i].s.green = 0;
+					tex[w*j+i].s.blue  = 0;
+					tex[w*j+i].s.alpha = 0;
+					pTexInfo->flags |= TF_TRANSPARENT; // there is a hole in it
+				}
+				else
+				{
+					tex[w*j+i].s.red   = myPaletteData[*pImgData].s.red;
+					tex[w*j+i].s.green = myPaletteData[*pImgData].s.green;
+					tex[w*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
+					tex[w*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
+				}
+
+				pImgData++;
+
+				if (pTexInfo->grInfo.format == GR_TEXFMT_AP_88)
+				{
+					if (!(pTexInfo->flags & TF_CHROMAKEYED))
+						tex[w*j+i].s.alpha = *pImgData;
+					pImgData++;
+				}
+
+			}
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_RGBA)
+	{
+		// corona test : passed as ARGB 8888, which is not in glide formats
+		// Hurdler: not used for coronas anymore, just for dynamic lighting
+		ptex = pTexInfo->grInfo.data;
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				tex[w*j+i].s.red   = *pImgData;
+				tex[w*j+i].s.green = *pImgData;
+				tex[w*j+i].s.blue  = *pImgData;
+				pImgData++;
+				tex[w*j+i].s.alpha = *pImgData;
+				pImgData++;
+			}
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8) // Used for fade masks
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				tex[w*j+i].s.red   = 255; // 255 because the fade mask is modulated with the screen texture, so alpha affects it while the colours don't
+				tex[w*j+i].s.green = 255;
+				tex[w*j+i].s.blue  = 255;
+				tex[w*j+i].s.alpha = *pImgData;
+				pImgData++;
+			}
+		}
+	}
+
+	// the texture number was already generated by pglGenTextures
+	pglBindTexture(GL_TEXTURE_2D, texnum);
+	tex_downloaded = texnum;
+
+	// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
+	if (pTexInfo->flags & TF_TRANSPARENT)
+	{
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	}
+	else
+	{
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+	}
+
+	pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+
+	if (MipMap)
+		pglGenerateMipmap(GL_TEXTURE_2D);
+
+	if (pTexInfo->flags & TF_WRAPX)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	else
+		Clamp2D(GL_TEXTURE_WRAP_S);
+
+	if (pTexInfo->flags & TF_WRAPY)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	else
+		Clamp2D(GL_TEXTURE_WRAP_T);
+
+	if (maximumAnisotropy)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
+}
 
 // -----------------+
 // SetTexture       : The mipmap becomes the current texture source
@@ -826,135 +997,7 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	}
 	else
 	{
-		// Download a mipmap
-		static RGBA_t   tex[2048*2048];
-		const GLvoid   *ptex = tex;
-		INT32             w, h;
-		GLuint texnum = 0;
-
-		pglGenTextures(1, &texnum);
-		//DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->grInfo.data);
-
-		w = pTexInfo->width;
-		h = pTexInfo->height;
-
-		if ((pTexInfo->grInfo.format == GR_TEXFMT_P_8) ||
-			(pTexInfo->grInfo.format == GR_TEXFMT_AP_88))
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					if ((*pImgData == HWR_PATCHES_CHROMAKEY_COLORINDEX) &&
-					    (pTexInfo->flags & TF_CHROMAKEYED))
-					{
-						tex[w*j+i].s.red   = 0;
-						tex[w*j+i].s.green = 0;
-						tex[w*j+i].s.blue  = 0;
-						tex[w*j+i].s.alpha = 0;
-						pTexInfo->flags |= TF_TRANSPARENT; // there is a hole in it
-					}
-					else
-					{
-						tex[w*j+i].s.red   = myPaletteData[*pImgData].s.red;
-						tex[w*j+i].s.green = myPaletteData[*pImgData].s.green;
-						tex[w*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
-						tex[w*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
-					}
-
-					pImgData++;
-
-					if (pTexInfo->grInfo.format == GR_TEXFMT_AP_88)
-					{
-						if (!(pTexInfo->flags & TF_CHROMAKEYED))
-							tex[w*j+i].s.alpha = *pImgData;
-						pImgData++;
-					}
-				}
-			}
-		}
-		else if (pTexInfo->grInfo.format == GR_RGBA)
-		{
-			// corona test : passed as ARGB 8888, which is not in glide formats
-			// Hurdler: not used for coronas anymore, just for dynamic lighting
-			ptex = pTexInfo->grInfo.data;
-		}
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					tex[w*j+i].s.red   = *pImgData;
-					tex[w*j+i].s.green = *pImgData;
-					tex[w*j+i].s.blue  = *pImgData;
-					pImgData++;
-					tex[w*j+i].s.alpha = *pImgData;
-					pImgData++;
-				}
-			}
-		}
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8) // Used for fade masks
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					tex[w*j+i].s.red   = 255; // 255 because the fade mask is modulated with the screen texture, so alpha affects it while the colours don't
-					tex[w*j+i].s.green = 255;
-					tex[w*j+i].s.blue  = 255;
-					tex[w*j+i].s.alpha = *pImgData;
-					pImgData++;
-				}
-			}
-		}
-		else
-			DBG_Printf ("SetTexture(bad format) %ld\n", pTexInfo->grInfo.format);
-
-		// the texture number was already generated by pglGenTextures
-		pglBindTexture(GL_TEXTURE_2D, texnum);
-		pTexInfo->downloaded = texnum;
-		tex_downloaded = texnum;
-
-		// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
-		if (pTexInfo->flags & TF_TRANSPARENT)
-		{
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		}
-		else
-		{
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
-		}
-
-		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-
-		if (MipMap)
-			pglGenerateMipmap(GL_TEXTURE_2D);
-
-		if (pTexInfo->flags & TF_WRAPX)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		else
-			Clamp2D(GL_TEXTURE_WRAP_S);
-
-		if (pTexInfo->flags & TF_WRAPY)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		else
-			Clamp2D(GL_TEXTURE_WRAP_T);
-
-		if (maximumAnisotropy)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
-
+		UpdateTexture(pTexInfo);
 		pTexInfo->nextmipmap = NULL;
 		if (gr_cachetail)
 		{ // insertion at the tail
@@ -966,41 +1009,59 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	}
 }
 
-
-// -----------------+
-// DrawPolygon      : Render a polygon, set the texture, set render mode
-// -----------------+
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo  *pSurf,
-                                    //FTextureInfo  *pTexInfo,
-                                    FOutVector    *pOutVerts,
-                                    FUINT         iNumPts,
-                                    FBITFIELD     PolyFlags)
+// code that is common between DrawPolygon and DrawIndexedTriangles
+// the corona thing is there too, i have no idea if that stuff works with DrawIndexedTriangles and batching
+static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD PolyFlags)
 {
-	GLfloat fcolor[4];
-	FUINT i;
-	FUINT j;
+	static GLRGBAFloat poly = {1.0f, 1.0f, 1.0f, 1.0f};
+	static GLRGBAFloat tint = {1.0f, 1.0f, 1.0f, 1.0f};
+	static GLRGBAFloat fade = {1.0f, 1.0f, 1.0f, 1.0f};
 
 	if (PolyFlags & PF_Corona)
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
 	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
 
+	// PolyColor
 	if (pSurf)
 	{
-		fcolor[0] = (pSurf->FlatColor.s.red/255.0f);
-		fcolor[1] = (pSurf->FlatColor.s.green/255.0f);
-		fcolor[2] = (pSurf->FlatColor.s.blue/255.0f);
-		fcolor[3] = (pSurf->FlatColor.s.alpha/255.0f);
-	}
-	else
-		fcolor[0] = fcolor[1] = fcolor[2] = fcolor[3] = 1.0f;
+		// If Modulated, mix the surface colour to the texture
+		if (CurrentPolyFlags & PF_Modulated)
+		{
+			// Poly color
+			poly.red    = (pSurf->PolyColor.s.red/255.0f);
+			poly.green  = (pSurf->PolyColor.s.green/255.0f);
+			poly.blue   = (pSurf->PolyColor.s.blue/255.0f);
+			poly.alpha  = (pSurf->PolyColor.s.alpha/255.0f);
 
-	// If Modulated, mix the surface colour to the texture
-	if ((CurrentPolyFlags & PF_Modulated) && pSurf)
-		pglColor4f(fcolor[0], fcolor[1], fcolor[2], fcolor[3]);
+			pglColor4f(poly.red, poly.green, poly.blue, poly.alpha);
+		}
+
+		// Tint color
+		tint.red   = (pSurf->TintColor.s.red/255.0f);
+		tint.green = (pSurf->TintColor.s.green/255.0f);
+		tint.blue  = (pSurf->TintColor.s.blue/255.0f);
+		tint.alpha = (pSurf->TintColor.s.alpha/255.0f);
+
+		// Fade color
+		fade.red   = (pSurf->FadeColor.s.red/255.0f);
+		fade.green = (pSurf->FadeColor.s.green/255.0f);
+		fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
+		fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
+	}
+
+	Shader_Load(pSurf, &poly, &tint, &fade);
+}
+
+// -----------------+
+// DrawPolygon      : Render a polygon, set the texture, set render mode
+// -----------------+
+EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
+{
+	PreparePolygon(pSurf, pOutVerts, PolyFlags);
 
 	pglVertexPointer(3, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].x);
-	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].sow);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].s);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
 
 	if (PolyFlags & PF_RemoveYWrap)
@@ -1011,6 +1072,17 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo  *pSurf,
 
 	if (PolyFlags & PF_ForceWrapY)
 		Clamp2D(GL_TEXTURE_WRAP_T);
+}
+
+EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
+{
+	PreparePolygon(pSurf, pOutVerts, PolyFlags);
+
+	pglVertexPointer(3, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].x);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].s);
+	pglDrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
+
+	// the DrawPolygon variant of this has some code about polyflags and wrapping here but havent noticed any problems from omitting it?
 }
 
 typedef struct vbo_vertex_s
@@ -1275,47 +1347,6 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			model_lighting = Value;
 			break;
 
-		case HWD_SET_FOG_COLOR:
-		{
-			GLfloat fogcolor[4];
-			fogcolor[0] = ((Value>>16)&0xff) / 255.0f;
-			fogcolor[1] = ((Value>>8)&0xff) / 255.0f;
-			fogcolor[2] = ((Value)&0xff) / 255.0f;
-			fogcolor[3] = 0.0f; // wut?? 0x0???
-			pglFogfv(GL_FOG_COLOR, fogcolor);
-			break;
-		}
-
-		case HWD_SET_FOG_DENSITY:
-			pglFogf(GL_FOG_DENSITY, Value*1200/(500*1000000.0f));
-			break;
-
-		case HWD_SET_FOG_MODE:
-			if (Value)
-			{
-				pglEnable(GL_FOG);
-				// experimental code
-				/*
-				switch (Value)
-				{
-					case 1:
-						glFogi(GL_FOG_MODE, GL_LINEAR);
-						pglFogf(GL_FOG_START, -1000.0f);
-						pglFogf(GL_FOG_END, 2000.0f);
-						break;
-					case 2:
-						glFogi(GL_FOG_MODE, GL_EXP);
-						break;
-					case 3:
-						glFogi(GL_FOG_MODE, GL_EXP2);
-						break;
-				}
-				*/
-			}
-			else
-				pglDisable(GL_FOG);
-			break;
-
 		case HWD_SET_TEXTUREFILTERMODE:
 			switch (Value)
 			{
@@ -1565,11 +1596,11 @@ EXPORT void HWRAPI(CreateModelVBOs) (model_t *model)
 
 #define BUFFER_OFFSET(i) ((char*)NULL + (i))
 
-static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
+static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
-	GLfloat fcolor[4];
-	GLfloat ambient[4];
-	GLfloat diffuse[4];
+	static GLRGBAFloat poly = {0,0,0,0};
+	static GLRGBAFloat tint = {0,0,0,0};
+	static GLRGBAFloat fade = {0,0,0,0};
 
 	float pol = 0.0f;
 	float scalex, scaley, scalez;
@@ -1578,8 +1609,12 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	int i;
 
-	// Because Otherwise, scaling the screen negatively vertically breaks the lighting
-	GLfloat LightPos[] = {0.0f, 1.0f, 0.0f, 0.0f};
+	// Because otherwise, scaling the screen negatively vertically breaks the lighting
+	GLfloat LightPos[4] = {0.0f, 1.0f, 0.0f, 0.0f};
+#ifdef GL_LIGHT_MODEL_AMBIENT
+	float ambient[4];
+	float diffuse[4];
+#endif
 
 	// Affect input model scaling
 	scale *= 0.5f;
@@ -1600,21 +1635,23 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			pol = 0.0f;
 	}
 
-	if (color)
-	{
-		fcolor[0] = (color[0]/255.0f);
-		fcolor[1] = (color[1]/255.0f);
-		fcolor[2] = (color[2]/255.0f);
-		fcolor[3] = (color[3]/255.0f);
+	poly.red    = (Surface->PolyColor.s.red/255.0f);
+	poly.green  = (Surface->PolyColor.s.green/255.0f);
+	poly.blue   = (Surface->PolyColor.s.blue/255.0f);
+	poly.alpha  = (Surface->PolyColor.s.alpha/255.0f);
 
-		ambient[0] = fcolor[0];
-		ambient[1] = fcolor[1];
-		ambient[2] = fcolor[2];
-		ambient[3] = fcolor[3];
-		diffuse[0] = fcolor[0];
-		diffuse[1] = fcolor[1];
-		diffuse[2] = fcolor[2];
-		diffuse[3] = fcolor[3];
+#ifdef GL_LIGHT_MODEL_AMBIENT
+	if (model_lighting && (!gl_shadersenabled)) // doesn't work with shaders anyway
+	{
+		ambient[0] = poly.red;
+		ambient[1] = poly.green;
+		ambient[2] = poly.blue;
+		ambient[3] = poly.alpha;
+
+		diffuse[0] = poly.red;
+		diffuse[1] = poly.green;
+		diffuse[2] = poly.blue;
+		diffuse[3] = poly.alpha;
 
 		if (ambient[0] > 0.75f)
 			ambient[0] = 0.75f;
@@ -1622,18 +1659,43 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			ambient[1] = 0.75f;
 		if (ambient[2] > 0.75f)
 			ambient[2] = 0.75f;
+
+		pglLightfv(GL_LIGHT0, GL_POSITION, LightPos);
+		pglShadeModel(GL_SMOOTH);
+
+		pglEnable(GL_LIGHTING);
+		pglMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
+		pglMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
 	}
+#endif
+	else
+		pglColor4f(poly.red, poly.green, poly.blue, poly.alpha);
+
+	SetBlend((poly.alpha < 1 ? PF_Translucent : (PF_Masked|PF_Occlude))|PF_Modulated);
+
+	tint.red   = (Surface->TintColor.s.red/255.0f);
+	tint.green = (Surface->TintColor.s.green/255.0f);
+	tint.blue  = (Surface->TintColor.s.blue/255.0f);
+	tint.alpha = (Surface->TintColor.s.alpha/255.0f);
+
+	fade.red   = (Surface->FadeColor.s.red/255.0f);
+	fade.green = (Surface->FadeColor.s.green/255.0f);
+	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
+	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
+
+	Shader_Load(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);
 
 #ifdef USE_FTRANSFORM_MIRROR
-	// flipped is if the object is flipped
+	// flipped is if the object is vertically flipped
+	// hflipped is if the object is horizontally flipped
 	// pos->flip is if the screen is flipped vertically
 	// pos->mirror is if the screen is flipped horizontally
 	// XOR all the flips together to figure out what culling to use!
 	{
-		boolean reversecull = (flipped ^ pos->flip ^ pos->mirror);
+		boolean reversecull = (flipped ^ hflipped ^ pos->flip ^ pos->mirror);
 		if (reversecull)
 			pglCullFace(GL_FRONT);
 		else
@@ -1641,7 +1703,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	}
 #else
 	// pos->flip is if the screen is flipped too
-	if (flipped != pos->flip) // If either are active, but not both, invert the model's culling
+	if (flipped ^ hflipped ^ pos->flip) // If one or three of these are active, but not two, invert the model's culling
 	{
 		pglCullFace(GL_FRONT);
 	}
@@ -1651,36 +1713,13 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	}
 #endif
 
-	if (model_lighting)
-	{
-		pglLightfv(GL_LIGHT0, GL_POSITION, LightPos);
-		pglShadeModel(GL_SMOOTH);
-	}
-
-	if (color)
-	{
-#ifdef GL_LIGHT_MODEL_AMBIENT
-		if (model_lighting)
-		{
-			pglEnable(GL_LIGHTING);
-			pglMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
-			pglMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
-		}
-		else
-#endif
-			pglColor4f(fcolor[0], fcolor[1], fcolor[2], fcolor[3]);
-
-		if (color[3] < 255)
-			SetBlend(PF_Translucent|PF_Modulated|PF_Clip);
-		else
-			SetBlend(PF_Masked|PF_Modulated|PF_Occlude|PF_Clip);
-	}
-
 	pglPushMatrix(); // should be the same as glLoadIdentity
 	//Hurdler: now it seems to work
 	pglTranslatef(pos->x, pos->z, pos->y);
 	if (flipped)
 		scaley = -scaley;
+	if (hflipped)
+		scalez = -scalez;
 
 #ifdef USE_FTRANSFORM_ANGLEZ
 	pglRotatef(pos->anglez, 0.0f, 0.0f, -1.0f); // rotate by slope from Kart
@@ -1813,19 +1852,24 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	pglDisableClientState(GL_NORMAL_ARRAY);
 
 	pglPopMatrix(); // should be the same as glLoadIdentity
-	if (color)
-		pglDisable(GL_LIGHTING);
-	pglShadeModel(GL_FLAT);
 	pglDisable(GL_CULL_FACE);
 	pglDisable(GL_NORMALIZE);
+
+#ifdef GL_LIGHT_MODEL_AMBIENT
+	if (model_lighting && (!gl_shadersenabled))
+	{
+		pglDisable(GL_LIGHTING);
+		pglShadeModel(GL_FLAT);
+	}
+#endif
 }
 
 // -----------------+
-// HWRAPI DrawMD2   : Draw an MD2 model with glcommands
+// HWRAPI DrawModel : Draw a model
 // -----------------+
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
+EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
-	DrawModelEx(model, frameIndex, duration, tics,  nextFrameIndex, pos, scale, flipped, color);
+	DrawModelEx(model, frameIndex, duration, tics, nextFrameIndex, pos, scale, flipped, hflipped, Surface);
 }
 
 // -----------------+
@@ -1834,8 +1878,11 @@ EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration,
 EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 {
 	static boolean special_splitscreen;
+	boolean shearing = false;
 	float used_fov;
+
 	pglLoadIdentity();
+
 	if (stransform)
 	{
 		used_fov = stransform->fovxangle;
@@ -1857,6 +1904,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 		pglTranslatef(-stransform->x, -stransform->z, -stransform->y);
 
 		special_splitscreen = stransform->splitscreen;
+		shearing = stransform->shearing;
 	}
 	else
 	{
@@ -1866,6 +1914,15 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 	pglMatrixMode(GL_PROJECTION);
 	pglLoadIdentity();
+
+	// jimita 14042019
+	// Simulate Software's y-shearing
+	// https://zdoom.org/wiki/Y-shearing
+	if (shearing)
+	{
+		float fdy = stransform->viewaiming * 2;
+		pglTranslatef(0.0f, -fdy/BASEVIDHEIGHT, 0.0f);
+	}
 
 	if (special_splitscreen)
 	{

@@ -33,6 +33,9 @@
 #include "g_game.h" // ditto
 #include "p_local.h" // P_AutoPause()
 
+#ifdef TOUCHINPUTS
+#include "ts_main.h" // touchfingers, NUMTOUCHFINGERS
+#endif
 
 #if defined (USEASM) && !defined (NORUSEASM)//&& (!defined (_MSC_VER) || (_MSC_VER <= 1200))
 #define RUSEASM //MSC.NET can't patch itself
@@ -565,7 +568,6 @@ void SCR_DisplayLocalPing(void)
 	}
 }
 
-
 void SCR_ClosedCaptions(void)
 {
 	UINT8 i;
@@ -628,3 +630,90 @@ void SCR_ClosedCaptions(void)
 		V_DrawRightAlignedString(x, y, flags, caption);
 	}
 }
+
+void SCR_DisplayMarathonInfo(void)
+{
+	INT32 flags = V_SNAPTOBOTTOM;
+	static tic_t entertic, oldentertics = 0, antisplice[2] = {48,0};
+	const char *str;
+#if 0 // eh, this probably isn't going to be a problem
+	if (((signed)marathontime) < 0)
+	{
+		flags |= V_REDMAP;
+		str = "No waiting out the clock to submit a bogus time.";
+	}
+	else
+#endif
+	{
+		entertic = I_GetTime();
+		if (gamecomplete)
+			flags |= V_YELLOWMAP;
+		else if (marathonmode & MA_INGAME)
+			; // see also G_Ticker
+		else if (marathonmode & MA_INIT)
+			marathonmode &= ~MA_INIT;
+		else
+			marathontime += entertic - oldentertics;
+
+		// Create a sequence of primes such that their LCM is nice and big.
+#define PRIMEV1 13
+#define PRIMEV2 17 // I can't believe it! I'm on TV!
+		antisplice[0] += (entertic - oldentertics)*PRIMEV2;
+		antisplice[0] %= PRIMEV1*((vid.width/vid.dupx)+1);
+		antisplice[1] += (entertic - oldentertics)*PRIMEV1;
+		antisplice[1] %= PRIMEV1*((vid.width/vid.dupx)+1);
+		str = va("%i:%02i:%02i.%02i",
+			G_TicsToHours(marathontime),
+			G_TicsToMinutes(marathontime, false),
+			G_TicsToSeconds(marathontime),
+			G_TicsToCentiseconds(marathontime));
+		oldentertics = entertic;
+	}
+	V_DrawFill((antisplice[0]/PRIMEV1)-1, BASEVIDHEIGHT-8, 1, 8, V_SNAPTOBOTTOM|V_SNAPTOLEFT);
+	V_DrawFill((antisplice[0]/PRIMEV1),   BASEVIDHEIGHT-8, 1, 8, V_SNAPTOBOTTOM|V_SNAPTOLEFT|31);
+	V_DrawFill(BASEVIDWIDTH-((antisplice[1]/PRIMEV1)-1), BASEVIDHEIGHT-8, 1, 8, V_SNAPTOBOTTOM|V_SNAPTORIGHT);
+	V_DrawFill(BASEVIDWIDTH-((antisplice[1]/PRIMEV1)),   BASEVIDHEIGHT-8, 1, 8, V_SNAPTOBOTTOM|V_SNAPTORIGHT|31);
+#undef PRIMEV1
+#undef PRIMEV2
+	V_DrawPromptBack(-8, cons_backcolor.value);
+	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-8, flags, str);
+}
+
+#ifdef TOUCHINPUTS
+void SCR_DisplayFingers(void)
+{
+	patch_t *cursor = W_CachePatchLongName("JOY_CURSOR", PU_PATCH);
+
+	fixed_t pw = SHORT(cursor->width) * FRACUNIT;
+	fixed_t ph = SHORT(cursor->height) * FRACUNIT;
+
+	fixed_t w = 8 * max(FRACUNIT, vid.fdupx / 3);
+	fixed_t h = 8 * max(FRACUNIT, vid.fdupy / 3);
+
+	fixed_t xscale = FixedDiv(w, pw);
+	fixed_t yscale = FixedDiv(h, ph);
+
+	fixed_t xoffs = FixedMul(w / 2, vid.fdupx);
+	fixed_t yoffs = FixedMul(h / 2, vid.fdupy);
+
+	INT32 i;
+
+	// generate colormap
+	static UINT8 *colormap = NULL;
+	size_t colsize = 256 * sizeof(UINT8);
+	if (colormap == NULL)
+		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
+
+	for (i = 0; i < NUMTOUCHFINGERS; i++)
+	{
+		touchfinger_t *finger = &touchfingers[i];
+
+		if (finger->down)
+		{
+			fixed_t x = (finger->x * FRACUNIT) - xoffs;
+			fixed_t y = (finger->y * FRACUNIT) - yoffs;
+			V_DrawStretchyFixedPatch(x, y, xscale, yscale, (V_NOSCALESTART | V_20TRANS), cursor, colormap);
+		}
+	}
+}
+#endif

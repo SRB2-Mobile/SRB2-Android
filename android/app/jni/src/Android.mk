@@ -36,6 +36,9 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/g_game.c   \
 			$(OBJDIR)/g_demo.c   \
 			$(OBJDIR)/g_input.c  \
+			$(OBJDIR)/ts_main.c  \
+			$(OBJDIR)/ts_draw.c  \
+			$(OBJDIR)/ts_custom.c\
 			$(OBJDIR)/am_map.c   \
 			$(OBJDIR)/command.c  \
 			$(OBJDIR)/console.c  \
@@ -138,7 +141,9 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(LUA_SOURCES)/lvm.c \
 
 # OpenGL
-LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c $(SDL2_SOURCES)/ogl_es_sdl.c \
+LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c \
+		$(HWR_SOURCES)/r_glcommon/r_glcommon.c $(HWR_SOURCES)/shaders/gl_shaders.c $(SDL2_SOURCES)/ogl_es_sdl.c \
+		$(HWR_SOURCES)/hw_batching.c \
 		$(HWR_SOURCES)/hw_bsp.c \
 		$(HWR_SOURCES)/hw_draw.c \
 		$(HWR_SOURCES)/hw_light.c \
@@ -146,7 +151,6 @@ LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c $(SDL2_SOURCES)/ogl_es_sdl.c 
 		$(HWR_SOURCES)/hw_clip.c \
 		$(HWR_SOURCES)/hw_md2.c \
 		$(HWR_SOURCES)/hw_cache.c \
-		$(HWR_SOURCES)/hw_trick.c \
 		$(HWR_SOURCES)/hw_md2load.c \
 		$(HWR_SOURCES)/hw_md3load.c \
 		$(HWR_SOURCES)/hw_model.c \
@@ -169,7 +173,7 @@ LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
 LOCAL_CFLAGS += -DUNIXCOMMON -DLINUX \
 				-DHAVE_SDL -DHAVE_MIXER \
 				-DHWRENDER -DHAVE_GLES \
-				-DTOUCHINPUTS -DDIRECTFULLSCREEN \
+				-DTOUCHINPUTS -DDIRECTFULLSCREEN -DLOGCAT \
 				-DHAVE_ZLIB -DHAVE_BLUA -DHAVE_PNG \
 				-DHAVE_WHANDLE \
 				-DNONX86 -DNOASM -DNOMUMBLE

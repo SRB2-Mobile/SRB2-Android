@@ -43,11 +43,11 @@
 #include "hardware/hw_main.h"
 #endif
 
-#include "lua_hud.h"
-
 #ifdef TOUCHINPUTS
-#include "i_joy.h"
+#include "ts_draw.h"
 #endif
+
+#include "lua_hud.h"
 
 UINT16 objectsdrawn = 0;
 
@@ -461,7 +461,7 @@ boolean st_overlay;
 //
 // Supports different colors! woo!
 static void ST_DrawNightsOverlayNum(fixed_t x /* right border */, fixed_t y, fixed_t s, INT32 a,
-	UINT32 num, patch_t **numpat, skincolors_t colornum)
+	UINT32 num, patch_t **numpat, skincolornum_t colornum)
 {
 	fixed_t w = SHORT(numpat[0]->width)*s;
 	const UINT8 *colormap;
@@ -768,7 +768,7 @@ static void ST_drawTime(void)
 		ST_DrawPatchFromHud(HUD_TIMECOLON, sbocolon, V_HUDTRANS); // Colon
 		ST_DrawPadNumFromHud(HUD_SECONDS, seconds, 2, V_HUDTRANS); // Seconds
 
-		if (cv_timetic.value == 1 || cv_timetic.value == 2 || modeattacking) // there's not enough room for tics in splitscreen, don't even bother trying!
+		if (cv_timetic.value == 1 || cv_timetic.value == 2 || modeattacking || marathonmode)
 		{
 			ST_DrawPatchFromHud(HUD_TIMETICCOLON, sboperiod, V_HUDTRANS); // Period
 			ST_DrawPadNumFromHud(HUD_TICS, tictrn, 2, V_HUDTRANS); // Tics
@@ -826,7 +826,7 @@ static void ST_drawLivesArea(void)
 		// skincolor face/super
 		UINT8 *colormap = R_GetTranslationColormap(stplyr->skin, stplyr->mo->color, GTC_CACHE);
 		patch_t *face = faceprefix[stplyr->skin];
-		if (stplyr->powers[pw_super])
+		if (stplyr->powers[pw_super] && !(stplyr->charflags & SF_NOSUPERSPRITES))
 			face = superprefix[stplyr->skin];
 		V_DrawSmallMappedPatch(hudinfo[HUD_LIVES].x, hudinfo[HUD_LIVES].y,
 			hudinfo[HUD_LIVES].f|V_PERPLAYER|V_HUDTRANS, face, colormap);
@@ -997,7 +997,7 @@ static void ST_drawLivesArea(void)
 
 static void ST_drawInput(void)
 {
-	const INT32 accent = V_SNAPTOLEFT|V_SNAPTOBOTTOM|(stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
+	const INT32 accent = V_SNAPTOLEFT|V_SNAPTOBOTTOM|(stplyr->skincolor ? skincolors[stplyr->skincolor].ramp[4] : 0);
 	INT32 col;
 	UINT8 offs;
 
@@ -1200,520 +1200,6 @@ static void ST_drawInput(void)
 		V_DrawThinString(x, y, hudinfo[HUD_LIVES].f|((leveltime & 4) ? V_YELLOWMAP : V_REDMAP), "BAD DEMO!!");
 }
 
-#ifdef TOUCHINPUTS
-
-#define SCALEBUTTONFIXED(touch) \
-	x = touch->x; \
-	y = touch->y; \
-	w = touch->w; \
-	h = touch->h; \
-	if (!touch->dontscale) \
-	{ \
-		x = FixedMul(x, dupx); \
-		y = FixedMul(y, dupy); \
-		w = FixedMul(w, dupx); \
-		h = FixedMul(h, dupy); \
-	}
-
-#define SCALEBUTTON(touch) \
-	SCALEBUTTONFIXED(touch) \
-	x /= FRACUNIT; \
-	y /= FRACUNIT; \
-	w /= FRACUNIT; \
-	h /= FRACUNIT;
-
-#define drawfill(dx, dy, dw, dh, dcol, dflags) \
-	if (alphalevel < 10) \
-		V_DrawFadeFill(dx, dy, dw, dh, dflags, dcol, alphalevel); \
-	else \
-		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
-
-void ST_drawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags)
-{
-	fixed_t x, y, w, h;
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
-	fixed_t xscale, yscale;
-	patch_t *backing = W_CachePatchLongName("JOY_BACKING", PU_PATCH);
-
-	// generate colormap
-	static UINT8 *colormap = NULL;
-	static UINT8 lastcolor = 0;
-	size_t colsize = 256 * sizeof(UINT8);
-
-	if (colormap == NULL)
-		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
-	if (color != lastcolor)
-	{
-		memset(colormap, color, colsize);
-		lastcolor = color;
-	}
-
-	// scale coords
-	x = FixedMul(padx, dupx);
-	y = FixedMul(pady, dupy);
-	w = FixedMul(padw, dupx);
-	h = FixedMul(padh, dupy);
-
-	xscale = FixedMul(FixedDiv(padw, SHORT(backing->width)*FRACUNIT), scale);
-	yscale = FixedMul(FixedDiv(padh, SHORT(backing->height)*FRACUNIT), scale);
-
-	// draw backing
-	V_DrawStretchyFixedPatch(
-		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(backing->width) * vid.dupx) / 2) * xscale)),
-		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(backing->height) * vid.dupy) / 2) * yscale)),
-		xscale, yscale, flags, backing, colormap);
-}
-
-void ST_drawTouchDPad(
-					fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
-					touchconfig_t *tleft, boolean moveleft,
-					touchconfig_t *tright, boolean moveright,
-					touchconfig_t *tup, boolean moveup,
-					touchconfig_t *tdown, boolean movedown,
-					boolean backing, INT32 flags, INT32 accent)
-{
-	INT32 x, y, w, h;
-	fixed_t dupx = vid.dupx * FRACUNIT;
-	fixed_t dupy = vid.dupy * FRACUNIT;
-	const INT32 shadow = max(1, FixedInt(FixedMul(dupy, touch_gui_scale) + (FRACUNIT / 2)));
-	const UINT32 alphalevel = (10 - ((flags & V_ALPHAMASK) >> V_ALPHASHIFT));
-	INT32 col, offs;
-	INT32 base, ybase;
-	INT32 xslant, yslant;
-	INT32 udw;
-	INT32 i, j;
-
-#define SCALEPAD(touch) \
-	SCALEBUTTON(touch); \
-	xslant = FixedMul(FixedDiv(touch->w, 2 * FRACUNIT), dupx) / FRACUNIT; \
-	yslant = FixedMul(FixedDiv(touch->h, 2 * FRACUNIT), dupy) / FRACUNIT; \
-
-	// O backing
-	if (backing)
-		ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
-
-	if (vid.dupx == 1)
-		udw = 2;
-	else
-		udw = vid.dupx * 3;
-	udw = FixedInt(FixedMul(udw * FRACUNIT, touch_gui_scale));
-
-	// <
-	SCALEPAD(tleft);
-
-	base = (w - xslant);
-	ybase = (y + h) - vid.dupy;
-
-#define drawleftbutton(color, offset) { \
-	drawfill(x, y+offset, base+(vid.dupx), h, color, flags); \
-	for (i = 0; i < xslant; i++) \
-		drawfill(x+base+i+(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color, flags); }
-
-	if (moveleft)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawleftbutton(29, shadow);
-	}
-
-	drawleftbutton(col, offs);
-
-	// ^
-	SCALEPAD(tup);
-
-	yslant /= 2;
-	yslant += (vid.dupy * 2) + 1;
-
-	base = w;
-	ybase = (y + h) - vid.dupy;
-
-#define drawupbutton(color, offset) { \
-	for (i = 0; i < yslant; i++) \
-		drawfill(x+i, y+offset, 1, (h-yslant)+i, color, flags); \
-	ybase = (h-yslant)+i; \
-	drawfill(x+i, y+offset, udw, ybase, color, flags); \
-	for (j = 0; j < yslant; j++) \
-		drawfill(x+i+j+udw, y+offset, 1, (ybase-(j+1)), color, flags); }
-
-	if (moveup)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawupbutton(29, shadow);
-	}
-
-	drawupbutton(col, offs);
-
-	// >
-	SCALEPAD(tright);
-
-	base = (w - xslant);
-	ybase = (y + h) - vid.dupy;
-
-#define drawrightbutton(color, offset) { \
-	drawfill(x+base-(vid.dupx), y+offset, base+(vid.dupx), h, color, flags); \
-	for (i = 0; i < xslant; i++) \
-		drawfill(x+(base-(vid.dupx))-i-(vid.dupx), (y+i)+offset, vid.dupx, h-(i*2), color, flags); }
-
-	if (moveright)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawrightbutton(29, shadow);
-	}
-
-	drawrightbutton(col, offs);
-
-	// v
-	SCALEPAD(tdown);
-
-	yslant /= 2;
-	yslant += (vid.dupy * 2) + 1;
-
-	base = w;
-	ybase = (y + h);
-
-#define drawdownbutton(color, offset) { \
-	for (i = 0; i < yslant; i++) \
-		drawfill(x+i, (y+(yslant-i)) + offset, 1, (h-yslant)+i, color, flags); \
-	ybase = (h-yslant)+i; \
-	drawfill(x+i, y+offset, udw, ybase, color, flags); \
-	for (j = 0; j < yslant; j++) \
-		drawfill(x+i+j+udw, ((y+(yslant-i))+j) + 1 + offset, 1, (ybase-(j+1)), color, flags); }
-
-	if (movedown)
-	{
-		col = accent;
-		offs = shadow;
-	}
-	else
-	{
-		col = 16;
-		offs = 0;
-		if (alphalevel >= 10)
-			drawdownbutton(29, shadow);
-	}
-
-	drawdownbutton(col, offs);
-
-#undef drawdownbutton
-#undef drawrightbutton
-#undef drawupbutton
-#undef drawleftbutton
-#undef SCALEPAD
-}
-
-void ST_drawTouchJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
-{
-	patch_t *cursor = W_CachePatchLongName("JOY_CURSOR", PU_PATCH);
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
-	fixed_t pressure = max(FRACUNIT/2, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
-
-	// generate colormap
-	static UINT8 *colormap = NULL;
-	static UINT8 lastcolor = 0;
-	size_t colsize = 256 * sizeof(UINT8);
-
-	if (colormap == NULL)
-		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
-	if (color != lastcolor)
-	{
-		memset(colormap, color, colsize);
-		lastcolor = color;
-	}
-
-	// scale coords
-	fixed_t x = FixedMul(dpadx, dupx);
-	fixed_t y = FixedMul(dpady, dupy);
-	fixed_t w = FixedMul(dpadw, dupx);
-	fixed_t h = FixedMul(dpadh, dupy);
-
-	float xmove, ymove;
-	fixed_t stickx, sticky;
-	joystickvector2_t *joy = &movejoystickvectors[0];
-
-	fixed_t basexscale = FixedDiv(dpadw, SHORT(cursor->width)*FRACUNIT);
-	fixed_t baseyscale = FixedDiv(dpadh, SHORT(cursor->height)*FRACUNIT);
-	fixed_t xscale = FixedMul(pressure, (basexscale / 2));
-	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
-	fixed_t xextend = TOUCHJOYEXTENDX;
-	fixed_t yextend = TOUCHJOYEXTENDY;
-
-	// set stick position
-	xmove = touchxmove;
-	if (joy->xaxis)
-		xmove += ((float)joy->xaxis / JOYAXISRANGE);
-
-	ymove = touchymove;
-	if (joy->yaxis)
-		ymove += ((float)joy->yaxis / JOYAXISRANGE);
-
-	stickx = max(-xextend, min(FixedMul(FLOAT_TO_FIXED(xmove), xextend), xextend));
-	sticky = max(-yextend, min(FixedMul(FLOAT_TO_FIXED(ymove), yextend), yextend));
-
-	// O backing
-	ST_drawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
-
-	// hole
-	V_DrawStretchyFixedPatch(
-		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * (basexscale / 4))),
-		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * (baseyscale / 4))),
-		(basexscale / 4), (baseyscale / 4), flags, cursor, NULL);
-
-	// stick
-	V_DrawStretchyFixedPatch(
-		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * xscale)) + (stickx * vid.dupx),
-		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * yscale)) + (sticky * vid.dupy),
-		xscale, yscale, flags, cursor, colormap);
-}
-
-//
-// Touch input in-game
-//
-
-static void ST_drawTouchGameInputButton(INT32 gctype, const char *str, INT32 keycol, const INT32 accent, INT32 alphalevel, INT32 flags)
-{
-	touchconfig_t *control = &touchcontrols[gctype];
-	INT32 x, y, w, h;
-	INT32 col, offs;
-	INT32 shadow = vid.dupy;
-	fixed_t dupx = vid.dupx * FRACUNIT;
-	fixed_t dupy = vid.dupy * FRACUNIT;
-
-	if (!control->hidden && !F_GetPromptHideHud(control->y / vid.dupy))
-	{
-		fixed_t strx, stry;
-		fixed_t strwidth, strheight;
-		INT32 strflags = (flags | V_ALLOWLOWERCASE);
-		boolean drawthin = false;
-		const char *defaultkeystr = control->name;
-		const char *optkeystr = ((str != NULL) ? str : NULL);
-		const char *keystr = ((optkeystr != NULL) ? optkeystr : defaultkeystr);
-
-		if (!keystr)
-			return;
-
-		SCALEBUTTON(control);
-
-		// Draw the button
-		if (touchcontroldown[gctype])
-		{
-			col = accent;
-			offs = shadow;
-		}
-		else
-		{
-			col = keycol;
-			offs = 0;
-			drawfill(x, y + h, w, shadow, 29, flags);
-		}
-		drawfill(x, y + offs, w, h, col, flags);
-
-		// Draw the button name
-		SCALEBUTTONFIXED(control);
-
-		// String width
-		strwidth = V_StringWidth(keystr, strflags) * FRACUNIT;
-		drawthin = ((strwidth + (2 * FRACUNIT)) >= w);
-
-		// Too long? Draw thinner string
-		if (drawthin)
-		{
-			fixed_t thinoffs = (FRACUNIT / 2);
-			strwidth = ((V_ThinStringWidth(keystr, strflags) * vid.dupx) * FRACUNIT) + thinoffs;
-
-			// Still too long? Draw abbreviated name
-			if (((strwidth+2) >= w) && (!optkeystr))
-			{
-				keystr = control->tinyname;
-				strwidth = V_StringWidth(keystr, strflags) * FRACUNIT;
-				drawthin = ((strwidth + (2 * FRACUNIT)) >= w);
-				if (drawthin)
-					strwidth = ((V_ThinStringWidth(keystr, strflags) * vid.dupx) * FRACUNIT) + thinoffs;
-			}
-		}
-
-		// String height
-		strheight = (8 * FRACUNIT);
-		if (drawthin)
-			strheight -= FRACUNIT;
-
-		strx = (x + (w / 2)) - (strwidth / 2);
-		stry = ((y + (h / 2)) - ((strheight * vid.dupy) / 2) + (offs * FRACUNIT));
-
-		if (drawthin)
-			V_DrawThinStringAtFixed(strx, stry, strflags, keystr);
-		else
-			V_DrawStringAtFixed(strx, stry, strflags, keystr);
-	}
-}
-
-void ST_drawTouchGameInput(boolean drawgamecontrols, INT32 alphalevel)
-{
-	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
-	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = (stplyr->skincolor ? Color_Index[stplyr->skincolor-1][4] : 0);
-
-	touchconfig_t *tleft = &touchcontrols[gc_strafeleft];
-	touchconfig_t *tright = &touchcontrols[gc_straferight];
-	touchconfig_t *tup = &touchcontrols[gc_forward];
-	touchconfig_t *tdown = &touchcontrols[gc_backward];
-
-	if (!alphalevel)
-		return;
-
-	if (!touch_screenexists)
-		return;
-
-	// Draw movement control
-	if (!promptblockcontrols && drawgamecontrols)
-	{
-		// Draw the d-pad
-		if (touch_movementstyle == tms_dpad)
-		{
-			ST_drawTouchDPad(
-				touch_dpad_x, touch_dpad_y,
-				touch_dpad_w, touch_dpad_h,
-				tleft, (stplyr->cmd.sidemove < 0),
-				tright, (stplyr->cmd.sidemove > 0),
-				tup, (stplyr->cmd.forwardmove > 0),
-				tdown, (stplyr->cmd.forwardmove < 0),
-				true, flags, accent);
-		}
-		else // Draw the joystick
-			ST_drawTouchJoystick(touch_dpad_x, touch_dpad_y, touch_dpad_w, touch_dpad_h, accent, flags);
-	}
-
-#define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
-#define drawbutton(gctype, str, keycol) ST_drawTouchGameInputButton(gctype, str, keycol, accent, alphalevel, flags)
-#define drawbutt(gctype) drawbutton(gctype, NULL, DEFAULTKEYCOL)
-#define drawbuttname(gctype, str) drawbutton(gctype, str, DEFAULTKEYCOL)
-#define drawcolbutt(gctype, col) drawbutton(gctype, NULL, col)
-
-	if (drawgamecontrols)
-	{
-		// Jump and spin
-		drawbutt(gc_jump);
-		drawbutt(gc_use);
-
-		// Fire and fire normal
-		drawbutt(gc_fire);
-		drawbutt(gc_firenormal);
-
-		// Toss flag
-		drawbutt(gc_tossflag);
-	}
-
-	//
-	// Non-control buttons
-	//
-
-	// Control panel
-	drawbutt(gc_systemmenu);
-
-	// Pause
-	drawbuttname(gc_pause, (paused ? "\x1D" : "II"));
-
-	// Spy mode
-	drawbutt(gc_viewpoint);
-
-	// Screenshot
-	drawbutt(gc_screenshot);
-
-	// Movie mode
-	drawcolbutt(gc_recordgif, (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
-
-	// Talk key and team talk key
-	drawbutt(gc_talkkey);
-	drawcolbutt(gc_teamkey, accent);
-
-#undef drawoffsbutt
-#undef drawcolbutt
-#undef drawbuttname
-#undef drawbutt
-#undef drawbutton
-#undef DEFAULTKEYCOL
-}
-
-//
-// Menu touch input
-//
-
-void ST_drawTouchMenuInput(void)
-{
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
-	const INT32 alphalevel = cv_touchmenutrans.value;
-	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
-	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = Color_Index[(cv_playercolor.value)-1][4];
-	const INT32 shadow = vid.dupy;
-	touchconfig_t *control;
-	INT32 col, offs;
-	INT32 x, y, w, h;
-	patch_t *font;
-
-	if (!alphalevel)
-		return;
-
-	if (!touch_screenexists)
-		return;
-
-#define drawbutt(keyname, symb) \
-	control = &touchnavigation[keyname]; \
-	if (!control->hidden) \
-	{ \
-		SCALEBUTTON(control); \
-		if (control->pressed > I_GetTime()) \
-		{ \
-			col = accent; \
-			offs = shadow; \
-		} \
-		else \
-		{ \
-			col = 16; \
-			offs = 0; \
-			if (alphalevel >= 10) \
-				V_DrawFill(x, y + h, w, shadow, 29|flags); \
-		} \
-		font = hu_font[toupper(symb) - HU_FONTSTART]; \
-		drawfill(x, y + offs, w, h, col, flags); \
-		V_DrawCharacter((x + (w / 2)) - ((SHORT(font->width)*vid.dupx) / 2), \
-						(y + (h / 2)) - ((SHORT(font->height)*vid.dupx) / 2) + offs, \
-						symb|flags, false); \
-	}
-
-	drawbutt(KEY_ESCAPE, 0x1C); // left arrow
-	drawbutt(KEY_ENTER, 0x1D); // right arrow
-	drawbutt(KEY_CONSOLE, '$');
-
-#undef drawbutt
-}
-
-#undef drawfill
-#undef SCALEBUTTON
-#endif
-
 static patch_t *lt_patches[3];
 static INT32 lt_scroll = 0;
 static INT32 lt_mom = 0;
@@ -1844,7 +1330,7 @@ void ST_drawTitleCard(void)
 {
 	char *lvlttl = mapheaderinfo[gamemap-1]->lvlttl;
 	char *subttl = mapheaderinfo[gamemap-1]->subttl;
-	INT32 actnum = mapheaderinfo[gamemap-1]->actnum;
+	UINT8 actnum = mapheaderinfo[gamemap-1]->actnum;
 	INT32 lvlttlxpos, ttlnumxpos, zonexpos;
 	INT32 subttlxpos = BASEVIDWIDTH/2;
 	INT32 ttlscroll = FixedInt(lt_scroll);
@@ -1901,7 +1387,12 @@ void ST_drawTitleCard(void)
 	if (actnum)
 	{
 		if (!splitscreen)
-			V_DrawMappedPatch(ttlnumxpos + ttlscroll, 104 - ttlscroll, 0, actpat, colormap);
+		{
+			if (actnum > 9) // slightly offset the act diamond for two-digit act numbers
+				V_DrawMappedPatch(ttlnumxpos + (V_LevelActNumWidth(actnum)/4) + ttlscroll, 104 - ttlscroll, 0, actpat, colormap);
+			else
+				V_DrawMappedPatch(ttlnumxpos + ttlscroll, 104 - ttlscroll, 0, actpat, colormap);
+		}
 		V_DrawLevelActNum(ttlnumxpos + ttlscroll, 104, V_PERPLAYER, actnum);
 	}
 
@@ -1964,7 +1455,7 @@ static void ST_drawPowerupHUD(void)
 // ---------
 
 	// Let's have a power-like icon to represent finishing the level!
-	if (stplyr->pflags & PF_FINISHED && cv_exitmove.value)
+	if (stplyr->pflags & PF_FINISHED && cv_exitmove.value && multiplayer)
 	{
 		finishoffs[q] = ICONSEP;
 		V_DrawSmallScaledPatch(offs, hudinfo[HUD_POWERUPS].y, V_PERPLAYER|hudinfo[HUD_POWERUPS].f|V_HUDTRANS, fnshico);
@@ -2214,14 +1705,14 @@ static void ST_drawNightsRecords(void)
 
 // 2.0-1: [21:42] <+Rob> Beige - Lavender - Steel Blue - Peach - Orange - Purple - Silver - Yellow - Pink - Red - Blue - Green - Cyan - Gold
 /*#define NUMLINKCOLORS 14
-static skincolors_t linkColor[NUMLINKCOLORS] =
+static skincolornum_t linkColor[NUMLINKCOLORS] =
 {SKINCOLOR_BEIGE,  SKINCOLOR_LAVENDER, SKINCOLOR_AZURE, SKINCOLOR_PEACH, SKINCOLOR_ORANGE,
  SKINCOLOR_MAGENTA, SKINCOLOR_SILVER, SKINCOLOR_SUPERGOLD4, SKINCOLOR_PINK,  SKINCOLOR_RED,
  SKINCOLOR_BLUE, SKINCOLOR_GREEN, SKINCOLOR_CYAN, SKINCOLOR_GOLD};*/
 
 // 2.2 indev list: (unix time 1470866042) <Rob> Emerald, Aqua, Cyan, Blue, Pastel, Purple, Magenta, Rosy, Red, Orange, Gold, Yellow, Peridot
 /*#define NUMLINKCOLORS 13
-static skincolors_t linkColor[NUMLINKCOLORS] =
+static skincolornum_t linkColor[NUMLINKCOLORS] =
 {SKINCOLOR_EMERALD, SKINCOLOR_AQUA, SKINCOLOR_CYAN, SKINCOLOR_BLUE, SKINCOLOR_PASTEL,
  SKINCOLOR_PURPLE, SKINCOLOR_MAGENTA, SKINCOLOR_ROSY, SKINCOLOR_RED,  SKINCOLOR_ORANGE,
  SKINCOLOR_GOLD, SKINCOLOR_YELLOW, SKINCOLOR_PERIDOT};*/
@@ -2230,7 +1721,7 @@ static skincolors_t linkColor[NUMLINKCOLORS] =
 // [20:00:25] <baldobo> Also Icy for the link freeze text color
 // [20:04:03] <baldobo> I would start it on lime
 /*#define NUMLINKCOLORS 18
-static skincolors_t linkColor[NUMLINKCOLORS] =
+static skincolornum_t linkColor[NUMLINKCOLORS] =
 {SKINCOLOR_LIME, SKINCOLOR_EMERALD, SKINCOLOR_AQUA, SKINCOLOR_CYAN, SKINCOLOR_SKY,
  SKINCOLOR_SAPPHIRE, SKINCOLOR_PASTEL, SKINCOLOR_PURPLE, SKINCOLOR_BUBBLEGUM, SKINCOLOR_MAGENTA,
  SKINCOLOR_ROSY, SKINCOLOR_RUBY, SKINCOLOR_RED, SKINCOLOR_FLAME, SKINCOLOR_SUNSET,
@@ -2238,7 +1729,7 @@ static skincolors_t linkColor[NUMLINKCOLORS] =
 
 // 2.2+ list for real this time: https://wiki.srb2.org/wiki/User:Rob/Sandbox (check history around 31/10/17, spoopy)
 #define NUMLINKCOLORS 12
-static skincolors_t linkColor[2][NUMLINKCOLORS] = {
+static skincolornum_t linkColor[2][NUMLINKCOLORS] = {
 {SKINCOLOR_EMERALD, SKINCOLOR_AQUA, SKINCOLOR_SKY, SKINCOLOR_BLUE, SKINCOLOR_PURPLE, SKINCOLOR_MAGENTA,
  SKINCOLOR_ROSY, SKINCOLOR_RED, SKINCOLOR_ORANGE, SKINCOLOR_GOLD, SKINCOLOR_YELLOW, SKINCOLOR_PERIDOT},
 {SKINCOLOR_SEAFOAM, SKINCOLOR_CYAN, SKINCOLOR_WAVE, SKINCOLOR_SAPPHIRE, SKINCOLOR_VAPOR, SKINCOLOR_BUBBLEGUM,
@@ -2249,7 +1740,7 @@ static void ST_drawNiGHTSLink(void)
 	static INT32 prevsel[2] = {0, 0}, prevtime[2] = {0, 0};
 	const UINT8 q = ((splitscreen && stplyr == &players[secondarydisplayplayer]) ? 1 : 0);
 	INT32 sel = ((stplyr->linkcount-1) / 5) % NUMLINKCOLORS, aflag = V_PERPLAYER, mag = ((stplyr->linkcount-1 >= 300) ? 1 : 0);
-	skincolors_t colornum;
+	skincolornum_t colornum;
 	fixed_t x, y, scale;
 
 	if (sel != prevsel[q])
@@ -2729,7 +2220,7 @@ static void ST_drawTextHUD(void)
 	if (F_GetPromptHideHud(y))
 		return;
 
-	if (stplyr->spectator && (gametype != GT_COOP || stplyr->playerstate == PST_LIVE))
+	if (stplyr->spectator && (!G_CoopGametype() || stplyr->playerstate == PST_LIVE))
 		textHUDdraw(M_GetText("\x86""Spectator mode:"))
 
 	if (circuitmap)
@@ -2740,7 +2231,7 @@ static void ST_drawTextHUD(void)
 			textHUDdraw(va("Lap:""\x82 %u/%d", stplyr->laps+1, cv_numlaps.value))
 	}
 
-	if (gametype != GT_COOP && (stplyr->exiting || (G_GametypeUsesLives() && stplyr->lives <= 0 && countdown != 1)))
+	if (!G_CoopGametype() && (stplyr->exiting || (G_GametypeUsesLives() && stplyr->lives <= 0 && countdown != 1)))
 	{
 		if (!splitscreen && !donef12)
 		{
@@ -2757,7 +2248,7 @@ static void ST_drawTextHUD(void)
 		else
 			textHUDdraw(M_GetText("\x82""JUMP:""\x80 Respawn"))
 	}
-	else if (stplyr->spectator && (gametype != GT_COOP || stplyr->playerstate == PST_LIVE))
+	else if (stplyr->spectator && (!G_CoopGametype() || stplyr->playerstate == PST_LIVE))
 	{
 		if (!splitscreen && !donef12)
 		{
@@ -2804,7 +2295,7 @@ static void ST_drawTextHUD(void)
 			textHUDdraw(M_GetText("\x82""FIRE:""\x80 Enter game"))
 	}
 
-	if (gametype == GT_COOP && (!stplyr->spectator || (!(maptol & TOL_NIGHTS) && G_IsSpecialStage(gamemap))) && (stplyr->exiting || (stplyr->pflags & PF_FINISHED)))
+	if (G_CoopGametype() && (!stplyr->spectator || (!(maptol & TOL_NIGHTS) && G_IsSpecialStage(gamemap))) && (stplyr->exiting || (stplyr->pflags & PF_FINISHED)))
 	{
 		UINT8 numneeded = (G_IsSpecialStage(gamemap) ? 4 : cv_playersforexit.value);
 		if (numneeded)
@@ -2853,20 +2344,19 @@ static void ST_drawTextHUD(void)
 					textHUDdraw(M_GetText("\x82""You are blindfolded!"))
 				textHUDdraw(M_GetText("Waiting for players to hide..."))
 			}
-			else if (gametype == GT_HIDEANDSEEK)
+			else if (gametyperules & GTR_HIDEFROZEN)
 				textHUDdraw(M_GetText("Hide before time runs out!"))
 			else
 				textHUDdraw(M_GetText("Flee before you are hunted!"))
 		}
-		else if (gametype == GT_HIDEANDSEEK && !(stplyr->pflags & PF_TAGIT))
+		else if ((gametyperules & GTR_HIDEFROZEN) && !(stplyr->pflags & PF_TAGIT))
 		{
 			if (!splitscreen && !donef12)
 			{
 				textHUDdraw(M_GetText("\x82""VIEWPOINT:""\x80 Switch view"))
 				donef12 = true;
 			}
-			if (gametyperules & GTR_HIDEFROZEN)
-				textHUDdraw(M_GetText("You cannot move while hiding."))
+			textHUDdraw(M_GetText("You cannot move while hiding."))
 		}
 	}
 
@@ -3148,11 +2638,11 @@ static void ST_overlayDrawer(void)
 	}
 
 	// GAME OVER hud
-	if ((gametype == GT_COOP)
+	if (G_GametypeUsesCoopLives()
 		&& (netgame || multiplayer)
 		&& (cv_cooplives.value == 0))
 	;
-	else if ((G_GametypeUsesLives() || gametype == GT_RACE) && stplyr->lives <= 0 && !(hu_showscores && (netgame || multiplayer)))
+	else if ((G_GametypeUsesLives() || ((gametyperules & (GTR_RACE|GTR_LIVES)) == GTR_RACE)) && stplyr->lives <= 0 && !(hu_showscores && (netgame || multiplayer)))
 	{
 		INT32 i = MAXPLAYERS;
 		INT32 deadtimer = stplyr->spectator ? TICRATE : (stplyr->deadtimer-(TICRATE<<1));
@@ -3276,7 +2766,7 @@ static void ST_overlayDrawer(void)
 		ST_drawInput();
 #ifdef TOUCHINPUTS
 	else if (G_InGameInput() && !demoplayback)
-		ST_drawTouchGameInput(drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
+		TS_DrawControls(touchcontrols, drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
 #endif
 
 	ST_drawDebugInfo();

@@ -80,17 +80,17 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 	glversion = pglGetString(GL_VERSION);
 	gl_extensions = pglGetString(GL_EXTENSIONS);
 
-	DBG_Printf("Vendor     : %s\n", glvendor);
-	DBG_Printf("Renderer   : %s\n", glrenderer);
-	DBG_Printf("Version    : %s\n", glversion);
-	DBG_Printf("Extensions : %s\n", gl_extensions);
+	GL_DBG_Printf("Vendor     : %s\n", glvendor);
+	GL_DBG_Printf("Renderer   : %s\n", glrenderer);
+	GL_DBG_Printf("Version    : %s\n", glversion);
+	GL_DBG_Printf("Extensions : %s\n", gl_extensions);
 
 	if (isExtAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
 		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
 	else
 		maximumAnisotropy = 1;
 
-	SetupGLFunc13();
+	SetupGLFunc4();
 
 	granisotropicmode_cons_t[1].value = maximumAnisotropy;
 

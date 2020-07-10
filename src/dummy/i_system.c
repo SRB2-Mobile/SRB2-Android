@@ -16,6 +16,11 @@ tic_t I_GetTime(void)
 	return 0;
 }
 
+int I_GetTimeMicros(void)
+{
+	return 0;
+}
+
 void I_Sleep(void){}
 
 void I_GetEvent(void){}
@@ -101,14 +106,6 @@ INT32 I_GetKey(void)
 {
 	return 0;
 }
-
-#ifdef TOUCHINPUTS
-void I_GetFinger(INT32 *x, INT32 *y)
-{
-	(void)x;
-	(void)y;
-}
-#endif
 
 void I_StartupTimer(void){}
 
