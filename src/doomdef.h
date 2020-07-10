@@ -160,7 +160,10 @@ extern char logfilename[1024];
 // Load Android assets
 #if defined(__ANDROID__)
 #define USE_ANDROID_PK3
+#define FORCE_INTERNAL_ANDROID_PK3
 #endif
+
+#define ANDROID_PK3_FILENAME "android.pk3"
 
 // Use .kart extension addons
 //#define USE_KART

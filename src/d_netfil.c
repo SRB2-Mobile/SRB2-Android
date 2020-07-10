@@ -139,7 +139,7 @@ UINT8 *PutFileNeeded(void)
 
 #ifdef USE_ANDROID_PK3
 		// Don't put android.pk3 in the list
-		if (!strcmp(wadfilename, "android.pk3"))
+		if (!strcmp(wadfilename, ANDROID_PK3_FILENAME))
 			continue;
 #endif
 
@@ -406,7 +406,7 @@ INT32 CL_CheckFiles(void)
 
 #ifdef USE_ANDROID_PK3
 			nameonly(strcpy(wadfilename, wadfiles[j]->filename));
-			if (!strcmp(wadfilename, "android.pk3"))
+			if (!strcmp(wadfilename, ANDROID_PK3_FILENAME))
 				important = false;
 #endif
 
@@ -1239,7 +1239,7 @@ void PT_FileFragment(void)
 		&& strcmp(filename, "patch.pk3")
 		&& strcmp(filename, "music.dta")
 #ifdef USE_ANDROID_PK3
-		&& strcmp(filename, "android.pk3")
+		&& strcmp(filename, ANDROID_PK3_FILENAME)
 #endif
 		))
 		I_Error("Tried to download \"%s\"", filename);

@@ -1111,7 +1111,7 @@ static void IdentifyVersion(void)
 
 #ifdef USE_ANDROID_PK3
 	// Android assets
-	D_AddFile(FILEPATH("android.pk3"));
+	D_AddFile(ANDROID_PK3_FILENAME);
 #endif
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
