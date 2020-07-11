@@ -707,7 +707,7 @@ static lumpinfo_t* ResGetLumpsZip (void* handle, UINT16* nlmp)
 }
 
 #ifdef DESCRIPTIVE_FILE_LOAD_ERROR
-static const char *fileloaderror = NULL;
+static char *fileloaderror = NULL;
 #endif
 
 void W_FileLoadError(const char *fmt, ...)
