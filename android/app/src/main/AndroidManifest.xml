@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
-    android:versionCode="2250"
-    android:versionName="2.2.5"
+    android:versionCode="2260"
+    android:versionName="2.2.6"
     android:installLocation="auto">
 
     <!-- OpenGL ES 1.1 -->
