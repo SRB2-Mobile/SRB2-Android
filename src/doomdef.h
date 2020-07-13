@@ -159,6 +159,7 @@ extern char logfilename[1024];
 
 // Load Android assets
 #if defined(__ANDROID__)
+#define UNPACK_FILES
 #define USE_ANDROID_PK3
 #define DESCRIPTIVE_FILE_LOAD_ERROR
 #endif

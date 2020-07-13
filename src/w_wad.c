@@ -152,12 +152,16 @@ static char filenamebuf[MAX_WADPATH];
 // Returns the file handle for the file, or NULL if not found or could not be opened
 // If "useerrors" is true then print errors in the console, else just don't bother
 // "filename" may be modified to have the correct path the actual file is located in, if necessary
-void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors)
+void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean mainfile, boolean useerrors)
 {
 	void *handle;
 
 #ifndef HAVE_WHANDLE
 	(void)type;
+#endif
+
+#if !(defined(UNPACK_FILES) && defined(__ANDROID__))
+	(void)mainfile;
 #endif
 
 	// Officially, strncpy should not have overlapping buffers, since W_VerifyNMUSlumps is called after this, and it
@@ -194,7 +198,40 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 			// Lactozilla: Search inside the app package.
 			handle = File_Open(*filename, "rb", type);
 			if (handle)
-				return handle;
+			{
+#ifdef UNPACK_FILES
+				if (mainfile)
+				{
+					if (W_UnpackFile(*filename, handle))
+					{
+						// close the current file handle
+						// (W_UnpackFile won't do that)
+						File_Close(handle);
+
+						// Give a notice that the file was unpacked
+						CONS_Alert(CONS_NOTICE, "Unpacked file %s\n", *filename);
+
+						handle = File_Open(va("%s"PATHSEP"%s", I_SystemLocateWad(), *filename), "rb", type);
+						if (handle)
+							return handle;
+						else
+						{
+							// Couldn't open unpacked file, load from APK
+							CONS_Alert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", *filename);
+							handle = File_Open(*filename, "rb", type);
+						}
+					}
+					else
+					{
+						// Couldn't unpack, load from APK
+						CONS_Alert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", *filename);
+						handle = File_Open(*filename, "rb", type);
+					}
+				}
+#endif
+				if (handle)
+					return handle;
+			}
 #endif
 			if (useerrors)
 				W_FileLoadError(M_GetText("File %s not found."), *filename);
@@ -203,6 +240,111 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 	}
 	return handle;
 }
+
+#ifdef UNPACK_FILES
+
+#define UNPACK_BUFFER_SIZE 4096
+
+// Unpacks a file into user storage.
+boolean W_UnpackFile(const char *filename, void *handle)
+{
+	FILE *f;
+	UINT8 buf[UNPACK_BUFFER_SIZE];
+	size_t fullsize, totalread = 0;
+	size_t read, write;
+	boolean success = true;
+
+	INT64 storagespace = 0;
+
+#ifdef UNPACK_FILES_PROGRESS
+	int status = -1, curstatus;
+	float fstatus;
+#endif
+
+	File_Seek(handle, 0, SEEK_END);
+	fullsize = File_Tell(handle);
+	File_Seek(handle, 0, SEEK_SET);
+
+	I_GetDiskFreeSpace(&storagespace);
+	if ((INT64)fullsize > storagespace)
+	{
+		CONS_Alert(CONS_ERROR, "W_UnpackFile: not enough available storage\n");
+		return false;
+	}
+
+	f = fopen(filename, "w+b");
+	if (!f)
+	{
+		CONS_Alert(CONS_ERROR, "W_UnpackFile: could not open file for unpacking\n");
+		return false;
+	}
+
+	while (totalread < fullsize)
+	{
+		read = File_Read(buf, 1, UNPACK_BUFFER_SIZE, handle);
+		totalread += read;
+
+#ifdef UNPACK_FILES_PROGRESS
+		fstatus = ((float)totalread / (float)fullsize);
+		curstatus = (int)(fstatus * 100.0f);
+		if (curstatus != status)
+		{
+			CONS_Printf("W_UnpackFile: %d%% done%s\n", curstatus, (curstatus == 100 ? "!" : "..."));
+			status = curstatus;
+		}
+#endif
+
+		if (!read)
+			break;
+
+		write = fwrite(buf, 1, read, f);
+		if (write != read)
+		{
+			success = false;
+			break;
+		}
+
+		if (File_EOF(handle))
+			break;
+	}
+
+	fclose(f);
+	return success;
+}
+
+#ifdef UNPACK_FILES_DEBUG
+void Command_Unpacktest_f(void)
+{
+	const char *waddir = I_SystemLocateWad();
+	void *handle = File_Open(va("%s"PATHSEP"%s", waddir, "srb2.pk3"), "rb", type);
+	if (!handle)
+	{
+		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't open file\n");
+		return;
+	}
+
+	if (W_UnpackFile(va("%s"PATHSEP"%s", waddir, "srb2-unpacked.pk3"), handle))
+	{
+		File_Close(handle);
+		handle = File_Open(va("%s"PATHSEP"%s", waddir, "srb2-unpacked.pk3"), "rb", type);
+
+		if (handle)
+		{
+			CONS_Alert(CONS_NOTICE, "Unpack test succeeded\n");
+			File_Close(handle);
+		}
+		else
+			CONS_Alert(CONS_ERROR, "Unpack test failed: unpacked file written, but could not open\n");
+	}
+	else
+	{
+		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't unpack\n");
+		File_Close(handle);
+	}
+}
+#endif
+
+#endif
 
 // Look for all DEHACKED and Lua scripts inside a PK3 archive.
 static inline void W_LoadDehackedLumpsPK3(UINT16 wadnum, boolean mainfile)
@@ -801,7 +943,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	}
 
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, handletype, true)) == NULL)
+	if ((handle = W_OpenWadFile(&filename, handletype, mainfile, true)) == NULL)
 		return W_InitFileError(filename, startup);
 
 	// Check if wad files will overflow fileneededbuffer. Only the filename part
@@ -2099,7 +2241,7 @@ static int W_VerifyFile(const char *filename, lumpchecklist_t *checklist,
 	if (!checklist)
 		I_Error("No checklist for %s\n", filename);
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, type, false)) == NULL)
+	if ((handle = W_OpenWadFile(&filename, type, false, false)) == NULL)
 		return -1;
 
 	if (stricmp(&filename[strlen(filename) - 4], ".pk3") == 0)

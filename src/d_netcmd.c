@@ -948,6 +948,9 @@ void D_RegisterClientCommands(void)
 #ifdef LUA_ALLOW_BYTECODE
 	COM_AddCommand("dumplua", Command_Dumplua_f);
 #endif
+#ifdef UNPACK_FILES_DEBUG
+	COM_AddCommand("unpacktest", Command_Unpacktest_f);
+#endif
 }
 
 /** Checks if a name (as received from another player) is okay.
@@ -3341,7 +3344,7 @@ static void Command_Addfile(void)
 #else
 		FILE *fhandle;
 
-		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, true)) != NULL)
+		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, false, true)) != NULL)
 		{
 			tic_t t = I_GetTime();
 			CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",fn);

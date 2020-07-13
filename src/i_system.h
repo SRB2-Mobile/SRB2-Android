@@ -308,6 +308,16 @@ const CPUInfoFlags *I_CPUInfo(void);
 */
 const char *I_LocateWad(void);
 
+/**	\brief The path to the main WAD from the first time I_LocateWad was called
+		\return initial path to main WAD
+*/
+const char *I_InitialLocateWad(void);
+
+/**	\brief Attempts to return the initial path, and returns the current path if that fails.
+		\return guessed path to main WAD
+*/
+const char *I_SystemLocateWad(void);
+
 /**	\brief Location of the application's storage (Android)
 		\return path to the external storage
 */

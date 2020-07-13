@@ -147,7 +147,7 @@ extern wadfile_t *wadfiles[MAX_WADFILES];
 void W_Shutdown(void);
 
 // Opens a WAD file. Returns the file handle for the file, or NULL if not found or could not be opened
-void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors);
+void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean mainfile, boolean useerrors);
 
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
 UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup);
@@ -158,6 +158,19 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles);
 // Prints an error in the console if something goes wrong while adding a file.
 // If it's an exit-worthy error, W_InitFileError will display such error message.
 void W_FileLoadError(const char *fmt, ...);
+
+#ifdef UNPACK_FILES
+
+// Unpacks a file into user storage.
+boolean W_UnpackFile(const char *filename, void *handle);
+
+#define UNPACK_FILES_PROGRESS
+
+#ifdef UNPACK_FILES_DEBUG
+void Command_Unpacktest_f(void);
+#endif
+
+#endif
 
 const char *W_CheckNameForNumPwad(UINT16 wad, UINT16 lump);
 const char *W_CheckNameForNum(lumpnum_t lumpnum);

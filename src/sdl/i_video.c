@@ -2220,7 +2220,6 @@ void I_SplashScreen(void)
 	void *filedata;
 	UINT32 *splash;
 	UINT32 swidth, sheight;
-	tic_t starttime;
 
 	CONS_Printf("Displaying splash screen\n");
 #endif
@@ -2273,13 +2272,16 @@ void I_SplashScreen(void)
 	rendermode = render_soft;
 
 	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
+#if defined(__ANDROID__)
 	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+#endif
 
 	// create a surface from the image
 	bufSurface = SDL_CreateRGBSurfaceFrom(splash, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	if (!bufSurface)
 	{
 		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
+		free(splash);
 		return;
 	}
 	else
@@ -2292,20 +2294,17 @@ void I_SplashScreen(void)
 		rect.w = swidth;
 		rect.h = sheight;
 
-		// draw for a single second
-		starttime = I_GetTime();
+		SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
+		SDL_LockSurface(vidSurface);
+		SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
+		SDL_UnlockSurface(vidSurface);
 
-		while (I_GetTime() < (starttime + TICRATE))
-		{
-			SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
-			SDL_LockSurface(vidSurface);
-			SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
-			SDL_UnlockSurface(vidSurface);
+		SDL_RenderClear(renderer);
+		SDL_RenderCopy(renderer, texture, NULL, NULL);
+		SDL_RenderPresent(renderer);
 
-			SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-			SDL_RenderPresent(renderer);
-		}
+		// display for a single second
+		SDL_Delay(1000);
 
 		// free splash screen image data
 		free(splash);

@@ -153,6 +153,11 @@ const char *I_LocateWad(void)
 	return NULL;
 }
 
+const char *I_InitialLocateWad(void)
+{
+	return NULL;
+}
+
 const char *I_StorageLocation(void)
 {
 	return NULL;

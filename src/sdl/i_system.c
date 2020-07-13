@@ -2997,12 +2997,14 @@ static const char *locateWad(void)
 	return NULL;
 }
 
+static const char *initialwaddir = NULL;
+
 const char *I_LocateWad(void)
 {
 	const char *waddir;
 
 	I_OutputMsg("Looking for WADs in: ");
-	waddir = locateWad();
+	waddir = initialwaddir = locateWad();
 	I_OutputMsg("\n");
 
 	if (waddir)
@@ -3015,7 +3017,25 @@ const char *I_LocateWad(void)
 			I_OutputMsg("Couldn't change working directory\n");
 #endif
 	}
+
 	return waddir;
+}
+
+const char *I_InitialLocateWad(void)
+{
+	return initialwaddir;
+}
+
+const char *I_SystemLocateWad(void)
+{
+	static char curpath[256];
+
+	if (initialwaddir)
+		return initialwaddir;
+	else if (getcwd(curpath, 256) != NULL)
+		return curpath;
+	else
+		return ".";
 }
 
 const char *I_StorageLocation(void)
