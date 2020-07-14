@@ -289,7 +289,7 @@ boolean W_UnpackFile(const char *filename, void *handle)
 		curstatus = (int)(fstatus * 100.0f);
 		if (curstatus != status)
 		{
-			CONS_Printf("W_UnpackFile: %d%% done%s\n", curstatus, (curstatus == 100 ? "!" : "..."));
+			W_UnpackReportProgress(curstatus);
 			status = curstatus;
 		}
 #endif
@@ -311,6 +311,16 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	fclose(f);
 	return success;
 }
+
+#ifdef UNPACK_FILES_PROGRESS
+void W_UnpackReportProgress(int progress)
+{
+#ifdef UNPACK_FILES_DEBUG
+	CONS_Printf("W_UnpackFile: %d%% done%s\n", progress, (progress == 100 ? "!" : "..."));
+#endif
+	I_ReportProgress(progress);
+}
+#endif
 
 #ifdef UNPACK_FILES_DEBUG
 void Command_Unpacktest_f(void)

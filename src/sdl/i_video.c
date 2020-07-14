@@ -151,6 +151,10 @@ static       SDL_bool    exposevideo = SDL_FALSE;
 static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 
+static boolean splash_screen = false;
+static UINT32 splash_width = 0, splash_height = 0;
+static UINT32 *splash_screen_image = NULL;
+
 // SDL2 vars
 SDL_Window   *window;
 SDL_Renderer *renderer;
@@ -1942,7 +1946,17 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 
-#ifdef SPLASH_SCREEN
+	// finish splash screen
+	if (splash_screen)
+		splash_screen = false;
+
+	// free splash screen image data
+	if (splash_screen_image)
+	{
+		free(splash_screen_image);
+		splash_screen_image = NULL;
+	}
+
 	// free old video surface
 	if (vidSurface)
 	{
@@ -1956,7 +1970,6 @@ void I_StartupGraphics(void)
 		SDL_FreeSurface(bufSurface);
 		bufSurface = NULL;
 	}
-#endif
 
 #ifdef HWRENDER
 	if (M_CheckParm("-opengl"))
@@ -2093,7 +2106,7 @@ void VID_StartupOpenGL(void)
 }
 
 //
-// Android splash screen
+// Splash screen
 //
 
 #if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
@@ -2218,8 +2231,9 @@ void I_SplashScreen(void)
 	struct SDL_RWops *file;
 	Sint64 filesize;
 	void *filedata;
-	UINT32 *splash;
 	UINT32 swidth, sheight;
+	SDL_Rect rect;
+	tic_t delay;
 
 	CONS_Printf("Displaying splash screen\n");
 #endif
@@ -2257,18 +2271,18 @@ void I_SplashScreen(void)
 	SDL_RWread(file, filedata, 1, filesize);
 	SDL_RWclose(file);
 
-	splash = LoadSplashScreenImage((UINT8 *)filedata, (size_t)filesize, &swidth, &sheight);
+	splash_screen_image = LoadSplashScreenImage((UINT8 *)filedata, (size_t)filesize, &swidth, &sheight);
 	free(filedata); // free the file data because it is not needed anymore
 
-	if (splash == NULL)
+	if (splash_screen_image == NULL)
 	{
 		CONS_Alert(CONS_ERROR, "failed to read the splash screen image");
 		return;
 	}
 
 	// create the window
-	vid.width = swidth;
-	vid.height = sheight;
+	vid.width = splash_width = swidth;
+	vid.height = splash_height = sheight;
 	rendermode = render_soft;
 
 	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
@@ -2277,39 +2291,99 @@ void I_SplashScreen(void)
 #endif
 
 	// create a surface from the image
-	bufSurface = SDL_CreateRGBSurfaceFrom(splash, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+	bufSurface = SDL_CreateRGBSurfaceFrom(splash_screen_image, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	if (!bufSurface)
 	{
 		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
-		free(splash);
 		return;
 	}
-	else
+
+	// display the splash screen image
+	splash_screen = true;
+
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = swidth;
+	rect.h = sheight;
+
+	SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
+	SDL_LockSurface(vidSurface);
+	SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
+	SDL_UnlockSurface(vidSurface);
+
+	// display for a single second
+	delay = I_GetTime() + NEWTICRATE;
+	while (I_GetTime() < delay)
 	{
-		// display the splash screen image
-		SDL_Rect rect;
-
-		rect.x = 0;
-		rect.y = 0;
-		rect.w = swidth;
-		rect.h = sheight;
-
-		SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
-		SDL_LockSurface(vidSurface);
-		SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
-		SDL_UnlockSurface(vidSurface);
-
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 		SDL_RenderPresent(renderer);
-
-		// display for a single second
-		SDL_Delay(1000);
-
-		// free splash screen image data
-		free(splash);
 	}
 #endif
+}
+
+void I_ReportProgress(int progress)
+{
+	SDL_Rect base, back, front;
+	const int progress_height = (vid.height / 10);
+	float fprogress;
+
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_RenderClear(renderer);
+
+	base.x = 0;
+	base.y = 0;
+	base.w = vid.width;
+	base.h = vid.height;
+
+	if (splash_screen)
+	{
+		if (bufSurface && vidSurface)
+		{
+			SDL_BlitSurface(bufSurface, NULL, vidSurface, &base);
+			SDL_LockSurface(vidSurface);
+			SDL_UpdateTexture(texture, &base, vidSurface->pixels, vidSurface->pitch);
+			SDL_UnlockSurface(vidSurface);
+			SDL_RenderCopy(renderer, texture, NULL, NULL);
+		}
+	}
+	else
+		I_FinishUpdate();
+
+	// dim screen
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128);
+	SDL_RenderFillRect(renderer, &base);
+
+	// render back of progress bar
+	back.x = 0;
+	back.y = splash_height - progress_height;
+	back.w = splash_width;
+	back.h = progress_height;
+
+	SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+	SDL_RenderFillRect(renderer, &back);
+
+	// render front of progress bar
+	front.x = back.x;
+	front.y = back.y;
+	front.h = back.h;
+
+	fprogress = ((float)progress / 100.0f);
+	front.w = (int)((float)splash_width * fprogress);
+
+	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+	SDL_RenderFillRect(renderer, &front);
+
+	// reset color
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+	// display
+	SDL_RenderPresent(renderer);
+
+	// makes the border black
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 }
 
 void I_ShutdownGraphics(void)

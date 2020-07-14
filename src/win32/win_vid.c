@@ -958,6 +958,11 @@ void VID_CheckGLLoaded(rendermode_t oldrender)
 	(void)oldrender;
 }
 
+void I_ReportProgress(int progress)
+{
+	(void)progress;
+}
+
 // ========================================================================
 // Free the video buffer of the last video mode,
 // allocate a new buffer for the video mode to set.

@@ -69,3 +69,8 @@ void I_BeginRead(void){}
 
 void I_EndRead(void){}
 
+void I_ReportProgress(int progress)
+{
+	(void)progress;
+}
+

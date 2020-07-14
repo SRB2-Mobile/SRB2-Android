@@ -159,12 +159,18 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles);
 // If it's an exit-worthy error, W_InitFileError will display such error message.
 void W_FileLoadError(const char *fmt, ...);
 
+// File unpacking
 #ifdef UNPACK_FILES
 
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle);
 
 #define UNPACK_FILES_PROGRESS
+
+// Reports unpacking progress
+#ifdef UNPACK_FILES_PROGRESS
+void W_UnpackReportProgress(int progress);
+#endif
 
 #ifdef UNPACK_FILES_DEBUG
 void Command_Unpacktest_f(void);

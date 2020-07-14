@@ -155,4 +155,8 @@ void I_BeginRead(void);
 */
 void I_EndRead(void);
 
+/**	\brief Report visual progress for some long operation
+*/
+void I_ReportProgress(int progress);
+
 #endif
