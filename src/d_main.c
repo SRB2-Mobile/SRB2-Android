@@ -993,6 +993,10 @@ static inline void D_CleanFile(void)
 		free(startupwadfiles[pnumwadfiles]);
 		startupwadfiles[pnumwadfiles] = NULL;
 	}
+
+#ifdef UNPACK_FILES_PROGRESS
+	UnpackFile_ProgressClear();
+#endif
 }
 
 ///\brief Checks if a netgame URL is being handled, and changes working directory to the EXE's if so.

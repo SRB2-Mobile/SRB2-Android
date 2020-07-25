@@ -165,11 +165,24 @@ void W_FileLoadError(const char *fmt, ...);
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle);
 
+// Checks if a file can be unpacked.
+boolean W_CanUnpackFile(const char *filename);
+
+#define UNPACK_BUFFER_SIZE 4096
 #define UNPACK_FILES_PROGRESS
 
 // Reports unpacking progress
 #ifdef UNPACK_FILES_PROGRESS
-void W_UnpackReportProgress(int progress);
+typedef struct unpack_progress_s
+{
+	int status;
+	int totalfiles;
+} unpack_progress_t;
+extern unpack_progress_t unpack_progress;
+
+void UnpackFile_ProgressClear(void);
+void UnpackFile_ProgressSetTotalFiles(int files);
+void UnpackFile_ProgressReport(int progress);
 #endif
 
 #ifdef UNPACK_FILES_DEBUG

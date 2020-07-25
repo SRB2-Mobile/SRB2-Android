@@ -1575,7 +1575,7 @@ static void Snake_HandleFingerEvent(touchfinger_t *finger, event_t *event)
 	INT32 x = finger->x / vid.dupx;
 	INT32 y = finger->y / vid.dupy;
 
-	INT32 sides = (BASEVIDWIDTH / 3);
+	INT32 scrsides = (BASEVIDWIDTH / 3);
 	INT32 snakex = (SNAKE_LEFT_X + SNAKE_BORDER_SIZE + snake->snakex[0] * SNAKE_BLOCK_SIZE + SNAKE_BLOCK_SIZE / 2);
 	INT32 snakey = (SNAKE_TOP_Y  + SNAKE_BORDER_SIZE + snake->snakey[0] * SNAKE_BLOCK_SIZE + SNAKE_BLOCK_SIZE / 2);
 
@@ -1586,7 +1586,7 @@ static void Snake_HandleFingerEvent(touchfinger_t *finger, event_t *event)
 			if (snake->gameover)
 				finger->extra.snake = KEY_ENTER;
 			// Handle horizontal input
-			else if (x < sides || x >= (BASEVIDWIDTH - sides))
+			else if (x < scrsides || x >= (BASEVIDWIDTH - scrsides))
 			{
 				if (x >= snakex)
 					finger->extra.snake = KEY_RIGHTARROW;

@@ -242,9 +242,6 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean mainfile,
 }
 
 #ifdef UNPACK_FILES
-
-#define UNPACK_BUFFER_SIZE 4096
-
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle)
 {
@@ -253,6 +250,8 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	size_t fullsize, totalread = 0;
 	size_t read, write;
 	boolean success = true;
+
+	unpack_progress_t *progress = &unpack_progress;
 
 	INT64 storagespace = 0;
 
@@ -287,9 +286,18 @@ boolean W_UnpackFile(const char *filename, void *handle)
 #ifdef UNPACK_FILES_PROGRESS
 		fstatus = ((float)totalread / (float)fullsize);
 		curstatus = (int)(fstatus * 100.0f);
+
 		if (curstatus != status)
 		{
-			W_UnpackReportProgress(curstatus);
+			if (progress->totalfiles)
+			{
+				int diff = (curstatus - status);
+				progress->status += diff;
+				UnpackFile_ProgressReport(min(progress->status / progress->totalfiles, 100));
+			}
+			else
+				UnpackFile_ProgressReport(curstatus);
+
 			status = curstatus;
 		}
 #endif
@@ -312,31 +320,89 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	return success;
 }
 
+// Checks if a file can be unpacked.
+boolean W_CanUnpackFile(const char *filename)
+{
+#if defined(__ANDROID__)
+	void *handle = NULL;
+	char fname[MAX_WADPATH];
+	boolean canunpack = false;
+
+	strncpy(fname, filename, MAX_WADPATH);
+	fname[MAX_WADPATH - 1] = '\0';
+
+	// Check if the specified path contains the file
+	// If it does not, continue checking
+	if ((handle = File_Open(fname, "rb", type)) == NULL)
+	{
+		// Remove the path from the filename,
+		// leaving only the resource's name itself
+		nameonly(fname);
+
+		// Search through the filesystem
+		// If it was not found, continue checking
+		if (!findfile(fname, NULL, true))
+		{
+			handle = File_Open(fname, "rb", type);
+			if (handle) // If it is found in the application package, it can be unpacked
+				canunpack = true;
+		}
+	}
+
+	if (handle)
+		File_Close(handle);
+	return canunpack;
+#else
+	(void)filename;
+	return false;
+#endif
+}
+
 #ifdef UNPACK_FILES_PROGRESS
-void W_UnpackReportProgress(int progress)
+unpack_progress_t unpack_progress;
+
+void UnpackFile_ProgressClear(void)
 {
 #ifdef UNPACK_FILES_DEBUG
-	CONS_Printf("W_UnpackFile: %d%% done%s\n", progress, (progress == 100 ? "!" : "..."));
+	CONS_Printf("UnpackFile_ProgressClear: cleared all progress\n");
+#endif
+	unpack_progress.status = 0;
+	unpack_progress.totalfiles = 0;
+}
+
+void UnpackFile_ProgressSetTotalFiles(int files)
+{
+#ifdef UNPACK_FILES_DEBUG
+	CONS_Printf("UnpackFile_ProgressSetTotalFiles: file count set to %d\n", files);
+#endif
+	unpack_progress.totalfiles = files;
+}
+
+void UnpackFile_ProgressReport(int progress)
+{
+#ifdef UNPACK_FILES_DEBUG
+	CONS_Printf("UnpackFile_File: %d%% done%s\n", progress, (progress == 100 ? "!" : "..."));
 #endif
 	I_ReportProgress(progress);
 }
 #endif
 
 #ifdef UNPACK_FILES_DEBUG
-void Command_Unpacktest_f(void)
+static void UnpackFile_Debug(const char *source, const char *dest)
 {
 	const char *waddir = I_SystemLocateWad();
-	void *handle = File_Open(va("%s"PATHSEP"%s", waddir, "srb2.pk3"), "rb", type);
+	void *handle = File_Open(va("%s"PATHSEP"%s", waddir, source), "rb", type);
+
 	if (!handle)
 	{
-		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't open file\n");
+		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't open file %s\n", source);
 		return;
 	}
 
-	if (W_UnpackFile(va("%s"PATHSEP"%s", waddir, "srb2-unpacked.pk3"), handle))
+	if (W_UnpackFile(va("%s"PATHSEP"%s", waddir, dest), handle))
 	{
 		File_Close(handle);
-		handle = File_Open(va("%s"PATHSEP"%s", waddir, "srb2-unpacked.pk3"), "rb", type);
+		handle = File_Open(va("%s"PATHSEP"%s", waddir, dest), "rb", type);
 
 		if (handle)
 		{
@@ -348,9 +414,20 @@ void Command_Unpacktest_f(void)
 	}
 	else
 	{
-		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't unpack\n");
+		CONS_Alert(CONS_ERROR, "Unpack test failed: couldn't unpack %s\n", source);
 		File_Close(handle);
 	}
+}
+
+void Command_Unpacktest_f(void)
+{
+	UnpackFile_ProgressClear();
+	UnpackFile_ProgressSetTotalFiles(4);
+
+	UnpackFile_Debug("srb2.pk3", "srb2-unpacked.pk3");
+	UnpackFile_Debug("zones.pk3", "zones-unpacked.pk3");
+	UnpackFile_Debug("player.dta", "player-unpacked.dta");
+	UnpackFile_Debug("music.dta", "music-unpacked.dta");
 }
 #endif
 
@@ -1097,20 +1174,38 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
   */
 void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 {
+	fhandletype_t handletype = FILEHANDLE_STANDARD;
+
+#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
+	// All files added at startup are handled by SDL_RWops and can be loaded from the inside the APK.
+	// This also means that any file added with -file can be loaded from the package's assets folder.
+	handletype = FILEHANDLE_SDL;
+#endif
+
 	// open all the files, load headers, and count lumps
 	numwadfiles = 0;
+
+#if defined(__ANDROID__) && defined(UNPACK_FILES)
+	// Count the total number of files to unpack
+	{
+		char **testunpack = filenames;
+		int totalfiles = 0;
+
+		UnpackFile_ProgressClear();
+
+		for (; *testunpack; testunpack++)
+		{
+			if (W_CanUnpackFile(*testunpack))
+				totalfiles++;
+		}
+
+		UnpackFile_ProgressSetTotalFiles(totalfiles);
+	}
+#endif
 
 	// will be realloced as lumps are added
 	for (; *filenames; filenames++)
 	{
-		fhandletype_t handletype = FILEHANDLE_STANDARD;
-
-#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
-		// All files added at startup are handled by SDL_RWops and can be loaded from the inside the APK.
-		// This also means that any file added with -file can be loaded from the package's assets folder.
-		handletype = FILEHANDLE_SDL;
-#endif
-
 		//CONS_Debug(DBG_SETUP, "Loading %s\n", *filenames);
 		W_InitFile(*filenames, handletype, (numwadfiles < mainfiles), true);
 	}

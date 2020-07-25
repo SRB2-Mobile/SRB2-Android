@@ -3538,10 +3538,10 @@ boolean M_Responder(event_t *ev)
 				else // Handle screen regions
 				{
 					// 1/4 of the screen
-					INT32 sides = (vid.width / 4);
+					INT32 scrsides = (vid.width / 4);
 
 					// Handle horizontal input
-					if (x < sides || x >= (vid.width - sides))
+					if (x < scrsides || x >= (vid.width - scrsides))
 					{
 						if (x >= (vid.width / 2))
 							finger->u.keyinput = KEY_RIGHTARROW;

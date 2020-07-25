@@ -236,19 +236,6 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	fixed_t dupy = vid.dupy*FRACUNIT;
 	fixed_t pressure = max(FRACUNIT/2, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
 
-	// generate colormap
-	static UINT8 *colormap = NULL;
-	static UINT8 lastcolor = 0;
-	size_t colsize = 256 * sizeof(UINT8);
-
-	if (colormap == NULL)
-		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
-	if (color != lastcolor)
-	{
-		memset(colormap, color, colsize);
-		lastcolor = color;
-	}
-
 	// scale coords
 	fixed_t x = FixedMul(dpadx, dupx);
 	fixed_t y = FixedMul(dpady, dupy);
@@ -265,6 +252,19 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	fixed_t yscale = FixedMul(pressure, (baseyscale / 2));
 	fixed_t xextend = TOUCHJOYEXTENDX;
 	fixed_t yextend = TOUCHJOYEXTENDY;
+
+	// generate colormap
+	static UINT8 *colormap = NULL;
+	static UINT8 lastcolor = 0;
+	size_t colsize = 256 * sizeof(UINT8);
+
+	if (colormap == NULL)
+		colormap = Z_Calloc(colsize, PU_STATIC, NULL);
+	if (color != lastcolor)
+	{
+		memset(colormap, color, colsize);
+		lastcolor = color;
+	}
 
 	TS_CenterCoords(&x, &y);
 

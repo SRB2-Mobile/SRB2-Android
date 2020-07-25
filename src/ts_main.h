@@ -216,7 +216,7 @@ boolean TS_FingerTouchesNavigationButton(INT32 x, INT32 y, touchconfig_t *btn);
 boolean TS_FingerTouchesJoystickArea(INT32 x, INT32 y);
 
 // Checks if the game control is a player control key
-boolean TS_ButtonIsPlayerControl(INT32 gamecontrol);
+boolean TS_ButtonIsPlayerControl(INT32 gc);
 
 // Scales a touch button
 void TS_ScaleCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale);

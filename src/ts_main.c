@@ -193,9 +193,9 @@ boolean TS_FingerTouchesJoystickArea(INT32 x, INT32 y)
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
-boolean TS_ButtonIsPlayerControl(INT32 gamecontrol)
+boolean TS_ButtonIsPlayerControl(INT32 gc)
 {
-	switch (gamecontrol)
+	switch (gc)
 	{
 		case gc_talkkey:
 		case gc_teamkey:
@@ -215,38 +215,38 @@ boolean TS_ButtonIsPlayerControl(INT32 gamecontrol)
 	return true;
 }
 
-static void HandleNonPlayerControlButton(INT32 gamecontrol)
+static void HandleNonPlayerControlButton(INT32 gc)
 {
 	// Handle menu button
-	if (gamecontrol == gc_systemmenu)
+	if (gc == gc_systemmenu)
 		M_StartControlPanel();
 	// Handle console button
-	else if (gamecontrol == gc_console)
+	else if (gc == gc_console)
 		CON_Toggle();
 	// Handle pause button
-	else if (gamecontrol == gc_pause)
+	else if (gc == gc_pause)
 		G_HandlePauseKey(true);
 	// Handle spy mode
-	else if (gamecontrol == gc_viewpoint)
+	else if (gc == gc_viewpoint)
 		G_DoViewpointSwitch();
 	// Handle screenshot
-	else if (gamecontrol == gc_screenshot)
+	else if (gc == gc_screenshot)
 		M_ScreenShot();
 	// Handle movie mode
-	else if (gamecontrol == gc_recordgif)
+	else if (gc == gc_recordgif)
 		((moviemode) ? M_StopMovie : M_StartMovie)();
 	// Handle chasecam toggle
-	else if (gamecontrol == gc_camtoggle)
+	else if (gc == gc_camtoggle)
 		G_ToggleChaseCam();
 	// Handle talk buttons
-	else if ((gamecontrol == gc_talkkey || gamecontrol == gc_teamkey) && netgame)
+	else if ((gc == gc_talkkey || gc == gc_teamkey) && netgame)
 	{
 		// Raise the screen keyboard if not muted
 		boolean raise = (!CHAT_MUTE);
 
 		// Only raise the screen keyboard in team games
 		// if you're assigned to any team
-		if (raise && (gamecontrol == gc_teamkey))
+		if (raise && (gc == gc_teamkey))
 			raise = (G_GametypeHasTeams() && (players[consoleplayer].ctfteam != 0));
 
 		// Do it (works with console chat)
