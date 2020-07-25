@@ -1946,10 +1946,6 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 
-	// finish splash screen
-	if (splash_screen)
-		splash_screen = false;
-
 	// free splash screen image data
 	if (splash_screen_image)
 	{
@@ -1980,6 +1976,22 @@ void I_StartupGraphics(void)
 
 	usesdl2soft = M_CheckParm("-softblit");
 	borderlesswindow = M_CheckParm("-borderless");
+
+	// finish splash screen
+	if (splash_screen)
+	{
+		splash_screen = false;
+#if defined(HWRENDER) && !defined(__ANDROID__)
+		// Destroy the window and the renderer
+		if (rendermode == render_opengl)
+		{
+			SDL_DestroyWindow(window);
+			SDL_DestroyRenderer(renderer);
+			window = NULL;
+			renderer = NULL;
+		}
+#endif
+	}
 
 	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	VID_Command_ModeList_f();
@@ -2328,6 +2340,19 @@ void I_ReportProgress(int progress)
 	const int progress_height = (vid.height / 10);
 	float fprogress;
 
+	// Offset the progress bar with the aspect ratio
+	int scrw, scrh;
+	float aspect[2];
+	float x = 0.0f;
+
+	SDL_GetWindowSize(window, &scrw, &scrh);
+
+	aspect[0] = ((float)scrw) / scrh;
+	aspect[1] = ((float)vid.width) / vid.height;
+
+	if (aspect[0] < aspect[1])
+		x = (aspect[0] / aspect[1]);
+
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	SDL_RenderClear(renderer);
@@ -2337,28 +2362,23 @@ void I_ReportProgress(int progress)
 	base.w = vid.width;
 	base.h = vid.height;
 
-	if (splash_screen)
+	if (rendermode == render_soft || splash_screen)
 	{
-		if (bufSurface && vidSurface)
-		{
-			SDL_BlitSurface(bufSurface, NULL, vidSurface, &base);
-			SDL_LockSurface(vidSurface);
-			SDL_UpdateTexture(texture, &base, vidSurface->pixels, vidSurface->pitch);
-			SDL_UnlockSurface(vidSurface);
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-		}
+		SDL_BlitSurface(bufSurface, NULL, vidSurface, &base);
+		SDL_LockSurface(vidSurface);
+		SDL_UpdateTexture(texture, &base, vidSurface->pixels, vidSurface->pitch);
+		SDL_UnlockSurface(vidSurface);
+		SDL_RenderCopy(renderer, texture, NULL, NULL);
 	}
-	else
-		I_FinishUpdate();
 
 	// dim screen
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128);
 	SDL_RenderFillRect(renderer, &base);
 
 	// render back of progress bar
-	back.x = 0;
-	back.y = splash_height - progress_height;
-	back.w = splash_width;
+	back.x = (int)x;
+	back.y = vid.height - progress_height;
+	back.w = vid.width;
 	back.h = progress_height;
 
 	SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
@@ -2370,7 +2390,7 @@ void I_ReportProgress(int progress)
 	front.h = back.h;
 
 	fprogress = ((float)progress / 100.0f);
-	front.w = (int)((float)splash_width * fprogress);
+	front.w = (int)((float)vid.width * fprogress);
 
 	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 	SDL_RenderFillRect(renderer, &front);
