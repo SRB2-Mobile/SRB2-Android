@@ -4863,7 +4863,7 @@ void P_DoBubbleBounce(player_t *player)
 	player->pflags |= PF_THOKKED;
 	player->pflags &= ~PF_STARTJUMP;
 	player->secondjump = UINT8_MAX;
-	player->mo->momz = FixedMul(player->mo->momz, 5*FRACUNIT/4);
+	player->mo->momz = FixedMul(player->mo->momz, 11*FRACUNIT/8);
 }
 
 //
@@ -5112,15 +5112,19 @@ static void P_DoJumpStuff(player_t *player, ticcmd_t *cmd)
 									boolean elem = ((player->powers[pw_shield] & SH_NOSTACK) == SH_ELEMENTAL);
 									player->pflags |= PF_THOKKED|PF_SHIELDABILITY;
 									if (elem)
+									{
+										player->mo->momx = player->mo->momy = 0;
 										S_StartSound(player->mo, sfx_s3k43);
+									}
 									else
 									{
+										player->mo->momx -= (player->mo->momx/3);
+										player->mo->momy -= (player->mo->momy/3);
 										player->pflags &= ~PF_NOJUMPDAMAGE;
 										P_SetPlayerMobjState(player->mo, S_PLAY_ROLL);
 										S_StartSound(player->mo, sfx_s3k44);
 									}
 									player->secondjump = 0;
-									player->mo->momx = player->mo->momy = 0;
 									P_SetObjectMomZ(player->mo, -24*FRACUNIT, false);
 									break;
 								}
@@ -5532,7 +5536,7 @@ static void P_DoJumpStuff(player_t *player, ticcmd_t *cmd)
 
 		if ((!(gametyperules & GTR_TEAMFLAGS) || !player->gotflag) && !player->exiting)
 		{
-			if (player->secondjump == 1 && player->charability != CA_DOUBLEJUMP)
+			if (player->secondjump == 1 && player->charability != CA_DOUBLEJUMP && player->charability != CA_THOK)
 			{
 				fixed_t potentialmomz;
 				if (player->charability == CA_SLOWFALL)
@@ -7885,7 +7889,7 @@ static void P_SkidStuff(player_t *player)
 
 //
 // P_MovePlayer
-static void P_MovePlayer(player_t *player)
+void P_MovePlayer(player_t *player)
 {
 	ticcmd_t *cmd;
 	INT32 i;
@@ -7971,20 +7975,13 @@ static void P_MovePlayer(player_t *player)
 	// Locate the capsule for this mare.
 	else if (maptol & TOL_NIGHTS)
 	{
-		if ((player->powers[pw_carry] == CR_NIGHTSMODE)
-		&& (player->exiting
-		|| !(player->mo->state >= &states[S_PLAY_NIGHTS_TRANS1]
-			&& player->mo->state < &states[S_PLAY_NIGHTS_TRANS6]))) // Note the < instead of <=
+		if (P_PlayerFullbright(player))
 		{
-			skin_t *skin = ((skin_t *)(player->mo->skin));
-			if (( skin->flags & (SF_SUPER|SF_NONIGHTSSUPER) ) == SF_SUPER)
-			{
-				player->mo->color = skin->supercolor
-					+ ((player->nightstime == player->startedtime)
-						? 4
-						: abs((((signed)leveltime >> 1) % 9) - 4)); // This is where super flashing is handled.
-				G_GhostAddColor(GHC_SUPER);
-			}
+			player->mo->color = ((skin_t *)player->mo->skin)->supercolor
+				+ ((player->nightstime == player->startedtime)
+					? 4
+					: abs((((signed)leveltime >> 1) % 9) - 4)); // This is where super flashing is handled.
+			G_GhostAddColor(GHC_SUPER);
 		}
 
 		if (!player->capsule && !player->bonustime)
@@ -10042,7 +10039,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	if (camorbit) //Sev here, I'm guessing this is where orbital cam lives
 	{
 #ifdef HWRENDER
-		if (rendermode == render_opengl && !cv_grshearing.value)
+		if (rendermode == render_opengl && !cv_glshearing.value)
 			distxy = FixedMul(dist, FINECOSINE((focusaiming>>ANGLETOFINESHIFT) & FINEMASK));
 		else
 #endif
@@ -12890,4 +12887,13 @@ void P_ForceLocalAngle(player_t *player, angle_t angle)
 		localangle = angle;
 	else if (player == &players[secondarydisplayplayer])
 		localangle2 = angle;
+}
+
+boolean P_PlayerFullbright(player_t *player)
+{
+	return (player->powers[pw_super]
+		|| ((player->powers[pw_carry] == CR_NIGHTSMODE && (((skin_t *)player->mo->skin)->flags & (SF_SUPER|SF_NONIGHTSSUPER)) == SF_SUPER) // Super colours? Super bright!
+		&& (player->exiting
+			|| !(player->mo->state >= &states[S_PLAY_NIGHTS_TRANS1]
+			&& player->mo->state < &states[S_PLAY_NIGHTS_TRANS6])))); // Note the < instead of <=
 }

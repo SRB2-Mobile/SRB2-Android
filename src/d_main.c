@@ -102,6 +102,10 @@ FILE *logstream = NULL;
 char logfilename[1024];
 #endif
 
+// Version numbers for netplay :upside_down_face:
+int    VERSION;
+int SUBVERSION;
+
 // platform independant focus loss
 UINT8 window_notinfocus = false;
 
@@ -648,7 +652,7 @@ static void D_Display(void)
 				V_DrawThinString(30, 70, V_MONOSPACE | V_YELLOWMAP, s);
 				snprintf(s, sizeof s - 1, "fin  %d", rs_swaptime / divisor);
 				V_DrawThinString(30, 80, V_MONOSPACE | V_YELLOWMAP, s);
-				if (cv_grbatching.value)
+				if (cv_glbatching.value)
 				{
 					snprintf(s, sizeof s - 1, "bsrt %d", rs_hw_batchsorttime / divisor);
 					V_DrawThinString(80, 55, V_MONOSPACE | V_REDMAP, s);
@@ -1195,6 +1199,21 @@ static inline void D_Titlebar(void)
 }
 #endif
 
+static void
+D_ConvertVersionNumbers (void)
+{
+	/* leave at defaults (0) under DEVELOP */
+#ifndef DEVELOP
+	int major;
+	int minor;
+
+	sscanf(SRB2VERSION, "%d.%d.%d", &major, &minor, &SUBVERSION);
+
+	/* this is stupid */
+	VERSION = ( major * 100 ) + minor;
+#endif
+}
+
 //
 // D_SRB2Main
 //
@@ -1204,6 +1223,9 @@ void D_SRB2Main(void)
 
 	INT32 pstartmap = 1;
 	boolean autostart = false;
+
+	/* break the version string into version numbers, for netplay */
+	D_ConvertVersionNumbers();
 
 	// Print GPL notice for our console users (Linux)
 	CONS_Printf(
