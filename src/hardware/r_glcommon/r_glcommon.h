@@ -93,4 +93,53 @@ struct GLRGBAFloat
 };
 typedef struct GLRGBAFloat GLRGBAFloat;
 
+#ifdef HAVE_GLES2
+typedef float fvector3_t[3];
+typedef float fvector4_t[4];
+typedef fvector4_t fmatrix4_t[4];
+
+extern fmatrix4_t projMatrix;
+extern fmatrix4_t viewMatrix;
+extern fmatrix4_t modelMatrix;
+
+enum
+{
+	LOC_POSITION  = 0,
+	LOC_TEXCOORD  = 1,
+	LOC_NORMAL    = 2,
+	LOC_COLORS    = 3,
+
+	LOC_TEXCOORD0 = LOC_TEXCOORD,
+	LOC_TEXCOORD1 = LOC_NORMAL
+};
+#endif
+
+/* 1.2 Parms */
+/* GL_CLAMP_TO_EDGE_EXT */
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+#ifndef GL_TEXTURE_MIN_LOD
+#define GL_TEXTURE_MIN_LOD 0x813A
+#endif
+#ifndef GL_TEXTURE_MAX_LOD
+#define GL_TEXTURE_MAX_LOD 0x813B
+#endif
+
+/* 1.3 GL_TEXTUREi */
+#ifndef GL_TEXTURE0
+#define GL_TEXTURE0 0x84C0
+#endif
+#ifndef GL_TEXTURE1
+#define GL_TEXTURE1 0x84C1
+#endif
+
+/* 1.5 Parms */
+#ifndef GL_ARRAY_BUFFER
+#define GL_ARRAY_BUFFER 0x8892
+#endif
+#ifndef GL_STATIC_DRAW
+#define GL_STATIC_DRAW 0x88E4
+#endif
+
 #endif // _R_GLCOMMON_H_

@@ -115,13 +115,12 @@ static loadfunc_t hwdFuncTable[] = {
 	{"SetTransform@4",      &hwdriver.pfnSetTransform},
 	{"GetTextureUsed@0",    &hwdriver.pfnGetTextureUsed},
 	{"GetRenderVersion@0",  &hwdriver.pfnGetRenderVersion},
-#ifdef SHUFFLE
 	{"PostImgRedraw@4",     &hwdriver.pfnPostImgRedraw},
-#endif
 	{"FlushScreenTextures@0",&hwdriver.pfnFlushScreenTextures},
 	{"StartScreenWipe@0",   &hwdriver.pfnStartScreenWipe},
 	{"EndScreenWipe@0",     &hwdriver.pfnEndScreenWipe},
 	{"DoScreenWipe@0",      &hwdriver.pfnDoScreenWipe},
+	{"DoTintedWipe@8",      &hwdriver.pfnDoTintedWipe},
 	{"DrawIntermissionBG@0",&hwdriver.pfnDrawIntermissionBG},
 	{"MakeScreenTexture@0", &hwdriver.pfnMakeScreenTexture},
 	{"MakeScreenFinalTexture@0", &hwdriver.pfnMakeScreenFinalTexture},
@@ -147,13 +146,12 @@ static loadfunc_t hwdFuncTable[] = {
 	{"SetTransform",        &hwdriver.pfnSetTransform},
 	{"GetTextureUsed",      &hwdriver.pfnGetTextureUsed},
 	{"GetRenderVersion",    &hwdriver.pfnGetRenderVersion},
-#ifdef SHUFFLE
 	{"PostImgRedraw",       &hwdriver.pfnPostImgRedraw},
-#endif
 	{"FlushScreenTextures", &hwdriver.pfnFlushScreenTextures},
 	{"StartScreenWipe",     &hwdriver.pfnStartScreenWipe},
 	{"EndScreenWipe",       &hwdriver.pfnEndScreenWipe},
 	{"DoScreenWipe",        &hwdriver.pfnDoScreenWipe},
+	{"DoTintedWipe",        &hwdriver.pfnDoTintedWipe},
 	{"DrawIntermissionBG",  &hwdriver.pfnDrawIntermissionBG},
 	{"MakeScreenTexture",   &hwdriver.pfnMakeScreenTexture},
 	{"MakeScreenFinalTexture", &hwdriver.pfnMakeScreenFinalTexture},

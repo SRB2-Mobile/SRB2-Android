@@ -141,7 +141,7 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(LUA_SOURCES)/lvm.c \
 
 # OpenGL
-LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c \
+LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles2.c \
 		$(HWR_SOURCES)/r_glcommon/r_glcommon.c $(HWR_SOURCES)/shaders/gl_shaders.c $(SDL2_SOURCES)/ogl_es_sdl.c \
 		$(HWR_SOURCES)/hw_batching.c \
 		$(HWR_SOURCES)/hw_bsp.c \
@@ -172,7 +172,7 @@ LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
 # Compile flags
 LOCAL_CFLAGS += -DUNIXCOMMON -DLINUX \
 				-DHAVE_SDL -DHAVE_MIXER \
-				-DHWRENDER -DHAVE_GLES \
+				-DHWRENDER -DHAVE_GLES -DHAVE_GLES2 \
 				-DTOUCHINPUTS -DDIRECTFULLSCREEN -DLOGCAT \
 				-DHAVE_ZLIB -DHAVE_BLUA -DHAVE_PNG \
 				-DHAVE_WHANDLE \

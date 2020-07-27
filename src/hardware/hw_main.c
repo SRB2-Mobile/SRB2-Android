@@ -212,6 +212,11 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 		poly_color.s.red = (UINT8)red;
 		poly_color.s.green = (UINT8)green;
 		poly_color.s.blue = (UINT8)blue;
+
+#ifdef HAVE_GLES2
+		tint_color.rgba = GL_DEFAULTMIX;
+		fade_color.rgba = GL_DEFAULTFOG;
+#endif
 	}
 
 	// Clamp the light level, since it can sometimes go out of the 0-255 range from animations
@@ -562,11 +567,11 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 		PolyFlags |= PF_Masked|PF_Modulated;
 
 	if (PolyFlags & PF_Fog)
-		shader = 6;	// fog shader
+		shader = SHADER_FOG;	// fog shader
 	else if (PolyFlags & PF_Ripple)
-		shader = 5;	// water shader
+		shader = SHADER_WATER;	// water shader
 	else
-		shader = 1;	// floor shader
+		shader = SHADER_FLOOR;	// floor shader
 
 	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, PolyFlags, shader, false);
 
@@ -763,7 +768,7 @@ static void HWR_DrawSegsSplats(FSurfaceInfo * pSurf)
 				break;
 		}
 
-		HWD.pfnSetShader(2);	// wall shader
+		HWD.pfnSetShader(SHADER_WALL);	// wall shader
 		HWD.pfnDrawPolygon(&pSurf, wallVerts, 4, i|PF_Modulated|PF_Decal);
 	}
 }
@@ -799,7 +804,7 @@ static void HWR_ProjectWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIEL
 {
 	HWR_Lighting(pSurf, lightlevel, wallcolormap);
 
-	HWR_ProcessPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude, 2, false); // wall shader
+	HWR_ProcessPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude, SHADER_WALL, false); // wall shader
 
 #ifdef WALLSPLATS
 	if (gl_curline->linedef->splats && cv_splats.value)
@@ -2858,7 +2863,7 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	else
 		blendmode |= PF_Masked|PF_Modulated|PF_Clip;
 
-	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode, 1, false); // floor shader
+	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode, SHADER_FLOOR, false); // floor shader
 }
 
 static void HWR_AddPolyObjectPlanes(void)
@@ -3670,7 +3675,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
 	HWR_Lighting(&sSurf, 0, colormap);
 	sSurf.PolyColor.s.alpha = alpha;
 
-	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated|PF_Clip, SHADER_SPRITE, false); // sprite shader
 }
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
@@ -3944,7 +3949,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr)
 
 		Surf.PolyColor.s.alpha = alpha;
 
-		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, SHADER_SPRITE, false); // sprite shader
 
 		if (use_linkdraw_hack)
 			HWR_LinkDrawHackAdd(wallVerts, spr);
@@ -3973,7 +3978,7 @@ static void HWR_SplitSprite(gl_vissprite_t *spr)
 
 	Surf.PolyColor.s.alpha = alpha;
 
-	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, SHADER_SPRITE, false); // sprite shader
 
 	if (use_linkdraw_hack)
 		HWR_LinkDrawHackAdd(wallVerts, spr);
@@ -4133,7 +4138,7 @@ static void HWR_DrawSprite(gl_vissprite_t *spr)
 			if (!occlusion) use_linkdraw_hack = true;
 		}
 
-		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, SHADER_SPRITE, false); // sprite shader
 
 		if (use_linkdraw_hack)
 			HWR_LinkDrawHackAdd(wallVerts, spr);
@@ -4235,7 +4240,7 @@ static inline void HWR_DrawPrecipitationSprite(gl_vissprite_t *spr)
 		blend = PF_Translucent|PF_Occlude;
 	}
 
-	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, SHADER_SPRITE, false); // sprite shader
 }
 #endif
 
@@ -4578,7 +4583,12 @@ static void HWR_CreateDrawNodes(void)
 
 	// Okay! Let's draw it all! Woo!
 	HWD.pfnSetTransform(&atransform);
+
+#ifdef HAVE_GLES2
+	HWD.pfnUnSetShader();
+#else
 	HWD.pfnSetShader(0);
+#endif
 
 	for (i = 0; i < p; i++)
 	{
@@ -5246,6 +5256,12 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.splitscreen = splitscreen;
 
 		HWR_GetTexture(texturetranslation[skytexture]);
+
+#ifdef HAVE_GLES2
+		HWD.pfnSetSpecialState(HWD_SET_SHADERS, 1);
+		HWD.pfnSetShader(SHADER_SKY);
+#endif
+
 		HWD.pfnRenderSkyDome(skytexture, textures[skytexture]->width, textures[skytexture]->height, dometransform);
 	}
 	else
@@ -5259,21 +5275,30 @@ static void HWR_DrawSkyBackground(player_t *player)
 		HWR_GetTexture(texturetranslation[skytexture]);
 		aspectratio = (float)vid.width/(float)vid.height;
 
-		//Hurdler: the sky is the only texture who need 4.0f instead of 1.0
-		//         because it's called just after clearing the screen
-		//         and thus, the near clipping plane is set to 3.99
-		// Sryder: Just use the near clipping plane value then
-
 		//  3--2
 		//  | /|
 		//  |/ |
 		//  0--1
+
+#ifdef HAVE_GLES2
+		v[0].x = v[3].x = -1.0f;
+		v[1].x = v[2].x =  1.0f;
+		v[0].y = v[1].y = -1.0f;
+		v[2].y = v[3].y =  1.0f;
+
+		v[0].z = v[1].z = v[2].z = v[3].z = 1.0f;
+#else
+		//Hurdler: the sky is the only texture who need 4.0f instead of 1.0
+		//         because it's called just after clearing the screen
+		//         and thus, the near clipping plane is set to 3.99
+		// Sryder: Just use the near clipping plane value then
 		v[0].x = v[3].x = -ZCLIP_PLANE-1;
 		v[1].x = v[2].x =  ZCLIP_PLANE+1;
 		v[0].y = v[1].y = -ZCLIP_PLANE-1;
 		v[2].y = v[3].y =  ZCLIP_PLANE+1;
 
 		v[0].z = v[1].z = v[2].z = v[3].z = ZCLIP_PLANE+1;
+#endif
 
 		// X
 
@@ -5327,9 +5352,18 @@ static void HWR_DrawSkyBackground(player_t *player)
 			v[0].t = v[1].t -= ((float) angle / angleturn);
 		}
 
-		HWD.pfnSetShader(7); // sky shader
+#ifdef HAVE_GLES2
+		HWD.pfnSetTransform(NULL);
+		HWD.pfnUnSetShader();
+#else
+		HWD.pfnSetShader(SHADER_SKY); // sky shader
+#endif
+
 		HWD.pfnDrawPolygon(NULL, v, 4, 0);
+
+#ifndef HAVE_GLES2
 		HWD.pfnSetShader(0);
+#endif
 	}
 }
 
@@ -5534,7 +5568,9 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_glshaders.value);
+#ifndef HAVE_GLES2
 	HWD.pfnSetShader(0);
+#endif
 
 	validcount++;
 
@@ -5747,7 +5783,9 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_glshaders.value);
+#ifndef HAVE_GLES2
 	HWD.pfnSetShader(0);
+#endif
 
 	rs_numbspcalls = 0;
 	rs_numpolyobjects = 0;
@@ -5836,6 +5874,9 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane
 	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
+#ifdef HAVE_GLES2
+	HWD.pfnSetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
+#endif
 }
 
 // ==========================================================================
@@ -6058,7 +6099,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 
 	pSurf->PolyColor.s.alpha = alpha; // put the alpha back after lighting
 
-	shader = 2;	// wall shader
+	shader = SHADER_WALL;	// wall shader
 
 	if (blend & PF_Environment)
 		blendmode |= PF_Occlude;	// PF_Occlude must be used for solid objects
@@ -6066,7 +6107,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 	if (fogwall)
 	{
 		blendmode |= PF_Fog;
-		shader = 6;	// fog shader
+		shader = SHADER_FOG;	// fog shader
 	}
 
 	blendmode |= PF_Modulated;	// No PF_Occlude means overlapping (incorrect) transparency
@@ -6102,9 +6143,15 @@ void HWR_DoPostProcessor(player_t *player)
 		FOutVector      v[4];
 		FSurfaceInfo Surf;
 
-		v[0].x = v[2].y = v[3].x = v[3].y = -4.0f;
-		v[0].y = v[1].x = v[1].y = v[2].x = 4.0f;
-		v[0].z = v[1].z = v[2].z = v[3].z = 4.0f; // 4.0 because of the same reason as with the sky, just after the screen is cleared so near clipping plane is 3.99
+#ifdef HAVE_GLES2
+		float quadpos = 1.0f;
+#else
+		float quadpos = 4.0f; // 4.0 because of the same reason as with the sky, just after the screen is cleared so near clipping plane is 3.99
+#endif
+
+		v[0].x = v[2].y = v[3].x = v[3].y = -quadpos;
+		v[0].y = v[1].x = v[1].y = v[2].x = quadpos;
+		v[0].z = v[1].z = v[2].z = v[3].z = quadpos;
 
 		// This won't change if the flash palettes are changed unfortunately, but it works for its purpose
 		if (player->flashpal == PAL_NUKE)
@@ -6236,8 +6283,16 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum)
 
 void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
 {
+#ifdef HAVE_GLES2
+	if (!HWR_WipeCheck(wipenum, scrnnum))
+		return;
+
+	HWR_GetFadeMask(wipelumpnum);
+	HWD.pfnDoTintedWipe((wipestyleflags & WSF_FADEIN), (wipestyleflags & WSF_TOWHITE));
+#else
 	// It does the same thing
 	HWR_DoWipe(wipenum, scrnnum);
+#endif
 }
 
 void HWR_MakeScreenFinalTexture(void)
@@ -6289,13 +6344,13 @@ void HWR_ReadShaders(UINT16 wadnum, boolean PK3)
 	#define SHADER_TYPES 7
 	shaderxlat_t shaderxlat[SHADER_TYPES] =
 	{
-		{"Flat", 1},
-		{"WallTexture", 2},
-		{"Sprite", 3},
-		{"Model", 4},
-		{"WaterRipple", 5},
-		{"Fog", 6},
-		{"Sky", 7},
+		{"Flat", SHADER_FLOOR},
+		{"WallTexture", SHADER_WALL},
+		{"Sprite", SHADER_SPRITE},
+		{"Model", SHADER_MODEL},
+		{"WaterRipple", SHADER_WATER},
+		{"Fog", SHADER_FOG},
+		{"Sky", SHADER_SKY},
 	};
 
 	lump = HWR_CheckShader(wadnum);

@@ -17,8 +17,6 @@
 #include "r_gles.h"
 #include "../r_opengl/r_vbo.h"
 
-#include "../shaders/gl_shaders.h"
-
 #if defined (HWRENDER) && !defined (NOROPENGL)
 
 static const GLfloat white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -226,28 +224,6 @@ static PFNglBufferData pglBufferData;
 typedef void (*PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
 static PFNglDeleteBuffers pglDeleteBuffers;
 
-/* 1.2 Parms */
-/* GL_CLAMP_TO_EDGE_EXT */
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-
-/* 1.3 GL_TEXTUREi */
-#ifndef GL_TEXTURE0
-#define GL_TEXTURE0 0x84C0
-#endif
-#ifndef GL_TEXTURE1
-#define GL_TEXTURE1 0x84C1
-#endif
-
-/* 1.5 Parms */
-#ifndef GL_ARRAY_BUFFER
-#define GL_ARRAY_BUFFER 0x8892
-#endif
-#ifndef GL_STATIC_DRAW
-#define GL_STATIC_DRAW 0x88E4
-#endif
-
 boolean SetupGLfunc(void)
 {
 #define GETOPENGLFUNC(func, proc) \
@@ -337,46 +313,46 @@ void SetupGLFunc4(void)
 	pglBindBuffer = GetGLFunc("glBindBuffer");
 	pglBufferData = GetGLFunc("glBufferData");
 	pglDeleteBuffers = GetGLFunc("glDeleteBuffers");
-
-#ifdef GL_SHADERS
-	Shader_SetupGLFunc();
-#endif
 }
 
 // jimita
 EXPORT boolean HWRAPI(LoadShaders) (void)
 {
-	return Shader_Compile();
+	return false;
 }
 
 EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
 {
-	Shader_SetInfo(info, value);
+	(void)info;
+	(void)value;
 }
 
 EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boolean fragment)
 {
-	Shader_LoadCustom(number, shader, size, fragment);
+	(void)number;
+	(void)shader;
+	(void)size;
+	(void)fragment;
 }
 
 EXPORT boolean HWRAPI(InitCustomShaders) (void)
 {
-	return Shader_InitCustom();
+	return false;
 }
 
 EXPORT void HWRAPI(SetShader) (int shader)
 {
-	Shader_Set(shader);
+	(void)shader;
 }
 
 EXPORT void HWRAPI(UnSetShader) (void)
 {
-	Shader_UnSet();
+
 }
 
 EXPORT void HWRAPI(KillShaders) (void)
 {
-	Shader_Kill();
+
 }
 
 // -----------------+
@@ -518,34 +494,6 @@ void Flush(void)
 	gr_cachetail = gr_cachehead = NULL; //Hurdler: well, gr_cachehead is already NULL
 
 	tex_downloaded = 0;
-}
-
-
-// -----------------+
-// isExtAvailable   : Look if an OpenGL extension is available
-// Returns          : true if extension available
-// -----------------+
-INT32 isExtAvailable(const char *extension, const GLubyte *start)
-{
-	GLubyte         *where, *terminator;
-
-	if (!extension || !start) return 0;
-	where = (GLubyte *) strchr(extension, ' ');
-	if (where || *extension == '\0')
-		return 0;
-
-	for (;;)
-	{
-		where = (GLubyte *) strstr((const char *) start, extension);
-		if (!where)
-			break;
-		terminator = where + strlen(extension);
-		if (where == start || *(where - 1) == ' ')
-			if (*terminator == ' ' || *terminator == '\0')
-				return 1;
-		start = terminator;
-	}
-	return 0;
 }
 
 
@@ -1049,8 +997,6 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
 		fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
 	}
-
-	Shader_Load(pSurf, &poly, &tint, &fade);
 }
 
 // -----------------+
@@ -1641,7 +1587,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	poly.alpha  = (Surface->PolyColor.s.alpha/255.0f);
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
-	if (model_lighting && (!gl_shadersenabled)) // doesn't work with shaders anyway
+	if (model_lighting)
 	{
 		ambient[0] = poly.red;
 		ambient[1] = poly.green;
@@ -1682,8 +1628,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.green = (Surface->FadeColor.s.green/255.0f);
 	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
 	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
-
-	Shader_Load(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);
@@ -1856,7 +1800,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	pglDisable(GL_NORMALIZE);
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
-	if (model_lighting && (!gl_shadersenabled))
+	if (model_lighting)
 	{
 		pglDisable(GL_LIGHTING);
 		pglShadeModel(GL_FLAT);

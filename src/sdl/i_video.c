@@ -2091,6 +2091,7 @@ void VID_StartupOpenGL(void)
 		HWD.pfnStartScreenWipe  = hwSym("StartScreenWipe",NULL);
 		HWD.pfnEndScreenWipe    = hwSym("EndScreenWipe",NULL);
 		HWD.pfnDoScreenWipe     = hwSym("DoScreenWipe",NULL);
+		HWD.pfnDoTintedWipe     = hwSym("DoTintedWipe",NULL);
 		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
 		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);

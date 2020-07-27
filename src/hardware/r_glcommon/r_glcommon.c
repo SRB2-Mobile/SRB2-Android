@@ -19,6 +19,33 @@
 #include <stdarg.h>
 
 // -----------------+
+// isExtAvailable   : Look if an OpenGL extension is available
+// Returns          : true if extension available
+// -----------------+
+INT32 isExtAvailable(const char *extension, const GLubyte *start)
+{
+	GLubyte         *where, *terminator;
+
+	if (!extension || !start) return 0;
+	where = (GLubyte *) strchr(extension, ' ');
+	if (where || *extension == '\0')
+		return 0;
+
+	for (;;)
+	{
+		where = (GLubyte *) strstr((const char *) start, extension);
+		if (!where)
+			break;
+		terminator = where + strlen(extension);
+		if (where == start || *(where - 1) == ' ')
+			if (*terminator == ' ' || *terminator == '\0')
+				return 1;
+		start = terminator;
+	}
+	return 0;
+}
+
+// -----------------+
 // GL_DBG_Printf    : Output debug messages to debug log if DEBUG_TO_FILE is defined,
 //                  : else do nothing
 // Returns          :
