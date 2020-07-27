@@ -152,7 +152,6 @@ static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 
 static boolean splash_screen = false;
-static UINT32 splash_width = 0, splash_height = 0;
 static UINT32 *splash_screen_image = NULL;
 
 // SDL2 vars
@@ -2294,8 +2293,8 @@ void I_SplashScreen(void)
 	}
 
 	// create the window
-	vid.width = splash_width = swidth;
-	vid.height = splash_height = sheight;
+	vid.width = swidth;
+	vid.height = sheight;
 	rendermode = render_soft;
 
 	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
