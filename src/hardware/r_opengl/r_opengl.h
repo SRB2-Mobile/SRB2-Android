@@ -27,7 +27,9 @@
 #pragma warning(disable : 4214 4244)
 #endif
 
+#ifndef HAVE_GLES2
 #include "SDL_opengl.h" //Alam_GBC: Simple, yes?
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(default : 4214 4244)
@@ -77,24 +79,6 @@ typedef BOOL (APIENTRY *PFNWGLEXTSWAPCONTROLPROC) (int);
 typedef int (APIENTRY *PFNWGLEXTGETSWAPINTERVALPROC) (void);
 extern PFNWGLEXTSWAPCONTROLPROC wglSwapIntervalEXT;
 extern PFNWGLEXTGETSWAPINTERVALPROC wglGetSwapIntervalEXT;
-#endif
-
-#ifdef STATIC_OPENGL
-#define pglClear glClear
-#define pglGetIntegerv glGetIntegerv
-#define pglGetString glGetString
-#else
-/* 1.0 Miscellaneous functions */
-typedef void (APIENTRY * PFNglClear) (GLbitfield mask);
-extern PFNglClear pglClear;
-typedef void (APIENTRY * PFNglGetIntegerv) (GLenum pname, GLint *params);
-extern PFNglGetIntegerv pglGetIntegerv;
-typedef const GLubyte* (APIENTRY  * PFNglGetString) (GLenum name);
-extern PFNglGetString pglGetString;
-#if 0
-typedef void (APIENTRY * PFNglEnableClientState) (GLenum cap); // redefined in r_opengl.c
-static PFNglEnableClientState pglEnableClientState;
-#endif
 #endif
 
 // ==========================================================================

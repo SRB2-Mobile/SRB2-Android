@@ -333,7 +333,7 @@ boolean W_CanUnpackFile(const char *filename)
 
 	// Check if the specified path contains the file
 	// If it does not, continue checking
-	if ((handle = File_Open(fname, "rb", type)) == NULL)
+	if ((handle = File_Open(fname, "rb", FILEHANDLE_SDL)) == NULL)
 	{
 		// Remove the path from the filename,
 		// leaving only the resource's name itself
@@ -343,7 +343,7 @@ boolean W_CanUnpackFile(const char *filename)
 		// If it was not found, continue checking
 		if (!findfile(fname, NULL, true))
 		{
-			handle = File_Open(fname, "rb", type);
+			handle = File_Open(fname, "rb", FILEHANDLE_SDL);
 			if (handle) // If it is found in the application package, it can be unpacked
 				canunpack = true;
 		}
@@ -391,7 +391,7 @@ void UnpackFile_ProgressReport(int progress)
 static void UnpackFile_Debug(const char *source, const char *dest)
 {
 	const char *waddir = I_SystemLocateWad();
-	void *handle = File_Open(va("%s"PATHSEP"%s", waddir, source), "rb", type);
+	void *handle = File_Open(va("%s"PATHSEP"%s", waddir, source), "rb", FILEHANDLE_SDL);
 
 	if (!handle)
 	{
@@ -402,7 +402,7 @@ static void UnpackFile_Debug(const char *source, const char *dest)
 	if (W_UnpackFile(va("%s"PATHSEP"%s", waddir, dest), handle))
 	{
 		File_Close(handle);
-		handle = File_Open(va("%s"PATHSEP"%s", waddir, dest), "rb", type);
+		handle = File_Open(va("%s"PATHSEP"%s", waddir, dest), "rb", FILEHANDLE_SDL);
 
 		if (handle)
 		{

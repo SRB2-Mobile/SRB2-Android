@@ -273,14 +273,18 @@ void Shader_Set(int shader)
 void Shader_UnSet(void)
 {
 #ifdef HAVE_GLES2
+	GLRGBAFloat white = {1.0f, 1.0f, 1.0f, 1.0f};
+
 	shader_current = shader_base;
 	pglUseProgram(shader_base->program);
+
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 #elif defined(GL_SHADERS)
 	gl_shadersenabled = false;
 	gl_currentshaderprogram = 0;
-	if (!pglUseProgram) return;
-	pglUseProgram(0);
+
+	if (pglUseProgram)
+		pglUseProgram(0);
 #endif
 }
 
@@ -473,7 +477,7 @@ boolean Shader_Compile(void)
 #endif
 }
 
-void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
+void *Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
 {
 #ifdef GL_SHADERS
 	if (gl_shadersenabled && pglUseProgram)
@@ -597,4 +601,13 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 	(void)tint;
 	(void)fade;
 #endif
+}
+
+void Shader_SetSampler(gl_shaderprogram_t *shader, gluniform_t uniform, GLint value)
+{
+	if (shader == NULL)
+		return;
+
+	if (shader->uniforms[uniform] != -1)
+		pglUniform1i(shader->uniforms[uniform], value);
 }

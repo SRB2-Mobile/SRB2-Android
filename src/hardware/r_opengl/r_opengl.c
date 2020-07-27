@@ -1323,7 +1323,7 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		pglColor4ubv(c);
 	}
 
-	Shader_Load(pSurf, &poly, &tint, &fade);
+	Shader_SetColors(pSurf, &poly, &tint, &fade);
 }
 
 // -----------------+
@@ -1973,7 +1973,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float[Surface->FadeColor.s.blue];
 	fade.alpha = byte2float[Surface->FadeColor.s.alpha];
 
-	Shader_Load(Surface, &poly, &tint, &fade);
+	Shader_SetColors(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);

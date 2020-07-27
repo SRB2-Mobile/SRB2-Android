@@ -89,91 +89,91 @@ static GLuint finalScreenTexture = 0;
 
 /* 1.0 functions */
 /* Miscellaneous */
-typedef void (APIENTRY * PFNglClearColor) (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+typedef void (*PFNglClearColor) (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 static PFNglClearColor pglClearColor;
-typedef void (APIENTRY * PFNglColorMask) (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+typedef void (*PFNglColorMask) (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
 static PFNglColorMask pglColorMask;
-typedef void (APIENTRY * PFNglAlphaFunc) (GLenum func, GLclampf ref);
+typedef void (*PFNglAlphaFunc) (GLenum func, GLclampf ref);
 static PFNglAlphaFunc pglAlphaFunc;
-typedef void (APIENTRY * PFNglBlendFunc) (GLenum sfactor, GLenum dfactor);
+typedef void (*PFNglBlendFunc) (GLenum sfactor, GLenum dfactor);
 static PFNglBlendFunc pglBlendFunc;
-typedef void (APIENTRY * PFNglCullFace) (GLenum mode);
+typedef void (*PFNglCullFace) (GLenum mode);
 static PFNglCullFace pglCullFace;
-typedef void (APIENTRY * PFNglPolygonOffset) (GLfloat factor, GLfloat units);
+typedef void (*PFNglPolygonOffset) (GLfloat factor, GLfloat units);
 static PFNglPolygonOffset pglPolygonOffset;
-typedef void (APIENTRY * PFNglEnable) (GLenum cap);
+typedef void (*PFNglEnable) (GLenum cap);
 static PFNglEnable pglEnable;
-typedef void (APIENTRY * PFNglDisable) (GLenum cap);
+typedef void (*PFNglDisable) (GLenum cap);
 static PFNglDisable pglDisable;
 
 /* Depth Buffer */
-typedef void (APIENTRY * PFNglClearDepth) (GLclampd depth);
+typedef void (*PFNglClearDepth) (GLclampf depth);
 static PFNglClearDepth pglClearDepth;
-typedef void (APIENTRY * PFNglDepthFunc) (GLenum func);
+typedef void (*PFNglDepthFunc) (GLenum func);
 static PFNglDepthFunc pglDepthFunc;
-typedef void (APIENTRY * PFNglDepthMask) (GLboolean flag);
+typedef void (*PFNglDepthMask) (GLboolean flag);
 static PFNglDepthMask pglDepthMask;
-typedef void (APIENTRY * PFNglDepthRange) (GLclampd near_val, GLclampd far_val);
+typedef void (*PFNglDepthRange) (GLclampf near_val, GLclampf far_val);
 static PFNglDepthRange pglDepthRange;
 
 /* Transformation */
-typedef void (APIENTRY * PFNglViewport) (GLint x, GLint y, GLsizei width, GLsizei height);
+typedef void (*PFNglViewport) (GLint x, GLint y, GLsizei width, GLsizei height);
 static PFNglViewport pglViewport;
 
 /* Drawing Functions */
-typedef void (APIENTRY * PFNglDrawArrays) (GLenum mode, GLint first, GLsizei count);
+typedef void (*PFNglDrawArrays) (GLenum mode, GLint first, GLsizei count);
 static PFNglDrawArrays pglDrawArrays;
-typedef void (APIENTRY * PFNglDrawElements) (GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
+typedef void (*PFNglDrawElements) (GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
 static PFNglDrawElements pglDrawElements;
-typedef void (APIENTRY * PFNglEnableVertexAttribArray) (GLuint index);
+typedef void (*PFNglEnableVertexAttribArray) (GLuint index);
 static PFNglEnableVertexAttribArray pglEnableVertexAttribArray;
-typedef void (APIENTRY * PFNglDisableVertexAttribArray) (GLuint index);
+typedef void (*PFNglDisableVertexAttribArray) (GLuint index);
 static PFNglDisableVertexAttribArray pglDisableVertexAttribArray;
-typedef void (APIENTRY * PFNglGenerateMipmap) (GLenum target);
+typedef void (*PFNglGenerateMipmap) (GLenum target);
 static PFNglGenerateMipmap pglGenerateMipmap;
-typedef void (APIENTRY * PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
+typedef void (*PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
 static PFNglVertexAttribPointer pglVertexAttribPointer;
 
 /* Raster functions */
-typedef void (APIENTRY * PFNglPixelStorei) (GLenum pname, GLint param);
+typedef void (*PFNglPixelStorei) (GLenum pname, GLint param);
 static PFNglPixelStorei pglPixelStorei;
-typedef void (APIENTRY  * PFNglReadPixels) (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
+typedef void (*PFNglReadPixels) (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
 static PFNglReadPixels pglReadPixels;
 
 /* Texture mapping */
-typedef void (APIENTRY * PFNglTexParameteri) (GLenum target, GLenum pname, GLint param);
+typedef void (*PFNglTexParameteri) (GLenum target, GLenum pname, GLint param);
 static PFNglTexParameteri pglTexParameteri;
-typedef void (APIENTRY * PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
+typedef void (*PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 static PFNglTexImage2D pglTexImage2D;
-typedef void (APIENTRY * PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+typedef void (*PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
 static PFNglTexSubImage2D pglTexSubImage2D;
 
 /* 1.1 functions */
 /* texture objects */ //GL_EXT_texture_object
-typedef void (APIENTRY * PFNglGenTextures) (GLsizei n, const GLuint *textures);
+typedef void (*PFNglGenTextures) (GLsizei n, const GLuint *textures);
 static PFNglGenTextures pglGenTextures;
-typedef void (APIENTRY * PFNglDeleteTextures) (GLsizei n, const GLuint *textures);
+typedef void (*PFNglDeleteTextures) (GLsizei n, const GLuint *textures);
 static PFNglDeleteTextures pglDeleteTextures;
-typedef void (APIENTRY * PFNglBindTexture) (GLenum target, GLuint texture);
+typedef void (*PFNglBindTexture) (GLenum target, GLuint texture);
 static PFNglBindTexture pglBindTexture;
 /* texture mapping */ //GL_EXT_copy_texture
-typedef void (APIENTRY * PFNglCopyTexImage2D) (GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
+typedef void (*PFNglCopyTexImage2D) (GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
 static PFNglCopyTexImage2D pglCopyTexImage2D;
-typedef void (APIENTRY * PFNglCopyTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+typedef void (*PFNglCopyTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 static PFNglCopyTexSubImage2D pglCopyTexSubImage2D;
 
 /* 1.3 functions for multitexturing */
-typedef void (APIENTRY *PFNglActiveTexture) (GLenum);
+typedef void (*PFNglActiveTexture) (GLenum);
 static PFNglActiveTexture pglActiveTexture;
 
 /* 1.5 functions for buffers */
-typedef void (APIENTRY * PFNglGenBuffers) (GLsizei n, GLuint *buffers);
+typedef void (*PFNglGenBuffers) (GLsizei n, GLuint *buffers);
 static PFNglGenBuffers pglGenBuffers;
-typedef void (APIENTRY * PFNglBindBuffer) (GLenum target, GLuint buffer);
+typedef void (*PFNglBindBuffer) (GLenum target, GLuint buffer);
 static PFNglBindBuffer pglBindBuffer;
-typedef void (APIENTRY * PFNglBufferData) (GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
+typedef void (*PFNglBufferData) (GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
 static PFNglBufferData pglBufferData;
-typedef void (APIENTRY * PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
+typedef void (*PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
 static PFNglDeleteBuffers pglDeleteBuffers;
 
 boolean SetupGLfunc(void)
@@ -572,7 +572,6 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 
 static void Clamp2D(GLenum pname)
 {
-	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP); // fallback clamp
 	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP_TO_EDGE);
 }
 
@@ -586,7 +585,7 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 {
 	FBITFIELD Xor;
 	Xor = CurrentPolyFlags^PolyFlags;
-	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible|PF_NoAlphaTest))
+	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible))
 	{
 		if (Xor&(PF_Blending)) // if blending mode must be changed
 		{
@@ -627,13 +626,6 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 					pglAlphaFunc(GL_GREATER, 0.5f);
 					break;
 			}
-		}
-		if (Xor & PF_NoAlphaTest)
-		{
-			if (PolyFlags & PF_NoAlphaTest)
-				pglDisable(GL_ALPHA_TEST);
-			else
-				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
 		}
 
 		if (Xor & PF_Decal)
@@ -888,7 +880,7 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 	GLRGBAFloat *c_poly = NULL, *c_tint = NULL, *c_fade = NULL;
 	boolean modulated;
 
-	if ((PolyFlags & PF_Corona) && (oglflags & GLF_NOZBUFREAD))
+	if (PolyFlags & PF_Corona)
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
 	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
@@ -1556,7 +1548,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
-	pglEnable(GL_NORMALIZE);
 
 #ifdef USE_FTRANSFORM_MIRROR
 	// flipped is if the object is vertically flipped
@@ -1741,7 +1732,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	pglDisableVertexAttribArray(LOC_NORMAL);
 
 	pglDisable(GL_CULL_FACE);
-	pglDisable(GL_NORMALIZE);
 }
 
 // -----------------+
@@ -2146,21 +2136,15 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 
 	if (changed)
 	{
-#define SETSAMPLER(uni, a) \
-	if (shader->uniforms[uni] != -1) \
-		pglUniform1i(shader->uniforms[uni], a);
-
-		SETSAMPLER(gluniform_startscreen, 0);
-		SETSAMPLER(gluniform_endscreen, 1);
-		SETSAMPLER(gluniform_fademask, 2);
+		Shader_SetSampler(shader, gluniform_startscreen, 0);
+		Shader_SetSampler(shader, gluniform_endscreen, 1);
+		Shader_SetSampler(shader, gluniform_fademask, 2);
 
 		if (tinted)
 		{
-			SETSAMPLER(gluniform_isfadingin, isfadingin);
-			SETSAMPLER(gluniform_istowhite, istowhite);
+			Shader_SetIntegerUniform(shader, gluniform_isfadingin, isfadingin);
+			Shader_SetIntegerUniform(shader, gluniform_istowhite, istowhite);
 		}
-
-#undef SETSAMPLER
 
 		Shader_SetUniforms(NULL, &white, NULL, NULL);
 		Shader_SetTransform();

@@ -68,6 +68,32 @@ extern FILE *gllogstream;
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 #endif
 
+#ifndef R_GL_APIENTRY
+	#if defined(_WIN32)
+		#define R_GL_APIENTRY APIENTRY
+	#else
+		#define R_GL_APIENTRY
+	#endif
+#endif
+
+// ==========================================================================
+//                                                                     PROTOS
+// ==========================================================================
+
+#if defined(STATIC_OPENGL) && !defined(HAVE_GLES)
+#define pglClear glClear
+#define pglGetIntegerv glGetIntegerv
+#define pglGetString glGetString
+#else
+/* 1.0 Miscellaneous functions */
+typedef void (R_GL_APIENTRY * PFNglClear) (GLbitfield mask);
+extern PFNglClear pglClear;
+typedef void (R_GL_APIENTRY * PFNglGetIntegerv) (GLenum pname, GLint *params);
+extern PFNglGetIntegerv pglGetIntegerv;
+typedef const GLubyte * (R_GL_APIENTRY * PFNglGetString) (GLenum name);
+extern PFNglGetString pglGetString;
+#endif
+
 // ==========================================================================
 //                                                                     GLOBAL
 // ==========================================================================

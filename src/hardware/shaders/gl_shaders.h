@@ -18,36 +18,10 @@
 
 #include "../r_glcommon/r_glcommon.h"
 
-#ifndef R_GL_APIENTRY
-	#if defined(_WIN32)
-		#define R_GL_APIENTRY APIENTRY
-	#else
-		#define R_GL_APIENTRY
-	#endif
-#endif
-
 extern boolean gl_allowshaders;
 extern boolean gl_shadersenabled;
 
 void Shader_SetupGLFunc(void);
-
-#ifdef HAVE_GLES2
-static boolean Shader_SetProgram(gl_shaderprogram_t *shader);
-static void Shader_SetTransform(void);
-#else
-void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
-void Shader_Set(int shader);
-void Shader_UnSet(void);
-#endif
-
-void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
-
-void Shader_SetInfo(hwdshaderinfo_t info, INT32 value);
-
-boolean Shader_Compile(void);
-boolean Shader_InitCustom(void);
-
-void Shader_LoadCustom(int number, char *shader, size_t size, boolean fragment);
 
 #define MAXSHADERS 16
 #define MAXSHADERPROGRAMS 16
@@ -109,6 +83,26 @@ extern gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
 extern gl_shaderprogram_t *shader_base;
 extern gl_shaderprogram_t *shader_current;
 #endif
+
+void Shader_Set(int shader);
+void Shader_UnSet(void);
+
+#ifdef HAVE_GLES2
+boolean Shader_SetProgram(gl_shaderprogram_t *shader);
+void Shader_SetTransform(void);
+#endif
+
+void *Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+void Shader_SetSampler(gl_shaderprogram_t *shader, gluniform_t uniform, GLint value);
+#define Shader_SetIntegerUniform Shader_SetSampler
+
+void Shader_SetInfo(hwdshaderinfo_t info, INT32 value);
+
+boolean Shader_Compile(void);
+boolean Shader_InitCustom(void);
+
+void Shader_LoadCustom(int number, char *shader, size_t size, boolean fragment);
 
 #ifndef GL_FRAGMENT_SHADER
 #define GL_FRAGMENT_SHADER 0x8B30

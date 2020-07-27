@@ -40,18 +40,6 @@
 #include "../r_glcommon/r_glcommon.h"
 
 // ==========================================================================
-//                                                                     PROTOS
-// ==========================================================================
-
-/* 1.0 Miscellaneous functions */
-typedef void (*PFNglClear) (GLbitfield mask);
-extern PFNglClear pglClear;
-typedef void (*PFNglGetIntegerv) (GLenum pname, GLint *params);
-extern PFNglGetIntegerv pglGetIntegerv;
-typedef const GLubyte *(*PFNglGetString) (GLenum name);
-extern PFNglGetString pglGetString;
-
-// ==========================================================================
 //                                                                     GLOBAL
 // ==========================================================================
 
