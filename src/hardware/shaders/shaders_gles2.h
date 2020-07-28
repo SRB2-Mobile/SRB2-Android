@@ -1,8 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
 // Copyright (C) 2020 by Jaime "Lactozilla" Passos.
-// Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1998-2020 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -11,7 +9,7 @@
 /// \file shaders_gl2.h
 /// \brief OpenGL ES shader definitions
 
-#define GLSL_VERSION_MACRO "#version 330 core\n"
+#include "gl_shaders.h"
 
 // ================
 //  Vertex shaders
@@ -23,22 +21,22 @@
 
 #define GLSL_DEFAULT_VERTEX_SHADER \
 	GLSL_VERSION_MACRO \
-	"layout (location = 0) in vec3 aPos;\n" \
-	"layout (location = 1) in vec2 aTexCoord;\n" \
-	"layout (location = 2) in vec3 aNormal;\n" \
-	"layout (location = 3) in vec4 aColors;\n" \
-	"out vec2 TexCoord;\n" \
-	"out vec3 Normal;\n" \
-	"out vec4 Colors;\n" \
-	"uniform mat4 Model;\n" \
-	"uniform mat4 View;\n" \
-	"uniform mat4 Projection;\n" \
+	GLSL_ATTRIBSTATEMENT_POSITION \
+	GLSL_ATTRIBSTATEMENT_TEXCOORD \
+	GLSL_ATTRIBSTATEMENT_NORMAL \
+	GLSL_ATTRIBSTATEMENT_COLORS \
+	GLSL_LINKAGE_OUTPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
+	GLSL_LINKAGE_OUTPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_NORMAL ";\n" \
+	GLSL_LINKAGE_OUTPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_COLORS ";\n" \
+	"uniform mat4 " GLSL_UNIFORM_MODEL ";\n" \
+	"uniform mat4 " GLSL_UNIFORM_VIEW ";\n" \
+	"uniform mat4 " GLSL_UNIFORM_PROJECTION ";\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = Projection * View * Model * vec4(aPos, 1.0f);\n" \
-		"TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n" \
-		"Normal = aNormal;\n" \
-		"Colors = aColors;\n" \
+		"gl_Position = " GLSL_UNIFORM_PROJECTION " * " GLSL_UNIFORM_VIEW " * " GLSL_UNIFORM_MODEL " * vec4(" GLSL_ATTRIBUTE_POSITION", 1.0f);\n" \
+		GLSL_LINKAGE_TEXCOORD " = vec2(" GLSL_ATTRIBUTE_TEXCOORD ".x, " GLSL_ATTRIBUTE_TEXCOORD ".y);\n" \
+		GLSL_LINKAGE_NORMAL " = " GLSL_ATTRIBUTE_NORMAL ";\n" \
+		GLSL_LINKAGE_COLORS " = " GLSL_ATTRIBUTE_COLORS ";\n" \
 	"}\0"
 
 //
@@ -47,17 +45,17 @@
 
 #define GLSL_FADEMASK_VERTEX_SHADER \
 	GLSL_VERSION_MACRO \
-	"layout (location = 0) in vec3 aPos;\n" \
-	"layout (location = 1) in vec2 aTexCoord;\n" \
-	"layout (location = 2) in vec2 aFadeMaskTexCoord;\n" \
-	"out vec2 TexCoord;\n" \
-	"out vec2 FadeMaskTexCoord;\n" \
-	"uniform mat4 Projection;\n" \
+	GLSL_ATTRIBSTATEMENT_POSITION \
+	GLSL_ATTRIBSTATEMENT_TEXCOORD \
+	GLSL_ATTRIBSTATEMENT_FADETEX \
+	GLSL_LINKAGE_OUTPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
+	GLSL_LINKAGE_OUTPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_FADEMASKTEXCOORD" ;\n" \
+	"uniform mat4 " GLSL_UNIFORM_PROJECTION ";\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = Projection * vec4(aPos, 1.0f);\n" \
-		"TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n" \
-		"FadeMaskTexCoord = vec2(aFadeMaskTexCoord.x, aFadeMaskTexCoord.y);\n" \
+		"gl_Position = " GLSL_UNIFORM_PROJECTION " * vec4(" GLSL_ATTRIBUTE_POSITION ", 1.0f);\n" \
+		GLSL_LINKAGE_TEXCOORD " = vec2(" GLSL_ATTRIBUTE_TEXCOORD ".x, " GLSL_ATTRIBUTE_TEXCOORD ".y);\n" \
+		GLSL_LINKAGE_FADEMASKTEXCOORD " = vec2(" GLSL_ATTRIBUTE_FADETEX ".x, " GLSL_ATTRIBUTE_FADETEX ".y);\n" \
 	"}\0"
 
 // ==================
@@ -65,16 +63,16 @@
 // ==================
 
 #define GLSL_BASE_IN \
-	"in vec2 TexCoord;\n" \
-	"in vec3 Normal;\n" \
-	"in vec4 Colors;\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_NORMAL ";\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_COLORS ";\n" \
 
 #define GLSL_BASE_OUT \
-	"out vec4 FragColor;\n" \
+	GLSL_COLOR_OUTPUT_STATEMENT \
 
 #define GLSL_BASE_UNIFORMS \
-	"uniform sampler2D TexSampler;\n" \
-	"uniform vec4 PolyColor;\n" \
+	"uniform sampler2D " GLSL_UNIFORM_TEXSAMPLER ";\n" \
+	"uniform vec4 " GLSL_UNIFORM_POLYCOLOR ";\n" \
 
 //
 // Generic fragment shader
@@ -86,7 +84,7 @@
 	GLSL_BASE_IN \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
-		"FragColor = texture(TexSampler, TexCoord) * PolyColor;\n" \
+		GLSL_COLOR_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 	"}\0"
 
 //
@@ -99,7 +97,7 @@
 	GLSL_BASE_IN \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
-		"FragColor = texture(TexSampler, TexCoord) * Colors;\n" \
+		GLSL_COLOR_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_LINKAGE_COLORS ";\n" \
 	"}\0"
 
 //
@@ -108,46 +106,46 @@
 
 #define GLSL_FADEMASK_FRAGMENT_SHADER \
 	GLSL_VERSION_MACRO \
-	"out vec4 FragColor;\n" \
-	"in vec2 TexCoord;\n" \
-	"in vec2 FadeMaskTexCoord;\n" \
-	"uniform sampler2D StartScreen;\n" \
-	"uniform sampler2D EndScreen;\n" \
-	"uniform sampler2D FadeMask;\n" \
+	GLSL_COLOR_OUTPUT_STATEMENT \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_FADEMASKTEXCOORD ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_STARTSCREEN ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_ENDSCREEN ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_FADEMASK ";\n" \
 	"void main(void) {\n" \
-		"vec4 StartTexel = texture(StartScreen, TexCoord);\n" \
-		"vec4 EndTexel = texture(EndScreen, TexCoord);\n" \
-		"vec4 MaskTexel = texture(FadeMask, FadeMaskTexCoord);\n" \
-		"FragColor = mix(StartTexel, EndTexel, MaskTexel.r);\n" \
+		"vec4 StartTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_STARTSCREEN ", " GLSL_LINKAGE_TEXCOORD ");\n" \
+		"vec4 EndTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_ENDSCREEN ", " GLSL_LINKAGE_TEXCOORD ");\n" \
+		"vec4 MaskTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_FADEMASK ", " GLSL_LINKAGE_FADEMASKTEXCOORD ");\n" \
+		GLSL_COLOR_OUTPUT " = mix(StartTexel, EndTexel, MaskTexel.r);\n" \
 	"}\0"
 
 // Lactozilla: Very simple shader that uses either additive
 // or subtractive blending depending on the wipe style.
 #define GLSL_FADEMASK_ADDITIVEANDSUBTRACTIVE_FRAGMENT_SHADER \
 	GLSL_VERSION_MACRO \
-	"out vec4 FragColor;\n" \
-	"in vec2 TexCoord;\n" \
-	"in vec2 FadeMaskTexCoord;\n" \
-	"uniform sampler2D StartScreen;\n" \
-	"uniform sampler2D EndScreen;\n" \
-	"uniform sampler2D FadeMask;\n" \
-	"uniform bool IsFadingIn;\n" \
-	"uniform bool IsToWhite;\n" \
+	GLSL_COLOR_OUTPUT_STATEMENT \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_FADEMASKTEXCOORD ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_STARTSCREEN ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_ENDSCREEN ";\n" \
+	"uniform sampler2D " GLSL_UNIFORM_FADEMASK ";\n" \
+	"uniform bool " GLSL_UNIFORM_ISFADINGIN ";\n" \
+	"uniform bool " GLSL_UNIFORM_ISTOWHITE ";\n" \
 	"void main(void) {\n" \
-		"vec4 MaskTexel = texture(FadeMask, FadeMaskTexCoord);\n" \
+		"vec4 MaskTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_FADEMASK ", " GLSL_LINKAGE_FADEMASKTEXCOORD ");\n" \
 		"vec4 MixTexel;\n" \
 		"vec4 FinalColor;\n" \
 		"float FadeAlpha = MaskTexel.r;\n" \
-		"if (IsFadingIn == true)\n" \
+		"if (" GLSL_UNIFORM_ISFADINGIN " == true)\n" \
 		"{\n" \
 			"FadeAlpha = (1.0f - FadeAlpha);\n" \
-			"MixTexel = texture(EndScreen, TexCoord);\n" \
+			"MixTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_ENDSCREEN", " GLSL_LINKAGE_TEXCOORD ");\n" \
 		"}\n" \
 		"else\n" \
-			"MixTexel = texture(StartScreen, TexCoord);\n" \
+			"MixTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_STARTSCREEN", " GLSL_LINKAGE_TEXCOORD ");\n" \
 		"float FadeRed = clamp((FadeAlpha * 3.0f), 0.0f, 1.0f);\n" \
 		"float FadeGreen = clamp((FadeAlpha * 2.0f), 0.0f, 1.0f);\n" \
-		"if (IsToWhite == true)\n" \
+		"if (" GLSL_UNIFORM_ISTOWHITE " == true)\n" \
 		"{\n" \
 			"FinalColor.r = MixTexel.r + FadeRed;\n" \
 			"FinalColor.g = MixTexel.g + FadeGreen;\n" \
@@ -160,7 +158,7 @@
 			"FinalColor.b = MixTexel.b - FadeAlpha;\n" \
 		"}\n" \
 		"FinalColor.a = 1.0f;\n" \
-		"FragColor = FinalColor;\n" \
+		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -169,11 +167,11 @@
 
 #define GLSL_DOOM_UNIFORMS \
 	GLSL_BASE_UNIFORMS \
-	"uniform vec4 TintColor;\n" \
-	"uniform vec4 FadeColor;\n" \
-	"uniform float Lighting;\n" \
-	"uniform float FadeStart;\n" \
-	"uniform float FadeEnd;\n" \
+	"uniform vec4 " GLSL_UNIFORM_TINTCOLOR ";\n" \
+	"uniform vec4 " GLSL_UNIFORM_FADECOLOR ";\n" \
+	"uniform float " GLSL_UNIFORM_LIGHTING ";\n" \
+	"uniform float " GLSL_UNIFORM_FADESTART ";\n" \
+	"uniform float " GLSL_UNIFORM_FADEEND ";\n" \
 
 #define GLSL_DOOM_COLORMAP \
 	"float R_DoomColormap(float light, float z)\n" \
@@ -194,23 +192,23 @@
 	"}\n"
 
 #define GLSL_SOFTWARE_TINT_EQUATION \
-	"if (TintColor.a > 0.0) {\n" \
+	"if (" GLSL_UNIFORM_TINTCOLOR ".a > 0.0) {\n" \
 		"float color_bright = sqrt((BaseColor.r * BaseColor.r) + (BaseColor.g * BaseColor.g) + (BaseColor.b * BaseColor.b));\n" \
-		"float strength = sqrt(9.0 * TintColor.a);\n" \
-		"FinalColor.r = clamp((color_bright * (TintColor.r * strength)) + (BaseColor.r * (1.0 - strength)), 0.0, 1.0);\n" \
-		"FinalColor.g = clamp((color_bright * (TintColor.g * strength)) + (BaseColor.g * (1.0 - strength)), 0.0, 1.0);\n" \
-		"FinalColor.b = clamp((color_bright * (TintColor.b * strength)) + (BaseColor.b * (1.0 - strength)), 0.0, 1.0);\n" \
+		"float strength = sqrt(9.0 * " GLSL_UNIFORM_TINTCOLOR ".a);\n" \
+		"FinalColor.r = clamp((color_bright * (" GLSL_UNIFORM_TINTCOLOR ".r * strength)) + (BaseColor.r * (1.0 - strength)), 0.0, 1.0);\n" \
+		"FinalColor.g = clamp((color_bright * (" GLSL_UNIFORM_TINTCOLOR ".g * strength)) + (BaseColor.g * (1.0 - strength)), 0.0, 1.0);\n" \
+		"FinalColor.b = clamp((color_bright * (" GLSL_UNIFORM_TINTCOLOR ".b * strength)) + (BaseColor.b * (1.0 - strength)), 0.0, 1.0);\n" \
 	"}\n"
 
 #define GLSL_SOFTWARE_FADE_EQUATION \
-	"float darkness = R_DoomLightingEquation(Lighting);\n" \
-	"if (FadeStart != 0.0 || FadeEnd != 31.0) {\n" \
-		"float fs = FadeStart / 31.0;\n" \
-		"float fe = FadeEnd / 31.0;\n" \
+	"float darkness = R_DoomLightingEquation(" GLSL_UNIFORM_LIGHTING ");\n" \
+	"if (" GLSL_UNIFORM_FADESTART " != 0.0 || " GLSL_UNIFORM_FADEEND " != 31.0) {\n" \
+		"float fs = " GLSL_UNIFORM_FADESTART " / 31.0;\n" \
+		"float fe = " GLSL_UNIFORM_FADEEND " / 31.0;\n" \
 		"float fd = fe - fs;\n" \
 		"darkness = clamp((darkness - fs) * (1.0 / fd), 0.0, 1.0);\n" \
 	"}\n" \
-	"FinalColor = mix(FinalColor, FadeColor, darkness);\n"
+	"FinalColor = mix(FinalColor, " GLSL_UNIFORM_FADECOLOR ", darkness);\n"
 
 #define GLSL_SOFTWARE_FRAGMENT_SHADER \
 	GLSL_VERSION_MACRO \
@@ -220,13 +218,13 @@
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
-		"vec4 texel = texture2D(TexSampler, TexCoord);\n" \
-		"vec4 BaseColor = texel * PolyColor;\n" \
+		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(TexSampler, TexCoord);\n" \
+		"vec4 BaseColor = texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FinalColor.a = texel.a * PolyColor.a;\n" \
-		"FragColor = FinalColor;\n" \
+		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
+		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -239,9 +237,9 @@
 #define GLSL_WATER_FRAGMENT_SHADER \
 	GLSL_VERSION_MACRO \
 	GLSL_BASE_OUT \
-	"in vec2 TexCoord;\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
 	GLSL_DOOM_UNIFORMS \
-	"uniform float LevelTime;\n" \
+	"uniform float " GLSL_UNIFORM_LEVELTIME ";\n" \
 	"const float freq = 0.025;\n" \
 	"const float amp = 0.025;\n" \
 	"const float speed = 2.0;\n" \
@@ -250,16 +248,16 @@
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
 		"float z = (gl_FragCoord.z / gl_FragCoord.w) / 2.0;\n" \
-		"float a = -pi * (z * freq) + (LevelTime * speed);\n" \
+		"float a = -pi * (z * freq) + (" GLSL_UNIFORM_LEVELTIME " * speed);\n" \
 		"float sdistort = sin(a) * amp;\n" \
 		"float cdistort = cos(a) * amp;\n" \
-		"vec4 texel = texture(TexSampler, vec2(TexCoord.s - sdistort, TexCoord.t - cdistort));\n" \
-		"vec4 BaseColor = texel * PolyColor;\n" \
+		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", vec2(" GLSL_LINKAGE_TEXCOORD ".s - sdistort, " GLSL_LINKAGE_TEXCOORD ".t - cdistort));\n" \
+		"vec4 BaseColor = texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FinalColor.a = texel.a * PolyColor.a;\n" \
-		"FragColor = FinalColor;\n" \
+		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
+		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -271,14 +269,14 @@
 #define GLSL_FOG_FRAGMENT_SHADER \
 	GLSL_VERSION_MACRO \
 	GLSL_BASE_OUT \
-	"in vec2 TexCoord;\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
-		"vec4 BaseColor = PolyColor;\n" \
+		"vec4 BaseColor = " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FragColor = FinalColor;\n" \
+		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
 	"}\0"

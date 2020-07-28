@@ -1893,6 +1893,29 @@ static void Impl_VideoSetupBuffer(void)
 	}
 }
 
+#ifdef HAVE_GLES
+static void Impl_InitGLESDriver(void)
+{
+	const char *driver_name = NULL;
+	int version_major, version_minor;
+
+#ifdef HAVE_GLES2
+	driver_name = "opengles2";
+	version_major = 2;
+	version_minor = 0;
+#else
+	driver_name = "opengles";
+	version_major = 1;
+	version_minor = 1;
+#endif
+
+	SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver_name);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, version_major);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, version_minor);
+}
+#endif
+
 static void Impl_InitVideoSubSystem(void)
 {
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
@@ -1903,7 +1926,9 @@ static void Impl_InitVideoSubSystem(void)
 
 #if defined(__ANDROID__)
 	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles");
+#endif
+#ifdef HAVE_GLES
+	Impl_InitGLESDriver();
 #endif
 }
 

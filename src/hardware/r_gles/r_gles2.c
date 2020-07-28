@@ -107,14 +107,14 @@ typedef void (*PFNglDisable) (GLenum cap);
 static PFNglDisable pglDisable;
 
 /* Depth Buffer */
-typedef void (*PFNglClearDepth) (GLclampf depth);
-static PFNglClearDepth pglClearDepth;
+typedef void (*PFNglClearDepthf) (GLclampf depth);
+static PFNglClearDepthf pglClearDepthf;
 typedef void (*PFNglDepthFunc) (GLenum func);
 static PFNglDepthFunc pglDepthFunc;
 typedef void (*PFNglDepthMask) (GLboolean flag);
 static PFNglDepthMask pglDepthMask;
-typedef void (*PFNglDepthRange) (GLclampf near_val, GLclampf far_val);
-static PFNglDepthRange pglDepthRange;
+typedef void (*PFNglDepthRangef) (GLclampf near_val, GLclampf far_val);
+static PFNglDepthRangef pglDepthRangef;
 
 /* Transformation */
 typedef void (*PFNglViewport) (GLint x, GLint y, GLsizei width, GLsizei height);
@@ -199,10 +199,10 @@ boolean SetupGLfunc(void)
 	GETOPENGLFUNC(pglGetIntegerv, glGetIntegerv)
 	GETOPENGLFUNC(pglGetString, glGetString)
 
-	GETOPENGLFUNC(pglClearDepth, glClearDepth)
+	GETOPENGLFUNC(pglClearDepthf, glClearDepthf)
 	GETOPENGLFUNC(pglDepthFunc, glDepthFunc)
 	GETOPENGLFUNC(pglDepthMask, glDepthMask)
-	GETOPENGLFUNC(pglDepthRange, glDepthRange)
+	GETOPENGLFUNC(pglDepthRangef, glDepthRangef)
 
 	GETOPENGLFUNC(pglViewport, glViewport)
 
@@ -284,6 +284,32 @@ EXPORT void HWRAPI(KillShaders) (void)
 {
 	// Nothing
 }
+
+#if defined(GLSL_USE_ATTRIBUTE_QUALIFIER)
+static int AttribLoc(int loc)
+{
+	int pos, attrib;
+
+	glattribute_t LOC_TO_ATTRIB[glattribute_max] =
+	{
+		glattribute_position,     // LOC_POSITION
+		glattribute_texcoord,     // LOC_TEXCOORD + LOC_TEXCOORD0
+		glattribute_normal,       // LOC_NORMAL
+		glattribute_colors,       // LOC_COLORS
+		glattribute_fadetexcoord, // LOC_NORMAL
+	};
+
+	attrib = LOC_TO_ATTRIB[loc];
+	pos = shader_current->attributes[attrib];
+
+	if (pos == -1)
+		I_Error("AttribLoc: attribute %d for location %d is invalid", attrib, loc);
+
+	return pos;
+}
+#elif defined(GLSL_USE_LAYOUT_QUALIFIER)
+#define AttribLoc(x) (x)
+#endif
 
 // -----------------+
 // SetNoTexture     : Disable texture
@@ -393,8 +419,8 @@ void SetStates(void)
 
 	pglEnable(GL_DEPTH_TEST);    // check the depth buffer
 	pglDepthMask(GL_TRUE);             // enable writing to depth buffer
-	pglClearDepth(1.0f);
-	pglDepthRange(0.0f, 1.0f);
+	pglClearDepthf(1.0f);
+	pglDepthRangef(0.0f, 1.0f);
 	pglDepthFunc(GL_LEQUAL);
 
 	pglEnable(GL_BLEND);
@@ -517,8 +543,8 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 	}
 	if (DepthMask)
 	{
-		pglClearDepth(1.0f);     //Hurdler: all that are permanen states
-		pglDepthRange(0.0f, 1.0f);
+		pglClearDepthf(1.0f);     //Hurdler: all that are permanen states
+		pglDepthRangef(0.0f, 1.0f);
 		pglDepthFunc(GL_LEQUAL);
 		ClearMask |= GL_DEPTH_BUFFER_BIT;
 	}
@@ -566,7 +592,7 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 
 	Shader_SetUniforms(NULL, &fcolor, NULL, NULL);
 
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, p);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, p);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
@@ -929,8 +955,8 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
 
@@ -953,8 +979,8 @@ EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutV
 
 	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
 
@@ -1178,9 +1204,9 @@ static void RenderDome(INT32 skytexture)
 
 	// activate and specify pointers to arrays
 	pglEnableVertexAttribArray(LOC_COLORS);
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_x);
-	pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_u);
-	pglVertexAttribPointer(LOC_COLORS, 4, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_r);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_x);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_u);
+	pglVertexAttribPointer(AttribLoc(LOC_COLORS), 4, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_r);
 
 	// set transforms
 	scale[1] = ((float)texh / 230.0f);
@@ -1645,9 +1671,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			{
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				pglVertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
-				pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
-				pglVertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
+				pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
+				pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
+				pglVertexAttribPointer(AttribLoc(LOC_NORMAL), 3, GL_BYTE, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
 
 				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 				pglBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1670,9 +1696,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 					*normPtr++ = (char)(frame->normals[j] + (pol * (nextframe->normals[j] - frame->normals[j])));
 				}
 
-				pglVertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, 0, vertTinyBuffer);
-				pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
-				pglVertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_FALSE, 0, normTinyBuffer);
+				pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_SHORT, GL_FALSE, 0, vertTinyBuffer);
+				pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				pglVertexAttribPointer(AttribLoc(LOC_NORMAL), 3, GL_BYTE, GL_FALSE, 0, normTinyBuffer);
 
 				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 			}
@@ -1690,9 +1716,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				// Zoom! Take advantage of just shoving the entire arrays to the GPU.
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
-				pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
-				pglVertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
+				pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
+				pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
+				pglVertexAttribPointer(AttribLoc(LOC_NORMAL), 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
 
 				pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
 
@@ -1717,9 +1743,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 					*normPtr++ = frame->normals[j] + (pol * (nextframe->normals[j] - frame->normals[j]));
 				}
 
-				pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertBuffer);
-				pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
-				pglVertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, normBuffer);
+				pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, vertBuffer);
+				pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				pglVertexAttribPointer(AttribLoc(LOC_NORMAL), 3, GL_FLOAT, GL_FALSE, 0, normBuffer);
 
 				pglDrawArrays(GL_TRIANGLES, 0, mesh->numVertices);
 			}
@@ -1888,7 +1914,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	// Draw a black square behind the screen texture,
 	// so nothing shows through the edges
 	Shader_SetUniforms(NULL, &black, NULL, NULL);
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, blackBack);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, blackBack);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	pglEnableVertexAttribArray(LOC_TEXCOORD);
@@ -1919,7 +1945,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 			stCoords[6] = float_nextx;
 			stCoords[7] = float_y;
 
-			pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, stCoords);
+			pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, stCoords);
 
 			// float vertCoords[12];
 			vertCoords[0] = points[x][y][0] / 4.5f;
@@ -1935,7 +1961,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 			vertCoords[10] = points[x + 1][y][1] / 4.5f;
 			vertCoords[11] = 1.0f;
 
-			pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
+			pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
 
 			pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 		}
@@ -2066,8 +2092,8 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 	pglBindTexture(GL_TEXTURE_2D, screentexture);
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
-	pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, fix);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = screentexture;
@@ -2157,9 +2183,9 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	pglActiveTexture(GL_TEXTURE0 + 2);
 	pglBindTexture(GL_TEXTURE_2D, fademaskdownloaded);
 
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
-	pglVertexAttribPointer(LOC_TEXCOORD0, 2, GL_FLOAT, GL_FALSE, 0, fix);
-	pglVertexAttribPointer(LOC_TEXCOORD1, 2, GL_FLOAT, GL_FALSE, 0, defaultST);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD0), 2, GL_FLOAT, GL_FALSE, 0, fix);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD1), 2, GL_FLOAT, GL_FALSE, 0, defaultST);
 
 	pglActiveTexture(GL_TEXTURE0);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -2309,8 +2335,8 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-	pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, off);
-	pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
+	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, off);
+	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, fix);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = finalScreenTexture;

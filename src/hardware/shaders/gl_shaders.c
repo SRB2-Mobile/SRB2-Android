@@ -40,6 +40,7 @@ typedef void   (R_GL_APIENTRY *PFNglUniform2fv)         (GLint, GLsizei, const G
 typedef void   (R_GL_APIENTRY *PFNglUniform3fv)         (GLint, GLsizei, const GLfloat*);
 typedef void   (R_GL_APIENTRY *PFNglUniformMatrix4fv)   (GLint, GLsizei, GLboolean, const GLfloat *);
 typedef GLint  (R_GL_APIENTRY *PFNglGetUniformLocation) (GLuint, const GLchar*);
+typedef GLint  (R_GL_APIENTRY *PFNglGetAttribLocation)  (GLuint, const GLchar*);
 
 static PFNglCreateShader pglCreateShader;
 static PFNglShaderSource pglShaderSource;
@@ -62,6 +63,7 @@ static PFNglUniform2fv pglUniform2fv;
 static PFNglUniform3fv pglUniform3fv;
 static PFNglUniformMatrix4fv pglUniformMatrix4fv;
 static PFNglGetUniformLocation pglGetUniformLocation;
+static PFNglGetAttribLocation pglGetAttribLocation;
 
 char *gl_customvertexshaders[MAXSHADERS];
 char *gl_customfragmentshaders[MAXSHADERS];
@@ -183,6 +185,7 @@ void Shader_SetupGLFunc(void)
 	pglUniform3fv = GetGLFunc("glUniform3fv");
 	pglUniformMatrix4fv = GetGLFunc("glUniformMatrix4fv");
 	pglGetUniformLocation = GetGLFunc("glGetUniformLocation");
+	pglGetAttribLocation = GetGLFunc("glGetAttribLocation");
 #endif
 }
 
@@ -350,7 +353,7 @@ boolean Shader_Compile(void)
 		gl_vertShader = pglCreateShader(GL_VERTEX_SHADER);
 		if (!gl_vertShader)
 		{
-			Shader_CompileError("LoadShaders: Error creating vertex shader %d\n", i);
+			Shader_CompileError("Shader_Compile: Error creating vertex shader %d\n", i);
 			continue;
 		}
 
@@ -369,7 +372,7 @@ boolean Shader_Compile(void)
 			infoLog = malloc(logLength);
 			pglGetShaderInfoLog(gl_vertShader, logLength, NULL, infoLog);
 
-			Shader_CompileError("LoadShaders: Error compiling vertex shader %d\n%s", i, infoLog);
+			Shader_CompileError("Shader_Compile: Error compiling vertex shader %d\n%s", i, infoLog);
 			continue;
 		}
 
@@ -379,7 +382,7 @@ boolean Shader_Compile(void)
 		gl_fragShader = pglCreateShader(GL_FRAGMENT_SHADER);
 		if (!gl_fragShader)
 		{
-			Shader_CompileError("LoadShaders: Error creating fragment shader %d\n", i);
+			Shader_CompileError("Shader_Compile: Error creating fragment shader %d\n", i);
 			continue;
 		}
 
@@ -398,7 +401,7 @@ boolean Shader_Compile(void)
 			infoLog = malloc(logLength);
 			pglGetShaderInfoLog(gl_fragShader, logLength, NULL, infoLog);
 
-			Shader_CompileError("LoadShaders: Error compiling fragment shader %d\n%s", i, infoLog);
+			Shader_CompileError("Shader_Compile: Error compiling fragment shader %d\n%s", i, infoLog);
 			continue;
 		}
 
@@ -419,7 +422,7 @@ boolean Shader_Compile(void)
 		{
 			shader->program = 0;
 			shader->custom = false;
-			Shader_CompileError("LoadShaders: Error linking shader program %d\n", i);
+			Shader_CompileError("Shader_Compile: Error linking shader program %d\n", i);
 			continue;
 		}
 
@@ -434,37 +437,45 @@ boolean Shader_Compile(void)
 
 #ifdef HAVE_GLES2
 		// transform
-		shader->uniforms[gluniform_model] = GETUNI("Model");
-		shader->uniforms[gluniform_view] = GETUNI("View");
-		shader->uniforms[gluniform_projection] = GETUNI("Projection");
+		shader->uniforms[gluniform_model]       = GETUNI(GLSL_UNIFORM_MODEL);
+		shader->uniforms[gluniform_view]        = GETUNI(GLSL_UNIFORM_VIEW);
+		shader->uniforms[gluniform_projection]  = GETUNI(GLSL_UNIFORM_PROJECTION);
 
 		// samplers
-		shader->uniforms[gluniform_startscreen] = GETUNI("StartScreen");
-		shader->uniforms[gluniform_endscreen] = GETUNI("EndScreen");
-		shader->uniforms[gluniform_fademask] = GETUNI("FadeMask");
-
-		// lighting
-		shader->uniforms[gluniform_poly_color] = GETUNI("PolyColor");
-		shader->uniforms[gluniform_tint_color] = GETUNI("TintColor");
-		shader->uniforms[gluniform_fade_color] = GETUNI("FadeColor");
-		shader->uniforms[gluniform_lighting] = GETUNI("Lighting");
-		shader->uniforms[gluniform_fade_start] = GETUNI("FadeStart");
-		shader->uniforms[gluniform_fade_end] = GETUNI("FadeEnd");
+		shader->uniforms[gluniform_startscreen] = GETUNI(GLSL_UNIFORM_STARTSCREEN);
+		shader->uniforms[gluniform_endscreen]   = GETUNI(GLSL_UNIFORM_ENDSCREEN);
+		shader->uniforms[gluniform_fademask]    = GETUNI(GLSL_UNIFORM_FADEMASK);
 
 		// misc.
-		shader->uniforms[gluniform_isfadingin] = GETUNI("IsFadingIn");
-		shader->uniforms[gluniform_istowhite] = GETUNI("IsToWhite");
-#else
-		// lighting
-		shader->uniforms[gluniform_poly_color] = GETUNI("poly_color");
-		shader->uniforms[gluniform_tint_color] = GETUNI("tint_color");
-		shader->uniforms[gluniform_fade_color] = GETUNI("fade_color");
-		shader->uniforms[gluniform_lighting] = GETUNI("lighting");
-		shader->uniforms[gluniform_fade_start] = GETUNI("fade_start");
-		shader->uniforms[gluniform_fade_end] = GETUNI("fade_end");
+		shader->uniforms[gluniform_isfadingin]  = GETUNI(GLSL_UNIFORM_ISFADINGIN);
+		shader->uniforms[gluniform_istowhite]   = GETUNI(GLSL_UNIFORM_ISTOWHITE);
 #endif
-		shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
+
+		// lighting
+		shader->uniforms[gluniform_poly_color]  = GETUNI(GLSL_UNIFORM_POLYCOLOR);
+		shader->uniforms[gluniform_tint_color]  = GETUNI(GLSL_UNIFORM_TINTCOLOR);
+		shader->uniforms[gluniform_fade_color]  = GETUNI(GLSL_UNIFORM_FADECOLOR);
+		shader->uniforms[gluniform_lighting]    = GETUNI(GLSL_UNIFORM_LIGHTING);
+		shader->uniforms[gluniform_fade_start]  = GETUNI(GLSL_UNIFORM_FADESTART);
+		shader->uniforms[gluniform_fade_end]    = GETUNI(GLSL_UNIFORM_FADEEND);
+
+		// misc.
+		shader->uniforms[gluniform_leveltime]   = GETUNI(GLSL_UNIFORM_LEVELTIME);
+
 #undef GETUNI
+
+		// 27072020
+#ifdef GLSL_USE_ATTRIBUTE_QUALIFIER
+#define GETATTRIB(attribute) pglGetAttribLocation(shader->program, attribute);
+
+		shader->attributes[glattribute_position]     = GETATTRIB(GLSL_ATTRIBUTE_POSITION);
+		shader->attributes[glattribute_texcoord]     = GETATTRIB(GLSL_ATTRIBUTE_TEXCOORD);
+		shader->attributes[glattribute_normal]       = GETATTRIB(GLSL_ATTRIBUTE_NORMAL);
+		shader->attributes[glattribute_colors]       = GETATTRIB(GLSL_ATTRIBUTE_COLORS);
+		shader->attributes[glattribute_fadetexcoord] = GETATTRIB(GLSL_ATTRIBUTE_FADETEX);
+
+#undef GETATTRIB
+#endif
 	}
 
 #ifdef HAVE_GLES2

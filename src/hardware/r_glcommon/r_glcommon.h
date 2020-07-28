@@ -127,17 +127,6 @@ typedef fvector4_t fmatrix4_t[4];
 extern fmatrix4_t projMatrix;
 extern fmatrix4_t viewMatrix;
 extern fmatrix4_t modelMatrix;
-
-enum
-{
-	LOC_POSITION  = 0,
-	LOC_TEXCOORD  = 1,
-	LOC_NORMAL    = 2,
-	LOC_COLORS    = 3,
-
-	LOC_TEXCOORD0 = LOC_TEXCOORD,
-	LOC_TEXCOORD1 = LOC_NORMAL
-};
 #endif
 
 /* 1.2 Parms */

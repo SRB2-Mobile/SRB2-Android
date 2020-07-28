@@ -11,6 +11,8 @@
 /// \file shaders_gl2.h
 /// \brief OpenGL shader definitions
 
+#include "gl_shaders.h"
+
 // ================
 //  Vertex shaders
 // ================
