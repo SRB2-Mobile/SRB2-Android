@@ -125,6 +125,9 @@ static line_t *gl_linedef;
 static sector_t *gl_frontsector;
 static sector_t *gl_backsector;
 
+boolean gl_powersoftwo = false;
+boolean gl_shadersavailable = true;
+
 // --------------------------------------------------------------------------
 //                                              STUFF FOR THE PROJECTION CODE
 // --------------------------------------------------------------------------
@@ -161,9 +164,6 @@ int rs_hw_numpolyflags = 0;
 int rs_hw_numcolors = 0;
 int rs_hw_batchsorttime = 0;
 int rs_hw_batchdrawtime = 0;
-
-boolean gl_shadersavailable = true;
-
 
 // ==========================================================================
 // Lighting
@@ -5990,29 +5990,36 @@ void HWR_Startup(void)
 {
 	static boolean startupdone = false;
 
-	// do this once
-	if (!startupdone)
-	{
-		INT32 i;
-		CONS_Printf("HWR_Startup()...\n");
+	textureformat = patchformat = GL_TEXFMT_RGBA;
 
-		HWR_InitPolyPool();
-		HWR_AddSessionCommands();
-		HWR_InitTextureCache();
-		HWR_InitModels();
-#ifdef ALAM_LIGHTING
-		HWR_InitLight();
+	// do this once
+	if (startupdone)
+		return;
+
+	CONS_Printf("HWR_Startup()...\n");
+
+#if defined(__ANDROID__)
+	gl_powersoftwo = true;
 #endif
 
-		// read every custom shader
+	HWR_InitPolyPool();
+	HWR_AddSessionCommands();
+	HWR_InitTextureCache();
+	HWR_InitModels();
+#ifdef ALAM_LIGHTING
+	HWR_InitLight();
+#endif
+
+	// read every custom shader
+	{
+		INT32 i;
+
 		for (i = 0; i < numwadfiles; i++)
 			HWR_ReadShaders(i, (wadfiles[i]->type == RET_PK3));
+
 		if (!HWR_LoadShaders())
 			gl_shadersavailable = false;
 	}
-
-	if (rendermode == render_opengl)
-		textureformat = patchformat = GL_TEXFMT_RGBA;
 
 	startupdone = true;
 }

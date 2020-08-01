@@ -100,6 +100,9 @@ extern float gl_viewwidth, gl_viewheight, gl_baseviewwindowy;
 
 extern float gl_viewwindowx, gl_basewindowcentery;
 
+extern boolean gl_powersoftwo;
+extern boolean gl_shadersavailable;
+
 // BP: big hack for a test in lighting ref : 1249753487AB
 extern fixed_t *hwbbox;
 extern FTransform atransform;
@@ -140,7 +143,5 @@ extern int rs_hw_numpolyflags;
 extern int rs_hw_numcolors;
 extern int rs_hw_batchsorttime;
 extern int rs_hw_batchdrawtime;
-
-extern boolean gl_shadersavailable;
 
 #endif
