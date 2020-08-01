@@ -98,8 +98,9 @@ consvar_t cv_touchsens = {"touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL, 0
 consvar_t cv_touchvertsens = {"touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t touchjoysens_cons_t[] = {{FRACUNIT/100, "MIN"}, {4 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchjoyhorzsens = {"touch_joyhorzsens", "0.5", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchjoyvertsens = {"touch_joyvertsens", "0.5", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchjoyhorzsens = {"touch_joyhorzsens", "2.0", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchjoyvertsens = {"touch_joyvertsens", "2.0", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchjoydeadzone = {"touch_joydeadzone", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 boolean TS_IsCustomizingControls(void)
 {
@@ -124,6 +125,7 @@ void TS_RegisterVariables(void)
 	CV_RegisterVar(&cv_touchvertsens);
 	CV_RegisterVar(&cv_touchjoyvertsens);
 	CV_RegisterVar(&cv_touchjoyhorzsens);
+	CV_RegisterVar(&cv_touchjoydeadzone);
 
 	// Main options
 	CV_RegisterVar(&cv_touchcamera);
@@ -135,6 +137,11 @@ void TS_RegisterVariables(void)
 boolean TS_IsPresetActive(void)
 {
 	return (touch_preset != touchpreset_none);
+}
+
+boolean TS_IsScreenJoystickUsed(void)
+{
+	return (fpclassify(touchxmove) == FP_NORMAL || fpclassify(touchymove) == FP_NORMAL);
 }
 
 void TS_ScaleCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale)
@@ -397,19 +404,23 @@ void TS_HandleFingerEvent(event_t *ev)
 					// Joystick
 					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
 					{
+						float fx, fy;
 						float xsens = FIXED_TO_FLOAT(cv_touchjoyhorzsens.value);
 						float ysens = FIXED_TO_FLOAT(cv_touchjoyvertsens.value);
 						INT32 padx = touch_joystick_x, pady = touch_joystick_y;
 						INT32 padw = touch_joystick_w, padh = touch_joystick_h;
 
-						TS_ScaleCoords(&padx, &pady, &padw, &padh, false, true);
-						TS_CenterIntegerCoords(&padx, &pady);
+						padx *= vid.dupx;
+						pady *= vid.dupy;
+						padw *= vid.dupx;
+						padh *= vid.dupy;
+						TS_CenterCoords(&padx, &pady);
 
-						dx = x - (padx + (padw / 2));
-						dy = y - (pady + (padh / 2));
+						fx = FIXED_TO_FLOAT((x * FRACUNIT) - (padx + (padw / 2)));
+						fy = FIXED_TO_FLOAT((y * FRACUNIT) - (pady + (padh / 2)));
 
-						touchxmove = (((float)dx * xsens) / FIXED_TO_FLOAT(TOUCHJOYEXTENDX));
-						touchymove = (((float)dy * ysens) / FIXED_TO_FLOAT(TOUCHJOYEXTENDY));
+						touchxmove = (fx * xsens) / (FIXED_TO_FLOAT(touch_joystick_w) * (float)vid.dupx);
+						touchymove = (fy * ysens) / (FIXED_TO_FLOAT(touch_joystick_h) * (float)vid.dupy);
 						touchpressure = ev->pressure;
 					}
 					// Mouse

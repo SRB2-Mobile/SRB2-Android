@@ -357,7 +357,7 @@ consvar_t cv_autobrake = {"autobrake", "On", CV_SAVE|CV_CALL, CV_OnOff, AutoBrak
 consvar_t cv_autobrake2 = {"autobrake2", "On", CV_SAVE|CV_CALL, CV_OnOff, AutoBrake2_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 // hi here's some new controls
-static CV_PossibleValue_t zerotoone_cons_t[] = {{0, "MIN"}, {FRACUNIT, "MAX"}, {0, NULL}};
+CV_PossibleValue_t zerotoone_cons_t[] = {{0, "MIN"}, {FRACUNIT, "MAX"}, {0, NULL}};
 consvar_t cv_cam_shiftfacing[2] = {
 	{"cam_shiftfacingchar", "0.33", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
 	{"cam2_shiftfacingchar", "0.33", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL},
@@ -861,7 +861,7 @@ static INT32 JoyAxis(axis_input_e axissel)
 	}
 
 #ifdef TOUCHINPUTS
-	if (fpclassify(touchxmove) == FP_NORMAL || fpclassify(touchymove) == FP_NORMAL) // Touch screen joystick
+	if (TS_IsScreenJoystickUsed()) // Touch screen joystick
 	{
 		if (axissel == AXISMOVE)
 			return (INT32)(touchymove * JOYAXISRANGE);
@@ -986,6 +986,19 @@ static INT32 Joy2Axis(axis_input_e axissel)
 
 #define PlayerJoyAxis(p, ax) ((p) == 1 ? JoyAxis(ax) : Joy2Axis(ax))
 
+// Get the gamepad style from a player
+static INT32 G_GamepadStyleForPlayer(UINT8 splitnum)
+{
+	if (splitnum == 1)
+		return Joystick2.bGamepadStyle;
+#ifdef TOUCHINPUTS
+	else if (TS_IsScreenJoystickUsed())
+		return 0;
+#endif
+	else
+		return Joystick.bGamepadStyle;
+}
+
 // Take a magnitude of two axes, and adjust it to take out the deadzone
 // Will return a value between 0 and JOYAXISRANGE
 static INT32 G_BasicDeadZoneCalculation(INT32 magnitude, fixed_t deadZone)
@@ -1008,17 +1021,24 @@ static INT32 G_BasicDeadZoneCalculation(INT32 magnitude, fixed_t deadZone)
 	return deadzoneAppliedValue;
 }
 
+// Get the deadzone value from a player
+static fixed_t G_DeadZoneForPlayer(UINT8 splitnum)
+{
+	if (splitnum == 1)
+		return cv_deadzone2.value;
+#ifdef TOUCHINPUTS
+	else if (TS_IsScreenJoystickUsed())
+		return cv_touchjoydeadzone.value;
+#endif
+	else
+		return cv_deadzone.value;
+}
+
 // Get the actual sensible radial value for a joystick axis when accounting for a deadzone
 static void G_HandleAxisDeadZone(UINT8 splitnum, joystickvector2_t *joystickvector)
 {
-	INT32 gamepadStyle = Joystick.bGamepadStyle;
-	fixed_t deadZone = cv_deadzone.value;
-
-	if (splitnum == 1)
-	{
-		gamepadStyle = Joystick2.bGamepadStyle;
-		deadZone = cv_deadzone2.value;
-	}
+	INT32 gamepadStyle = G_GamepadStyleForPlayer(splitnum);
+	fixed_t deadZone = G_DeadZoneForPlayer(splitnum);
 
 	// When gamepadstyle is "true" the values are just -1, 0, or 1. This is done in the interface code.
 	if (!gamepadStyle)

@@ -130,6 +130,8 @@ extern INT32 mouse2x, mouse2y, mlook2y;
 
 extern INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
 
+extern CV_PossibleValue_t zerotoone_cons_t[];
+
 typedef enum
 {
 	AXISNONE = 0,

@@ -1286,6 +1286,8 @@ static menuitem_t OP_TouchOptionsMenu[] =
 	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 130},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
 	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 140},
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
+	                      NULL, "Joy. Deadzone",             &cv_touchjoydeadzone, 150},
 };
 
 static menuitem_t OP_TouchControlsMenu[] =

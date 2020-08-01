@@ -162,12 +162,14 @@ extern consvar_t cv_touchlayoutusegrid;
 // Touch screen sensitivity
 extern consvar_t cv_touchsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
+extern consvar_t cv_touchjoydeadzone;
 
 // Screen joystick movement
 #define TOUCHJOYEXTENDX (touch_joystick_w / 2)
 #define TOUCHJOYEXTENDY (touch_joystick_h / 2)
 
 extern float touchxmove, touchymove, touchpressure;
+boolean TS_IsScreenJoystickUsed(void);
 
 void TS_HandleFingerEvent(event_t *ev);
 
