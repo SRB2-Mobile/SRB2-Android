@@ -67,10 +67,7 @@ boolean LoadGL(void)
 */
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
-	INT32 cbpp;
 	const GLvoid *glvendor = NULL, *glrenderer = NULL, *glversion = NULL;
-
-	cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
 
 	glvendor = pglGetString(GL_VENDOR);
 	// Get info and extensions.

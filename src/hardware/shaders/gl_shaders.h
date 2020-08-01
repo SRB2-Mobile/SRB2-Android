@@ -256,6 +256,12 @@ boolean Shader_InitCustom(void);
 
 void Shader_LoadCustom(int number, char *shader, size_t size, boolean fragment);
 
+#if defined(GLSL_USE_ATTRIBUTE_QUALIFIER)
+int Shader_AttribLoc(int loc);
+#elif defined(GLSL_USE_LAYOUT_QUALIFIER)
+#define Shader_AttribLoc(x) (x)
+#endif
+
 #ifndef GL_FRAGMENT_SHADER
 #define GL_FRAGMENT_SHADER 0x8B30
 #endif

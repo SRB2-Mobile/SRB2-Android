@@ -189,6 +189,33 @@ void Shader_SetupGLFunc(void)
 #endif
 }
 
+#if defined(GLSL_USE_ATTRIBUTE_QUALIFIER) && defined(HAVE_GLES2)
+int Shader_AttribLoc(int loc)
+{
+	int pos, attrib;
+
+	glattribute_t LOC_TO_ATTRIB[glattribute_max] =
+	{
+		glattribute_position,     // LOC_POSITION
+		glattribute_texcoord,     // LOC_TEXCOORD + LOC_TEXCOORD0
+		glattribute_normal,       // LOC_NORMAL
+		glattribute_colors,       // LOC_COLORS
+		glattribute_fadetexcoord, // LOC_TEXCOORD1
+	};
+
+	if (shader_current == NULL)
+		I_Error("Shader_AttribLoc: shader not set");
+
+	attrib = LOC_TO_ATTRIB[loc];
+	pos = shader_current->attributes[attrib];
+
+	if (pos == -1)
+		return 0;
+
+	return pos;
+}
+#endif
+
 //
 // Shader info
 // Those are given to the uniforms.
