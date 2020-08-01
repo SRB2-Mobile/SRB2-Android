@@ -84,7 +84,7 @@
 	GLSL_BASE_IN \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
-		GLSL_COLOR_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_UNIFORM_POLYCOLOR ";\n" \
+		GLSL_FRAGMENT_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 	"}\0"
 
 //
@@ -97,7 +97,7 @@
 	GLSL_BASE_IN \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
-		GLSL_COLOR_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_LINKAGE_COLORS ";\n" \
+		GLSL_FRAGMENT_OUTPUT " = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ") * " GLSL_LINKAGE_COLORS ";\n" \
 	"}\0"
 
 //
@@ -109,6 +109,7 @@
 	GLSL_COLOR_OUTPUT_STATEMENT \
 	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_TEXCOORD ";\n" \
 	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_FADEMASKTEXCOORD ";\n" \
+	GLSL_LINKAGE_INPUT_KEYWORD " " GLSL_LINKAGEVARIABLE_COLORS ";\n" \
 	"uniform sampler2D " GLSL_UNIFORM_STARTSCREEN ";\n" \
 	"uniform sampler2D " GLSL_UNIFORM_ENDSCREEN ";\n" \
 	"uniform sampler2D " GLSL_UNIFORM_FADEMASK ";\n" \
@@ -116,7 +117,7 @@
 		"vec4 StartTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_STARTSCREEN ", " GLSL_LINKAGE_TEXCOORD ");\n" \
 		"vec4 EndTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_ENDSCREEN ", " GLSL_LINKAGE_TEXCOORD ");\n" \
 		"vec4 MaskTexel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_FADEMASK ", " GLSL_LINKAGE_FADEMASKTEXCOORD ");\n" \
-		GLSL_COLOR_OUTPUT " = mix(StartTexel, EndTexel, MaskTexel.r);\n" \
+		GLSL_FRAGMENT_OUTPUT " = mix(StartTexel, EndTexel, MaskTexel.r);\n" \
 	"}\0"
 
 // Lactozilla: Very simple shader that uses either additive
@@ -158,7 +159,7 @@
 			"FinalColor.b = MixTexel.b - FadeAlpha;\n" \
 		"}\n" \
 		"FinalColor.a = 1.0f;\n" \
-		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
+		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -218,13 +219,13 @@
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
-		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(TexSampler, TexCoord);\n" \
+		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ");\n" \
 		"vec4 BaseColor = texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
 		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
-		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
+		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -257,7 +258,7 @@
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
 		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
-		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
+		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
 //
@@ -278,5 +279,5 @@
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		GLSL_COLOR_OUTPUT " = FinalColor;\n" \
+		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"

@@ -225,6 +225,8 @@ boolean SetupGLfunc(void)
 
 #undef GETOPENGLFUNC
 
+	SetupGLFunc4();
+
 #endif
 	return true;
 }
@@ -296,14 +298,20 @@ static int AttribLoc(int loc)
 		glattribute_texcoord,     // LOC_TEXCOORD + LOC_TEXCOORD0
 		glattribute_normal,       // LOC_NORMAL
 		glattribute_colors,       // LOC_COLORS
-		glattribute_fadetexcoord, // LOC_NORMAL
+		glattribute_fadetexcoord, // LOC_TEXCOORD1
 	};
+
+	if (shader_current == NULL)
+		I_Error("AttribLoc: shader not set");
 
 	attrib = LOC_TO_ATTRIB[loc];
 	pos = shader_current->attributes[attrib];
 
 	if (pos == -1)
-		I_Error("AttribLoc: attribute %d for location %d is invalid", attrib, loc);
+	{
+		GL_MSG_Error("AttribLoc: attribute %d for location %d is invalid, returning zero instead", attrib, loc);
+		return 0;
+	}
 
 	return pos;
 }
@@ -326,7 +334,7 @@ static void SetNoTexture(void)
 			UINT8 whitepixel[4] = {255, 255, 255, 255};
 			pglGenTextures(1, &NOTEXTURE_NUM);
 			pglBindTexture(GL_TEXTURE_2D, NOTEXTURE_NUM);
-			pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitepixel);
+			pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitepixel);
 		}
 		else
 			pglBindTexture(GL_TEXTURE_2D, NOTEXTURE_NUM);
@@ -553,8 +561,8 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 
 	pglClear(ClearMask);
 
-	pglEnableVertexAttribArray(LOC_POSITION);
-	pglEnableVertexAttribArray(LOC_TEXCOORD);
+	pglEnableVertexAttribArray(AttribLoc(LOC_POSITION));
+	pglEnableVertexAttribArray(AttribLoc(LOC_TEXCOORD));
 }
 
 
@@ -841,14 +849,6 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 	}
 
-	if (updatemipmap)
-		pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-	else
-		pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-
-	if (MipMap)
-		pglGenerateMipmap(GL_TEXTURE_2D);
-
 	if (pTexInfo->flags & TF_WRAPX)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	else
@@ -861,6 +861,14 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 
 	if (maximumAnisotropy)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
+
+	if (updatemipmap)
+		pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+	else
+		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+
+	if (MipMap)
+		pglGenerateMipmap(GL_TEXTURE_2D);
 }
 
 // -----------------+
@@ -1203,7 +1211,7 @@ static void RenderDome(INT32 skytexture)
 		pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
 
 	// activate and specify pointers to arrays
-	pglEnableVertexAttribArray(LOC_COLORS);
+	pglEnableVertexAttribArray(AttribLoc(LOC_COLORS));
 	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_x);
 	pglVertexAttribPointer(AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_u);
 	pglVertexAttribPointer(AttribLoc(LOC_COLORS), 4, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_r);
@@ -1228,7 +1236,7 @@ static void RenderDome(INT32 skytexture)
 		}
 	}
 
-	pglDisableVertexAttribArray(LOC_COLORS);
+	pglDisableVertexAttribArray(AttribLoc(LOC_COLORS));
 
 	// bind with 0, so, switch back to normal pointer operation
 	if (gl_ext_arb_vertex_buffer_object)
@@ -1569,7 +1577,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float(Surface->FadeColor.s.blue);
 	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
 
-	pglEnableVertexAttribArray(LOC_NORMAL);
+	pglEnableVertexAttribArray(AttribLoc(LOC_NORMAL));
 
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
@@ -1755,7 +1763,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	lzml_matrix4_identity(modelMatrix);
 	Shader_SetTransform();
 
-	pglDisableVertexAttribArray(LOC_NORMAL);
+	pglDisableVertexAttribArray(AttribLoc(LOC_NORMAL));
 
 	pglDisable(GL_CULL_FACE);
 }
@@ -1909,7 +1917,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglDisable(GL_DEPTH_TEST);
 	pglDisable(GL_BLEND);
 
-	pglDisableVertexAttribArray(LOC_TEXCOORD);
+	pglDisableVertexAttribArray(AttribLoc(LOC_TEXCOORD));
 
 	// Draw a black square behind the screen texture,
 	// so nothing shows through the edges
@@ -1917,7 +1925,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglVertexAttribPointer(AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, blackBack);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	pglEnableVertexAttribArray(LOC_TEXCOORD);
+	pglEnableVertexAttribArray(AttribLoc(LOC_TEXCOORD));
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	for(x=0;x<SCREENVERTS-1;x++)
@@ -2154,11 +2162,11 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
-	pglDisableVertexAttribArray(LOC_COLORS);
-	pglEnableVertexAttribArray(LOC_TEXCOORD1);
-
 	shader = &gl_shaderprograms[tinted ? SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE : SHADER_FADEMASK];
 	changed = Shader_SetProgram(shader);
+
+	pglDisableVertexAttribArray(AttribLoc(LOC_COLORS));
+	pglEnableVertexAttribArray(AttribLoc(LOC_TEXCOORD1));
 
 	if (changed)
 	{
@@ -2189,7 +2197,7 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 
 	pglActiveTexture(GL_TEXTURE0);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	pglDisableVertexAttribArray(LOC_TEXCOORD1);
+	pglDisableVertexAttribArray(AttribLoc(LOC_TEXCOORD1));
 
 	UnSetShader();
 	tex_downloaded = endScreenWipe;

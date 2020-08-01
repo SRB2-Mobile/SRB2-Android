@@ -23,7 +23,9 @@ extern boolean gl_shadersenabled;
 
 void Shader_SetupGLFunc(void);
 
+#ifdef HAVE_GLES2
 #define USE_GLES2_UNIFORMNAMES // :asafunny:
+#endif
 
 #ifdef HAVE_GLES3
     #define GLSL_VERSION_MACRO "#version 330 core\n"
@@ -108,7 +110,7 @@ void Shader_SetupGLFunc(void);
     #define GLSL_ATTRIBSTATEMENT_TEXCOORD "layout (location = 1) in " GLSL_ATTRIBVARIABLE_TEXCOORD ";\n"
     #define GLSL_ATTRIBSTATEMENT_NORMAL   "layout (location = 2) in " GLSL_ATTRIBVARIABLE_NORMAL ";\n"
     #define GLSL_ATTRIBSTATEMENT_COLORS   "layout (location = 3) in " GLSL_ATTRIBVARIABLE_COLORS ";\n"
-    #define GLSL_ATTRIBSTATEMENT_FADETEX  "layout (location = 2) in " GLSL_ATTRIBVARIABLE_FADETEX ";\n"
+    #define GLSL_ATTRIBSTATEMENT_FADETEX  "layout (location = 4) in " GLSL_ATTRIBVARIABLE_FADETEX ";\n"
 #else // GLSL ES 100 (GLSL_USE_VARYING_QUALIFIER)
     // Use the attribute qualifier to specify vertex attributes.
     #define GLSL_ATTRIBSTATEMENT_POSITION "attribute " GLSL_ATTRIBVARIABLE_POSITION ";\n"
@@ -134,11 +136,11 @@ void Shader_SetupGLFunc(void);
 
 #ifdef GLSL_USE_FRAGCOLOR_OUTPUT
     // Use 'FragColor' to output the fragment's color.
-    #define GLSL_COLOR_OUTPUT                "FragColor"
+    #define GLSL_FRAGMENT_OUTPUT             "FragColor"
     #define GLSL_COLOR_OUTPUT_STATEMENT      GLSL_LINKAGE_OUTPUT_KEYWORD " vec4 FragColor;\n"
 #else // GLSL_USE_GLCOLOR_OUTPUT
     // Use 'gl_FragColor' to output the fragment's color.
-    #define GLSL_COLOR_OUTPUT                "gl_FragColor"
+    #define GLSL_FRAGMENT_OUTPUT             "gl_FragColor"
     #define GLSL_COLOR_OUTPUT_STATEMENT      ""
 #endif
 
@@ -152,7 +154,7 @@ enum
 	LOC_COLORS    = 3,
 
 	LOC_TEXCOORD0 = LOC_TEXCOORD,
-	LOC_TEXCOORD1 = LOC_NORMAL
+	LOC_TEXCOORD1 = 4
 };
 
 #define MAXSHADERS 16
@@ -205,7 +207,7 @@ typedef enum
 	glattribute_texcoord,     // LOC_TEXCOORD + LOC_TEXCOORD0
 	glattribute_normal,       // LOC_NORMAL
 	glattribute_colors,       // LOC_COLORS
-	glattribute_fadetexcoord, // LOC_NORMAL
+	glattribute_fadetexcoord, // LOC_TEXCOORD1
 
 	glattribute_max,
 } glattribute_t;
