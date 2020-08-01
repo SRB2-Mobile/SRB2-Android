@@ -60,6 +60,7 @@ static INT32 touchcust_submenu_scroll = 0;
 
 static INT32 touchcust_addbutton_x = 0;
 static INT32 touchcust_addbutton_y = 0;
+static boolean touchcust_addbutton_finger = false;
 
 static boolean touchcust_customizing = false;
 static char *touchcust_deferredmessage = NULL;
@@ -1185,15 +1186,15 @@ void TS_MakeLayoutList(void)
 			if (extlen)
 			{
 				const char *attach;
-				size_t len, offs;
+				size_t len2, offs;
 
 				append++;
 				attach = va("...%s", append);
-				len = strlen(attach) + 1;
+				len2 = strlen(attach) + 1;
 
 				strlcpy(layoutnames[i], string, maxlen+1);
 
-				offs = (maxlen + 1) - len;
+				offs = (maxlen + 1) - len2;
 				strlcpy(layoutnames[i] + offs, attach, (maxlen + 1) - offs);
 			}
 			else
@@ -1533,8 +1534,6 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 
 	memset(btn, 0x00, sizeof(touchconfig_t));
 
-	MoveButtonTo(btn, touchcust_addbutton_x, touchcust_addbutton_y);
-
 	if (gc == gc_joystick)
 	{
 		fixed_t w, h;
@@ -1544,9 +1543,17 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 	}
 	else
 	{
-		btn->w = 32 * FRACUNIT;
-		btn->h = 16 * FRACUNIT;
+		btn->w = TOUCHCUST_DEFAULTBTNWIDTH * FRACUNIT;
+		btn->h = TOUCHCUST_DEFAULTBTNHEIGHT * FRACUNIT;
 	}
+
+	if (!touchcust_addbutton_finger)
+	{
+		touchcust_addbutton_x = (vid.width / 2) - (btn->w / FRACUNIT);
+		touchcust_addbutton_y = (vid.height / 2) - (btn->h / FRACUNIT);
+	}
+
+	MoveButtonTo(btn, touchcust_addbutton_x, touchcust_addbutton_y);
 
 	if (btn == &usertouchcontrols[gc_joystick])
 	{
@@ -1637,6 +1644,13 @@ static void CloseSubmenu(void)
 		StopRenamingLayout(touchcust_layoutlist_renaming);
 
 	touchcust_submenu = touchcust_submenu_none;
+}
+
+boolean TS_IsCustomizationSubmenuOpen(void)
+{
+	if (!TS_IsCustomizingControls())
+		return false;
+	return (touchcust_submenu != touchcust_submenu_none);
 }
 
 static void FocusSubmenuOnSelection(INT32 selection)
@@ -2375,13 +2389,13 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	for (i = 0; (touchcust_buttonlist[i].gc != gc_null); i++)
 	{
 		INT32 gc = touchcust_buttonlist[i].gc;
-		touchconfig_t *btn = &usertouchcontrols[gc];
+		touchconfig_t *ubtn = &usertouchcontrols[gc];
 
 		if (touchcust_submenu_listsize >= TOUCHCUST_SUBMENU_MAXLISTSIZE)
 			break;
 
 		// Button does not exist, so add it to the list.
-		if (btn->hidden)
+		if (ubtn->hidden)
 		{
 			touchcust_submenu_list[touchcust_submenu_listsize] = gc;
 			touchcust_submenu_listnames[touchcust_submenu_listsize] = touchcust_buttonlist[i].name;
@@ -2390,8 +2404,14 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	}
 
 	// Set last finger position
-	touchcust_addbutton_x = finger->x;
-	touchcust_addbutton_y = finger->y;
+	if (finger)
+	{
+		touchcust_addbutton_x = finger->x;
+		touchcust_addbutton_y = finger->y;
+		touchcust_addbutton_finger = true;
+	}
+	else
+		touchcust_addbutton_finger = false;
 
 	// Returns true if any item was added to the list.
 	return (touchcust_submenu_listsize > 0);
@@ -2439,7 +2459,15 @@ boolean TS_HandleKeyEvent(INT32 key, event_t *event)
 	touchlayout_t *layout = NULL;
 
 	if (touchcust_submenu != touchcust_submenu_layouts)
-		return false;
+	{
+		if (touchcust_submenu == touchcust_submenu_none && key == KEY_ENTER)
+		{
+			SetupNewButtonSubmenu(NULL);
+			return true;
+		}
+		else
+			return false;
+	}
 
 	(void)event;
 
@@ -2586,6 +2614,8 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 						resized = HandleResizePointSelection(x, y, finger, btn, btnstatus);
 						if (resized)
 							btnstatus->resizearea = true;
+						else if (!FingerTouchesButton(x, y, btn, false))
+							break;
 					}
 
 					if (!btnstatus->resizearea)

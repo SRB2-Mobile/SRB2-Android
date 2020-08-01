@@ -114,6 +114,11 @@ typedef enum
 
 #define TOUCHCUST_LASTSUBMENUBUTTON touchcust_submenu_numbuttons++;
 
+#define TOUCHCUST_DEFAULTBTNWIDTH  32
+#define TOUCHCUST_DEFAULTBTNHEIGHT 16
+
+boolean TS_IsCustomizationSubmenuOpen(void);
+
 typedef struct
 {
 	touchfinger_t *finger;

@@ -142,6 +142,7 @@ typedef struct
 	boolean promptblockcontrols; // promptblockcontrols
 	boolean canopenconsole; // modeattacking || metalrecording
 	boolean customizingcontrols; // TS_IsCustomizingControls
+	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
 } touchconfigstatus_t;
 
 extern touchconfigstatus_t touchcontrolstatus;

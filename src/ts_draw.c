@@ -468,10 +468,11 @@ void TS_DrawMenuNavigation(void)
 	if (!touch_screenexists)
 		return;
 
-#define drawbtn(keyname, symb) \
+#define drawbtn(keyname) \
 	control = &touchnavigation[keyname]; \
 	if (!control->hidden) \
 	{ \
+		char symb = control->name[0]; \
 		SCALEMENUBUTTON(control); \
 		if (control->down) \
 		{ \
@@ -492,9 +493,9 @@ void TS_DrawMenuNavigation(void)
 						symb|flags, false); \
 	}
 
-	drawbtn(KEY_ESCAPE, 0x1C); // left arrow
-	drawbtn(KEY_ENTER, 0x1D); // right arrow
-	drawbtn(KEY_CONSOLE, '$');
+	drawbtn(KEY_ESCAPE); // left arrow
+	drawbtn(KEY_ENTER); // right arrow
+	drawbtn(KEY_CONSOLE);
 
 #undef drawbtn
 }

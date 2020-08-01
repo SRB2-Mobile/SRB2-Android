@@ -1180,6 +1180,10 @@ void TS_PositionNavigation(void)
 	touchconfig_t *nav = touchnavigation;
 	INT32 corneroffset = 4 * FRACUNIT;
 
+	touchconfig_t *back = &nav[KEY_ESCAPE];
+	touchconfig_t *confirm = &nav[KEY_ENTER];
+	touchconfig_t *con = &nav[KEY_CONSOLE];
+
 	// clear all
 	memset(touchnavigation, 0x00, sizeof(touchconfig_t) * NUMKEYS);
 
@@ -1189,40 +1193,51 @@ void TS_PositionNavigation(void)
 	// Back
 	if (touchnavigationstatus.customizingcontrols)
 	{
-		nav[KEY_ESCAPE].w = 16 * FRACUNIT;
-		nav[KEY_ESCAPE].h = 16 * FRACUNIT;
-		nav[KEY_ESCAPE].color = 35;
+		back->w = 16 * FRACUNIT;
+		back->h = 16 * FRACUNIT;
+		back->color = 35;
 	}
 	else
 	{
-		nav[KEY_ESCAPE].x = corneroffset;
-		nav[KEY_ESCAPE].y = corneroffset;
-		nav[KEY_ESCAPE].w = 24 * FRACUNIT;
-		nav[KEY_ESCAPE].h = 24 * FRACUNIT;
-		nav[KEY_ESCAPE].h = 24 * FRACUNIT;
+		back->x = corneroffset;
+		back->y = corneroffset;
+		back->w = 24 * FRACUNIT;
+		back->h = 24 * FRACUNIT;
+		back->h = 24 * FRACUNIT;
 	}
 
+	back->name = "\x1C";
+
 	// Confirm
-	if (touchnavigationstatus.customizingcontrols)
-		nav[KEY_ENTER].hidden = true;
+	if (touchnavigationstatus.layoutsubmenuopen)
+		confirm->hidden = true;
+	else if (touchnavigationstatus.customizingcontrols)
+	{
+		confirm->w = 32 * FRACUNIT;
+		confirm->h = 16 * FRACUNIT;
+		confirm->x = ((BASEVIDWIDTH / 2) * FRACUNIT) - (TOUCHGRIDSIZE * FRACUNIT);
+		confirm->color = 112;
+		confirm->name = "+";
+	}
 	else
 	{
-		nav[KEY_ENTER].w = 24 * FRACUNIT;
-		nav[KEY_ENTER].h = 24 * FRACUNIT;
-		nav[KEY_ENTER].x = (((vid.width / vid.dupx) * FRACUNIT) - nav[KEY_ENTER].w - corneroffset);
-		nav[KEY_ENTER].y = corneroffset;
+		confirm->w = 24 * FRACUNIT;
+		confirm->h = 24 * FRACUNIT;
+		confirm->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w - corneroffset);
+		confirm->y = corneroffset;
+		confirm->name = "\x1D";
 	}
 
 	// Console
 	if (!touchnavigationstatus.canopenconsole)
-		nav[KEY_CONSOLE].hidden = true;
+		con->hidden = true;
 	else
 	{
-		nav[KEY_CONSOLE].x = corneroffset;
-		nav[KEY_CONSOLE].y = nav[KEY_ESCAPE].y + nav[KEY_ESCAPE].h + (8 * FRACUNIT);
-		nav[KEY_CONSOLE].w = 24 * FRACUNIT;
-		nav[KEY_CONSOLE].h = 24 * FRACUNIT;
-		nav[KEY_CONSOLE].hidden = false;
+		con->x = corneroffset;
+		con->y = back->y + back->h + (8 * FRACUNIT);
+		con->w = 24 * FRACUNIT;
+		con->h = 24 * FRACUNIT;
+		con->name = "$";
 	}
 
 	// Normalize all buttons
@@ -1288,6 +1303,7 @@ void TS_DefineButtons(void)
 	navstatus.vidwidth = vid.width;
 	navstatus.vidheight = vid.height;
 	navstatus.customizingcontrols = TS_IsCustomizingControls();
+	navstatus.layoutsubmenuopen = TS_IsCustomizationSubmenuOpen();
 	navstatus.canopenconsole = (!(modeattacking || metalrecording) && !navstatus.customizingcontrols);
 
 	if (memcmp(&navstatus, &touchnavigationstatus, size))
