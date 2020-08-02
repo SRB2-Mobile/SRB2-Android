@@ -38,7 +38,9 @@ typedef struct
 	evtype_t type;
 	INT32 key; // keyboard key, mouse button, joystick button, finger id
 	INT32 x, y;
+
 #ifdef TOUCHINPUTS
+	float fx, fy;
 	INT32 dx, dy;
 	float pressure;
 #endif

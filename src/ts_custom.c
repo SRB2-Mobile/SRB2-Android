@@ -87,6 +87,9 @@ static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy);
 static void SnapButtonToGrid(touchconfig_t *btn);
 static fixed_t RoundSnapCoord(fixed_t a, fixed_t b);
 
+static void SetButtonSupposedLocation(touchconfig_t *btn);
+static void MoveButtonToSupposedLocation(touchconfig_t *btn);
+
 static void UpdateJoystickBase(touchconfig_t *btn);
 static void UpdateJoystickSize(touchconfig_t *btn);
 static void NormalizeDPad(void);
@@ -1239,9 +1242,24 @@ static boolean FingerTouchesRect(INT32 fx, INT32 fy, INT32 rx, INT32 ry, INT32 r
 //
 static void GetButtonRect(touchconfig_t *btn, INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean inside)
 {
-	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
+	INT32 tx, ty, tw, th;
 
-	TS_ScaleCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	if (btn->modifying)
+	{
+		tx = FLOAT_TO_FIXED(btn->supposed.x) / FRACUNIT;
+		ty = FLOAT_TO_FIXED(btn->supposed.y) / FRACUNIT;
+		tw = btn->supposed.w / FRACUNIT;
+		th = btn->supposed.h / FRACUNIT;
+	}
+	else
+	{
+		tx = btn->x;
+		ty = btn->y;
+		tw = btn->w;
+		th = btn->h;
+		TS_ScaleCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
+	}
+
 	TS_CenterIntegerCoords(&tx, &ty);
 
 	*x = tx;
@@ -1388,13 +1406,13 @@ static boolean FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn, boolean
 //
 static void MoveButtonTo(touchconfig_t *btn, INT32 x, INT32 y)
 {
-	btn->x = (x / vid.dupx) * FRACUNIT;
-	btn->y = (y / vid.dupy) * FRACUNIT;
+	SetButtonSupposedLocation(btn);
+
+	btn->supposed.x = FIXED_TO_FLOAT(x * FRACUNIT);
+	btn->supposed.y = FIXED_TO_FLOAT(y * FRACUNIT);
 
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
-
-	TS_NormalizeButton(btn);
 }
 
 //
@@ -1402,31 +1420,29 @@ static void MoveButtonTo(touchconfig_t *btn, INT32 x, INT32 y)
 //
 static void OffsetButtonBy(touchconfig_t *btn, fixed_t offsx, fixed_t offsy)
 {
-	fixed_t w = (BASEVIDWIDTH * FRACUNIT);
-	fixed_t h = (BASEVIDHEIGHT * FRACUNIT);
+	fixed_t w = (BASEVIDWIDTH * vid.dupx * FRACUNIT);
+	fixed_t h = (BASEVIDHEIGHT * vid.dupy * FRACUNIT);
 
-	TS_DenormalizeCoords(&btn->x, &btn->y);
+	SetButtonSupposedLocation(btn);
 
-	btn->x += offsx;
-	btn->y += offsy;
+	btn->supposed.x += FIXED_TO_FLOAT(offsx);
+	btn->supposed.y += FIXED_TO_FLOAT(offsy);
 
 	if (cv_touchlayoutusegrid.value)
 	{
-		if (btn->x < 0)
-			btn->x = 0;
-		if (btn->x + btn->w > w)
-			btn->x = (w - btn->w);
+		if (btn->supposed.x < 0.0f)
+			btn->supposed.x = 0.0f;
+		if (FLOAT_TO_FIXED(btn->supposed.x) + btn->supposed.w > w)
+			btn->supposed.x = FIXED_TO_FLOAT(w - btn->supposed.w);
 
-		if (btn->y < 0)
-			btn->y = 0;
-		if (btn->y + btn->h > h)
-			btn->y = (h - btn->h);
+		if (btn->supposed.y < 0.0f)
+			btn->supposed.y = 0.0f;
+		if (FLOAT_TO_FIXED(btn->supposed.y) + btn->supposed.h > h)
+			btn->supposed.y = FIXED_TO_FLOAT(h - btn->supposed.h);
 	}
 
 	if (btn == &usertouchcontrols[gc_joystick])
 		UpdateJoystickBase(btn);
-
-	TS_NormalizeButton(btn);
 }
 
 //
@@ -1476,27 +1492,67 @@ static void SnapButtonToGrid(touchconfig_t *btn)
 }
 
 //
+// Set the "supposed" location of a button
+//
+static void SetButtonSupposedLocation(touchconfig_t *btn)
+{
+	if (!btn->modifying)
+	{
+		fixed_t x = btn->x;
+		fixed_t y = btn->y;
+
+		TS_DenormalizeCoords(&x, &y);
+
+		btn->supposed.x = FIXED_TO_FLOAT(FixedMul(x, vid.dupx * FRACUNIT));
+		btn->supposed.y = FIXED_TO_FLOAT(FixedMul(y, vid.dupy * FRACUNIT));
+		btn->supposed.w = FixedMul(btn->w, vid.dupx * FRACUNIT);
+		btn->supposed.h = FixedMul(btn->h, vid.dupy * FRACUNIT);
+
+		btn->modifying = true;
+	}
+}
+
+//
+// Moves a button to its "supposed" location
+//
+static void MoveButtonToSupposedLocation(touchconfig_t *btn)
+{
+	if (btn->modifying)
+	{
+		btn->x = (FLOAT_TO_FIXED(btn->supposed.x) / (vid.dupx * FRACUNIT)) * FRACUNIT;
+		btn->y = (FLOAT_TO_FIXED(btn->supposed.y) / (vid.dupy * FRACUNIT)) * FRACUNIT;
+		btn->w = (btn->supposed.w / (vid.dupx * FRACUNIT)) * FRACUNIT;
+		btn->h = (btn->supposed.h / (vid.dupy * FRACUNIT)) * FRACUNIT;
+		btn->modifying = false;
+		TS_NormalizeButton(btn);
+	}
+}
+
+//
 // Updates the joystick
 //
 static void UpdateJoystickBase(touchconfig_t *btn)
 {
 	fixed_t scale, xscale, yscale;
+	fixed_t btnw, btnh;
 	INT32 jw, jh;
 
 	TS_GetJoystick(NULL, NULL, &jw, &jh, false);
 
 	// Must not be normalized!
-	touch_joystick_x = btn->x;
-	touch_joystick_y = btn->y;
+	touch_joystick_x = (btn->modifying) ? (FLOAT_TO_FIXED(btn->supposed.x) / vid.dupx) : btn->x;
+	touch_joystick_y = (btn->modifying) ? (FLOAT_TO_FIXED(btn->supposed.y) / vid.dupy) : btn->y;
 
 	// Update joystick size
 	UpdateJoystickSize(btn);
+	btnw = (btn->modifying) ? (btn->supposed.w / vid.dupx) : btn->w;
+	btnh = (btn->modifying) ? (btn->supposed.h / vid.dupy) : btn->h;
 
 	// Move d-pad
 	scale = TS_GetDefaultScale();
-	xscale = FixedMul(FixedDiv(btn->w, jw), scale);
-	yscale = FixedMul(FixedDiv(btn->h, jh), scale);
-	TS_DPadPreset(usertouchcontrols, xscale, yscale, btn->w, false);
+	xscale = FixedMul(FixedDiv(btnw, jw), scale);
+	yscale = FixedMul(FixedDiv(btnh, jh), scale);
+	TS_DPadPreset(usertouchcontrols, xscale, yscale, btnw, false);
 
 	// Normalize d-pad
 	NormalizeDPad();
@@ -1504,8 +1560,8 @@ static void UpdateJoystickBase(touchconfig_t *btn)
 
 static void UpdateJoystickSize(touchconfig_t *btn)
 {
-	touch_joystick_w = btn->w;
-	touch_joystick_h = btn->h;
+	touch_joystick_w = (btn->modifying) ? (btn->supposed.w / vid.dupx) : btn->w;
+	touch_joystick_h = (btn->modifying) ? (btn->supposed.h / vid.dupy) : btn->h;
 }
 
 static void NormalizeDPad(void)
@@ -1592,7 +1648,12 @@ static void ClearSelection(touchcust_buttonstatus_t *selection)
 	selection->optsel = touchcust_options_none;
 
 	if (selection->finger)
+	{
+		touchconfig_t *btn = &usertouchcontrols[selection->finger->u.gamecontrol];
+		MoveButtonToSupposedLocation(btn);
 		selection->finger->u.gamecontrol = gc_null;
+	}
+
 	selection->finger = NULL;
 }
 
@@ -2167,69 +2228,148 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 	}
 	else
 	{
-		fixed_t dx = FixedDiv((x - finger->lastx) * FRACUNIT, vid.fdupx);
-		fixed_t dy = FixedDiv((y - finger->lasty) * FRACUNIT, vid.fdupy);
+		fixed_t dx = FLOAT_TO_FIXED(finger->fx - finger->lastfx);
+		fixed_t dy = FLOAT_TO_FIXED(finger->fy - finger->lastfy);
+		fixed_t offx, offy;
 		INT32 corner = btnstatus->isresizing;
+
+		SetButtonSupposedLocation(btn);
+
+#define SUPPOSEDWIDTHCHECKLEFT  ((cv_touchlayoutusegrid.value) && (FLOAT_TO_FIXED(btn->supposed.x) + dx < 0))
+#define SUPPOSEDHEIGHTCHECKTOP  ((cv_touchlayoutusegrid.value) && (FLOAT_TO_FIXED(btn->supposed.y) + dy < 0))
+
+#define SUPPOSEDWIDTHCHECKRIGHT ((cv_touchlayoutusegrid.value) && (FLOAT_TO_FIXED(btn->supposed.x) + btn->supposed.w + dx > (BASEVIDWIDTH * vid.dupx * FRACUNIT)))
+#define SUPPOSEDHEIGHTCHECKBOT  ((cv_touchlayoutusegrid.value) && (FLOAT_TO_FIXED(btn->supposed.y) + btn->supposed.h + dy > (BASEVIDHEIGHT * vid.dupy * FRACUNIT)))
 
 		switch (corner)
 		{
+			// top
 			case touchcust_resizepoint_topleft:
-				OffsetButtonBy(btn, (btn->w > MINBTNWIDTH ? dx : 0), (btn->h > MINBTNHEIGHT ? dy : 0));
-				btn->w -= dx;
-				btn->h -= dy;
+				offx = (btn->supposed.w > MINBTNWIDTH ? dx : 0);
+				offy = (btn->supposed.h > MINBTNHEIGHT ? dy : 0);
+
+				if (cv_touchlayoutusegrid.value)
+				{
+					if ((offx < 0 && FLOAT_TO_FIXED(btn->supposed.x) - offx < 0)
+					|| (offy < 0 && FLOAT_TO_FIXED(btn->supposed.y) - offy < 0))
+						break;
+				}
+
+				OffsetButtonBy(btn, offx, offy);
+
+				if ((dx > 0) || (dx < 0 && !SUPPOSEDWIDTHCHECKLEFT))
+					btn->supposed.w -= dx;
+				if ((dy > 0) || (dy < 0 && !SUPPOSEDHEIGHTCHECKTOP))
+					btn->supposed.h -= dy;
 				break;
+
 			case touchcust_resizepoint_topright:
-				OffsetButtonBy(btn, 0, (btn->h > MINBTNHEIGHT ? dy : 0));
-				btn->w += dx;
-				btn->h -= dy;
+				offy = (btn->supposed.h > MINBTNHEIGHT ? dy : 0);
+				if (cv_touchlayoutusegrid.value)
+				{
+					if (offy < 0 && FLOAT_TO_FIXED(btn->supposed.y) - offy < 0)
+						break;
+				}
+
+				if ((dy > 0) || (dy < 0 && !SUPPOSEDHEIGHTCHECKTOP))
+				{
+					OffsetButtonBy(btn, 0, offy);
+					btn->supposed.h -= dy;
+				}
+
+				if (SUPPOSEDWIDTHCHECKRIGHT)
+					break;
+				btn->supposed.w += dx;
 				break;
 
+			// bottom
 			case touchcust_resizepoint_bottomleft:
-				OffsetButtonBy(btn, (btn->w > MINBTNWIDTH ? dx : 0), 0);
-				btn->w -= dx;
-				btn->h += dy;
+				offx = (btn->supposed.w > MINBTNWIDTH ? dx : 0);
+				if (cv_touchlayoutusegrid.value)
+				{
+					if (offx < 0 && FLOAT_TO_FIXED(btn->supposed.x) - offx < 0)
+						break;
+				}
+
+				if ((dx > 0) || (dx < 0 && !SUPPOSEDWIDTHCHECKLEFT))
+				{
+					OffsetButtonBy(btn, offx, 0);
+					btn->supposed.w -= dx;
+				}
+
+				if (SUPPOSEDHEIGHTCHECKBOT)
+					break;
+				btn->supposed.h += dy;
 				break;
+
 			case touchcust_resizepoint_bottomright:
-				btn->w += dx;
-				btn->h += dy;
+				if (!SUPPOSEDWIDTHCHECKRIGHT)
+					btn->supposed.w += dx;
+				if (!SUPPOSEDHEIGHTCHECKBOT)
+					btn->supposed.h += dy;
 				break;
 
+			// middle
 			case touchcust_resizepoint_topmiddle:
-				OffsetButtonBy(btn, 0, (btn->h > MINBTNHEIGHT ? dy : 0));
-				btn->h -= dy;
-				break;
-			case touchcust_resizepoint_bottommiddle:
-				btn->h += dy;
+				offy = (btn->supposed.h > MINBTNHEIGHT ? dy : 0);
+				if (cv_touchlayoutusegrid.value)
+				{
+					if (offy < 0 && btn->supposed.y - offy < 0)
+						break;
+				}
+
+				if ((dy > 0) || (dy < 0 && !SUPPOSEDHEIGHTCHECKTOP))
+				{
+					OffsetButtonBy(btn, 0, offy);
+					btn->supposed.h -= dy;
+				}
 				break;
 
+			case touchcust_resizepoint_bottommiddle:
+				if (SUPPOSEDHEIGHTCHECKBOT)
+					break;
+				btn->supposed.h += dy;
+				break;
+
+			// sides
 			case touchcust_resizepoint_leftside:
-				OffsetButtonBy(btn, (btn->w > MINBTNWIDTH ? dx : 0), 0);
-				btn->w -= dx;
+				offx = (btn->supposed.w > MINBTNWIDTH ? dx : 0);
+				if (cv_touchlayoutusegrid.value)
+				{
+					if (offx < 0 && FLOAT_TO_FIXED(btn->supposed.x) - offx < 0)
+						break;
+				}
+
+				if ((dx > 0) || (dx < 0 && !SUPPOSEDWIDTHCHECKLEFT))
+				{
+					OffsetButtonBy(btn, offx, 0);
+					btn->supposed.w -= dx;
+				}
 				break;
+
 			case touchcust_resizepoint_rightside:
-				btn->w += dx;
+				if (SUPPOSEDWIDTHCHECKRIGHT)
+					break;
+				btn->supposed.w += dx;
 				break;
+
+#undef SUPPOSEDHEIGHTCHECKTOP
+#undef SUPPOSEDHEIGHTCHECKBOT
+
+#undef SUPPOSEDWIDTHCHECKLEFT
+#undef SUPPOSEDWIDTHCHECKRIGHT
 
 			default:
 				break;
 		}
 
-		if (btn->w < MINBTNWIDTH)
-			btn->w = MINBTNWIDTH;
-		if (btn->h < MINBTNHEIGHT)
-			btn->h = MINBTNHEIGHT;
+		if (btn->supposed.w < MINBTNWIDTH * vid.dupx)
+			btn->supposed.w = MINBTNWIDTH * vid.dupx;
+		if (btn->supposed.h < MINBTNHEIGHT * vid.dupy)
+			btn->supposed.h = MINBTNHEIGHT * vid.dupy;
 
 		if (btn == &usertouchcontrols[gc_joystick])
-		{
-			// Denormalize button
-			TS_DenormalizeCoords(&btn->x, &btn->y);
-
-			// Update joystick
 			UpdateJoystickBase(btn);
-
-			// Normalize button
-			TS_NormalizeButton(btn);
-		}
 
 		return true;
 	}
@@ -2615,18 +2755,13 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 						if (resized)
 							btnstatus->resizearea = true;
 						else if (!FingerTouchesButton(x, y, btn, true))
-						{
-							btnstatus->finger = NULL;
-							ClearSelection(btnstatus);
-							finger->u.gamecontrol = gc_null;
 							break;
-						}
 					}
 
 					if (!btnstatus->resizearea)
 					{
-						fixed_t dx = FixedDiv((x - finger->lastx) * FRACUNIT, vid.fdupx);
-						fixed_t dy = FixedDiv((y - finger->lasty) * FRACUNIT, vid.fdupy);
+						fixed_t dx = FLOAT_TO_FIXED(finger->fx - finger->lastfx);
+						fixed_t dy = FLOAT_TO_FIXED(finger->fy - finger->lastfy);
 						OffsetButtonBy(btn, dx, dy);
 						btnstatus->moving = true;
 						userlayoutsaved = false;
@@ -2643,6 +2778,9 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 					ClearAllSelections();
 
 					finger->u.gamecontrol = i;
+					finger->lastfx = finger->fx;
+					finger->lastfy = finger->fy;
+
 					btnstatus->isselecting = true;
 					btnstatus->selected = true;
 					btnstatus->moving = false;
@@ -2691,7 +2829,6 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				// Select options
 				if (HandleButtonOptions(x, y, finger, btn, btnstatus, true))
 				{
-					finger->u.gamecontrol = gc_null;
 					btnstatus->optsel = touchcust_options_none;
 					break;
 				}
@@ -2707,8 +2844,12 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				else
 				{
 					// Snap to the grid
-					if (btnstatus->snaptogrid && (btnstatus->moving || btnstatus->isresizing >= 0))
-						SnapButtonToGrid(btn);
+					if (btnstatus->moving || btnstatus->isresizing >= 0)
+					{
+						MoveButtonToSupposedLocation(btn);
+						if (btnstatus->snaptogrid)
+							SnapButtonToGrid(btn);
+					}
 
 					// Clear movement
 					btnstatus->isselecting = false;
@@ -2747,12 +2888,12 @@ static void DrawGrid(void)
 	for (i = 0; i < BASEVIDWIDTH; i += TOUCHSMALLGRIDSIZE)
 		V_DrawFadeFill(i-1, 0, 1, BASEVIDHEIGHT, 0, scol, salpha);
 	for (i = 0; i < BASEVIDHEIGHT; i += TOUCHSMALLGRIDSIZE)
-		V_DrawFadeFill(0, i-1, BASEVIDWIDTH, 1, 0, scol, salpha);
+		V_DrawFadeFill(-1, i-1, BASEVIDWIDTH, 1, 0, scol, salpha);
 
 	for (i = 0; i < BASEVIDWIDTH; i += TOUCHGRIDSIZE)
 		V_DrawFadeFill(i-1, 0, 1, BASEVIDHEIGHT, 0, col, alpha);
 	for (i = 0; i < BASEVIDHEIGHT; i += TOUCHGRIDSIZE)
-		V_DrawFadeFill(0, i-1, BASEVIDWIDTH, 1, 0, col, alpha);
+		V_DrawFadeFill(-1, i-1, BASEVIDWIDTH, 1, 0, col, alpha);
 }
 
 static void DrawButtonOption(touchcust_option_e opt, touchconfig_t *btn, touchcust_buttonstatus_t *btnstatus)

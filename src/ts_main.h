@@ -32,6 +32,7 @@ typedef boolean (*longpressaction_t) (void *finger);
 typedef struct
 {
 	INT32 x, y;
+	float fx, fy;
 	float pressure;
 	boolean down;
 
@@ -39,6 +40,7 @@ typedef struct
 	longpressaction_t longpressaction;
 
 	INT32 lastx, lasty;
+	float lastfx, lastfy;
 	boolean ignoremotion;
 
 	// A finger has either a game control or a key input down.
@@ -74,6 +76,13 @@ typedef struct
 	boolean dpad; // d-pad button
 	boolean hidden; // doesn't exist
 	boolean dontscale; // isn't scaled
+
+	// touch customization
+	boolean modifying;
+	struct {
+		float x, y; // coordinates (floating-point, not normalized)
+		fixed_t w, h; // dimensions
+	} supposed;
 } touchconfig_t;
 
 // Screen buttons

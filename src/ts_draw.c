@@ -29,19 +29,30 @@
 #ifdef TOUCHINPUTS
 
 #define SCALEBUTTONFIXED(touch, notonmenu) \
-	x = touch->x; \
-	y = touch->y; \
-	TS_DenormalizeCoords(&x, &y); \
-	w = touch->w; \
-	h = touch->h; \
-	if (!touch->dontscale) \
+	if (touch->modifying) \
 	{ \
-		x = FixedMul(x, dupx); \
-		y = FixedMul(y, dupy); \
-		w = FixedMul(w, dupx); \
-		h = FixedMul(h, dupy); \
-		if (notonmenu) \
-			TS_CenterCoords(&x, &y); \
+		x = FLOAT_TO_FIXED(touch->supposed.x); \
+		y = FLOAT_TO_FIXED(touch->supposed.y); \
+		w = touch->supposed.w; \
+		h = touch->supposed.h; \
+		TS_CenterCoords(&x, &y); \
+	} \
+	else \
+	{ \
+		x = touch->x; \
+		y = touch->y; \
+		TS_DenormalizeCoords(&x, &y); \
+		w = touch->w; \
+		h = touch->h; \
+		if (!touch->dontscale) \
+		{ \
+			x = FixedMul(x, dupx); \
+			y = FixedMul(y, dupy); \
+			w = FixedMul(w, dupx); \
+			h = FixedMul(h, dupy); \
+			if (notonmenu) \
+				TS_CenterCoords(&x, &y); \
+		} \
 	}
 
 #define SCALEBUTTON(touch) \

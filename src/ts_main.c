@@ -499,6 +499,8 @@ void TS_UpdateFingers(INT32 realtics)
 
 		finger->lastx = finger->x;
 		finger->lasty = finger->y;
+		finger->lastfx = finger->fx;
+		finger->lastfy = finger->fy;
 
 		// Run finger long press action
 		if (finger->longpressaction)
@@ -521,6 +523,8 @@ void TS_PostFingerEvent(event_t *event)
 
 	finger->x = event->x;
 	finger->y = event->y;
+	finger->fx = event->fx;
+	finger->fy = event->fy;
 	finger->pressure = event->pressure;
 
 	if (event->type == ev_touchdown)

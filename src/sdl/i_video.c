@@ -925,8 +925,8 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	event_t event;
 	INT32 finger = (INT32)evt.fingerId;
 
-	INT32 screenx = evt.x * vid.width;
-	INT32 screeny = evt.y * vid.height;
+	float screenx = evt.x * vid.width;
+	float screeny = evt.y * vid.height;
 
 	INT32 deltax = evt.dx * vid.width;
 	INT32 deltay = -evt.dy * vid.height;
@@ -950,14 +950,21 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 			return;
 	}
 
-	event.x = screenx;
-	event.y = screeny;
 	event.key = finger;
 	event.pressure = evt.pressure;
 
+	event.x = (INT32)screenx;
+	event.y = (INT32)screeny;
+	event.fx = screenx;
+	event.fy = screeny;
+
 	// calculate finger delta
-	event.dx = deltax;
-	event.dy = deltay;
+	{
+		int wwidth, wheight;
+		SDL_GetWindowSize(window, &wwidth, &wheight);
+		event.dx = (INT32)lround(deltax * ((float)wwidth / (float)realwidth));
+		event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
+	}
 
 	D_PostEvent(&event);
 	TS_PostFingerEvent(&event);
