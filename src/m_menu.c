@@ -9295,12 +9295,14 @@ static void M_LoadGame(INT32 choice)
 {
 	(void)choice;
 
+#if !defined(__ANDROID__)
 	if (tutorialmap && cv_tutorialprompt.value)
 	{
 		M_StartMessage("Do you want to \x82play a brief Tutorial\x80?\n\nWe highly recommend this because \nthe controls are slightly different \nfrom other games.\n\n" PRESS_Y_MESSAGE" or 'Enter' to go\n" PRESS_N_MESSAGE" or any key to skip\n",
 			M_FirstTimeResponse, MM_YESNO);
 		return;
 	}
+#endif
 
 	M_ReadSaveStrings();
 	M_SetupNextMenu(&SP_LoadDef);
