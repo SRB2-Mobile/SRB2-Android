@@ -547,7 +547,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 	// set cvars
 	TS_SynchronizeLayoutSettingsToCvars(layout);
 
-	TS_SetButtonNames(layout->config);
+	TS_SetButtonNames(layout->config, NULL);
 	TS_MarkDPadButtons(layout->config);
 
 	layout->loaded = true;
@@ -1618,8 +1618,8 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 		TS_NormalizeButton(btn);
 	}
 
-	btn->name = TS_GetButtonName(gc);
-	btn->tinyname = TS_GetButtonShortName(gc);
+	btn->name = TS_GetButtonName(gc, NULL);
+	btn->tinyname = TS_GetButtonShortName(gc, NULL);
 
 	btn->hidden = false;
 

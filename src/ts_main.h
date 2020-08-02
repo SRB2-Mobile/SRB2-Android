@@ -144,6 +144,8 @@ typedef struct
 
 	boolean ringslinger; // G_RingSlingerGametype
 	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
+	boolean nights; // maptol & TOL_NIGHTS
+	boolean specialstage; // G_IsSpecialStage
 	boolean canpause;
 	boolean canviewpointswitch; // G_CanViewpointSwitch()
 	boolean cantalk; // netgame && !CHAT_MUTE
@@ -200,11 +202,11 @@ void TS_PresetChanged(void);
 void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny);
 
 // Returns the names of a touch button
-const char *TS_GetButtonName(INT32 gc);
-const char *TS_GetButtonShortName(INT32 gc);
+const char *TS_GetButtonName(INT32 gc, touchconfigstatus_t *status);
+const char *TS_GetButtonShortName(INT32 gc, touchconfigstatus_t *status);
 
 // Sets all button names for a touch config
-void TS_SetButtonNames(touchconfig_t *controls);
+void TS_SetButtonNames(touchconfig_t *controls, touchconfigstatus_t *status);
 
 // Returns true if a touch preset is active
 boolean TS_IsPresetActive(void);

@@ -659,7 +659,7 @@ void TS_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixe
 	controls[gc_dpaddr].y = controls[gc_backward].y - diagyoffs;
 }
 
-static void ScaleDPadBase(touchmovementstyle_e tms, boolean ringslinger, boolean tiny, fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
+static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status, boolean tiny, fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
 {
 	touch_joystick_w = SCALECOORD(dw);
 	touch_joystick_h = SCALECOORD(dh);
@@ -680,8 +680,14 @@ static void ScaleDPadBase(touchmovementstyle_e tms, boolean ringslinger, boolean
 			touch_joystick_y += 8 * FRACUNIT;
 		}
 
-		if (ringslinger)
-			touch_joystick_y -= 4 * FRACUNIT;
+		if (status)
+		{
+			if (status->ringslinger)
+				touch_joystick_y -= 4 * FRACUNIT;
+
+			if (status->specialstage && !status->nights)
+				touch_joystick_y += 8 * FRACUNIT;
+		}
 	}
 	else
 	{
@@ -691,8 +697,14 @@ static void ScaleDPadBase(touchmovementstyle_e tms, boolean ringslinger, boolean
 			touch_joystick_y += 16 * FRACUNIT;
 		}
 
-		if (ringslinger)
-			touch_joystick_y -= 8 * FRACUNIT;
+		if (status)
+		{
+			if (status->ringslinger)
+				touch_joystick_y -= 8 * FRACUNIT;
+
+			if (status->specialstage && !status->nights)
+				touch_joystick_y += 16 * FRACUNIT;
+		}
 	}
 }
 
@@ -739,77 +751,99 @@ void TS_CenterIntegerCoords(INT32 *x, INT32 *y)
 	}
 }
 
-struct {
+typedef struct
+{
+	INT32 gc;
 	const char *name;
 	const char *tinyname;
-} const touchbuttonnames[num_gamecontrols] = {
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{"WEP.NEXT", "WNX"},
-	{"WEP.PREV", "WPV"},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{NULL, NULL},
-	{"FIRE", "FRE"},
-	{"F.NORMAL", "FRN"},
-	{"TOSSFLAG", "FLG"},
-	{"SPIN", "SPN"},
-	{"CHASECAM", "CHASE"},
-	{"RESET CAM", "R.CAM"},
-	{"LOOK UP", "L.UP"},
-	{"LOOK DOWN", "L.DW"},
-	{"CENTER VIEW", "CVW"},
-	{"MOUSEAIM", "AIM"},
-	{"TALK", "TLK"},
-	{"TEAM", "TTK"},
-	{"SCORES", "TAB"},
-	{"JUMP", "JMP"},
-	{"CONSOLE", "CON"},
-	{NULL, NULL},
-	{"MENU", "MNU"},
-	{"SCRCAP", "SCR"},
-	{"REC", NULL},
-	{"F12", NULL},
-	{"CUSTOM1", "C1"},
-	{"CUSTOM2", "C2"},
-	{"CUSTOM3", "C3"},
+} touchbuttonname_t;
+
+static touchbuttonname_t touchbuttonnames[] = {
+	{gc_weaponnext, "WEP.NEXT", "WNX"},
+	{gc_weaponprev, "WEP.PREV", "WPV"},
+	{gc_fire, "FIRE", "FRE"},
+	{gc_firenormal, "F.NORMAL", "FRN"},
+	{gc_tossflag, "TOSSFLAG", "FLG"},
+	{gc_use, "SPIN", "SPN"},
+	{gc_camtoggle, "CHASECAM", "CHASE"},
+	{gc_camreset, "RESET CAM", "R.CAM"},
+	{gc_lookup, "LOOK UP", "L.UP"},
+	{gc_lookdown, "LOOK DOWN", "L.DW"},
+	{gc_centerview, "CENTER VIEW", "CVW"},
+	{gc_mouseaiming, "MOUSEAIM", "AIM"},
+	{gc_talkkey, "TALK", "TLK"},
+	{gc_teamkey, "TEAM", "TTK"},
+	{gc_scores, "SCORES", "TAB"},
+	{gc_jump, "JUMP", "JMP"},
+	{gc_console, "CONSOLE", "CON"},
+	{gc_systemmenu, "MENU", "MNU"},
+	{gc_screenshot, "SCRCAP", "SCR"},
+	{gc_recordgif, "REC", NULL},
+	{gc_viewpoint, "F12", NULL},
+	{gc_custom1, "CUSTOM1", "C1"},
+	{gc_custom2, "CUSTOM2", "C2"},
+	{gc_custom3, "CUSTOM3", "C3"},
+	{gc_null, NULL, NULL}
 };
 
-const char *TS_GetButtonName(INT32 gc)
+static touchbuttonname_t nightstouchbuttonnames[] = {
+	{gc_use, "BRAKE", "BRK"},
+	{gc_jump, "DRILL", "DRL"},
+	{gc_null, NULL, NULL}
+};
+
+const char *TS_GetButtonName(INT32 gc, touchconfigstatus_t *status)
 {
-	return touchbuttonnames[gc].name;
+	INT32 i;
+
+	if (status && status->nights)
+	{
+		for (i = 0; (nightstouchbuttonnames[i].gc != gc_null); i++)
+		{
+			if (nightstouchbuttonnames[i].gc == gc)
+				return nightstouchbuttonnames[i].name;
+		}
+	}
+
+	for (i = 0; (touchbuttonnames[i].gc != gc_null); i++)
+	{
+		if (touchbuttonnames[i].gc == gc)
+			return touchbuttonnames[i].name;
+	}
+
+	return NULL;
 }
 
-const char *TS_GetButtonShortName(INT32 gc)
+const char *TS_GetButtonShortName(INT32 gc, touchconfigstatus_t *status)
 {
-	return touchbuttonnames[gc].tinyname;
+	INT32 i;
+
+	if (status && status->nights)
+	{
+		for (i = 0; (nightstouchbuttonnames[i].gc != gc_null); i++)
+		{
+			if (nightstouchbuttonnames[i].gc == gc)
+				return nightstouchbuttonnames[i].tinyname;
+		}
+	}
+
+	for (i = 0; (touchbuttonnames[i].gc != gc_null); i++)
+	{
+		if (touchbuttonnames[i].gc == gc)
+			return touchbuttonnames[i].tinyname;
+	}
+
+	return NULL;
 }
 
-void TS_SetButtonNames(touchconfig_t *controls)
+void TS_SetButtonNames(touchconfig_t *controls, touchconfigstatus_t *status)
 {
 	INT32 i;
 
 	for (i = 0; i < num_gamecontrols; i++)
 	{
-		controls[i].name = TS_GetButtonName(i);
-		controls[i].tinyname = TS_GetButtonShortName(i);
+		controls[i].name = TS_GetButtonName(i, status);
+		controls[i].tinyname = TS_GetButtonShortName(i, status);
 	}
 }
 
@@ -867,7 +901,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	TS_GetJoystick(&dx, &dy, &dw, &dh, tiny);
 
 	// D-Pad
-	ScaleDPadBase(tms, status->ringslinger, tiny, dx, dy, dw, dh, scale, offs, bottomalign);
+	ScaleDPadBase(tms, status, tiny, dx, dy, dw, dh, scale, offs, bottomalign);
 	TS_DPadPreset(
 		controls,
 		FixedMul(FixedDiv(touch_joystick_w, dw), scale),
@@ -878,6 +912,9 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	controls[gc_joystick].y = touch_joystick_y;
 	controls[gc_joystick].w = touch_joystick_w;
 	controls[gc_joystick].h = touch_joystick_h;
+
+	if (status->nights || status->specialstage)
+		jsoffs += (16 * FRACUNIT);
 
 	// Jump and spin
 	if (tiny)
@@ -966,7 +1003,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	controls[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].x = (rightcorner - controls[gc_systemmenu].w - corneroffset);
-	controls[gc_systemmenu].y = corneroffset;
+	controls[gc_systemmenu].y = (corneroffset + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
 
 	// Pause
 	controls[gc_pause].x = controls[gc_systemmenu].x;
@@ -999,18 +1036,37 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 
 	if (bothvisible || eithervisible)
 	{
+		fixed_t left, top;
+
 		if (bothvisible)
 			ref = &controls[gc_pause];
 		else // only if one of either are visible, but not both
 			ref = (controls[gc_viewpoint].hidden ? &controls[gc_pause] : &controls[gc_viewpoint]);
+
+		if (status->nights || status->specialstage)
+		{
+			left = rightcorner;
+			top = ref->y + ref->h + SCALECOORD(4 * FRACUNIT);
+		}
+		else
+		{
+			left = ref->x;
+			top = ref->y;
+		}
 
 		x = ref->x - (w - ref->w);
 		y = ref->y + ref->h + offs;
 	}
 	else
 	{
-		x = (controls[gc_viewpoint].x - w - SCALECOORD(4 * FRACUNIT));
-		y = controls[gc_viewpoint].y;
+		fixed_t left, top;
+
+		ref = &controls[(status->nights || status->specialstage) ? gc_systemmenu : gc_viewpoint];
+		left = (status->nights || status->specialstage) ? rightcorner : ref->x;
+		top = (status->nights || status->specialstage) ? ref->h + SCALECOORD(4 * FRACUNIT) : 0;
+
+		x = (left - w - SCALECOORD(4 * FRACUNIT));
+		y = ref->y + top;
 	}
 
 	controls[gc_screenshot].w = controls[gc_recordgif].w = w;
@@ -1054,7 +1110,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	TS_MarkDPadButtons(controls);
 
 	// Set button names
-	TS_SetButtonNames(controls);
+	TS_SetButtonNames(controls, status);
 
 	// Mark undefined buttons as hidden
 	for (x = 0; x < num_gamecontrols; x++)
@@ -1282,6 +1338,8 @@ void TS_DefineButtons(void)
 
 		status.ringslinger = G_RingSlingerGametype();
 		status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
+		status.nights = (maptol & TOL_NIGHTS);
+		status.specialstage = G_IsSpecialStage(gamemap);
 		status.canpause = ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer))) || (modeattacking && demorecording));
 		status.canviewpointswitch = G_CanViewpointSwitch(false);
 		status.cantalk = (netgame && !CHAT_MUTE);
