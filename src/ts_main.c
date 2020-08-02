@@ -1226,7 +1226,7 @@ void TS_PositionNavigation(void)
 	{
 		confirm->w = 32 * FRACUNIT;
 		confirm->h = 16 * FRACUNIT;
-		confirm->x = ((BASEVIDWIDTH / 2) * FRACUNIT) - (TOUCHGRIDSIZE * FRACUNIT);
+		confirm->x = (((vid.width / (vid.dupx * 2)) * FRACUNIT) - (confirm->w / 2));
 		confirm->color = 112;
 		confirm->name = "+";
 	}

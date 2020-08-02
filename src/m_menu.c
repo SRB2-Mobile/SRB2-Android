@@ -3552,12 +3552,6 @@ boolean M_Responder(event_t *ev)
 			touchfinger_t *finger = &touchfingers[ev->key];
 			boolean button = false;
 
-			if (TS_IsCustomizingControls())
-			{
-				if (TS_HandleCustomization(x, y, finger, ev))
-					return true;
-			}
-
 			// Check for any buttons first
 			if (ev->type != ev_touchmotion) // Ignore motion events
 			{
@@ -3573,6 +3567,12 @@ boolean M_Responder(event_t *ev)
 					else
 						finger->u.keyinput = touchkey;
 				}
+			}
+
+			if (TS_IsCustomizingControls() && (!button))
+			{
+				if (TS_HandleCustomization(x, y, finger, ev))
+					return true;
 			}
 
 			// Finger didn't tap any button

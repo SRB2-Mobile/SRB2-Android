@@ -2614,8 +2614,13 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 						resized = HandleResizePointSelection(x, y, finger, btn, btnstatus);
 						if (resized)
 							btnstatus->resizearea = true;
-						else if (!FingerTouchesButton(x, y, btn, false))
+						else if (!FingerTouchesButton(x, y, btn, true))
+						{
+							btnstatus->finger = NULL;
+							ClearSelection(btnstatus);
+							finger->u.gamecontrol = gc_null;
 							break;
+						}
 					}
 
 					if (!btnstatus->resizearea)
@@ -2632,7 +2637,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 					break;
 				}
 				// Check if your finger touches this button.
-				else if (FingerTouchesButton(x, y, btn, false) && (!optionsarea))
+				else if (FingerTouchesButton(x, y, btn, true) && (!optionsarea))
 				{
 					// Let go of other fingers
 					ClearAllSelections();
