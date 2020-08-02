@@ -1310,16 +1310,17 @@ static menuitem_t OP_TouchOptionsMenu[] =
 
 static menuitem_t OP_TouchControlsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           10},
+	{IT_STRING | IT_CVAR, NULL, "Enable Controls",      &cv_touchinputs,           10},
+	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           20},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Preset Scale",         &cv_touchguiscale,         20},
+	                      NULL, "Preset Scale",         &cv_touchguiscale,         30},
 
-	{IT_STRING | IT_CALL, NULL, "Customize...",         M_CustomizeTouchControls,  40},
-	{IT_STRING | IT_CALL, NULL, "Manage Layouts...",    M_LoadTouchControlLayout,  50},
+	{IT_STRING | IT_CALL, NULL, "Customize...",         M_CustomizeTouchControls,  50},
+	{IT_STRING | IT_CALL, NULL, "Manage Layouts...",    M_LoadTouchControlLayout,  60},
 
-	{IT_STRING | IT_CVAR, NULL, "Use Grid Limits",      &cv_touchlayoutusegrid,    70},
+	{IT_STRING | IT_CVAR, NULL, "Use Grid Limits",      &cv_touchlayoutusegrid,    80},
 
-	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 90},
+	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 100},
 };
 
 static menuitem_t OP_TouchCustomizationMenu[] =

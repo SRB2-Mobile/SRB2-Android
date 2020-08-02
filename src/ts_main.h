@@ -121,7 +121,7 @@ enum
 };
 
 // Is the touch screen available?
-extern boolean touch_screenexists;
+extern boolean touch_screenexists, touch_useinputs;
 extern consvar_t cv_showfingers;
 
 // Finger event handler
@@ -160,6 +160,7 @@ extern touchconfigstatus_t touchcontrolstatus;
 extern touchconfigstatus_t touchnavigationstatus;
 
 // Console variables for the touch screen
+extern consvar_t cv_touchinputs;
 extern consvar_t cv_touchstyle;
 extern consvar_t cv_touchpreset;
 extern consvar_t cv_touchlayout;

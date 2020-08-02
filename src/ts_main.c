@@ -54,6 +54,7 @@ fixed_t touch_gui_scale;
 
 // Is the touch screen available?
 boolean touch_screenexists = false;
+boolean touch_useinputs = true;
 consvar_t cv_showfingers = {"showfingers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Finger event handler
@@ -76,7 +77,8 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 	{touchpreset_tiny, "Tiny"},
 	{0, NULL}};
 
-consvar_t cv_touchstyle = {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchstyle =  {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, TS_PresetChanged, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchlayout = {"touch_layout", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, TS_LoadLayoutFromCVar, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
@@ -132,6 +134,7 @@ void TS_RegisterVariables(void)
 	CV_RegisterVar(&cv_touchpreset);
 	CV_RegisterVar(&cv_touchlayout);
 	CV_RegisterVar(&cv_touchstyle);
+	CV_RegisterVar(&cv_touchinputs);
 }
 
 boolean TS_IsPresetActive(void)
@@ -340,6 +343,10 @@ void TS_HandleFingerEvent(event_t *ev)
 					movecamera = false;
 				}
 
+				// Ignore disabled player controls
+				if (!touch_useinputs && TS_ButtonIsPlayerControl(gc))
+					continue;
+
 				// Check if your finger touches this button.
 				if (TS_FingerTouchesButton(x, y, btn) && (!touchcontroldown[i]))
 				{
@@ -353,7 +360,7 @@ void TS_HandleFingerEvent(event_t *ev)
 			// Check if your finger touches the joystick area.
 			if (!foundbutton)
 			{
-				if (TS_FingerTouchesJoystickArea(x, y) && (!touchcontrols[gc_joystick].hidden))
+				if (TS_FingerTouchesJoystickArea(x, y) && touch_useinputs && (!touchcontrols[gc_joystick].hidden))
 				{
 					// Joystick
 					if (touch_movementstyle == tms_joystick && (!touchmotion))
@@ -538,6 +545,7 @@ void TS_GetSettings(void)
 	if (!TS_Ready())
 		return;
 
+	touch_useinputs = cv_touchinputs.value;
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	touch_preset = cv_touchpreset.value;

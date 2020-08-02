@@ -2603,9 +2603,9 @@ static void ST_overlayDrawer(void)
 	boolean stagetitle = false;
 
 #ifdef TOUCHINPUTS
-	// Same deal, but for touch screen inputs.
+	// Draw touch screen inputs.
 	// Movement controls, jump and spin, etc.
-	boolean drawtouchcontrols = true;
+	boolean drawtouchcontrols = touch_useinputs;
 #endif
 
 	// Check for a valid level title
