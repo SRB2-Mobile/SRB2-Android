@@ -537,7 +537,13 @@ static menuitem_t MainMenu[] =
 #ifndef NONET
 	{IT_STRING|IT_SUBMENU, NULL, "Multiplayer", &MP_MainDef,             84},
 #else
-	{IT_STRING|IT_CALL,    NULL, "Multiplayer", M_StartSplitServerMenu,  84},
+	{IT_STRING |
+#if !defined(__ANDROID__)
+	IT_CALL,
+#else
+	IT_GRAYEDOUT,
+#endif
+	                       NULL, "Multiplayer", M_StartSplitServerMenu,  84},
 #endif
 	{IT_STRING|IT_CALL,    NULL, "Extras",      M_SecretsMenu,           92},
 	{IT_CALL   |IT_STRING, NULL, "Addons",      M_Addons,               100},
@@ -1006,10 +1012,15 @@ static menuitem_t MP_MainMenu[] =
 	{IT_STRING|IT_KEYHANDLER, NULL, "Specify IPv4 address:", M_HandleConnectIP,      22},
 	{IT_HEADER, NULL, "Host a game", NULL, 54},
 	{IT_STRING|IT_CALL,       NULL, "Internet/LAN...",       M_StartServerMenu,      66},
+#if !defined(__ANDROID__)
 	{IT_STRING|IT_CALL,       NULL, "Splitscreen...",        M_StartSplitServerMenu, 76},
 	{IT_HEADER, NULL, "Player setup", NULL, 94},
 	{IT_STRING|IT_CALL,       NULL, "Player 1...",           M_SetupMultiPlayer,    106},
 	{IT_STRING|IT_CALL,       NULL, "Player 2... ",          M_SetupMultiPlayer2,   116},
+#else
+	{IT_HEADER, NULL, "Player setup", NULL, 84},
+	{IT_STRING|IT_CALL,       NULL, "Player 1...",           M_SetupMultiPlayer,    96},
+#endif
 };
 
 static menuitem_t MP_ServerMenu[] =
@@ -11759,11 +11770,13 @@ static void M_DrawMPMainMenu(void)
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+66,
 		((itemOn == 4) ? V_YELLOWMAP : 0), va("(2-%d players)", MAXPLAYERS));
 
+#if !defined(__ANDROID__)
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+76,
 		((itemOn == 5) ? V_YELLOWMAP : 0), "(2 players)");
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+116,
 		((itemOn == 8) ? V_YELLOWMAP : 0), "(splitscreen)");
+#endif
 
 	y += 22;
 
