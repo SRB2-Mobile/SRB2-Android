@@ -71,9 +71,15 @@ static void SCR_ToggleNativeRes(void);
 static CV_PossibleValue_t nativeresdiv_cons_t[] = {{1, "MIN"}, {10, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height"}, {0, NULL}};
 
-consvar_t cv_nativeres = {"nativeres", "Off", (CV_CALL | CV_SAVE), CV_OnOff, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_nativeresdiv = {"nativeresdiv", "1", (CV_CALL | CV_SAVE), nativeresdiv_cons_t, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_nativerescompare = {"nativerescompare", "Width", (CV_CALL | CV_SAVE), nativerescompare_cons_t, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
+#define NATIVERESCVAR(name, default, possiblevalue) {name, default, (CV_CALL | CV_SAVE), possiblevalue, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
+
+consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "Off", CV_OnOff);
+consvar_t cv_nativeresdiv = NATIVERESCVAR("nativeresdiv", "1", nativeresdiv_cons_t);
+consvar_t cv_nativeresfov = NATIVERESCVAR("nativeresfov", "On", CV_OnOff);
+consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Width", nativerescompare_cons_t);
+
+#undef NATIVERESCVAR
+
 #endif
 
 static void SCR_ActuallyChangeRenderer(void);

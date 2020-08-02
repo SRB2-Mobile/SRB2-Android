@@ -912,6 +912,7 @@ void D_RegisterClientCommands(void)
 #ifdef NATIVESCREENRES
 	CV_RegisterVar(&cv_nativeres);
 	CV_RegisterVar(&cv_nativeresdiv);
+	CV_RegisterVar(&cv_nativeresfov);
 	CV_RegisterVar(&cv_nativerescompare);
 #endif
 

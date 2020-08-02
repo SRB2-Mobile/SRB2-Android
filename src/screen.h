@@ -199,6 +199,7 @@ extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_re
 #ifdef NATIVESCREENRES
 extern consvar_t cv_nativeres;
 extern consvar_t cv_nativeresdiv, cv_nativerescompare;
+extern consvar_t cv_nativeresfov;
 #endif
 
 #ifdef HWRENDER
