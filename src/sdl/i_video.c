@@ -1778,6 +1778,7 @@ INT32 VID_SetMode(INT32 modeNum)
 	vid.recalc = 1;
 	vid.bpp = 1;
 
+#ifdef NATIVESCREENRES
 	if (cv_nativeres.value)
 	{
 		int i;
@@ -1808,6 +1809,7 @@ INT32 VID_SetMode(INT32 modeNum)
 		vid.modenum = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
 	}
 	else
+#endif
 	{
 		if (modeNum < 0)
 			modeNum = 0;
