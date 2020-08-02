@@ -66,6 +66,16 @@ consvar_t cv_scr_height = {"scr_height", CONFIGVIDHEIGHT, CV_SAVE, CV_Unsigned, 
 consvar_t cv_scr_depth = {"scr_depth", "16 bits", CV_SAVE, scr_depth_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_renderview = {"renderview", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+#ifdef NATIVESCREENRES
+static void SCR_ToggleNativeRes(void);
+static CV_PossibleValue_t nativeresdiv_cons_t[] = {{1, "MIN"}, {10, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height"}, {0, NULL}};
+
+consvar_t cv_nativeres = {"nativeres", "Off", (CV_CALL | CV_SAVE), CV_OnOff, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nativeresdiv = {"nativeresdiv", "1", (CV_CALL | CV_SAVE), nativeresdiv_cons_t, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nativerescompare = {"nativerescompare", "Width", (CV_CALL | CV_SAVE), nativerescompare_cons_t, SCR_ToggleNativeRes, 0, NULL, NULL, 0, 0, NULL};
+#endif
+
 static void SCR_ActuallyChangeRenderer(void);
 CV_PossibleValue_t cv_renderer_t[] = {
 	{1, "Software"},
@@ -225,6 +235,29 @@ void SCR_SetMode(void)
 	setrenderneeded = 0;
 }
 
+// scale 1,2,3 times in x and y the patches for the menus and overlays...
+// calculated once and for all, used by routines in v_video.c
+static void SCR_SetScale(void)
+{
+	INT32 dup;
+
+	vid.dupx = max(1, vid.width / BASEVIDWIDTH);
+	vid.dupy = max(1, vid.height / BASEVIDHEIGHT);
+
+	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
+	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
+
+#ifdef NATIVESCREENRES
+	if (cv_nativeres.value && !cv_nativerescompare.value)
+		dup = (vid.dupx > vid.dupy ? vid.dupx : vid.dupy);
+	else
+#endif
+		dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
+
+	// Set a constant scale for both axes
+	vid.dupx = vid.dupy = dup;
+}
+
 // do some initial settings for the game loading screen
 //
 void SCR_Startup(void)
@@ -282,11 +315,7 @@ void SCR_Startup(void)
 
 	vid.modenum = 0;
 
-	vid.dupx = vid.width / BASEVIDWIDTH;
-	vid.dupy = vid.height / BASEVIDHEIGHT;
-	vid.dupx = vid.dupy = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
-	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
-	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
+	SCR_SetScale();
 
 #ifdef HWRENDER
 	if (rendermode != render_opengl && rendermode != render_none) // This was just placing it incorrectly at non aspect correct resolutions in opengl
@@ -326,13 +355,7 @@ void SCR_Recalc(void)
 	// bytes per pixel quick access
 	scr_bpp = vid.bpp;
 
-	// scale 1,2,3 times in x and y the patches for the menus and overlays...
-	// calculated once and for all, used by routines in v_video.c
-	vid.dupx = vid.width / BASEVIDWIDTH;
-	vid.dupy = vid.height / BASEVIDHEIGHT;
-	vid.dupx = vid.dupy = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
-	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
-	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
+	SCR_SetScale();
 
 #ifdef HWRENDER
 	//if (rendermode != render_opengl && rendermode != render_none) // This was just placing it incorrectly at non aspect correct resolutions in opengl
@@ -515,6 +538,13 @@ boolean SCR_IsAspectCorrect(INT32 width, INT32 height)
 	 && width / BASEVIDWIDTH == height / BASEVIDHEIGHT
 	 );
 }
+
+#ifdef NATIVESCREENRES
+static void SCR_ToggleNativeRes(void)
+{
+	setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
+}
+#endif
 
 // XMOD FPS display
 // moved out of os-specific code for consistency

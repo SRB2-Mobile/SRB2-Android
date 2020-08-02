@@ -364,6 +364,10 @@ ifdef TOUCHINPUTS
 	OPTS+=-DTOUCHINPUTS
 endif
 
+ifdef NATIVESCREENRES
+	OPTS+=-DNATIVESCREENRES
+endif
+
 ifdef DEBUGMODE
 
 	# build with debugging information

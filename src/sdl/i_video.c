@@ -177,11 +177,7 @@ static INT32 windowedModes[MAXWINMODES][2] =
 	{1280, 720}, // 1.66
 	{1152, 864}, // 1.33,3.60
 	{1024, 768}, // 1.33,3.20
-#if defined(__ANDROID__)
-	{ 800, 450}, // 1.33,2.25
-#else
 	{ 800, 600}, // 1.33,2.50
-#endif
 	{ 640, 480}, // 1.33,2.00
 	{ 640, 400}, // 1.60,2.00
 	{ 320, 240}, // 1.33,1.00
@@ -543,7 +539,12 @@ static void VID_Command_Mode_f (void)
 	if (modenum >= VID_NumModes())
 		CONS_Printf(M_GetText("Video mode not present\n"));
 	else
+	{
+#ifdef NATIVESCREENRES
+		CV_StealthSetValue(&cv_nativeres, false);
+#endif
 		setmodeneeded = modenum+1; // request vid mode change
+	}
 }
 
 #if defined(__ANDROID__)
@@ -1777,14 +1778,46 @@ INT32 VID_SetMode(INT32 modeNum)
 	vid.recalc = 1;
 	vid.bpp = 1;
 
-	if (modeNum < 0)
-		modeNum = 0;
-	if (modeNum >= MAXWINMODES)
-		modeNum = MAXWINMODES-1;
+	if (cv_nativeres.value)
+	{
+		int i;
+		SDL_DisplayMode resolution;
 
-	vid.width = windowedModes[modeNum][0];
-	vid.height = windowedModes[modeNum][1];
-	vid.modenum = modeNum;
+		for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
+		{
+			int nodisplay = SDL_GetCurrentDisplayMode(i, &resolution);
+			if (!nodisplay)
+			{
+				vid.width = (INT32)(resolution.w) / (cv_nativeresdiv.value);
+				vid.height = (INT32)(resolution.h) / (cv_nativeresdiv.value);
+
+				if (vid.width > MAXVIDWIDTH)
+					vid.width = MAXVIDWIDTH;
+				else if (vid.width < BASEVIDWIDTH)
+					vid.width = BASEVIDWIDTH;
+
+				if (vid.height > MAXVIDHEIGHT)
+					vid.height = MAXVIDHEIGHT;
+				else if (vid.height < BASEVIDHEIGHT)
+					vid.height = BASEVIDHEIGHT;
+
+				break;
+			}
+		}
+
+		vid.modenum = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
+	}
+	else
+	{
+		if (modeNum < 0)
+			modeNum = 0;
+		if (modeNum >= MAXWINMODES)
+			modeNum = MAXWINMODES-1;
+
+		vid.width = windowedModes[modeNum][0];
+		vid.height = windowedModes[modeNum][1];
+		vid.modenum = modeNum;
+	}
 
 	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
 	VID_CheckRenderer();

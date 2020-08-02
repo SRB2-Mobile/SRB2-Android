@@ -323,6 +323,7 @@ menu_t OP_TouchCustomizationDef;
 #endif
 
 static void M_VideoModeMenu(INT32 choice);
+static void M_ResolutionMenu(INT32 choice);
 
 static void M_Setup1PControlsMenu(INT32 choice);
 static void M_Setup2PControlsMenu(INT32 choice);
@@ -342,6 +343,9 @@ static void M_CustomizeTouchControls(INT32 choice);
 // Video & Sound
 static void M_VideoOptions(INT32 choice);
 menu_t OP_VideoOptionsDef, OP_VideoModeDef, OP_ColorOptionsDef;
+#ifdef NATIVESCREENRES
+menu_t OP_ResolutionDef;
+#endif // NATIVESCREENRES
 #ifdef HWRENDER
 static void M_OpenGLOptionsMenu(void);
 menu_t OP_OpenGLOptionsDef;
@@ -392,6 +396,9 @@ static void M_DrawCameraOptionsMenu(void);
 static void M_DrawPlaystyleMenu(void);
 static void M_DrawControl(void);
 static void M_DrawMainVideoMenu(void);
+#ifdef NATIVESCREENRES
+static void M_DrawResolutionOptions(void);
+#endif
 static void M_DrawVideoMode(void);
 static void M_DrawColorMenu(void);
 static void M_DrawScreenshotMenu(void);
@@ -1419,7 +1426,7 @@ enum
 static menuitem_t OP_VideoOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Screen", NULL, 0},
-	{IT_STRING | IT_CALL,  NULL, "Set Resolution...",       M_VideoModeMenu,          6},
+	{IT_STRING | IT_CALL,  NULL, "Set Resolution...",       M_ResolutionMenu,         6},
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	{IT_STRING|IT_CVAR,      NULL, "Fullscreen",             &cv_fullscreen,         11},
@@ -1475,6 +1482,18 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 214},
 #endif
 };
+
+#ifdef NATIVESCREENRES
+static menuitem_t OP_ResolutionMenu[] =
+{
+	{IT_STRING | IT_CALL,                NULL, "Video Mode List...",         M_VideoModeMenu,       20},
+	{IT_WHITESTRING | IT_SPACE,          NULL, "Current Resolution",         NULL,                  10},
+
+	{IT_STRING | IT_CVAR,                NULL, "Use Native Resolution",      &cv_nativeres,         40},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Scale Divider",              &cv_nativeresdiv,      50},
+	{IT_STRING | IT_CVAR,                NULL, "Scale Comparison",           &cv_nativerescompare,  60},
+};
+#endif
 
 static menuitem_t OP_VideoModeMenu[] =
 {
@@ -2281,18 +2300,43 @@ menu_t OP_VideoOptionsDef =
 	0,
 	NULL
 };
+
 menu_t OP_VideoModeDef =
 {
+#ifdef NATIVESCREENRES
+	MTREE4(MN_OP_MAIN, MN_OP_VIDEO, MN_OP_RESOLUTIONDEF, MN_OP_VIDEOMODE),
+#else
 	MTREE3(MN_OP_MAIN, MN_OP_VIDEO, MN_OP_VIDEOMODE),
+#endif
 	"M_VIDEO",
 	1,
+#ifdef NATIVESCREENRES
+	&OP_ResolutionDef,
+#else
 	&OP_VideoOptionsDef,
+#endif
 	OP_VideoModeMenu,
 	M_DrawVideoMode,
 	48, 26,
 	0,
 	NULL
 };
+
+#ifdef NATIVESCREENRES
+menu_t OP_ResolutionDef =
+{
+	MTREE3(MN_OP_MAIN, MN_OP_VIDEO, MN_OP_RESOLUTIONDEF),
+	"M_VIDEO",
+	sizeof(OP_ResolutionMenu) / sizeof(menuitem_t),
+	&OP_VideoOptionsDef,
+	OP_ResolutionMenu,
+	M_DrawResolutionOptions,
+	35, 30,
+	0,
+	NULL
+};
+#endif
+
 menu_t OP_ColorOptionsDef =
 {
 	MTREE3(MN_OP_MAIN, MN_OP_VIDEO, MN_OP_COLOR),
@@ -13276,6 +13320,16 @@ static void M_DrawTouchControlsMenu(void)
 
 static modedesc_t modedescs[MAXMODEDESCS];
 
+static void M_ResolutionMenu(INT32 choice)
+{
+#ifdef NATIVESCREENRES
+	(void)choice;
+	M_SetupNextMenu(&OP_ResolutionDef);
+#else
+	M_VideoModeMenu(choice);
+#endif
+}
+
 static void M_VideoModeMenu(INT32 choice)
 {
 	INT32 i, j, vdup, nummodes, width, height;
@@ -13356,19 +13410,32 @@ static void M_VideoModeMenu(INT32 choice)
 	M_SetupNextMenu(&OP_VideoModeDef);
 }
 
+static void M_DrawResolutionString(INT32 y)
+{
+	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y,
+	(SCR_IsAspectCorrect(vid.width, vid.height) ? V_GREENMAP : V_YELLOWMAP),
+		va("%dx%d", vid.width, vid.height));
+}
+
 static void M_DrawMainVideoMenu(void)
 {
 	M_DrawGenericScrollMenu();
 	if (itemOn < 8) // where it starts to go offscreen; change this number if you change the layout of the video menu
 	{
-		INT32 y = currentMenu->y+currentMenu->menuitems[1].alphaKey*2;
+		INT32 y = currentMenu->y+currentMenu->menuitems[op_video_resolution].alphaKey*2;
 		if (itemOn == 7)
 			y -= 10;
-		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y,
-		(SCR_IsAspectCorrect(vid.width, vid.height) ? V_GREENMAP : V_YELLOWMAP),
-			va("%dx%d", vid.width, vid.height));
+		M_DrawResolutionString(y);
 	}
 }
+
+#ifdef NATIVESCREENRES
+static void M_DrawResolutionOptions(void)
+{
+	M_DrawGenericMenu();
+	M_DrawResolutionString(currentMenu->y+currentMenu->menuitems[1].alphaKey);
+}
+#endif
 
 // Draw the video modes list, a-la-Quake
 static void M_DrawVideoMode(void)
@@ -13631,7 +13698,12 @@ static void M_HandleVideoMode(INT32 ch)
 				vidm_testingmode = 15*TICRATE;
 				vidm_previousmode = vid.modenum;
 				if (!setmodeneeded) // in case the previous setmode was not finished
+				{
+#ifdef NATIVESCREENRES
+					CV_StealthSetValue(&cv_nativeres, false);
+#endif
 					setmodeneeded = modedescs[vidm_selected].modenum + 1;
+				}
 			}
 			break;
 
