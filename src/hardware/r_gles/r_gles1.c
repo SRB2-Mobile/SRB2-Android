@@ -216,16 +216,6 @@ static PFNglMultiTexCoord2fv pglMultiTexCoord2fv;
 typedef void (*PFNglClientActiveTexture) (GLenum);
 static PFNglClientActiveTexture pglClientActiveTexture;
 
-/* 1.5 functions for buffers */
-typedef void (*PFNglGenBuffers) (GLsizei n, GLuint *buffers);
-static PFNglGenBuffers pglGenBuffers;
-typedef void (*PFNglBindBuffer) (GLenum target, GLuint buffer);
-static PFNglBindBuffer pglBindBuffer;
-typedef void (*PFNglBufferData) (GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
-static PFNglBufferData pglBufferData;
-typedef void (*PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
-static PFNglDeleteBuffers pglDeleteBuffers;
-
 boolean SetupGLfunc(void)
 {
 #define GETOPENGLFUNC(func, proc) \
@@ -1037,233 +1027,81 @@ EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutV
 	// the DrawPolygon variant of this has some code about polyflags and wrapping here but havent noticed any problems from omitting it?
 }
 
-typedef struct vbo_vertex_s
-{
-	float x, y, z;
-	float u, v;
-	unsigned char r, g, b, a;
-} vbo_vertex_t;
-
-typedef struct
-{
-	int mode;
-	int vertexcount;
-	int vertexindex;
-	int use_texture;
-} GLSkyLoopDef;
-
-typedef struct
-{
-	unsigned int id;
-	int rows, columns;
-	int loopcount;
-	GLSkyLoopDef *loops;
-	vbo_vertex_t *data;
-} GLSkyVBO;
-
 static const boolean gl_ext_arb_vertex_buffer_object = true;
 
-#define NULL_VBO_VERTEX ((vbo_vertex_t*)NULL)
-#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &vbo->data[0].x)
-#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &vbo->data[0].u)
-#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &vbo->data[0].r)
+#define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
+#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
+#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
+#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
 
-// The texture offset to be applied to the texture coordinates in SkyVertex().
-static int rows, columns;
-static signed char yflip;
-static int texw, texh;
-static boolean foglayer;
-static float delta = 0.0f;
-
-static int gl_sky_detail = 16;
-
-static INT32 lasttex = -1;
-
-#define MAP_COEFF 128.0f
-
-static void SkyVertex(vbo_vertex_t *vbo, int r, int c)
-{
-	const float radians = (float)(M_PIl / 180.0f);
-	const float scale = 10000.0f;
-	const float maxSideAngle = 60.0f;
-
-	float topAngle = (c / (float)columns * 360.0f);
-	float sideAngle = (maxSideAngle * (rows - r) / rows);
-	float height = (float)(sin(sideAngle * radians));
-	float realRadius = (float)(scale * cos(sideAngle * radians));
-	float x = (float)(realRadius * cos(topAngle * radians));
-	float y = (!yflip) ? scale * height : -scale * height;
-	float z = (float)(realRadius * sin(topAngle * radians));
-	float timesRepeat = (4 * (256.0f / texw));
-	if (fpclassify(timesRepeat) == FP_ZERO)
-		timesRepeat = 1.0f;
-
-	if (!foglayer)
-	{
-		vbo->r = 255;
-		vbo->g = 255;
-		vbo->b = 255;
-		vbo->a = (r == 0 ? 0 : 255);
-
-		// And the texture coordinates.
-		vbo->u = (-timesRepeat * c / (float)columns);
-		if (!yflip)	// Flipped Y is for the lower hemisphere.
-			vbo->v = (r / (float)rows) + 0.5f;
-		else
-			vbo->v = 1.0f + ((rows - r) / (float)rows) + 0.5f;
-	}
-
-	if (r != 4)
-	{
-		y += 300.0f;
-	}
-
-	// And finally the vertex.
-	vbo->x = x;
-	vbo->y = y + delta;
-	vbo->z = z;
-}
-
-static GLSkyVBO sky_vbo;
-
-static void gld_BuildSky(int row_count, int col_count)
-{
-	int c, r;
-	vbo_vertex_t *vertex_p;
-	int vertex_count = 2 * row_count * (col_count * 2 + 2) + col_count * 2;
-
-	GLSkyVBO *vbo = &sky_vbo;
-
-	if ((vbo->columns != col_count) || (vbo->rows != row_count))
-	{
-		free(vbo->loops);
-		free(vbo->data);
-		memset(vbo, 0, sizeof(&vbo));
-	}
-
-	if (!vbo->data)
-	{
-		memset(vbo, 0, sizeof(&vbo));
-		vbo->loops = malloc((row_count * 2 + 2) * sizeof(vbo->loops[0]));
-		// create vertex array
-		vbo->data = malloc(vertex_count * sizeof(vbo->data[0]));
-	}
-
-	vbo->columns = col_count;
-	vbo->rows = row_count;
-
-	vertex_p = &vbo->data[0];
-	vbo->loopcount = 0;
-
-	for (yflip = 0; yflip < 2; yflip++)
-	{
-		vbo->loops[vbo->loopcount].mode = GL_TRIANGLE_FAN;
-		vbo->loops[vbo->loopcount].vertexindex = vertex_p - &vbo->data[0];
-		vbo->loops[vbo->loopcount].vertexcount = col_count;
-		vbo->loops[vbo->loopcount].use_texture = false;
-		vbo->loopcount++;
-
-		delta = 0.0f;
-		foglayer = true;
-		for (c = 0; c < col_count; c++)
-		{
-			SkyVertex(vertex_p, 1, c);
-			vertex_p->r = 255;
-			vertex_p->g = 255;
-			vertex_p->b = 255;
-			vertex_p->a = 255;
-			vertex_p++;
-		}
-		foglayer = false;
-
-		delta = (yflip ? 5.0f : -5.0f) / MAP_COEFF;
-
-		for (r = 0; r < row_count; r++)
-		{
-			vbo->loops[vbo->loopcount].mode = GL_TRIANGLE_STRIP;
-			vbo->loops[vbo->loopcount].vertexindex = vertex_p - &vbo->data[0];
-			vbo->loops[vbo->loopcount].vertexcount = 2 * col_count + 2;
-			vbo->loops[vbo->loopcount].use_texture = true;
-			vbo->loopcount++;
-
-			for (c = 0; c <= col_count; c++)
-			{
-				SkyVertex(vertex_p++, r + (yflip ? 1 : 0), (c ? c : 0));
-				SkyVertex(vertex_p++, r + (yflip ? 0 : 1), (c ? c : 0));
-			}
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-//
-//
-//
-//-----------------------------------------------------------------------------
-
-static void RenderDome(INT32 skytexture)
+EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 {
 	int i, j;
-	int vbosize;
-	GLSkyVBO *vbo = &sky_vbo;
-
-	rows = 4;
-	columns = 4 * gl_sky_detail;
-
-	vbosize = 2 * rows * (columns * 2 + 2) + columns * 2;
 
 	// Build the sky dome! Yes!
-	if (lasttex != skytexture)
+	if (sky->rebuild)
 	{
 		// delete VBO when already exists
 		if (gl_ext_arb_vertex_buffer_object)
 		{
-			if (vbo->id)
-				pglDeleteBuffers(1, &vbo->id);
+			if (sky->vbo)
+				pglDeleteBuffers(1, &sky->vbo);
 		}
-
-		lasttex = skytexture;
-		gld_BuildSky(rows, columns);
 
 		if (gl_ext_arb_vertex_buffer_object)
 		{
 			// generate a new VBO and get the associated ID
-			pglGenBuffers(1, &vbo->id);
+			pglGenBuffers(1, &sky->vbo);
 
 			// bind VBO in order to use
-			pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+			pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 			// upload data to VBO
-			pglBufferData(GL_ARRAY_BUFFER, vbosize * sizeof(vbo->data[0]), vbo->data, GL_STATIC_DRAW);
+			pglBufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
 		}
+
+		sky->rebuild = false;
 	}
 
 	// bind VBO in order to use
 	if (gl_ext_arb_vertex_buffer_object)
-		pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
-	pglVertexPointer(3, GL_FLOAT, sizeof(vbo->data[0]), sky_vbo_x);
-	pglTexCoordPointer(2, GL_FLOAT, sizeof(vbo->data[0]), sky_vbo_u);
-	pglColorPointer(4, GL_UNSIGNED_BYTE, sizeof(vbo->data[0]), sky_vbo_r);
+	pglVertexPointer(3, GL_FLOAT, sizeof(sky->data[0]), sky_vbo_x);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(sky->data[0]), sky_vbo_u);
+	pglColorPointer(4, GL_UNSIGNED_BYTE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// activate color arrays
 	pglEnableClientState(GL_COLOR_ARRAY);
 
 	// set transforms
-	pglScalef(1.0f, (float)texh / 230.0f, 1.0f);
+	pglScalef(1.0f, (float)sky->height / 200.0f, 1.0f);
 	pglRotatef(270.0f, 0.0f, 1.0f, 0.0f);
 
 	for (j = 0; j < 2; j++)
 	{
-		for (i = 0; i < vbo->loopcount; i++)
+		for (i = 0; i < sky->loopcount; i++)
 		{
-			GLSkyLoopDef *loop = &vbo->loops[i];
+			gl_skyloopdef_t *loop = &sky->loops[i];
+			unsigned int mode = 0;
 
 			if (j == 0 ? loop->use_texture : !loop->use_texture)
 				continue;
 
-			pglDrawArrays(loop->mode, loop->vertexindex, loop->vertexcount);
+			switch (loop->mode)
+			{
+				case HWD_SKYLOOP_FAN:
+					mode = GL_TRIANGLE_FAN;
+					break;
+				case HWD_SKYLOOP_STRIP:
+					mode = GL_TRIANGLE_STRIP;
+					break;
+				default:
+					continue;
+			}
+
+			pglDrawArrays(mode, loop->vertexindex, loop->vertexcount);
 		}
 	}
 
@@ -1276,16 +1114,6 @@ static void RenderDome(INT32 skytexture)
 
 	// deactivate color array
 	pglDisableClientState(GL_COLOR_ARRAY);
-}
-
-EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
-{
-	SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
-	SetTransform(&transform);
-	texw = texture_width;
-	texh = texture_height;
-	RenderDome(tex);
-	SetBlend(0);
 }
 
 // ==========================================================================
@@ -1348,202 +1176,9 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 	}
 }
 
-static float *vertBuffer = NULL;
-static float *normBuffer = NULL;
-static size_t lerpBufferSize = 0;
-static short *vertTinyBuffer = NULL;
-static char *normTinyBuffer = NULL;
-static size_t lerpTinyBufferSize = 0;
-
-// Static temporary buffer for doing frame interpolation
-// 'size' is the vertex size
-static void AllocLerpBuffer(size_t size)
-{
-	if (lerpBufferSize >= size)
-		return;
-
-	if (vertBuffer != NULL)
-		free(vertBuffer);
-
-	if (normBuffer != NULL)
-		free(normBuffer);
-
-	lerpBufferSize = size;
-	vertBuffer = malloc(lerpBufferSize);
-	normBuffer = malloc(lerpBufferSize);
-}
-
-// Static temporary buffer for doing frame interpolation
-// 'size' is the vertex size
-static void AllocLerpTinyBuffer(size_t size)
-{
-	if (lerpTinyBufferSize >= size)
-		return;
-
-	if (vertTinyBuffer != NULL)
-		free(vertTinyBuffer);
-
-	if (normTinyBuffer != NULL)
-		free(normTinyBuffer);
-
-	lerpTinyBufferSize = size;
-	vertTinyBuffer = malloc(lerpTinyBufferSize);
-	normTinyBuffer = malloc(lerpTinyBufferSize / 2);
-}
-
-#ifndef GL_STATIC_DRAW
-#define GL_STATIC_DRAW 0x88E4
-#endif
-
-#ifndef GL_ARRAY_BUFFER
-#define GL_ARRAY_BUFFER 0x8892
-#endif
-
-static void CreateModelVBO(mesh_t *mesh, mdlframe_t *frame)
-{
-	int bufferSize = sizeof(vbo64_t)*mesh->numTriangles * 3;
-	vbo64_t *buffer = (vbo64_t*)malloc(bufferSize);
-	vbo64_t *bufPtr = buffer;
-
-	float *vertPtr = frame->vertices;
-	float *normPtr = frame->normals;
-	float *tanPtr = frame->tangents;
-	float *uvPtr = mesh->uvs;
-	float *lightPtr = mesh->lightuvs;
-	char *colorPtr = frame->colors;
-
-	int i;
-	for (i = 0; i < mesh->numTriangles * 3; i++)
-	{
-		bufPtr->x = *vertPtr++;
-		bufPtr->y = *vertPtr++;
-		bufPtr->z = *vertPtr++;
-
-		bufPtr->nx = *normPtr++;
-		bufPtr->ny = *normPtr++;
-		bufPtr->nz = *normPtr++;
-
-		bufPtr->s0 = *uvPtr++;
-		bufPtr->t0 = *uvPtr++;
-
-		if (tanPtr != NULL)
-		{
-			bufPtr->tan0 = *tanPtr++;
-			bufPtr->tan1 = *tanPtr++;
-			bufPtr->tan2 = *tanPtr++;
-		}
-
-		if (lightPtr != NULL)
-		{
-			bufPtr->s1 = *lightPtr++;
-			bufPtr->t1 = *lightPtr++;
-		}
-
-		if (colorPtr)
-		{
-			bufPtr->r = *colorPtr++;
-			bufPtr->g = *colorPtr++;
-			bufPtr->b = *colorPtr++;
-			bufPtr->a = *colorPtr++;
-		}
-		else
-		{
-			bufPtr->r = 255;
-			bufPtr->g = 255;
-			bufPtr->b = 255;
-			bufPtr->a = 255;
-		}
-
-		bufPtr++;
-	}
-
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
-	free(buffer);
-
-	// Don't leave the array buffer bound to the model,
-	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
-{
-	int bufferSize = sizeof(vbotiny_t)*mesh->numTriangles * 3;
-	vbotiny_t *buffer = (vbotiny_t*)malloc(bufferSize);
-	vbotiny_t *bufPtr = buffer;
-
-	short *vertPtr = frame->vertices;
-	char *normPtr = frame->normals;
-	float *uvPtr = mesh->uvs;
-	char *tanPtr = frame->tangents;
-
-	int i;
-	for (i = 0; i < mesh->numVertices; i++)
-	{
-		bufPtr->x = *vertPtr++;
-		bufPtr->y = *vertPtr++;
-		bufPtr->z = *vertPtr++;
-
-		bufPtr->nx = *normPtr++;
-		bufPtr->ny = *normPtr++;
-		bufPtr->nz = *normPtr++;
-
-		bufPtr->s0 = *uvPtr++;
-		bufPtr->t0 = *uvPtr++;
-
-		if (tanPtr)
-		{
-			bufPtr->tanx = *tanPtr++;
-			bufPtr->tany = *tanPtr++;
-			bufPtr->tanz = *tanPtr++;
-		}
-
-		bufPtr++;
-	}
-
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
-	free(buffer);
-
-	// Don't leave the array buffer bound to the model,
-	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 EXPORT void HWRAPI(CreateModelVBOs) (model_t *model)
 {
-	int i;
-	for (i = 0; i < model->numMeshes; i++)
-	{
-		mesh_t *mesh = &model->meshes[i];
-
-		if (mesh->frames)
-		{
-			int j;
-			for (j = 0; j < model->meshes[i].numFrames; j++)
-			{
-				mdlframe_t *frame = &mesh->frames[j];
-				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
-				frame->vboID = 0;
-				CreateModelVBO(mesh, frame);
-			}
-		}
-		else if (mesh->tinyframes)
-		{
-			int j;
-			for (j = 0; j < model->meshes[i].numFrames; j++)
-			{
-				tinyframe_t *frame = &mesh->tinyframes[j];
-				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
-				frame->vboID = 0;
-				CreateModelVBOTiny(mesh, frame);
-			}
-		}
-	}
+	GenerateModelVBOs(model);
 }
 
 #define BUFFER_OFFSET(i) ((char*)NULL + (i))
@@ -1728,7 +1363,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
+				Model_AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
 				vertPtr = vertTinyBuffer;
 				normPtr = normTinyBuffer;
 				j = 0;
@@ -1779,7 +1414,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j = 0;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
+				Model_AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
 				vertPtr = vertBuffer;
 				normPtr = normBuffer;
 				//int j = 0;

@@ -4,12 +4,30 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := main
 
-SDL_PATH := ../../../../SDL
+#
+# Paths
+#
 
-OBJDIR := ../../../../src/
+SRB2_PATH := ../../../../
+
+SDL_PATH := $(SRB2_PATH)/SDL
+
+OBJDIR := $(SRB2_PATH)/src/
+LIBDIR := $(SRB2_PATH)/libs/
 JNIDIR := .
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include
+#
+# Includes
+#
+
+SRB2_LIBRARY_INCLUDE_PATH := $(LOCAL_PATH)/$(SRB2_PATH)/libs
+
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include          # SDL2
+LOCAL_C_INCLUDES := $(SRB2_LIBRARY_INCLUDE_PATH)/curl/include/ # Curl
+
+#
+# Source paths
+#
 
 SDL2_SOURCES := $(OBJDIR)/sdl/
 LUA_SOURCES := $(OBJDIR)/blua/
@@ -95,6 +113,7 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/w_handle.c \
 			$(OBJDIR)/filesrch.c \
 			$(OBJDIR)/mserv.c    \
+			$(OBJDIR)/http-mserv.c\
 			$(OBJDIR)/i_tcp.c    \
 			$(OBJDIR)/lzf.c      \
 			$(OBJDIR)/b_bot.c    \
@@ -159,11 +178,10 @@ LOCAL_SRC_FILES += $(HWR_SOURCES)/r_gles/r_gles1.c \
 #
 # SDL2 interface
 #
-LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_cdmus.c  \
-			$(SDL2_SOURCES)/i_net.c    \
+LOCAL_SRC_FILES += $(SDL2_SOURCES)/i_system.c \
 			$(SDL2_SOURCES)/i_video.c  \
-			$(SDL2_SOURCES)/i_system.c \
 			$(SDL2_SOURCES)/mixer_sound.c\
+			$(SDL2_SOURCES)/i_net.c    \
 			$(SDL2_SOURCES)/dosstr.c   \
 			$(SDL2_SOURCES)/endtxt.c   \
 			$(SDL2_SOURCES)/hwsym_sdl.c\
@@ -182,6 +200,8 @@ LOCAL_CFLAGS += -DUNIXCOMMON -DLINUX \
 LOCAL_SHARED_LIBRARIES := SDL2 hidapi \
 	SDL2_mixer libmpg123 \
 	libpng
+
+LOCAL_STATIC_LIBRARIES := libcurl
 
 LOCAL_LDLIBS := -lGLESv1_CM -lEGL -llog -lz
 

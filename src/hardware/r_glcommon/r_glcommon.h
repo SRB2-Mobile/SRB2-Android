@@ -96,6 +96,16 @@ typedef const GLubyte * (R_GL_APIENTRY * PFNglGetString) (GLenum name);
 extern PFNglGetString pglGetString;
 #endif
 
+/* 1.5 functions for buffers */
+typedef void (R_GL_APIENTRY * PFNglGenBuffers) (GLsizei n, GLuint *buffers);
+extern PFNglGenBuffers pglGenBuffers;
+typedef void (R_GL_APIENTRY * PFNglBindBuffer) (GLenum target, GLuint buffer);
+extern PFNglBindBuffer pglBindBuffer;
+typedef void (R_GL_APIENTRY * PFNglBufferData) (GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
+extern PFNglBufferData pglBufferData;
+typedef void (R_GL_APIENTRY * PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
+extern PFNglDeleteBuffers pglDeleteBuffers;
+
 // ==========================================================================
 //                                                                     GLOBAL
 // ==========================================================================
@@ -131,6 +141,19 @@ extern fmatrix4_t viewMatrix;
 extern fmatrix4_t modelMatrix;
 #endif
 
+#include "../../hardware/hw_model.h" // model_t / mesh_t / mdlframe_t
+#include "../r_opengl/r_vbo.h"
+
+extern float *vertBuffer;
+extern float *normBuffer;
+extern short *vertTinyBuffer;
+extern char *normTinyBuffer;
+
+void Model_AllocLerpBuffer(size_t size);
+void Model_AllocLerpTinyBuffer(size_t size);
+
+void GenerateModelVBOs(model_t *model);
+
 /* 1.2 Parms */
 /* GL_CLAMP_TO_EDGE_EXT */
 #ifndef GL_CLAMP_TO_EDGE
@@ -157,6 +180,14 @@ extern fmatrix4_t modelMatrix;
 #endif
 #ifndef GL_STATIC_DRAW
 #define GL_STATIC_DRAW 0x88E4
+#endif
+
+#ifndef GL_STATIC_DRAW
+#define GL_STATIC_DRAW 0x88E4
+#endif
+
+#ifndef GL_ARRAY_BUFFER
+#define GL_ARRAY_BUFFER 0x8892
 #endif
 
 #endif // _R_GLCOMMON_H_

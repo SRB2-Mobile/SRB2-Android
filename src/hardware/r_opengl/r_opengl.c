@@ -324,16 +324,6 @@ static PFNglMultiTexCoord2fv pglMultiTexCoord2fv;
 typedef void (APIENTRY *PFNglClientActiveTexture) (GLenum);
 static PFNglClientActiveTexture pglClientActiveTexture;
 
-/* 1.5 functions for buffers */
-typedef void (APIENTRY * PFNglGenBuffers) (GLsizei n, GLuint *buffers);
-static PFNglGenBuffers pglGenBuffers;
-typedef void (APIENTRY * PFNglBindBuffer) (GLenum target, GLuint buffer);
-static PFNglBindBuffer pglBindBuffer;
-typedef void (APIENTRY * PFNglBufferData) (GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
-static PFNglBufferData pglBufferData;
-typedef void (APIENTRY * PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
-static PFNglDeleteBuffers pglDeleteBuffers;
-
 boolean SetupGLfunc(void)
 {
 #ifndef STATIC_OPENGL
@@ -1535,202 +1525,9 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 	}
 }
 
-static float *vertBuffer = NULL;
-static float *normBuffer = NULL;
-static size_t lerpBufferSize = 0;
-static short *vertTinyBuffer = NULL;
-static char *normTinyBuffer = NULL;
-static size_t lerpTinyBufferSize = 0;
-
-// Static temporary buffer for doing frame interpolation
-// 'size' is the vertex size
-static void AllocLerpBuffer(size_t size)
-{
-	if (lerpBufferSize >= size)
-		return;
-
-	if (vertBuffer != NULL)
-		free(vertBuffer);
-
-	if (normBuffer != NULL)
-		free(normBuffer);
-
-	lerpBufferSize = size;
-	vertBuffer = malloc(lerpBufferSize);
-	normBuffer = malloc(lerpBufferSize);
-}
-
-// Static temporary buffer for doing frame interpolation
-// 'size' is the vertex size
-static void AllocLerpTinyBuffer(size_t size)
-{
-	if (lerpTinyBufferSize >= size)
-		return;
-
-	if (vertTinyBuffer != NULL)
-		free(vertTinyBuffer);
-
-	if (normTinyBuffer != NULL)
-		free(normTinyBuffer);
-
-	lerpTinyBufferSize = size;
-	vertTinyBuffer = malloc(lerpTinyBufferSize);
-	normTinyBuffer = malloc(lerpTinyBufferSize / 2);
-}
-
-#ifndef GL_STATIC_DRAW
-#define GL_STATIC_DRAW 0x88E4
-#endif
-
-#ifndef GL_ARRAY_BUFFER
-#define GL_ARRAY_BUFFER 0x8892
-#endif
-
-static void CreateModelVBO(mesh_t *mesh, mdlframe_t *frame)
-{
-	int bufferSize = sizeof(vbo64_t)*mesh->numTriangles * 3;
-	vbo64_t *buffer = (vbo64_t*)malloc(bufferSize);
-	vbo64_t *bufPtr = buffer;
-
-	float *vertPtr = frame->vertices;
-	float *normPtr = frame->normals;
-	float *tanPtr = frame->tangents;
-	float *uvPtr = mesh->uvs;
-	float *lightPtr = mesh->lightuvs;
-	char *colorPtr = frame->colors;
-
-	int i;
-	for (i = 0; i < mesh->numTriangles * 3; i++)
-	{
-		bufPtr->x = *vertPtr++;
-		bufPtr->y = *vertPtr++;
-		bufPtr->z = *vertPtr++;
-
-		bufPtr->nx = *normPtr++;
-		bufPtr->ny = *normPtr++;
-		bufPtr->nz = *normPtr++;
-
-		bufPtr->s0 = *uvPtr++;
-		bufPtr->t0 = *uvPtr++;
-
-		if (tanPtr != NULL)
-		{
-			bufPtr->tan0 = *tanPtr++;
-			bufPtr->tan1 = *tanPtr++;
-			bufPtr->tan2 = *tanPtr++;
-		}
-
-		if (lightPtr != NULL)
-		{
-			bufPtr->s1 = *lightPtr++;
-			bufPtr->t1 = *lightPtr++;
-		}
-
-		if (colorPtr)
-		{
-			bufPtr->r = *colorPtr++;
-			bufPtr->g = *colorPtr++;
-			bufPtr->b = *colorPtr++;
-			bufPtr->a = *colorPtr++;
-		}
-		else
-		{
-			bufPtr->r = 255;
-			bufPtr->g = 255;
-			bufPtr->b = 255;
-			bufPtr->a = 255;
-		}
-
-		bufPtr++;
-	}
-
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
-	free(buffer);
-
-	// Don't leave the array buffer bound to the model,
-	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
-{
-	int bufferSize = sizeof(vbotiny_t)*mesh->numTriangles * 3;
-	vbotiny_t *buffer = (vbotiny_t*)malloc(bufferSize);
-	vbotiny_t *bufPtr = buffer;
-
-	short *vertPtr = frame->vertices;
-	char *normPtr = frame->normals;
-	float *uvPtr = mesh->uvs;
-	char *tanPtr = frame->tangents;
-
-	int i;
-	for (i = 0; i < mesh->numVertices; i++)
-	{
-		bufPtr->x = *vertPtr++;
-		bufPtr->y = *vertPtr++;
-		bufPtr->z = *vertPtr++;
-
-		bufPtr->nx = *normPtr++;
-		bufPtr->ny = *normPtr++;
-		bufPtr->nz = *normPtr++;
-
-		bufPtr->s0 = *uvPtr++;
-		bufPtr->t0 = *uvPtr++;
-
-		if (tanPtr)
-		{
-			bufPtr->tanx = *tanPtr++;
-			bufPtr->tany = *tanPtr++;
-			bufPtr->tanz = *tanPtr++;
-		}
-
-		bufPtr++;
-	}
-
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
-	free(buffer);
-
-	// Don't leave the array buffer bound to the model,
-	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 EXPORT void HWRAPI(CreateModelVBOs) (model_t *model)
 {
-	int i;
-	for (i = 0; i < model->numMeshes; i++)
-	{
-		mesh_t *mesh = &model->meshes[i];
-
-		if (mesh->frames)
-		{
-			int j;
-			for (j = 0; j < model->meshes[i].numFrames; j++)
-			{
-				mdlframe_t *frame = &mesh->frames[j];
-				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
-				frame->vboID = 0;
-				CreateModelVBO(mesh, frame);
-			}
-		}
-		else if (mesh->tinyframes)
-		{
-			int j;
-			for (j = 0; j < model->meshes[i].numFrames; j++)
-			{
-				tinyframe_t *frame = &mesh->tinyframes[j];
-				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
-				frame->vboID = 0;
-				CreateModelVBOTiny(mesh, frame);
-			}
-		}
-	}
+	GenerateModelVBOs(model);
 }
 
 #define BUFFER_OFFSET(i) ((void*)(i))
@@ -1920,7 +1717,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j = 0;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
+				Model_AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
 				vertPtr = vertTinyBuffer;
 				normPtr = normTinyBuffer;
 
@@ -1970,7 +1767,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j = 0;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
+				Model_AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
 				vertPtr = vertBuffer;
 				normPtr = normBuffer;
 				//int j = 0;
