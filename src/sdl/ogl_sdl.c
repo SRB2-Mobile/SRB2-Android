@@ -154,36 +154,14 @@ boolean LoadGL(void)
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
 	INT32 cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
-	static boolean first_init = false;
 
 	oglflags = 0;
-
-	if (!first_init)
-	{
-		gl_version = pglGetString(GL_VERSION);
-		gl_renderer = pglGetString(GL_RENDERER);
-		gl_extensions = pglGetString(GL_EXTENSIONS);
-
-		GL_DBG_Printf("OpenGL %s\n", gl_version);
-		GL_DBG_Printf("GPU: %s\n", gl_renderer);
-		GL_DBG_Printf("Extensions: %s\n", gl_extensions);
-	}
-	first_init = true;
-
-	if (isExtAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
-		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
-	else
-		maximumAnisotropy = 1;
-
 	SetupGLFunc4();
 
+	SetSurface(w, h);
+
 	granisotropicmode_cons_t[1].value = maximumAnisotropy;
-
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
-	SetModelView(w, h);
-	SetStates();
-	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	HWR_Startup();
 	textureformatGL = cbpp > 16 ? GL_RGBA : GL_RGB5_A1;

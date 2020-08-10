@@ -52,6 +52,7 @@ boolean SetupGLfunc(void);
 void SetupGLFunc4(void);
 void Flush(void);
 INT32 isExtAvailable(const char *extension, const GLubyte *start);
+void SetSurface(INT32 w, INT32 h);
 void SetModelView(GLint w, GLint h);
 void SetStates(void);
 

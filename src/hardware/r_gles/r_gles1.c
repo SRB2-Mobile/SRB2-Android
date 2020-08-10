@@ -291,6 +291,8 @@ boolean SetupGLfunc(void)
 
 #undef GETOPENGLFUNC
 
+	SetupGLFunc4();
+
 	return true;
 }
 

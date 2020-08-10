@@ -67,33 +67,10 @@ boolean LoadGL(void)
 */
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
-	const GLvoid *glvendor = NULL, *glrenderer = NULL, *glversion = NULL;
-
-	glvendor = pglGetString(GL_VENDOR);
-	// Get info and extensions.
-	//BP: why don't we make it earlier ?
-	//Hurdler: we cannot do that before intialising gl context
-	glrenderer = pglGetString(GL_RENDERER);
-	glversion = pglGetString(GL_VERSION);
-	gl_extensions = pglGetString(GL_EXTENSIONS);
-
-	GL_DBG_Printf("Vendor     : %s\n", glvendor);
-	GL_DBG_Printf("Renderer   : %s\n", glrenderer);
-	GL_DBG_Printf("Version    : %s\n", glversion);
-	GL_DBG_Printf("Extensions : %s\n", gl_extensions);
-
-	if (isExtAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
-		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
-	else
-		maximumAnisotropy = 1;
+	SetSurface(w, h);
 
 	granisotropicmode_cons_t[1].value = maximumAnisotropy;
-
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
-	SetModelView(w, h);
-	SetStates();
-	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	HWR_Startup();
 

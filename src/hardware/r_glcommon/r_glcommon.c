@@ -21,6 +21,34 @@
 
 #include <stdarg.h>
 
+void SetSurface(INT32 w, INT32 h)
+{
+	if (gl_version == NULL || gl_renderer == NULL)
+	{
+		gl_version = pglGetString(GL_VERSION);
+		gl_renderer = pglGetString(GL_RENDERER);
+
+		GL_DBG_Printf("OpenGL %s\n", gl_version);
+		GL_DBG_Printf("GPU: %s\n", gl_renderer);
+	}
+
+	if (gl_extensions == NULL)
+	{
+		gl_extensions = pglGetString(GL_EXTENSIONS);
+		GL_DBG_Printf("Extensions: %s\n", gl_extensions);
+	}
+
+	if (isExtAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
+		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
+	else
+		maximumAnisotropy = 1;
+
+	SetModelView(w, h);
+	SetStates();
+
+	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
 /* 1.5 functions for buffers */
 PFNglGenBuffers pglGenBuffers;
 PFNglBindBuffer pglBindBuffer;
