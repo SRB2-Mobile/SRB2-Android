@@ -181,6 +181,8 @@ typedef void (*PFNglTexParameteri) (GLenum target, GLenum pname, GLint param);
 static PFNglTexParameteri pglTexParameteri;
 typedef void (*PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 static PFNglTexImage2D pglTexImage2D;
+typedef void (*PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+static PFNglTexSubImage2D pglTexSubImage2D;
 
 /* Fog */
 typedef void (*PFNglFogf) (GLenum pname, GLfloat param);
@@ -284,6 +286,7 @@ boolean SetupGLfunc(void)
 	GETOPENGLFUNC(pglTexEnvi , glTexEnvi)
 	GETOPENGLFUNC(pglTexParameteri , glTexParameteri)
 	GETOPENGLFUNC(pglTexImage2D , glTexImage2D)
+	GETOPENGLFUNC(pglTexSubImage2D , glTexSubImage2D)
 
 	GETOPENGLFUNC(pglFogf , glFogf)
 	GETOPENGLFUNC(pglFogfv , glFogfv)
@@ -804,15 +807,15 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 	else
 		texnum = pTexInfo->downloaded;
 
-	//GL_DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->grInfo.data);
+	//GL_DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->data);
 
 	w = pTexInfo->width;
 	h = pTexInfo->height;
 
-	if ((pTexInfo->grInfo.format == GR_TEXFMT_P_8) ||
-		(pTexInfo->grInfo.format == GR_TEXFMT_AP_88))
+	if ((pTexInfo->format == GL_TEXFMT_P_8) ||
+		(pTexInfo->format == GL_TEXFMT_AP_88))
 	{
-		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->data;
 		INT32 i, j;
 
 		for (j = 0; j < h; j++)
@@ -838,7 +841,7 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 
 				pImgData++;
 
-				if (pTexInfo->grInfo.format == GR_TEXFMT_AP_88)
+				if (pTexInfo->format == GL_TEXFMT_AP_88)
 				{
 					if (!(pTexInfo->flags & TF_CHROMAKEYED))
 						tex[w*j+i].s.alpha = *pImgData;
@@ -848,15 +851,15 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 			}
 		}
 	}
-	else if (pTexInfo->grInfo.format == GR_RGBA)
+	else if (pTexInfo->format == GL_TEXFMT_RGBA)
 	{
 		// corona test : passed as ARGB 8888, which is not in glide formats
 		// Hurdler: not used for coronas anymore, just for dynamic lighting
-		ptex = pTexInfo->grInfo.data;
+		ptex = pTexInfo->data;
 	}
-	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
+	else if (pTexInfo->format == GL_TEXFMT_ALPHA_INTENSITY_88)
 	{
-		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->data;
 		INT32 i, j;
 
 		for (j = 0; j < h; j++)
@@ -872,9 +875,9 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 			}
 		}
 	}
-	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8) // Used for fade masks
+	else if (pTexInfo->format == GL_TEXFMT_ALPHA_8) // Used for fade masks
 	{
-		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->data;
 		INT32 i, j;
 
 		for (j = 0; j < h; j++)
@@ -1884,31 +1887,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 {
-	FTextureInfo *tmp = gr_cachehead;
-	INT32 res = 0;
-
-	while (tmp)
-	{
-		// Figure out the correct bytes-per-pixel for this texture
-		// I don't know which one the game actually _uses_ but this
-		// follows format2bpp in hw_cache.c
-		int bpp = 1;
-		int format = tmp->grInfo.format;
-		if (format == GR_RGBA)
-			bpp = 4;
-		else if (format == GR_TEXFMT_RGB_565
-			|| format == GR_TEXFMT_ARGB_1555
-			|| format == GR_TEXFMT_ARGB_4444
-			|| format == GR_TEXFMT_ALPHA_INTENSITY_88
-			|| format == GR_TEXFMT_AP_88)
-			bpp = 2;
-
-		// Add it up!
-		res += tmp->height*tmp->width*bpp;
-		tmp = tmp->nextmipmap;
-	}
-
-	return res;
+	return GetTextureMemoryUsage(gr_cachehead);
 }
 
 EXPORT INT32  HWRAPI(GetRenderVersion) (void)
@@ -2130,7 +2109,7 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 }
 
 // Do screen fades!
-EXPORT void HWRAPI(DoScreenWipe)(void)
+static void DoWipe(void)
 {
 	INT32 texsize = 2048;
 	float xfix, yfix;
@@ -2218,6 +2197,18 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 	pglActiveTexture(GL_TEXTURE0);
 	pglClientActiveTexture(GL_TEXTURE0);
 	tex_downloaded = endScreenWipe;
+}
+
+EXPORT void HWRAPI(DoScreenWipe)(void)
+{
+	DoWipe();
+}
+
+EXPORT void HWRAPI(DoTintedWipe)(boolean istowhite, boolean isfadingin)
+{
+	(void)istowhite;
+	(void)isfadingin;
+	DoWipe();
 }
 
 // Create a texture from the screen.

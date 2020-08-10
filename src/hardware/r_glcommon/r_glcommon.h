@@ -55,6 +55,8 @@ INT32 isExtAvailable(const char *extension, const GLubyte *start);
 void SetModelView(GLint w, GLint h);
 void SetStates(void);
 
+INT32 GetTextureMemoryUsage(void *textures);
+
 void GL_DBG_Printf(const char *format, ...);
 void GL_MSG_Warning(const char *format, ...);
 void GL_MSG_Error(const char *format, ...);

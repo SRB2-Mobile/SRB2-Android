@@ -16,7 +16,38 @@
 #include "../../doomdef.h"
 #include "../../console.h"
 
+#include "../../hardware/hw_data.h" // GLMipmap_s
+#include "../../hardware/hw_defs.h" // FTextureInfo
+
 #include <stdarg.h>
+
+// ----------------------+
+// GetTextureMemoryUsage : calculates total memory usage by textures
+// Returns               : total memory amount used by textures, excluding mipmaps
+// ----------------------+
+INT32 GetTextureMemoryUsage(void *textures)
+{
+	FTextureInfo *head = (FTextureInfo *)textures;
+	INT32 res = 0;
+
+	while (head)
+	{
+		// Figure out the correct bytes-per-pixel for this texture
+		// This follows format2bpp in hw_cache.c
+		int bpp = 1;
+		int format = head->format;
+		if (format == GL_TEXFMT_RGBA)
+			bpp = 4;
+		else if (format == GL_TEXFMT_ALPHA_INTENSITY_88 || format == GL_TEXFMT_AP_88)
+			bpp = 2;
+
+		// Add it up!
+		res += head->height*head->width*bpp;
+		head = head->nextmipmap;
+	}
+
+	return res;
+}
 
 // -----------------+
 // isExtAvailable   : Look if an OpenGL extension is available

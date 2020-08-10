@@ -1838,27 +1838,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 {
-	FTextureInfo *tmp = gl_cachehead;
-	INT32 res = 0;
-
-	while (tmp)
-	{
-		// Figure out the correct bytes-per-pixel for this texture
-		// I don't know which one the game actually _uses_ but this
-		// follows format2bpp in hw_cache.c
-		int bpp = 1;
-		int format = tmp->format;
-		if (format == GL_TEXFMT_RGBA)
-			bpp = 4;
-		else if (format == GL_TEXFMT_ALPHA_INTENSITY_88 || format == GL_TEXFMT_AP_88)
-			bpp = 2;
-
-		// Add it up!
-		res += tmp->height*tmp->width*bpp;
-		tmp = tmp->nextmipmap;
-	}
-
-	return res;
+	return GetTextureMemoryUsage(gr_cachehead);
 }
 
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
