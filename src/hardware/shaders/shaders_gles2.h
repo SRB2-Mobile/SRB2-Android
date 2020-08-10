@@ -58,6 +58,20 @@
 		GLSL_LINKAGE_FADEMASKTEXCOORD " = vec2(" GLSL_ATTRIBUTE_FADETEX ".x, " GLSL_ATTRIBUTE_FADETEX ".y);\n" \
 	"}\0"
 
+// replicates the way fixed function lighting is used by the model lighting option,
+// stores the lighting result to gl_Color
+// (ambient lighting of 0.75 and diffuse lighting from above)
+#define GLSL_MODEL_LIGHTING_VERTEX_SHADER \
+	"void main()\n" \
+	"{\n" \
+		"float nDotVP = dot(gl_Normal, vec3(0, 1, 0));\n" \
+		"float light = 0.75 + max(nDotVP, 0.0);\n" \
+		"gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;\n" \
+		"gl_FrontColor = vec4(light, light, light, 1.0);\n" \
+		"gl_TexCoord[0].xy = gl_MultiTexCoord0.xy;\n" \
+		"gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n" \
+	"}\0"
+
 // ==================
 //  Fragment shaders
 // ==================
@@ -219,12 +233,32 @@
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
-		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ");\n" \
-		"vec4 BaseColor = texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
+		"vec4 Texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ");\n" \
+		"vec4 BaseColor = Texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
+		"FinalColor.a = Texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
+		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
+	"}\0"
+
+// same as above but multiplies results with the lighting value from the
+// accompanying vertex shader (stored in gl_Color)
+#define GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER \
+	GLSL_VERSION_MACRO \
+	GLSL_BASE_OUT \
+	GLSL_BASE_IN \
+	GLSL_DOOM_UNIFORMS \
+	GLSL_DOOM_COLORMAP \
+	GLSL_DOOM_LIGHT_EQUATION \
+	"void main(void) {\n" \
+		"vec4 Texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ");\n" \
+		"vec4 BaseColor = Texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
+		"vec4 FinalColor = BaseColor;\n" \
+		GLSL_SOFTWARE_TINT_EQUATION \
+		GLSL_SOFTWARE_FADE_EQUATION \
+		"FinalColor *= " GLSL_LINKAGE_COLORS ";\n" \
+		"FinalColor.a = Texel.a * PolyColor.a;\n" \
 		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"
 
@@ -252,12 +286,12 @@
 		"float a = -pi * (z * freq) + (" GLSL_UNIFORM_LEVELTIME " * speed);\n" \
 		"float sdistort = sin(a) * amp;\n" \
 		"float cdistort = cos(a) * amp;\n" \
-		"vec4 texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", vec2(" GLSL_LINKAGE_TEXCOORD ".s - sdistort, " GLSL_LINKAGE_TEXCOORD ".t - cdistort));\n" \
-		"vec4 BaseColor = texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
+		"vec4 Texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", vec2(" GLSL_LINKAGE_TEXCOORD ".s - sdistort, " GLSL_LINKAGE_TEXCOORD ".t - cdistort));\n" \
+		"vec4 BaseColor = Texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FinalColor.a = texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
+		"FinalColor.a = Texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
 		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
 	"}\0"
 

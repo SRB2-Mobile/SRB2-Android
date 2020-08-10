@@ -75,6 +75,8 @@ gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
 #ifdef HAVE_GLES2
 gl_shaderprogram_t *shader_base = NULL;
 gl_shaderprogram_t *shader_current = NULL;
+#else
+static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
 #endif
 
 // Shader info
@@ -100,7 +102,7 @@ static const char *vertex_shaders[] = {
 	GLSL_DEFAULT_VERTEX_SHADER,
 
 	// Model vertex shader
-	GLSL_DEFAULT_VERTEX_SHADER,
+	GLSL_DEFAULT_VERTEX_SHADER, GLSL_MODEL_LIGHTING_VERTEX_SHADER,
 
 	// Water vertex shader
 	GLSL_DEFAULT_VERTEX_SHADER,
@@ -133,7 +135,7 @@ static const char *fragment_shaders[] = {
 	GLSL_SOFTWARE_FRAGMENT_SHADER,
 
 	// Model fragment shader
-	GLSL_SOFTWARE_FRAGMENT_SHADER,
+	GLSL_SOFTWARE_FRAGMENT_SHADER, GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER,
 
 	// Water fragment shader
 	GLSL_WATER_FRAGMENT_SHADER,
@@ -142,14 +144,7 @@ static const char *fragment_shaders[] = {
 	GLSL_FOG_FRAGMENT_SHADER,
 
 	// Sky fragment shader
-#ifdef HAVE_GLES2
 	GLSL_SKY_FRAGMENT_SHADER,
-#else
-	"uniform sampler2D tex;\n"
-	"void main(void) {\n"
-		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st);\n"
-	"}\0",
-#endif
 
 #ifdef HAVE_GLES2
 	// Fade mask vertex shader
@@ -604,6 +599,16 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 	#define UNIFORM_4(uniform, a, b, c, d, function) \
 		if (uniform != -1) \
 			function (uniform, a, b, c, d);
+
+#ifndef HAVE_GLES2
+	// Color uniforms can be left NULL and will be set to white (1.0f, 1.0f, 1.0f, 1.0f)
+	if (poly == NULL)
+		poly = &shader_defaultcolor;
+	if (tint == NULL)
+		tint = &shader_defaultcolor;
+	if (fade == NULL)
+		fade = &shader_defaultcolor;
+#endif
 
 #ifdef HAVE_GLES2
 	if (poly)

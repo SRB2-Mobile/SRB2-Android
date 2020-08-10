@@ -47,12 +47,6 @@
 #include "hardware/hw_light.h"
 #endif
 
-#ifdef PC_DOS
-#include <stdio.h> // for snprintf
-//int	snprintf(char *str, size_t n, const char *fmt, ...);
-int	vsnprintf(char *str, size_t n, const char *fmt, va_list ap);
-#endif
-
 // Free slot names
 // The crazy word-reading stuff uses these.
 static char *FREE_STATES[NUMSTATEFREESLOTS];
@@ -8941,7 +8935,6 @@ static const char *const MOBJTYPE_LIST[] = {  // array length left dynamic for s
 	"MT_ANGLEMAN",
 	"MT_POLYANCHOR",
 	"MT_POLYSPAWN",
-	"MT_POLYSPAWNCRUSH",
 
 	// Skybox objects
 	"MT_SKYBOX",
@@ -9090,7 +9083,7 @@ static const char *const PLAYERFLAG_LIST[] = {
 
 	// True if button down last tic.
 	"ATTACKDOWN",
-	"USEDOWN",
+	"SPINDOWN",
 	"JUMPDOWN",
 	"WPNDOWN",
 
@@ -9981,7 +9974,7 @@ struct {
 	{"BT_WEAPONNEXT",BT_WEAPONNEXT},
 	{"BT_WEAPONPREV",BT_WEAPONPREV},
 	{"BT_ATTACK",BT_ATTACK}, // shoot rings
-	{"BT_USE",BT_USE}, // spin
+	{"BT_SPIN",BT_SPIN},
 	{"BT_CAMLEFT",BT_CAMLEFT}, // turn camera left
 	{"BT_CAMRIGHT",BT_CAMRIGHT}, // turn camera right
 	{"BT_TOSSFLAG",BT_TOSSFLAG},
@@ -10854,6 +10847,12 @@ static inline int lib_getenum(lua_State *L)
 			lua_pushinteger(L, (lua_Integer)PF_FULLSTASIS);
 			return 1;
 		}
+		else if (fastcmp(p, "USEDOWN")) // Remove case when 2.3 nears release...
+		{
+			LUA_Deprecated(L, "PF_USEDOWN", "PF_SPINDOWN");
+			lua_pushinteger(L, (lua_Integer)PF_SPINDOWN);
+			return 1;
+		}
 		if (mathlib) return luaL_error(L, "playerflag '%s' could not be found.\n", word);
 		return 0;
 	}
@@ -11118,6 +11117,13 @@ static inline int lib_getenum(lua_State *L)
 				return 1;
 			}
 		return 0;
+	}
+
+	if (fastcmp(word, "BT_USE")) // Remove case when 2.3 nears release...
+	{
+		LUA_Deprecated(L, "BT_USE", "BT_SPIN");
+		lua_pushinteger(L, (lua_Integer)BT_SPIN);
+		return 1;
 	}
 
 	for (i = 0; INT_CONST[i].n; i++)

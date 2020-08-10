@@ -43,8 +43,8 @@ static  GLuint      tex_downloaded  = 0;
 static  GLfloat     fov             = 90.0f;
 static  FBITFIELD   CurrentPolyFlags;
 
-static  FTextureInfo *gr_cachetail = NULL;
-static  FTextureInfo *gr_cachehead = NULL;
+static  FTextureInfo *gl_cachetail = NULL;
+static  FTextureInfo *gl_cachehead = NULL;
 
 RGBA_t  myPaletteData[256];
 GLint   screen_width    = 0;               // used by Draw2DLine()
@@ -487,14 +487,14 @@ void Flush(void)
 {
 	//DBG_Printf ("HWR_Flush()\n");
 
-	while (gr_cachehead)
+	while (gl_cachehead)
 	{
-		if (gr_cachehead->downloaded)
-			pglDeleteTextures(1, (GLuint *)&gr_cachehead->downloaded);
-		gr_cachehead->downloaded = 0;
-		gr_cachehead = gr_cachehead->nextmipmap;
+		if (gl_cachehead->downloaded)
+			pglDeleteTextures(1, (GLuint *)&gl_cachehead->downloaded);
+		gl_cachehead->downloaded = 0;
+		gl_cachehead = gl_cachehead->nextmipmap;
 	}
-	gr_cachetail = gr_cachehead = NULL; //Hurdler: well, gr_cachehead is already NULL
+	gl_cachetail = gl_cachehead = NULL; //Hurdler: well, gl_cachehead is already NULL
 
 	tex_downloaded = 0;
 }
@@ -953,13 +953,13 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	{
 		UpdateTexture(pTexInfo);
 		pTexInfo->nextmipmap = NULL;
-		if (gr_cachetail)
+		if (gl_cachetail)
 		{ // insertion at the tail
-			gr_cachetail->nextmipmap = pTexInfo;
-			gr_cachetail = pTexInfo;
+			gl_cachetail->nextmipmap = pTexInfo;
+			gl_cachetail = pTexInfo;
 		}
 		else // initialization of the linked list
-			gr_cachetail = gr_cachehead =  pTexInfo;
+			gl_cachetail = gl_cachehead =  pTexInfo;
 	}
 }
 
@@ -1887,7 +1887,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 {
-	return GetTextureMemoryUsage(gr_cachehead);
+	return GetTextureMemoryUsage(gl_cachehead);
 }
 
 EXPORT INT32  HWRAPI(GetRenderVersion) (void)

@@ -456,7 +456,16 @@ EXPORT boolean HWRAPI(InitCustomShaders) (void)
 
 EXPORT void HWRAPI(SetShader) (int shader)
 {
+#ifdef GL_SHADERS
+	// If using model lighting, set the appropriate shader.
+	// However don't override a custom shader.
+	if (shader == SHADER_MODEL && model_lighting
+	&& !(gl_shaderprograms[SHADER_MODEL].custom && !gl_shaderprograms[SHADER_MODEL_LIGHTING].custom))
+		shader = SHADER_MODEL_LIGHTING;
 	Shader_Set(shader);
+#else
+	(void)shader;
+#endif
 }
 
 EXPORT void HWRAPI(UnSetShader) (void)
@@ -1358,233 +1367,83 @@ EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutV
 	// the DrawPolygon variant of this has some code about polyflags and wrapping here but havent noticed any problems from omitting it?
 }
 
-typedef struct vbo_vertex_s
-{
-	float x, y, z;
-	float u, v;
-	unsigned char r, g, b, a;
-} vbo_vertex_t;
-
-typedef struct
-{
-	int mode;
-	int vertexcount;
-	int vertexindex;
-	int use_texture;
-} GLSkyLoopDef;
-
-typedef struct
-{
-	unsigned int id;
-	int rows, columns;
-	int loopcount;
-	GLSkyLoopDef *loops;
-	vbo_vertex_t *data;
-} GLSkyVBO;
-
 static const boolean gl_ext_arb_vertex_buffer_object = true;
 
-#define NULL_VBO_VERTEX ((vbo_vertex_t*)NULL)
-#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &vbo->data[0].x)
-#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &vbo->data[0].u)
-#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &vbo->data[0].r)
+#define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
+#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
+#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
+#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
 
-// The texture offset to be applied to the texture coordinates in SkyVertex().
-static int rows, columns;
-static signed char yflip;
-static int texw, texh;
-static boolean foglayer;
-static float delta = 0.0f;
-
-static int gl_sky_detail = 16;
-
-static INT32 lasttex = -1;
-
-#define MAP_COEFF 128.0f
-
-static void SkyVertex(vbo_vertex_t *vbo, int r, int c)
-{
-	const float radians = (float)(M_PIl / 180.0f);
-	const float scale = 10000.0f;
-	const float maxSideAngle = 60.0f;
-
-	float topAngle = (c / (float)columns * 360.0f);
-	float sideAngle = (maxSideAngle * (rows - r) / rows);
-	float height = (float)(sin(sideAngle * radians));
-	float realRadius = (float)(scale * cos(sideAngle * radians));
-	float x = (float)(realRadius * cos(topAngle * radians));
-	float y = (!yflip) ? scale * height : -scale * height;
-	float z = (float)(realRadius * sin(topAngle * radians));
-	float timesRepeat = (4 * (256.0f / texw));
-	if (fpclassify(timesRepeat) == FP_ZERO)
-		timesRepeat = 1.0f;
-
-	if (!foglayer)
-	{
-		vbo->r = 255;
-		vbo->g = 255;
-		vbo->b = 255;
-		vbo->a = (r == 0 ? 0 : 255);
-
-		// And the texture coordinates.
-		vbo->u = (-timesRepeat * c / (float)columns);
-		if (!yflip)	// Flipped Y is for the lower hemisphere.
-			vbo->v = (r / (float)rows) + 0.5f;
-		else
-			vbo->v = 1.0f + ((rows - r) / (float)rows) + 0.5f;
-	}
-
-	if (r != 4)
-	{
-		y += 300.0f;
-	}
-
-	// And finally the vertex.
-	vbo->x = x;
-	vbo->y = y + delta;
-	vbo->z = z;
-}
-
-static GLSkyVBO sky_vbo;
-
-static void gld_BuildSky(int row_count, int col_count)
-{
-	int c, r;
-	vbo_vertex_t *vertex_p;
-	int vertex_count = 2 * row_count * (col_count * 2 + 2) + col_count * 2;
-
-	GLSkyVBO *vbo = &sky_vbo;
-
-	if ((vbo->columns != col_count) || (vbo->rows != row_count))
-	{
-		free(vbo->loops);
-		free(vbo->data);
-		memset(vbo, 0, sizeof(&vbo));
-	}
-
-	if (!vbo->data)
-	{
-		memset(vbo, 0, sizeof(&vbo));
-		vbo->loops = malloc((row_count * 2 + 2) * sizeof(vbo->loops[0]));
-		// create vertex array
-		vbo->data = malloc(vertex_count * sizeof(vbo->data[0]));
-	}
-
-	vbo->columns = col_count;
-	vbo->rows = row_count;
-
-	vertex_p = &vbo->data[0];
-	vbo->loopcount = 0;
-
-	for (yflip = 0; yflip < 2; yflip++)
-	{
-		vbo->loops[vbo->loopcount].mode = GL_TRIANGLE_FAN;
-		vbo->loops[vbo->loopcount].vertexindex = vertex_p - &vbo->data[0];
-		vbo->loops[vbo->loopcount].vertexcount = col_count;
-		vbo->loops[vbo->loopcount].use_texture = false;
-		vbo->loopcount++;
-
-		delta = 0.0f;
-		foglayer = true;
-		for (c = 0; c < col_count; c++)
-		{
-			SkyVertex(vertex_p, 1, c);
-			vertex_p->r = 255;
-			vertex_p->g = 255;
-			vertex_p->b = 255;
-			vertex_p->a = 255;
-			vertex_p++;
-		}
-		foglayer = false;
-
-		delta = (yflip ? 5.0f : -5.0f) / MAP_COEFF;
-
-		for (r = 0; r < row_count; r++)
-		{
-			vbo->loops[vbo->loopcount].mode = GL_TRIANGLE_STRIP;
-			vbo->loops[vbo->loopcount].vertexindex = vertex_p - &vbo->data[0];
-			vbo->loops[vbo->loopcount].vertexcount = 2 * col_count + 2;
-			vbo->loops[vbo->loopcount].use_texture = true;
-			vbo->loopcount++;
-
-			for (c = 0; c <= col_count; c++)
-			{
-				SkyVertex(vertex_p++, r + (yflip ? 1 : 0), (c ? c : 0));
-				SkyVertex(vertex_p++, r + (yflip ? 0 : 1), (c ? c : 0));
-			}
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-//
-//
-//
-//-----------------------------------------------------------------------------
-
-static void RenderDome(INT32 skytexture)
+EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 {
 	int i, j;
-	int vbosize;
-	GLSkyVBO *vbo = &sky_vbo;
 
-	rows = 4;
-	columns = 4 * gl_sky_detail;
-
-	vbosize = 2 * rows * (columns * 2 + 2) + columns * 2;
+	Shader_SetColors(NULL, NULL, NULL, NULL);
 
 	// Build the sky dome! Yes!
-	if (lasttex != skytexture)
+	if (sky->rebuild)
 	{
 		// delete VBO when already exists
 		if (gl_ext_arb_vertex_buffer_object)
 		{
-			if (vbo->id)
-				pglDeleteBuffers(1, &vbo->id);
+			if (sky->vbo)
+				pglDeleteBuffers(1, &sky->vbo);
 		}
-
-		lasttex = skytexture;
-		gld_BuildSky(rows, columns);
 
 		if (gl_ext_arb_vertex_buffer_object)
 		{
 			// generate a new VBO and get the associated ID
-			pglGenBuffers(1, &vbo->id);
+			pglGenBuffers(1, &sky->vbo);
 
 			// bind VBO in order to use
-			pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+			pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 			// upload data to VBO
-			pglBufferData(GL_ARRAY_BUFFER, vbosize * sizeof(vbo->data[0]), vbo->data, GL_STATIC_DRAW);
+			pglBufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
 		}
+
+		sky->rebuild = false;
 	}
 
 	// bind VBO in order to use
 	if (gl_ext_arb_vertex_buffer_object)
-		pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
-	pglVertexPointer(3, GL_FLOAT, sizeof(vbo->data[0]), sky_vbo_x);
-	pglTexCoordPointer(2, GL_FLOAT, sizeof(vbo->data[0]), sky_vbo_u);
-	pglColorPointer(4, GL_UNSIGNED_BYTE, sizeof(vbo->data[0]), sky_vbo_r);
+	pglVertexPointer(3, GL_FLOAT, sizeof(sky->data[0]), sky_vbo_x);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(sky->data[0]), sky_vbo_u);
+	pglColorPointer(4, GL_UNSIGNED_BYTE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// activate color arrays
 	pglEnableClientState(GL_COLOR_ARRAY);
 
 	// set transforms
-	pglScalef(1.0f, (float)texh / 230.0f, 1.0f);
+	pglScalef(1.0f, (float)sky->height / 200.0f, 1.0f);
 	pglRotatef(270.0f, 0.0f, 1.0f, 0.0f);
 
 	for (j = 0; j < 2; j++)
 	{
-		for (i = 0; i < vbo->loopcount; i++)
+		for (i = 0; i < sky->loopcount; i++)
 		{
-			GLSkyLoopDef *loop = &vbo->loops[i];
+			gl_skyloopdef_t *loop = &sky->loops[i];
+			unsigned int mode = 0;
 
 			if (j == 0 ? loop->use_texture : !loop->use_texture)
 				continue;
 
-			pglDrawArrays(loop->mode, loop->vertexindex, loop->vertexcount);
+			switch (loop->mode)
+			{
+				case HWD_SKYLOOP_FAN:
+					mode = GL_TRIANGLE_FAN;
+					break;
+				case HWD_SKYLOOP_STRIP:
+					mode = GL_TRIANGLE_STRIP;
+					break;
+				default:
+					continue;
+			}
+
+			pglDrawArrays(mode, loop->vertexindex, loop->vertexcount);
 		}
 	}
 
@@ -1597,16 +1456,6 @@ static void RenderDome(INT32 skytexture)
 
 	// deactivate color array
 	pglDisableClientState(GL_COLOR_ARRAY);
-}
-
-EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
-{
-	SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
-	SetTransform(&transform);
-	texw = texture_width;
-	texh = texture_height;
-	RenderDome(tex);
-	SetBlend(0);
 }
 
 // ==========================================================================
@@ -1931,31 +1780,34 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	poly.alpha  = byte2float[Surface->PolyColor.s.alpha];
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
-	if (model_lighting && (!gl_shadersenabled)) // doesn't work with shaders anyway
+	if (model_lighting)
 	{
-		ambient[0] = poly.red;
-		ambient[1] = poly.green;
-		ambient[2] = poly.blue;
-		ambient[3] = poly.alpha;
+		if (!gl_shadersenabled)
+		{
+			ambient[0] = poly.red;
+			ambient[1] = poly.green;
+			ambient[2] = poly.blue;
+			ambient[3] = poly.alpha;
 
-		diffuse[0] = poly.red;
-		diffuse[1] = poly.green;
-		diffuse[2] = poly.blue;
-		diffuse[3] = poly.alpha;
+			diffuse[0] = poly.red;
+			diffuse[1] = poly.green;
+			diffuse[2] = poly.blue;
+			diffuse[3] = poly.alpha;
 
-		if (ambient[0] > 0.75f)
-			ambient[0] = 0.75f;
-		if (ambient[1] > 0.75f)
-			ambient[1] = 0.75f;
-		if (ambient[2] > 0.75f)
-			ambient[2] = 0.75f;
+			if (ambient[0] > 0.75f)
+				ambient[0] = 0.75f;
+			if (ambient[1] > 0.75f)
+				ambient[1] = 0.75f;
+			if (ambient[2] > 0.75f)
+				ambient[2] = 0.75f;
 
-		pglLightfv(GL_LIGHT0, GL_POSITION, LightPos);
+			pglLightfv(GL_LIGHT0, GL_POSITION, LightPos);
+
+			pglEnable(GL_LIGHTING);
+			pglMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
+			pglMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
+		}
 		pglShadeModel(GL_SMOOTH);
-
-		pglEnable(GL_LIGHTING);
-		pglMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
-		pglMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
 	}
 #endif
 	else
@@ -2145,9 +1997,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	pglDisable(GL_NORMALIZE);
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
-	if (model_lighting && (!gl_shadersenabled))
+	if (model_lighting)
 	{
-		pglDisable(GL_LIGHTING);
+		if (!gl_shadersenabled)
+			pglDisable(GL_LIGHTING);
 		pglShadeModel(GL_FLAT);
 	}
 #endif
@@ -2232,7 +2085,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 {
-	return GetTextureMemoryUsage(gr_cachehead);
+	return GetTextureMemoryUsage(gl_cachehead);
 }
 
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])

@@ -1838,7 +1838,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 {
-	return GetTextureMemoryUsage(gr_cachehead);
+	return GetTextureMemoryUsage(gl_cachehead);
 }
 
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])

@@ -70,12 +70,6 @@
 #include "hardware/hw_glob.h"
 #endif
 
-#ifdef PC_DOS
-#include <stdio.h> // for snprintf
-int	snprintf(char *str, size_t n, const char *fmt, ...);
-//int	vsnprintf(char *str, size_t n, const char *fmt, va_list ap);
-#endif
-
 #ifdef _DEBUG
 #include "console.h"
 #endif
@@ -2163,20 +2157,24 @@ void W_VerifyFileMD5(UINT16 wadfilenum, const char *matchmd5)
 
 	if (memcmp(realmd5, wadfiles[wadfilenum]->md5sum, 16))
 	{
+		char *errorstring;
 		char actualmd5text[2*MD5_LEN+1];
 		PrintMD5String(wadfiles[wadfilenum]->md5sum, actualmd5text);
+
+#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
+		errorstring = Z_StrDup(va("File %s has the wrong checksum!\nAre you sure you have the correct %s files?\n", wadfiles[wadfilenum]->filename, VERSIONSTRING));
+#else
+		errorstring = Z_StrDup(va("File is old, is corrupt or has been modified: %s ", wadfiles[wadfilenum]->filename));
+#endif
+
 #ifdef _DEBUG
 		CONS_Printf
 #else
 		I_Error
 #endif
-			(M_GetText(
-#ifdef DESCRIPTIVE_FILE_LOAD_ERROR
-			"File %s has the wrong checksum!\nAre you sure you have the correct "VERSIONSTRING" files?\n"
-#else
-			"File is corrupt or has been modified: %s "
-#endif
-			"(found md5: %s, wanted: %s)"), wadfiles[wadfilenum]->filename, actualmd5text, matchmd5);
+			(M_GetText("%s(found md5: %s, wanted: %s)"), errorstring, actualmd5text, matchmd5);
+
+		Z_Free(errorstring);
 	}
 #endif
 }

@@ -2459,7 +2459,7 @@ struct {
 } const touchcust_buttonlist[] = {
 	{"Joystick / D-Pad",     gc_joystick},
 	{"Jump",                 gc_jump},
-	{"Spin",                 gc_use},
+	{"Spin",                 gc_spin},
 	{"Look Up",              gc_lookup},
 	{"Look Down",            gc_lookdown},
 	{"Center View",          gc_centerview},

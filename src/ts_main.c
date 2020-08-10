@@ -384,7 +384,7 @@ void TS_HandleFingerEvent(event_t *ev)
 				gc = gc_null;
 
 				if (gamestate == GS_INTERMISSION || gamestate == GS_CUTSCENE)
-					gc = gc_use;
+					gc = gc_spin;
 				else if (promptblockcontrols && F_GetPromptHideHud(y / vid.dupy))
 					gc = gc_jump;
 
@@ -772,7 +772,7 @@ static touchbuttonname_t touchbuttonnames[] = {
 	{gc_fire, "FIRE", "FRE"},
 	{gc_firenormal, "F.NORMAL", "FRN"},
 	{gc_tossflag, "TOSSFLAG", "FLG"},
-	{gc_use, "SPIN", "SPN"},
+	{gc_spin, "SPIN", "SPN"},
 	{gc_camtoggle, "CHASECAM", "CHASE"},
 	{gc_camreset, "RESET CAM", "R.CAM"},
 	{gc_lookup, "LOOK UP", "L.UP"},
@@ -795,7 +795,7 @@ static touchbuttonname_t touchbuttonnames[] = {
 };
 
 static touchbuttonname_t nightstouchbuttonnames[] = {
-	{gc_use, "BRAKE", "BRK"},
+	{gc_spin, "BRAKE", "BRK"},
 	{gc_jump, "DRILL", "DRL"},
 	{gc_null, NULL, NULL}
 };
@@ -938,10 +938,10 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 		// Spin
 		w = 32 * FRACUNIT;
 		h = 24 * FRACUNIT;
-		controls[gc_use].w = SCALECOORD(w);
-		controls[gc_use].h = SCALECOORD(h);
-		controls[gc_use].x = (controls[gc_jump].x - controls[gc_use].w - (12 * FRACUNIT));
-		controls[gc_use].y = controls[gc_jump].y + (8 * FRACUNIT);
+		controls[gc_spin].w = SCALECOORD(w);
+		controls[gc_spin].h = SCALECOORD(h);
+		controls[gc_spin].x = (controls[gc_jump].x - controls[gc_spin].w - (12 * FRACUNIT));
+		controls[gc_spin].y = controls[gc_jump].y + (8 * FRACUNIT);
 	}
 	else
 	{
@@ -956,10 +956,10 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 		// Spin
 		w = 40 * FRACUNIT;
 		h = 32 * FRACUNIT;
-		controls[gc_use].w = SCALECOORD(w);
-		controls[gc_use].h = SCALECOORD(h);
-		controls[gc_use].x = (controls[gc_jump].x - controls[gc_use].w - (12 * FRACUNIT));
-		controls[gc_use].y = controls[gc_jump].y + (12 * FRACUNIT);
+		controls[gc_spin].w = SCALECOORD(w);
+		controls[gc_spin].h = SCALECOORD(h);
+		controls[gc_spin].x = (controls[gc_jump].x - controls[gc_spin].w - (12 * FRACUNIT));
+		controls[gc_spin].y = controls[gc_jump].y + (12 * FRACUNIT);
 	}
 
 	// Fire, fire normal, and toss flag
@@ -967,12 +967,12 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	{
 		offs = SCALECOORD(8 * FRACUNIT);
 		h = SCALECOORD(jumph / 2) + SCALECOORD(4 * FRACUNIT);
-		controls[gc_use].h = h;
-		controls[gc_use].y = ((controls[gc_jump].y + controls[gc_jump].h) - h) + offs;
+		controls[gc_spin].h = h;
+		controls[gc_spin].y = ((controls[gc_jump].y + controls[gc_jump].h) - h) + offs;
 
-		controls[gc_fire].w = controls[gc_use].w;
+		controls[gc_fire].w = controls[gc_spin].w;
 		controls[gc_fire].h = h;
-		controls[gc_fire].x = controls[gc_use].x;
+		controls[gc_fire].x = controls[gc_spin].x;
 		controls[gc_fire].y = controls[gc_jump].y - offs;
 
 		if (status->ctfgametype)
@@ -1062,8 +1062,8 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 			top = ref->y;
 		}
 
-		x = ref->x - (w - ref->w);
-		y = ref->y + ref->h + offs;
+		x = left - (w - ref->w);
+		y = top + ref->h + offs;
 	}
 	else
 	{

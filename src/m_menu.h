@@ -18,8 +18,10 @@
 #include "doomstat.h" // for NUMGAMETYPES
 #include "d_event.h"
 #include "command.h"
-#include "r_skins.h" // for SKINNAMESIZE
 #include "f_finale.h" // for ttmode_enum
+#include "i_threads.h"
+#include "mserv.h"
+#include "r_things.h" // for SKINNAMESIZE
 
 // Compatibility with old-style named NiGHTS replay files.
 #define OLDNREPLAYNAME
@@ -230,6 +232,18 @@ typedef enum
 } menumessagetype_t;
 void M_StartMessage(const char *string, void *routine, menumessagetype_t itemtype);
 
+typedef enum
+{
+	M_NOT_WAITING,
+
+	M_WAITING_VERSION,
+	M_WAITING_ROOMS,
+	M_WAITING_SERVERS,
+}
+M_waiting_mode_t;
+
+extern M_waiting_mode_t m_waiting_mode;
+
 // Called by linux_x/i_video_xshm.c
 void M_QuitResponse(INT32 ch);
 
@@ -341,6 +355,9 @@ typedef struct menuitem_s
 	UINT8 alphaKey;
 } menuitem_t;
 
+extern menuitem_t MP_RoomMenu[];
+extern UINT32     roomIds[NUM_LIST_ROOMS];
+
 typedef struct menu_s
 {
 	UINT32         menuid;             // ID to encode menu type and hierarchy
@@ -364,6 +381,10 @@ boolean M_MouseNeeded(void);
 void M_UpdateTouchScreenNavigation(void);
 INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
 boolean M_IsCustomizingTouchControls(void);
+#endif
+
+#ifdef HAVE_THREADS
+extern I_mutex m_menu_mutex;
 #endif
 
 extern menu_t *currentMenu;
