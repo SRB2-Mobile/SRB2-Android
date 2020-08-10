@@ -8,7 +8,7 @@
 // terms of the GNU General Public License, version 2.
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
-/// \file r_gles.c
+/// \file r_gles2.c
 /// \brief OpenGL ES 2.0 API for Sonic Robo Blast 2
 
 #include <stdarg.h>
