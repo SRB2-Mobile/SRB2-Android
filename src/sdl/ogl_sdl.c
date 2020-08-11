@@ -73,7 +73,7 @@ INT32 oglflags = 0;
 void *GLUhandle = NULL;
 SDL_GLContext sdlglcontext = 0;
 
-void *GetGLFunc(const char *proc)
+void *GLBackend_GetFunction(const char *proc)
 {
 	if (strncmp(proc, "glu", 3) == 0)
 	{
@@ -85,7 +85,7 @@ void *GetGLFunc(const char *proc)
 	return SDL_GL_GetProcAddress(proc);
 }
 
-boolean LoadGL(void)
+boolean GLBackend_Init(void)
 {
 #ifndef STATIC_OPENGL
 	const char *OGLLibname = NULL;
@@ -126,7 +126,7 @@ boolean LoadGL(void)
 	{
 		GLUhandle = hwOpen(GLULibname);
 		if (GLUhandle)
-			return SetupGLfunc();
+			return GLBackend_LoadFunctions();
 		else
 		{
 			CONS_Alert(CONS_ERROR, "Could not load GLU Library: %s\n", GLULibname);
@@ -140,7 +140,7 @@ boolean LoadGL(void)
 		CONS_Alert(CONS_ERROR, "If you know what is the GLU library's name, use -GLUlib\n");
 	}
 #endif
-	return SetupGLfunc();
+	return GLBackend_LoadFunctions();
 }
 
 /**	\brief	The OglSdlSurface function
@@ -156,7 +156,7 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 	INT32 cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
 
 	oglflags = 0;
-	SetupGLFunc4();
+	GLBackend_LoadExtraFunctions();
 
 	SetSurface(w, h);
 
@@ -206,7 +206,7 @@ EXPORT void HWRAPI(OglSdlSetPalette) (RGBA_t *palette)
 	if (memcmp(&myPaletteData, palette, palsize))
 	{
 		memcpy(&myPaletteData, palette, palsize);
-		Flush();
+		GLTexture_Flush();
 	}
 }
 

@@ -42,19 +42,19 @@ PFNglGetString pglGetString;
 */
 SDL_GLContext sdlglcontext = 0;
 
-void *GetGLFunc(const char *proc)
+void *GLBackend_GetFunction(const char *proc)
 {
 	return SDL_GL_GetProcAddress(proc);
 }
 
-boolean LoadGL(void)
+boolean GLBackend_Init(void)
 {
 	if (SDL_GL_LoadLibrary(NULL) != 0)
 	{
 		CONS_Alert(CONS_ERROR, "Could not load OpenGL Library: %s\nFalling back to Software mode.\n", SDL_GetError());
 		return 0;
 	}
-	return SetupGLfunc();
+	return GLBackend_LoadFunctions();
 }
 
 /**	\brief	The OglSdlSurface function
@@ -114,7 +114,7 @@ EXPORT void HWRAPI( OglSdlSetPalette) (RGBA_t *palette)
 	if (memcmp(&myPaletteData, palette, palsize))
 	{
 		memcpy(&myPaletteData, palette, palsize);
-		Flush();
+		GLTexture_Flush();
 	}
 }
 

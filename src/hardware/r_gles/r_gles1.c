@@ -21,294 +21,61 @@
 
 static const GLfloat white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-// ==========================================================================
-//                                                                  CONSTANTS
-// ==========================================================================
-
-// With OpenGL 1.1+, the first texture should be 1
-static GLuint NOTEXTURE_NUM = 0;
-
-#define      N_PI_DEMI               (M_PIl/2.0f) //(1.5707963268f)
-
-#define      ASPECT_RATIO            (1.0f)  //(320.0f/200.0f)
-#define      FAR_CLIPPING_PLANE      32768.0f // Draw further! Tails 01-21-2001
-static float NEAR_CLIPPING_PLANE =   NZCLIP_PLANE;
-
-// **************************************************************************
-//                                                                    GLOBALS
-// **************************************************************************
-
-
-static  GLuint      tex_downloaded  = 0;
-static  GLfloat     fov             = 90.0f;
-static  FBITFIELD   CurrentPolyFlags;
-
-static  FTextureInfo *gl_cachetail = NULL;
-static  FTextureInfo *gl_cachehead = NULL;
-
-RGBA_t  myPaletteData[256];
-GLint   screen_width    = 0;               // used by Draw2DLine()
-GLint   screen_height   = 0;
-GLbyte  screen_depth    = 0;
-GLint   textureformatGL = 0;
-GLint maximumAnisotropy = 0;
-static GLboolean MipMap = GL_FALSE;
-static GLint min_filter = GL_LINEAR;
-static GLint mag_filter = GL_LINEAR;
-static GLint anisotropic_filter = 0;
 static boolean model_lighting = true;
 
-const GLubyte *gl_version = NULL;
-const GLubyte *gl_renderer = NULL;
-const GLubyte *gl_extensions = NULL;
-
-// Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
-//			flush all of the stored textures, leaving them unavailable at times such as between levels
-//			These need to start at 0 and be set to their number, and be reset to 0 when deleted so that intel GPUs
-//			can know when the textures aren't there, as textures are always considered resident in their virtual memory
-static GLuint screentexture = 0;
-static GLuint startScreenWipe = 0;
-static GLuint endScreenWipe = 0;
-static GLuint finalScreenTexture = 0;
-
-// -----------------+
-// DBG_Printf       : Output error messages
-// -----------------+
-FUNCPRINTF void DBG_Printf(const char *lpFmt, ...)
+boolean GLBackend_LoadFunctions(void)
 {
-	char    str[4096] = "";
-	va_list arglist;
-
-	va_start (arglist, lpFmt);
-	vsnprintf (str, 4096, lpFmt, arglist);
-	va_end   (arglist);
-	CONS_Printf("%s\n", str);
-}
-
-/* 1.0 functions */
-/* Miscellaneous */
-typedef void (*PFNglClearColor) (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-static PFNglClearColor pglClearColor;
-typedef void (*PFNglColorMask) (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
-static PFNglColorMask pglColorMask;
-typedef void (*PFNglAlphaFunc) (GLenum func, GLclampf ref);
-static PFNglAlphaFunc pglAlphaFunc;
-typedef void (*PFNglBlendFunc) (GLenum sfactor, GLenum dfactor);
-static PFNglBlendFunc pglBlendFunc;
-typedef void (*PFNglCullFace) (GLenum mode);
-static PFNglCullFace pglCullFace;
-typedef void (*PFNglPolygonOffset) (GLfloat factor, GLfloat units);
-static PFNglPolygonOffset pglPolygonOffset;
-typedef void (*PFNglScissor) (GLint x, GLint y, GLsizei width, GLsizei height);
-static PFNglScissor pglScissor;
-typedef void (*PFNglEnable) (GLenum cap);
-static PFNglEnable pglEnable;
-typedef void (*PFNglDisable) (GLenum cap);
-static PFNglDisable pglDisable;
-typedef void (*PFNglGetFloatv) (GLenum pname, GLfloat *params);
-static PFNglGetFloatv pglGetFloatv;
-
-/* Depth Buffer */
-typedef void (*PFNglClearDepthf) (GLclampf depth);
-static PFNglClearDepthf pglClearDepthf;
-typedef void (*PFNglDepthFunc) (GLenum func);
-static PFNglDepthFunc pglDepthFunc;
-typedef void (*PFNglDepthMask) (GLboolean flag);
-static PFNglDepthMask pglDepthMask;
-typedef void (*PFNglDepthRangef) (GLclampf near_val, GLclampf far_val);
-static PFNglDepthRangef pglDepthRangef;
-
-/* Transformation */
-typedef void (*PFNglMatrixMode) (GLenum mode);
-static PFNglMatrixMode pglMatrixMode;
-typedef void (*PFNglViewport) (GLint x, GLint y, GLsizei width, GLsizei height);
-static PFNglViewport pglViewport;
-typedef void (*PFNglPushMatrix) (void);
-static PFNglPushMatrix pglPushMatrix;
-typedef void (*PFNglPopMatrix) (void);
-static PFNglPopMatrix pglPopMatrix;
-typedef void (*PFNglLoadIdentity) (void);
-static PFNglLoadIdentity pglLoadIdentity;
-typedef void (*PFNglMultMatrixf) (const GLfloat *m);
-static PFNglMultMatrixf pglMultMatrixf;
-typedef void (*PFNglRotatef) (GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
-static PFNglRotatef pglRotatef;
-typedef void (*PFNglScalef) (GLfloat x, GLfloat y, GLfloat z);
-static PFNglScalef pglScalef;
-typedef void (*PFNglTranslatef) (GLfloat x, GLfloat y, GLfloat z);
-static PFNglTranslatef pglTranslatef;
-
-/* Drawing Functions */
-typedef void (*PFNglColor4f) (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-static PFNglColor4f pglColor4f;
-typedef void (*PFNglVertexPointer) (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
-static PFNglVertexPointer pglVertexPointer;
-typedef void (*PFNglNormalPointer) (GLenum type, GLsizei stride, const GLvoid *pointer);
-static PFNglNormalPointer pglNormalPointer;
-typedef void (*PFNglTexCoordPointer) (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
-static PFNglTexCoordPointer pglTexCoordPointer;
-typedef void (*PFNglColorPointer) (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
-static PFNglColorPointer pglColorPointer;
-typedef void (*PFNglDrawArrays) (GLenum mode, GLint first, GLsizei count);
-static PFNglDrawArrays pglDrawArrays;
-typedef void (*PFNglDrawElements) (GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
-static PFNglDrawElements pglDrawElements;
-typedef void (*PFNglEnableClientState) (GLenum cap);
-static PFNglEnableClientState pglEnableClientState;
-typedef void (*PFNglDisableClientState) (GLenum cap);
-static PFNglDisableClientState pglDisableClientState;
-
-/* Lighting */
-typedef void (*PFNglShadeModel) (GLenum mode);
-static PFNglShadeModel pglShadeModel;
-typedef void (*PFNglLightfv) (GLenum light, GLenum pname, GLfloat *params);
-static PFNglLightfv pglLightfv;
-typedef void (*PFNglLightModelfv) (GLenum pname, GLfloat *params);
-static PFNglLightModelfv pglLightModelfv;
-typedef void (*PFNglMaterialfv) (GLint face, GLenum pname, GLfloat *params);
-static PFNglMaterialfv pglMaterialfv;
-
-/* Raster functions */
-typedef void (*PFNglPixelStorei) (GLenum pname, GLint param);
-static PFNglPixelStorei pglPixelStorei;
-typedef void (*PFNglReadPixels) (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
-static PFNglReadPixels pglReadPixels;
-
-/* Texture mapping */
-typedef void (*PFNglTexEnvi) (GLenum target, GLenum pname, GLint param);
-static PFNglTexEnvi pglTexEnvi;
-typedef void (*PFNglTexParameteri) (GLenum target, GLenum pname, GLint param);
-static PFNglTexParameteri pglTexParameteri;
-typedef void (*PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
-static PFNglTexImage2D pglTexImage2D;
-typedef void (*PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
-static PFNglTexSubImage2D pglTexSubImage2D;
-
-/* Fog */
-typedef void (*PFNglFogf) (GLenum pname, GLfloat param);
-static PFNglFogf pglFogf;
-typedef void (*PFNglFogfv) (GLenum pname, const GLfloat *params);
-static PFNglFogfv pglFogfv;
-
-/* 1.1 functions */
-/* texture objects */ //GL_EXT_texture_object
-typedef void (*PFNglGenTextures) (GLsizei n, const GLuint *textures);
-static PFNglGenTextures pglGenTextures;
-typedef void (*PFNglDeleteTextures) (GLsizei n, const GLuint *textures);
-static PFNglDeleteTextures pglDeleteTextures;
-typedef void (*PFNglBindTexture) (GLenum target, GLuint texture);
-static PFNglBindTexture pglBindTexture;
-/* texture mapping */ //GL_EXT_copy_texture
-typedef void (*PFNglCopyTexImage2D) (GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
-static PFNglCopyTexImage2D pglCopyTexImage2D;
-typedef void (*PFNglCopyTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
-static PFNglCopyTexSubImage2D pglCopyTexSubImage2D;
-typedef void (*PFNglGenerateMipmap) (GLenum target);
-static PFNglGenerateMipmap pglGenerateMipmap;
-
-/* 1.3 functions for multitexturing */
-typedef void (*PFNglActiveTexture) (GLenum);
-static PFNglActiveTexture pglActiveTexture;
-typedef void (*PFNglMultiTexCoord2f) (GLenum, GLfloat, GLfloat);
-static PFNglMultiTexCoord2f pglMultiTexCoord2f;
-typedef void (*PFNglMultiTexCoord2fv) (GLenum target, const GLfloat *v);
-static PFNglMultiTexCoord2fv pglMultiTexCoord2fv;
-typedef void (*PFNglClientActiveTexture) (GLenum);
-static PFNglClientActiveTexture pglClientActiveTexture;
-
-boolean SetupGLfunc(void)
-{
-#define GETOPENGLFUNC(func, proc) \
-	func = GetGLFunc(#proc); \
-	if (!func) \
+#define GETOPENGLFUNC(func) \
+	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
+	if (!(p ## gl ## func)) \
 	{ \
-		DBG_Printf("failed to get OpenGL function: %s", #proc); \
-	} \
+		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
+		return false; \
+	}
 
-	GETOPENGLFUNC(pglClearColor, glClearColor)
+	if (!GLBackend_LoadCommonFunctions())
+		return false;
+	GLBackend_LoadExtraFunctions();
 
-	GETOPENGLFUNC(pglClear, glClear)
-	GETOPENGLFUNC(pglColorMask, glColorMask)
-	GETOPENGLFUNC(pglAlphaFunc, glAlphaFunc)
-	GETOPENGLFUNC(pglBlendFunc, glBlendFunc)
-	GETOPENGLFUNC(pglCullFace, glCullFace)
-	GETOPENGLFUNC(pglPolygonOffset, glPolygonOffset)
-	GETOPENGLFUNC(pglScissor, glScissor)
-	GETOPENGLFUNC(pglEnable, glEnable)
-	GETOPENGLFUNC(pglDisable, glDisable)
-	GETOPENGLFUNC(pglGetFloatv, glGetFloatv)
-	GETOPENGLFUNC(pglGetIntegerv, glGetIntegerv)
-	GETOPENGLFUNC(pglGetString, glGetString)
+	GETOPENGLFUNC(ClearDepthf)
+	GETOPENGLFUNC(DepthRangef)
 
-	GETOPENGLFUNC(pglClearDepthf , glClearDepthf)
-	GETOPENGLFUNC(pglDepthFunc , glDepthFunc)
-	GETOPENGLFUNC(pglDepthMask , glDepthMask)
-	GETOPENGLFUNC(pglDepthRangef , glDepthRangef)
+	GETOPENGLFUNC(Color4f)
+	GETOPENGLFUNC(VertexPointer)
+	GETOPENGLFUNC(NormalPointer)
+	GETOPENGLFUNC(TexCoordPointer)
+	GETOPENGLFUNC(ColorPointer)
+	GETOPENGLFUNC(DrawArrays)
+	GETOPENGLFUNC(DrawElements)
+	GETOPENGLFUNC(EnableClientState)
+	GETOPENGLFUNC(DisableClientState)
 
-	GETOPENGLFUNC(pglMatrixMode , glMatrixMode)
-	GETOPENGLFUNC(pglViewport , glViewport)
-	GETOPENGLFUNC(pglPushMatrix , glPushMatrix)
-	GETOPENGLFUNC(pglPopMatrix , glPopMatrix)
-	GETOPENGLFUNC(pglLoadIdentity , glLoadIdentity)
-	GETOPENGLFUNC(pglMultMatrixf , glMultMatrixf)
-	GETOPENGLFUNC(pglRotatef , glRotatef)
-	GETOPENGLFUNC(pglScalef , glScalef)
-	GETOPENGLFUNC(pglTranslatef , glTranslatef)
+	GETOPENGLFUNC(TexEnvi)
 
-	GETOPENGLFUNC(pglColor4f, glColor4f)
-	GETOPENGLFUNC(pglVertexPointer, glVertexPointer)
-	GETOPENGLFUNC(pglNormalPointer, glNormalPointer)
-	GETOPENGLFUNC(pglTexCoordPointer, glTexCoordPointer)
-	GETOPENGLFUNC(pglColorPointer, glColorPointer)
-	GETOPENGLFUNC(pglDrawArrays, glDrawArrays)
-	GETOPENGLFUNC(pglDrawElements, glDrawElements)
-	GETOPENGLFUNC(pglEnableClientState, glEnableClientState)
-	GETOPENGLFUNC(pglDisableClientState, glDisableClientState)
-
-	GETOPENGLFUNC(pglShadeModel , glShadeModel)
-	GETOPENGLFUNC(pglLightfv, glLightfv)
-	GETOPENGLFUNC(pglLightModelfv , glLightModelfv)
-	GETOPENGLFUNC(pglMaterialfv , glMaterialfv)
-
-	GETOPENGLFUNC(pglPixelStorei , glPixelStorei)
-	GETOPENGLFUNC(pglReadPixels , glReadPixels)
-
-	GETOPENGLFUNC(pglTexEnvi , glTexEnvi)
-	GETOPENGLFUNC(pglTexParameteri , glTexParameteri)
-	GETOPENGLFUNC(pglTexImage2D , glTexImage2D)
-	GETOPENGLFUNC(pglTexSubImage2D , glTexSubImage2D)
-
-	GETOPENGLFUNC(pglFogf , glFogf)
-	GETOPENGLFUNC(pglFogfv , glFogfv)
-
-	GETOPENGLFUNC(pglGenTextures , glGenTextures)
-	GETOPENGLFUNC(pglDeleteTextures , glDeleteTextures)
-	GETOPENGLFUNC(pglBindTexture , glBindTexture)
-
-	GETOPENGLFUNC(pglCopyTexImage2D , glCopyTexImage2D)
-	GETOPENGLFUNC(pglCopyTexSubImage2D , glCopyTexSubImage2D)
-	GETOPENGLFUNC(pglGenerateMipmap , glGenerateMipmap)
-
-#undef GETOPENGLFUNC
-
-	SetupGLFunc4();
+	if (!GLBackend_LoadLegacyFunctions())
+		return false;
 
 	return true;
 }
 
-void SetupGLFunc4(void)
+boolean GLBackend_LoadExtraFunctions(void)
 {
-	pglActiveTexture = GetGLFunc("glActiveTexture");
-	pglMultiTexCoord2f = GetGLFunc("glMultiTexCoord2f");
-	pglClientActiveTexture = GetGLFunc("glClientActiveTexture");
-	pglMultiTexCoord2fv = GetGLFunc("glMultiTexCoord2fv");
+	GETOPENGLFUNC(GenerateMipmap)
 
-	/* 1.5 funcs */
-	pglGenBuffers = GetGLFunc("glGenBuffers");
-	pglBindBuffer = GetGLFunc("glBindBuffer");
-	pglBufferData = GetGLFunc("glBufferData");
-	pglDeleteBuffers = GetGLFunc("glDeleteBuffers");
+	GETOPENGLFUNC(ActiveTexture)
+	GETOPENGLFUNC(MultiTexCoord2f)
+	GETOPENGLFUNC(ClientActiveTexture)
+	GETOPENGLFUNC(MultiTexCoord2fv)
+
+	GETOPENGLFUNC(GenBuffers)
+	GETOPENGLFUNC(BindBuffer)
+	GETOPENGLFUNC(BufferData)
+	GETOPENGLFUNC(DeleteBuffers)
+
+	return true;
 }
+
+#undef GETOPENGLFUNC
 
 // jimita
 EXPORT boolean HWRAPI(LoadShaders) (void)
@@ -472,33 +239,12 @@ void SetStates(void)
 
 
 // -----------------+
-// Flush            : flush OpenGL textures
-//                  : Clear list of downloaded mipmaps
-// -----------------+
-void Flush(void)
-{
-	//DBG_Printf ("HWR_Flush()\n");
-
-	while (gl_cachehead)
-	{
-		if (gl_cachehead->downloaded)
-			pglDeleteTextures(1, (GLuint *)&gl_cachehead->downloaded);
-		gl_cachehead->downloaded = 0;
-		gl_cachehead = gl_cachehead->nextmipmap;
-	}
-	gl_cachetail = gl_cachehead = NULL; //Hurdler: well, gl_cachehead is already NULL
-
-	tex_downloaded = 0;
-}
-
-
-// -----------------+
 // Init             : Initialise the OpenGL ES interface API
 // Returns          :
 // -----------------+
 EXPORT boolean HWRAPI(Init) (void)
 {
-	return LoadGL();
+	return GLBackend_Init();
 }
 
 
@@ -508,7 +254,7 @@ EXPORT boolean HWRAPI(Init) (void)
 EXPORT void HWRAPI(ClearMipMapCache) (void)
 {
 	// DBG_Printf ("HWR_Flush(exe)\n");
-	Flush();
+	GLTexture_Flush();
 }
 
 
@@ -550,7 +296,6 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
 	pglViewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
 	NEAR_CLIPPING_PLANE = nearclip;
 
-	//pglScissor(minx, screen_height-maxy, maxx-minx, maxy-miny);
 	pglMatrixMode(GL_PROJECTION);
 	pglLoadIdentity();
 	GLPerspective(fov, ASPECT_RATIO);
@@ -1130,47 +875,14 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			switch (Value)
-			{
-				case HWD_SET_TEXTUREFILTER_TRILINEAR:
-					min_filter = GL_LINEAR_MIPMAP_LINEAR;
-					mag_filter = GL_LINEAR;
-					MipMap = GL_TRUE;
-					break;
-				case HWD_SET_TEXTUREFILTER_BILINEAR:
-					min_filter = mag_filter = GL_LINEAR;
-					MipMap = GL_FALSE;
-					break;
-				case HWD_SET_TEXTUREFILTER_POINTSAMPLED:
-					min_filter = mag_filter = GL_NEAREST;
-					MipMap = GL_FALSE;
-					break;
-				case HWD_SET_TEXTUREFILTER_MIXED1:
-					min_filter = GL_NEAREST;
-					mag_filter = GL_LINEAR;
-					MipMap = GL_FALSE;
-					break;
-				case HWD_SET_TEXTUREFILTER_MIXED2:
-					min_filter = GL_LINEAR;
-					mag_filter = GL_NEAREST;
-					MipMap = GL_FALSE;
-					break;
-				case HWD_SET_TEXTUREFILTER_MIXED3:
-					min_filter = GL_LINEAR_MIPMAP_LINEAR;
-					mag_filter = GL_NEAREST;
-					MipMap = GL_TRUE;
-					break;
-				default:
-					mag_filter = GL_LINEAR;
-					min_filter = GL_NEAREST;
-			}
-			Flush(); //??? if we want to change filter mode by texture, remove this
+			GLTexture_SetFilterMode(Value);
+			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
 			anisotropic_filter = min(Value,maximumAnisotropy);
 			if (maximumAnisotropy)
-				Flush(); //??? if we want to change filter mode by texture, remove this
+				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		default:
@@ -1180,7 +892,7 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 
 EXPORT void HWRAPI(CreateModelVBOs) (model_t *model)
 {
-	GenerateModelVBOs(model);
+	GLModel_GenerateVBOs(model);
 }
 
 #define BUFFER_OFFSET(i) ((char*)NULL + (i))
@@ -1365,7 +1077,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				Model_AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
+				GLModel_AllocLerpTinyBuffer(mesh->numVertices * sizeof(short) * 3);
 				vertPtr = vertTinyBuffer;
 				normPtr = normTinyBuffer;
 				j = 0;
@@ -1416,7 +1128,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				int j = 0;
 
 				// Dangit, I soooo want to do this in a GLSL shader...
-				Model_AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
+				GLModel_AllocLerpBuffer(mesh->numVertices * sizeof(float) * 3);
 				vertPtr = vertBuffer;
 				normPtr = normBuffer;
 				//int j = 0;
@@ -1522,9 +1234,9 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	pglMatrixMode(GL_MODELVIEW);
 }
 
-EXPORT INT32  HWRAPI(GetTextureUsed) (void)
+EXPORT INT32 HWRAPI(GetTextureUsed) (void)
 {
-	return GetTextureMemoryUsage(gl_cachehead);
+	return GLTexture_GetMemoryUsage(gl_cachehead);
 }
 
 EXPORT INT32  HWRAPI(GetRenderVersion) (void)

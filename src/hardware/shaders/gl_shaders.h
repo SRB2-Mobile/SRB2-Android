@@ -21,7 +21,7 @@
 extern boolean gl_allowshaders;
 extern boolean gl_shadersenabled;
 
-void Shader_SetupGLFunc(void);
+void Shader_LoadFunctions(void);
 
 #ifdef HAVE_GLES2
 #define USE_GLES2_UNIFORMNAMES // :asafunny:

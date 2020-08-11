@@ -156,31 +156,31 @@ static const char *fragment_shaders[] = {
 
 #endif	// GL_SHADERS
 
-void Shader_SetupGLFunc(void)
+void Shader_LoadFunctions(void)
 {
 #ifdef GL_SHADERS
-	pglCreateShader = GetGLFunc("glCreateShader");
-	pglShaderSource = GetGLFunc("glShaderSource");
-	pglCompileShader = GetGLFunc("glCompileShader");
-	pglGetShaderiv = GetGLFunc("glGetShaderiv");
-	pglGetShaderInfoLog = GetGLFunc("glGetShaderInfoLog");
-	pglDeleteShader = GetGLFunc("glDeleteShader");
-	pglCreateProgram = GetGLFunc("glCreateProgram");
-	pglAttachShader = GetGLFunc("glAttachShader");
-	pglLinkProgram = GetGLFunc("glLinkProgram");
-	pglGetProgramiv = GetGLFunc("glGetProgramiv");
-	pglUseProgram = GetGLFunc("glUseProgram");
-	pglUniform1i = GetGLFunc("glUniform1i");
-	pglUniform1f = GetGLFunc("glUniform1f");
-	pglUniform2f = GetGLFunc("glUniform2f");
-	pglUniform3f = GetGLFunc("glUniform3f");
-	pglUniform4f = GetGLFunc("glUniform4f");
-	pglUniform1fv = GetGLFunc("glUniform1fv");
-	pglUniform2fv = GetGLFunc("glUniform2fv");
-	pglUniform3fv = GetGLFunc("glUniform3fv");
-	pglUniformMatrix4fv = GetGLFunc("glUniformMatrix4fv");
-	pglGetUniformLocation = GetGLFunc("glGetUniformLocation");
-	pglGetAttribLocation = GetGLFunc("glGetAttribLocation");
+	pglCreateShader = GLBackend_GetFunction("glCreateShader");
+	pglShaderSource = GLBackend_GetFunction("glShaderSource");
+	pglCompileShader = GLBackend_GetFunction("glCompileShader");
+	pglGetShaderiv = GLBackend_GetFunction("glGetShaderiv");
+	pglGetShaderInfoLog = GLBackend_GetFunction("glGetShaderInfoLog");
+	pglDeleteShader = GLBackend_GetFunction("glDeleteShader");
+	pglCreateProgram = GLBackend_GetFunction("glCreateProgram");
+	pglAttachShader = GLBackend_GetFunction("glAttachShader");
+	pglLinkProgram = GLBackend_GetFunction("glLinkProgram");
+	pglGetProgramiv = GLBackend_GetFunction("glGetProgramiv");
+	pglUseProgram = GLBackend_GetFunction("glUseProgram");
+	pglUniform1i = GLBackend_GetFunction("glUniform1i");
+	pglUniform1f = GLBackend_GetFunction("glUniform1f");
+	pglUniform2f = GLBackend_GetFunction("glUniform2f");
+	pglUniform3f = GLBackend_GetFunction("glUniform3f");
+	pglUniform4f = GLBackend_GetFunction("glUniform4f");
+	pglUniform1fv = GLBackend_GetFunction("glUniform1fv");
+	pglUniform2fv = GLBackend_GetFunction("glUniform2fv");
+	pglUniform3fv = GLBackend_GetFunction("glUniform3fv");
+	pglUniformMatrix4fv = GLBackend_GetFunction("glUniformMatrix4fv");
+	pglGetUniformLocation = GLBackend_GetFunction("glGetUniformLocation");
+	pglGetAttribLocation = GLBackend_GetFunction("glGetAttribLocation");
 #endif
 }
 
