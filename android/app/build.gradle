@@ -13,6 +13,7 @@ android {
         if (buildAsApplication) {
             applicationId "org.stjr.srb2"
         }
+
         minSdkVersion 14
         targetSdkVersion 26
         versionCode 2260
@@ -23,6 +24,21 @@ android {
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
         }
+        ext {
+            useBuildDate = false
+        }
+
+        // Lactozilla: This formats the application package's name.
+        def srb2PackageName = "srb2-android"
+
+        // Game version string
+        srb2PackageName += "-v" + (defaultConfig.versionName).replace(".", "")
+
+        // Build date
+        if (defaultConfig.ext.useBuildDate)
+            srb2PackageName += "-" + (new Date()).format('yyyyMMdd')
+
+        setProperty("archivesBaseName", srb2PackageName)
     }
     buildTypes {
         release {
@@ -42,6 +58,8 @@ android {
             }
         }
     }
+
+    // Lactozilla: This task executes the comptime script.
     task generateCompTime(type: Exec) {
         def comptimeScript = 'comptime'
 
@@ -55,6 +73,7 @@ android {
         }
     }
     preBuild.dependsOn generateCompTime
+
     if (!project.hasProperty('EXCLUDE_NATIVE_LIBS')) {
         sourceSets.main {
             jniLibs.srcDir 'libs'
