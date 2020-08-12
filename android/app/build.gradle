@@ -24,6 +24,31 @@ android {
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
         }
+        flavorDimensions "assets"
+        productFlavors {
+            gameNoAssets {
+                dimension "assets"
+            }
+            gameFull {
+                dimension "assets"
+            }
+        }
+        applicationVariants.all { variant ->
+            if (variant.getFlavorName() == 'gameNoAssets') {
+                variant.mergeAssets.doLast {
+                    println("Removing game assets from the application package")
+                    delete(fileTree(
+                        dir: outputDir,
+                        includes: [
+                            'srb2.pk3',
+                            'zones.pk3',
+                            'player.dta',
+                            'patch.pk3', 'patch_music.pk3',
+                            'music.dta']
+                    ))
+                }
+            }
+        }
         ext {
             useBuildDate = false
         }
