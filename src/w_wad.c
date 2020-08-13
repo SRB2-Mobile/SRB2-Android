@@ -278,21 +278,24 @@ boolean W_UnpackFile(const char *filename, void *handle)
 		totalread += read;
 
 #ifdef UNPACK_FILES_PROGRESS
-		fstatus = ((float)totalread / (float)fullsize);
-		curstatus = (int)(fstatus * 100.0f);
-
-		if (curstatus != status)
+		if (progress->report)
 		{
-			if (progress->totalfiles)
-			{
-				int diff = (curstatus - status);
-				progress->status += diff;
-				UnpackFile_ProgressReport(min(progress->status / progress->totalfiles, 100));
-			}
-			else
-				UnpackFile_ProgressReport(curstatus);
+			fstatus = ((float)totalread / (float)fullsize);
+			curstatus = (int)(fstatus * 100.0f);
 
-			status = curstatus;
+			if (curstatus != status)
+			{
+				if (progress->totalfiles)
+				{
+					int diff = (curstatus - status);
+					progress->status += diff;
+					UnpackFile_ProgressReport(min(progress->status / progress->totalfiles, 100));
+				}
+				else
+					UnpackFile_ProgressReport(curstatus);
+
+				status = curstatus;
+			}
 		}
 #endif
 
@@ -362,6 +365,15 @@ void UnpackFile_ProgressClear(void)
 #endif
 	unpack_progress.status = 0;
 	unpack_progress.totalfiles = 0;
+	unpack_progress.report = false;
+}
+
+void UnpackFile_ProgressSetReportFlag(boolean flag)
+{
+#ifdef UNPACK_FILES_DEBUG
+	CONS_Printf("UnpackFile_ProgressSetReportFlag: %d\n", flag);
+#endif
+	unpack_progress.report = flag;
 }
 
 void UnpackFile_ProgressSetTotalFiles(int files)
@@ -415,8 +427,11 @@ static void UnpackFile_Debug(const char *source, const char *dest)
 
 void Command_Unpacktest_f(void)
 {
+#ifdef UNPACK_FILES_PROGRESS
 	UnpackFile_ProgressClear();
 	UnpackFile_ProgressSetTotalFiles(4);
+	UnpackFile_ProgressSetReportFlag(true);
+#endif
 
 	UnpackFile_Debug("srb2.pk3", "srb2-unpacked.pk3");
 	UnpackFile_Debug("zones.pk3", "zones-unpacked.pk3");
@@ -1185,7 +1200,9 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 		char **testunpack = filenames;
 		int totalfiles = 0;
 
+#ifdef UNPACK_FILES_PROGRESS
 		UnpackFile_ProgressClear();
+#endif
 
 		for (; *testunpack; testunpack++)
 		{
@@ -1193,7 +1210,10 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 				totalfiles++;
 		}
 
+#ifdef UNPACK_FILES_PROGRESS
 		UnpackFile_ProgressSetTotalFiles(totalfiles);
+		UnpackFile_ProgressSetReportFlag(true);
+#endif
 	}
 #endif
 

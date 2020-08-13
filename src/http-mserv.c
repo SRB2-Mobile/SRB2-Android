@@ -25,6 +25,11 @@ Documentation available here.
 #include "i_tcp.h"/* for current_port */
 #include "i_threads.h"
 
+#if defined(__ANDROID__)
+#include "d_main.h" // srb2home
+#include "i_system.h" // I_mkdir
+#endif
+
 /* reasonable default I guess?? */
 #define DEFAULT_BUFFER_SIZE (4096)
 
@@ -98,6 +103,69 @@ HMS_on_read (char *s, size_t _1, size_t n, void *userdata)
 
 	return n;
 }
+
+#if defined(__ANDROID__)
+static char *hms_ca_bundle;
+static char *hms_cert_path;
+
+static void
+HMS_get_cert (void)
+{
+	const char *dir = "hms";
+	const char *pem = "cert";
+
+	if (! hms_ca_bundle)
+		hms_ca_bundle = Z_StrDup(va("%s"PATHSEP"%s", dir, pem));
+	if (! hms_cert_path)
+		hms_cert_path = Z_StrDup(va("%s"PATHSEP"%s", srb2home, hms_ca_bundle));
+
+	I_mkdir(va("%s"PATHSEP"%s", srb2home, dir), 0755);
+}
+
+static void *
+HMS_open_ca_bundle (void)
+{
+	return File_Open(hms_ca_bundle, "rb", FILEHANDLE_SDL);
+}
+
+static void
+HMS_set_cert (CURL *curl)
+{
+	void *handle = NULL;
+	void *ca = NULL;
+
+	HMS_get_cert();
+
+	if ((handle = File_Open(hms_cert_path, "rb", FILEHANDLE_SDL)) == NULL)
+		ca = HMS_open_ca_bundle();
+	else
+	{
+		size_t size;
+
+		File_Seek(handle, 0, SEEK_END);
+		size = File_Tell(handle);
+
+		if (! size)
+			ca = HMS_open_ca_bundle();
+
+		File_Close(handle);
+	}
+
+	if (ca)
+	{
+		CONS_Printf("HMS: unpacking CA bundle '%s'... ", hms_ca_bundle);
+
+		if (W_UnpackFile(hms_cert_path, handle))
+			CONS_Printf("succeeded\n");
+		else
+			CONS_Printf("failed\n");
+
+		File_Close(ca);
+	}
+
+	curl_easy_setopt(curl, CURLOPT_CAINFO, hms_cert_path);
+}
+#endif
 
 static struct HMS_buffer *
 HMS_connect (const char *format, ...)
@@ -194,6 +262,10 @@ HMS_connect (const char *format, ...)
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, cv_masterserver_timeout.value);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, HMS_on_read);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, buffer);
+
+#if defined(__ANDROID__)
+	HMS_set_cert(curl);
+#endif
 
 	curl_free(quack_token);
 	free(url);

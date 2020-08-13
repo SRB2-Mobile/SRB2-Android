@@ -177,10 +177,12 @@ typedef struct unpack_progress_s
 {
 	int status;
 	int totalfiles;
+	boolean report;
 } unpack_progress_t;
 extern unpack_progress_t unpack_progress;
 
 void UnpackFile_ProgressClear(void);
+void UnpackFile_ProgressSetReportFlag(boolean flag);
 void UnpackFile_ProgressSetTotalFiles(int files);
 void UnpackFile_ProgressReport(int progress);
 #endif
