@@ -9,21 +9,9 @@ LOCAL_MODULE := main
 #
 
 SRB2_PATH := ../../../../
-
-SDL_PATH := $(SRB2_PATH)/SDL
-
 OBJDIR := $(SRB2_PATH)/src/
 LIBDIR := $(SRB2_PATH)/libs/
 JNIDIR := .
-
-#
-# Includes
-#
-
-SRB2_LIBRARY_INCLUDE_PATH := $(LOCAL_PATH)/$(SRB2_PATH)/libs
-
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include          # SDL2
-LOCAL_C_INCLUDES := $(SRB2_LIBRARY_INCLUDE_PATH)/curl/include/ # Curl
 
 #
 # Source paths
