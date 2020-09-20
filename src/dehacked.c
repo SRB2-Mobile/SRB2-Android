@@ -30,8 +30,9 @@
 #include "p_local.h" // for var1 and var2, and some constants
 #include "p_setup.h"
 #include "r_data.h"
+#include "r_textures.h"
 #include "r_draw.h"
-#include "r_patch.h"
+#include "r_picformats.h"
 #include "r_things.h" // R_Char2Frame
 #include "r_sky.h"
 #include "fastcmp.h"
@@ -10849,7 +10850,6 @@ static inline int lib_getenum(lua_State *L)
 		}
 		else if (fastcmp(p, "USEDOWN")) // Remove case when 2.3 nears release...
 		{
-			LUA_Deprecated(L, "PF_USEDOWN", "PF_SPINDOWN");
 			lua_pushinteger(L, (lua_Integer)PF_SPINDOWN);
 			return 1;
 		}
@@ -11121,7 +11121,6 @@ static inline int lib_getenum(lua_State *L)
 
 	if (fastcmp(word, "BT_USE")) // Remove case when 2.3 nears release...
 	{
-		LUA_Deprecated(L, "BT_USE", "BT_SPIN");
 		lua_pushinteger(L, (lua_Integer)BT_SPIN);
 		return 1;
 	}

@@ -91,7 +91,8 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/r_sky.c    \
 			$(OBJDIR)/r_splats.c \
 			$(OBJDIR)/r_things.c \
-			$(OBJDIR)/r_patch.c  \
+			$(OBJDIR)/r_textures.c \
+			$(OBJDIR)/r_picformats.c  \
 			$(OBJDIR)/r_portal.c \
 			$(OBJDIR)/screen.c   \
 			$(OBJDIR)/v_video.c  \

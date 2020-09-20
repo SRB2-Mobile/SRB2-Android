@@ -661,6 +661,7 @@ static void D_Display(void)
 			V_DrawThinString(80, 40, V_MONOSPACE | V_BLUEMAP, s);
 			if (rendermode == render_opengl) // OpenGL specific stats
 			{
+#ifdef HWRENDER
 				snprintf(s, sizeof s - 1, "nsrt %d", rs_hw_nodesorttime / divisor);
 				V_DrawThinString(30, 40, V_MONOSPACE | V_YELLOWMAP, s);
 				snprintf(s, sizeof s - 1, "ndrw %d", rs_hw_nodedrawtime / divisor);
@@ -693,6 +694,7 @@ static void D_Display(void)
 					snprintf(s, sizeof s - 1, "ncol %d", rs_hw_numcolors);
 					V_DrawThinString(185, 30, V_MONOSPACE | V_PURPLEMAP, s);
 				}
+#endif
 			}
 			else // software specific stats
 			{
@@ -742,6 +744,7 @@ tic_t rendergametic;
 void D_SRB2Loop(void)
 {
 	tic_t oldentertics = 0, entertic = 0, realtics = 0, rendertimeout = INFTICS;
+	static lumpnum_t gstartuplumpnum;
 
 	if (dedicated)
 		server = true;
@@ -786,7 +789,12 @@ void D_SRB2Loop(void)
 	*/
 	/* Smells like a hack... Don't fade Sonic's ass into the title screen. */
 	if (gamestate != GS_TITLESCREEN)
-		V_DrawScaledPatch(0, 0, 0, W_CachePatchNum(W_GetNumForName("CONSBACK"), PU_PATCH));
+	{
+		gstartuplumpnum = W_CheckNumForName("STARTUP");
+		if (gstartuplumpnum == LUMPERROR)
+			gstartuplumpnum = W_GetNumForName("MISSING");
+		V_DrawScaledPatch(0, 0, 0, W_CachePatchNum(gstartuplumpnum, PU_PATCH));
+	}
 
 	for (;;)
 	{

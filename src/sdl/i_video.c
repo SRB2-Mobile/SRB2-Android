@@ -1665,6 +1665,7 @@ static SDL_bool Impl_CreateContext(void)
 
 void VID_CheckGLLoaded(rendermode_t oldrender)
 {
+	(void)oldrender;
 #ifdef HWRENDER
 	if (vid_opengl_state == -1) // Well, it didn't work the first time anyway.
 	{
@@ -2186,7 +2187,7 @@ void VID_StartupOpenGL(void)
 
 #if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
 	// zlib defines and png.h include
-	#include "../r_patch.h"
+	#include "../r_picformats.h"
 	#define SPLASH_SCREEN_SUPPORTED
 
 	// The lack of this define disables the splash screen.
