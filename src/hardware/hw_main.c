@@ -25,7 +25,7 @@
 #include "../p_local.h"
 #include "../p_setup.h"
 #include "../r_local.h"
-#include "../r_patch.h"
+#include "../r_picformats.h"
 #include "../r_bsp.h"
 #include "../d_clisrv.h"
 #include "../w_wad.h"
@@ -363,7 +363,6 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 	float fflatwidth = 64.0f, fflatheight = 64.0f;
 	INT32 flatflag = 63;
 	boolean texflat = false;
-	size_t len;
 	float scrollx = 0.0f, scrolly = 0.0f;
 	angle_t angle = 0;
 	FSurfaceInfo    Surf;
@@ -418,16 +417,9 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 	// set texture for polygon
 	if (levelflat != NULL)
 	{
-		if (levelflat->type == LEVELFLAT_TEXTURE)
+		if (levelflat->type == LEVELFLAT_FLAT)
 		{
-			fflatwidth = textures[levelflat->u.texture.num]->width;
-			fflatheight = textures[levelflat->u.texture.num]->height;
-			texflat = true;
-		}
-		else if (levelflat->type == LEVELFLAT_FLAT)
-		{
-			len = W_LumpLength(levelflat->u.flat.lumpnum);
-
+			size_t len = W_LumpLength(levelflat->u.flat.lumpnum);
 			switch (len)
 			{
 				case 4194304: // 2048x2048 lump
@@ -452,8 +444,21 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 					fflatwidth = fflatheight = 64.0f;
 					break;
 			}
-
 			flatflag = ((INT32)fflatwidth)-1;
+		}
+		else
+		{
+			if (levelflat->type == LEVELFLAT_TEXTURE)
+			{
+				fflatwidth = textures[levelflat->u.texture.num]->width;
+				fflatheight = textures[levelflat->u.texture.num]->height;
+			}
+			else if (levelflat->type == LEVELFLAT_PATCH || levelflat->type == LEVELFLAT_PNG)
+			{
+				fflatwidth = levelflat->width;
+				fflatheight = levelflat->height;
+			}
+			texflat = true;
 		}
 	}
 	else // set no texture
@@ -2664,7 +2669,6 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	float fflatwidth = 64.0f, fflatheight = 64.0f;
 	INT32 flatflag = 63;
 	boolean texflat = false;
-	size_t len;
 	float scrollx = 0.0f, scrolly = 0.0f;
 	angle_t angle = 0;
 	FSurfaceInfo    Surf;
@@ -2698,16 +2702,9 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	// set texture for polygon
 	if (levelflat != NULL)
 	{
-		if (levelflat->type == LEVELFLAT_TEXTURE)
+		if (levelflat->type == LEVELFLAT_FLAT)
 		{
-			fflatwidth = textures[levelflat->u.texture.num]->width;
-			fflatheight = textures[levelflat->u.texture.num]->height;
-			texflat = true;
-		}
-		else if (levelflat->type == LEVELFLAT_FLAT)
-		{
-			len = W_LumpLength(levelflat->u.flat.lumpnum);
-
+			size_t len = W_LumpLength(levelflat->u.flat.lumpnum);
 			switch (len)
 			{
 				case 4194304: // 2048x2048 lump
@@ -2732,8 +2729,21 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 					fflatwidth = fflatheight = 64.0f;
 					break;
 			}
-
 			flatflag = ((INT32)fflatwidth)-1;
+		}
+		else
+		{
+			if (levelflat->type == LEVELFLAT_TEXTURE)
+			{
+				fflatwidth = textures[levelflat->u.texture.num]->width;
+				fflatheight = textures[levelflat->u.texture.num]->height;
+			}
+			else if (levelflat->type == LEVELFLAT_PATCH || levelflat->type == LEVELFLAT_PNG)
+			{
+				fflatwidth = levelflat->width;
+				fflatheight = levelflat->height;
+			}
+			texflat = true;
 		}
 	}
 	else // set no texture
@@ -5270,7 +5280,7 @@ void HWR_BuildSkyDome(void)
 
 	gl_sky_t *sky = &gl_sky;
 	gl_skyvertex_t *vertex_p;
-	texture_t *texture = textures[texturetranslation[skytexture]];
+	texture_t *texture = textures[R_GetTextureNum(skytexture)];
 
 	sky->detail = 16;
 	col_count *= sky->detail;
@@ -5289,7 +5299,7 @@ void HWR_BuildSkyDome(void)
 	if (!sky->data)
 		sky->data = malloc(sky->vertex_count * sizeof(sky->data[0]));
 
-	sky->texture = texturetranslation[skytexture];
+	sky->texture = R_GetTextureNum(skytexture);
 	sky->width = texture->width;
 	sky->height = texture->height;
 
@@ -5375,9 +5385,9 @@ static void HWR_DrawSkyBackground(player_t *player)
 		}
 		dometransform.splitscreen = splitscreen;
 
-		HWR_GetTexture(texturetranslation[skytexture]);
+		HWR_GetTexture(R_GetTextureNum(skytexture));
 
-		if (gl_sky.texture != texturetranslation[skytexture])
+		if (gl_sky.texture != R_GetTextureNum(skytexture))
 		{
 			HWR_ClearSkyDome();
 			HWR_BuildSkyDome();
@@ -5399,7 +5409,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		float aspectratio;
 		float angleturn;
 
-		HWR_GetTexture(texturetranslation[skytexture]);
+		HWR_GetTexture(R_GetTextureNum(skytexture));
 		aspectratio = (float)vid.width/(float)vid.height;
 
 		//  3--2
@@ -5435,7 +5445,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 
 		angle = (dup_viewangle + gl_xtoviewangle[0]);
 
-		dimensionmultiply = ((float)textures[texturetranslation[skytexture]]->width/256.0f);
+		dimensionmultiply = ((float)textures[R_GetTextureNum(skytexture)]->width/256.0f);
 
 		v[0].s = v[3].s = (-1.0f * angle) / ((ANGLE_90-1)*dimensionmultiply); // left
 		v[2].s = v[1].s = v[0].s + (1.0f/dimensionmultiply); // right (or left + 1.0f)
@@ -5443,7 +5453,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 
 		// Y
 		angle = aimingangle;
-		dimensionmultiply = ((float)textures[texturetranslation[skytexture]]->height/(128.0f*aspectratio));
+		dimensionmultiply = ((float)textures[R_GetTextureNum(skytexture)]->height/(128.0f*aspectratio));
 
 		if (splitscreen)
 		{
