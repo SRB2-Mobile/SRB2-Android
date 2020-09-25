@@ -401,7 +401,7 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	if (!alphalevel)
 		return;
 
-	if (!touch_screenexists)
+	if (!touchscreenexists)
 		return;
 
 	// Draw movement control
@@ -476,7 +476,7 @@ void TS_DrawMenuNavigation(void)
 	if (!alphalevel)
 		return;
 
-	if (!touch_screenexists)
+	if (!touchscreenexists)
 		return;
 
 #define drawbtn(keyname) \

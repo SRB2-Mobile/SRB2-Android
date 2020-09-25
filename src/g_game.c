@@ -1994,12 +1994,19 @@ boolean G_Responder(event_t *ev)
 	if (gameaction == ga_nothing && !singledemo &&
 		((demoplayback && !modeattacking && !titledemo) || gamestate == GS_TITLESCREEN))
 	{
-		if (((ev->type == ev_keydown && ev->key != 301) || ev->type == ev_touchdown)
+		boolean finger = (ev->type == ev_touchdown || ev->type == ev_touchup);
+
+		if (((ev->type == ev_keydown && ev->key != 301) || finger)
 		&& !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
 		{
-			M_StartControlPanel();
+			if (finger && (!menuactive))
+				F_TitleFingerResponder(ev);
+			else
+				M_StartControlPanel();
+
 			return true;
 		}
+
 		return false;
 	}
 	else if (demoplayback && titledemo)
@@ -4425,12 +4432,12 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (strcmp((const char *)save_p, (const char *)vcheck))
 	{
 #ifdef SAVEGAME_OTHERVERSIONS
-		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n("CONFIRM_MESSAGE")\n"),
-		               M_ForceLoadGameResponse, MM_YESNO);
+		M_StartMessage(va(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n(%s)\n"),
+		               M_GetUserActionString(CONFIRM_MESSAGE)), M_ForceLoadGameResponse, MM_YESNO);
 		//Freeing done by the callback function of the above message
 #else
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Save game from different version\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+		M_ShowESCMessage("Save game from different version\n\n");
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;
@@ -4452,7 +4459,7 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (!P_LoadGame(mapoverride))
 	{
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Savegame file corrupted\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+		M_ShowESCMessage("Savegame file corrupted\n\n");
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;

@@ -486,6 +486,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/command.o  \
 		$(OBJDIR)/console.o  \
 		$(OBJDIR)/hu_stuff.o \
+		$(OBJDIR)/hu_font.o \
 		$(OBJDIR)/y_inter.o  \
 		$(OBJDIR)/st_stuff.o \
 		$(OBJDIR)/m_aatree.o \

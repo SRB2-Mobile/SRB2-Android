@@ -17,6 +17,7 @@
 #include "d_event.h"
 #include "w_wad.h"
 #include "r_defs.h"
+#include "hu_font.h"
 
 //------------------------------------
 //           heads up font
@@ -31,6 +32,19 @@
 #define LT_FONTEND 'z' // the last font characters
 #define LT_FONTSIZE (LT_FONTEND - LT_FONTSTART + 1)
 
+// Menu font
+#define MENU_FONTSTART ' ' // the first font characters
+#define MENU_FONTEND '~' // the last font characters
+#define MENU_FONTSIZE (MENU_FONTEND - MENU_FONTSTART + 1)
+#define MENU_NUMFONTS 3
+
+// MENU_TYPEFACE_font_style_size
+enum
+{
+	MENU_TYPEFACE_BAHNSCRIFT_SEMIBOLD_22 = 0,
+};
+
+// Credits font
 #define CRED_FONTSTART '!' // the first font character
 #define CRED_FONTEND 'Z' // the last font character
 #define CRED_FONTSIZE (CRED_FONTEND - CRED_FONTSTART + 1)
@@ -42,6 +56,8 @@
 #define NT_FONTSIZE (NT_FONTEND - NT_FONTSTART + 1)
 
 #define HU_CROSSHAIRS 3 // maximum of 9 - see HU_Init();
+
+extern UINT8 *menu_fontcolormaps;
 
 extern char *shiftxform; // english translation shift table
 extern char english_shiftxform[];
@@ -99,6 +115,8 @@ extern patch_t *tagico;
 extern patch_t *tallminus;
 extern patch_t *tallinfin;
 extern patch_t *tokenicon;
+
+extern font_t *menu_fonts[MENU_NUMFONTS];
 
 // set true whenever the tab rankings are being shown for any reason
 extern boolean hu_showscores;

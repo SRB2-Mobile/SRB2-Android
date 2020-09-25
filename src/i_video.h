@@ -93,6 +93,10 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h);
 */
 INT32 VID_SetMode(INT32 modenum);
 
+/**	\brief Returns the device's native resolution
+*/
+void VID_GetNativeResolution(INT32 *width, INT32 *height);
+
 /**	\brief Checks the render state
 */
 void VID_CheckRenderer(void);

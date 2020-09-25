@@ -21,6 +21,7 @@
 #include "i_threads.h"
 #include "mserv.h"
 #include "m_menu.h"
+#include "ts_main.h" // touchscreenexists
 #include "z_zone.h"
 
 #ifdef MASTERSERVER
@@ -109,7 +110,17 @@ static void WarnGUI (void)
 #ifdef HAVE_THREADS
 	I_lock_mutex(&m_menu_mutex);
 #endif
-	M_StartMessage(M_GetText("There was a problem connecting to\nthe Master Server\n\nCheck the console for details.\n"), NULL, MM_NOTHING);
+
+#ifdef TOUCHINPUTS
+	if (touchscreenexists)
+	{
+		M_StartMessage(M_GetText("There was a problem connecting to\nthe Master Server\n\nCheck the console for details,\nor tap anywhere.\n"), NULL, MM_NOTHING);
+		M_TSNav_SetConsoleVisible(true);
+	}
+	else
+#endif
+		M_StartMessage(M_GetText("There was a problem connecting to\nthe Master Server\n\nCheck the console for details.\n"), NULL, MM_NOTHING);
+
 #ifdef HAVE_THREADS
 	I_unlock_mutex(m_menu_mutex);
 #endif

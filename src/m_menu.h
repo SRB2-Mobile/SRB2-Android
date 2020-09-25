@@ -145,6 +145,12 @@ typedef enum
 #define MTREE3(a,b,c) MTREE2(a, MTREE2(b,c))
 #define MTREE4(a,b,c,d) MTREE2(a, MTREE3(b,c,d))
 
+typedef enum
+{
+	MENUSTYLE_DEFAULT = 0,
+	MENUSTYLE_MOBILE,
+} menustyle_t;
+
 typedef struct
 {
 	char bgname[8]; // name for background gfx lump; lays over titlemap if this is set
@@ -231,6 +237,7 @@ typedef enum
 	                // and routine is void routine(event_t *) (ex: set control)
 } menumessagetype_t;
 void M_StartMessage(const char *string, void *routine, menumessagetype_t itemtype);
+void M_StartYNQuestion(const char *message, void *routine);
 
 typedef enum
 {
@@ -308,25 +315,29 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
 
 // Confirm (press 'Y') / Return (press 'N') / Press a key / ESC messages
-#ifdef TOUCHINPUTS
-#define PRESS_Y_MESSAGE   "Tap 'Confirm'"
-#define PRESS_Y_MESSAGE_L "tap 'Confirm'"
-#define PRESS_N_MESSAGE   "Tap 'Back'"
-#define PRESS_N_MESSAGE_L "tap 'Back'"
-#define CONFIRM_MESSAGE   PRESS_Y_MESSAGE
-#define PRESS_ESC_MESSAGE "Tap anywhere\n"
-#define PRESS_A_KEY_MESSAGE PRESS_ESC_MESSAGE
-#define PRESS_A_KEY_MESSAGE_ALT PRESS_ESC_MESSAGE
-#else
-#define PRESS_Y_MESSAGE   "Press 'Y'"
-#define PRESS_Y_MESSAGE_L "press 'Y'"
-#define PRESS_N_MESSAGE   "Press 'N'"
-#define PRESS_N_MESSAGE_L "Press 'N'"
-#define CONFIRM_MESSAGE   PRESS_Y_MESSAGE " to confirm"
-#define PRESS_ESC_MESSAGE "Press ESC\n"
-#define PRESS_A_KEY_MESSAGE "(Press a key)\n"
-#define PRESS_A_KEY_MESSAGE_ALT "Press a key.\n"
-#endif
+const char *M_GetUserActionString(INT32 type);
+void M_ShowAnyKeyMessage(const char *message);
+void M_ShowAnyKeyMessageAlt(const char *message);
+void M_ShowESCMessage(const char *message);
+
+enum
+{
+	PRESS_Y_MESSAGE = 1,
+	PRESS_Y_MESSAGE_L,
+	PRESS_N_MESSAGE,
+	PRESS_N_MESSAGE_L,
+	CONFIRM_MESSAGE,
+	PRESS_ESC_MESSAGE,
+	PRESS_A_KEY_MESSAGE,
+	PRESS_A_KEY_MESSAGE_ALT,
+};
+
+typedef struct
+{
+	INT32 action;
+	const char *kb_string;
+	const char *ts_string;
+} useractionstring_t;
 
 #define MAXSTRINGLENGTH 32
 
@@ -361,6 +372,7 @@ extern UINT32     roomIds[NUM_LIST_ROOMS];
 typedef struct menu_s
 {
 	UINT32         menuid;             // ID to encode menu type and hierarchy
+	menustyle_t    menustyle;          // menu style
 	const char    *menutitlepic;
 	INT16          numitems;           // # of menu items
 	struct menu_s *prevMenu;           // previous menu
@@ -372,16 +384,56 @@ typedef struct menu_s
 } menu_t;
 
 void M_SetupNextMenu(menu_t *menudef);
+void M_SetupPrevMenu(menu_t *menudef);
 void M_ClearMenus(boolean callexitmenufunc);
+
+// Menu navigation
+void M_NavigationAdvance(menu_t *menudef);
+void M_NavigationReturn(menu_t *menudef);
+
+void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, INT32 type, fixed_t scale, const char *string, INT32 color);
+void M_MenuStringSize(const char *string, INT32 option, INT32 type, fixed_t scale, INT32 *strwidth, INT32 *strheight);
+
+boolean M_OnMobileMenu(void);
+boolean M_IsMobileMenu(menu_t *menudef);
+void M_SetupMobileMenu(menu_t *menu);
+void M_CheckMobileMenuHeight(void);
+void M_MobileMenuWipe(void);
+
+#define MOBILEMENU_FONT_DEFAULT MENU_TYPEFACE_BAHNSCRIFT_SEMIBOLD_22
+
+#define MOBILEMENU_PATCH_TRIANGLE "MENUTRI1"
+
+#define MOBILEMENU_MUSIC_MAIN "_recat"
+
+#define MOBILEMENU_SOUND_NAV    sfx_ncchip
+#define MOBILEMENU_SOUND_ACCEPT sfx_s1a1
+#define MOBILEMENU_SOUND_RETURN sfx_ngskid
+
+#define MOBILEMENU_CONST_OPTHORZSHIFT 12
+#define MOBILEMENU_CONST_OPTANIMSPEED 2
+
+#ifdef TOUCHINPUTS
+void M_TSNav_Update(void);
+
+boolean M_TSNav_CanShowBack(void);
+boolean M_TSNav_CanShowConfirm(void);
+boolean M_TSNav_CanShowConsole(void);
+
+boolean M_TSNav_OnMessage(void);
+
+void M_TSNav_SetBackVisible(boolean set);
+void M_TSNav_SetConfirmVisible(boolean set);
+void M_TSNav_SetConsoleVisible(boolean set);
+
+void M_TSNav_ShowAll(void);
+void M_TSNav_HideAll(void);
+
+boolean M_IsCustomizingTouchControls(void);
+#endif
 
 // Maybe this goes here????? Who knows.
 boolean M_MouseNeeded(void);
-
-#ifdef TOUCHINPUTS
-void M_UpdateTouchScreenNavigation(void);
-INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length);
-boolean M_IsCustomizingTouchControls(void);
-#endif
 
 #ifdef HAVE_THREADS
 extern I_mutex m_menu_mutex;
@@ -519,7 +571,7 @@ void M_FreePlayerSetupColors(void);
 // These defines make it a little easier to make menus
 #define DEFAULTMENUSTYLE(id, header, source, prev, x, y)\
 {\
-	id,\
+	id,0,\
 	header,\
 	sizeof(source)/sizeof(menuitem_t),\
 	prev,\
@@ -532,7 +584,7 @@ void M_FreePlayerSetupColors(void);
 
 #define DEFAULTSCROLLMENUSTYLE(id, header, source, prev, x, y)\
 {\
-	id,\
+	id,0,\
 	header,\
 	sizeof(source)/sizeof(menuitem_t),\
 	prev,\
@@ -545,7 +597,7 @@ void M_FreePlayerSetupColors(void);
 
 #define PAUSEMENUSTYLE(source, x, y)\
 {\
-	MN_SPECIAL,\
+	MN_SPECIAL,0,\
 	NULL,\
 	sizeof(source)/sizeof(menuitem_t),\
 	NULL,\
@@ -556,9 +608,10 @@ void M_FreePlayerSetupColors(void);
 	NULL\
 }
 
+#if 0
 #define CENTERMENUSTYLE(id, header, source, prev, y)\
 {\
-	id,\
+	id,0,\
 	header,\
 	sizeof(source)/sizeof(menuitem_t),\
 	prev,\
@@ -568,10 +621,24 @@ void M_FreePlayerSetupColors(void);
 	0,\
 	NULL\
 }
+#endif
+
+#define MOBILEMENUSTYLE(id, header, source, prev, x, y)\
+{\
+	id,MENUSTYLE_MOBILE,\
+	header,\
+	sizeof(source)/sizeof(menuitem_t),\
+	prev,\
+	source,\
+	M_DrawMobileMenu,\
+	x, y,\
+	0,\
+	NULL\
+}
 
 #define MAPPLATTERMENUSTYLE(id, header, source)\
 {\
-	id,\
+	id,0,\
 	header,\
 	sizeof (source)/sizeof (menuitem_t),\
 	&MainDef,\
@@ -584,7 +651,7 @@ void M_FreePlayerSetupColors(void);
 
 #define CONTROLMENUSTYLE(id, source, prev)\
 {\
-	id,\
+	id,0,\
 	"M_CONTRO",\
 	sizeof (source)/sizeof (menuitem_t),\
 	prev,\
@@ -597,7 +664,7 @@ void M_FreePlayerSetupColors(void);
 
 #define IMAGEDEF(source)\
 {\
-	MN_SPECIAL,\
+	MN_SPECIAL,0,\
 	NULL,\
 	sizeof (source)/sizeof (menuitem_t),\
 	NULL,\

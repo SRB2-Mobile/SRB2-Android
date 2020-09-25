@@ -347,7 +347,7 @@ static void D_Display(void)
 				else if (F_TryColormapFade(31))
 					wipetypepost = -1; // Don't run the fade below this one
 				F_WipeEndScreen();
-				F_RunWipe(wipetypepre, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
+				F_RunWipe(wipetypepre, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
 			}
 
 			F_WipeStartScreen();
@@ -590,7 +590,7 @@ static void D_Display(void)
 				wipestyleflags &= ~WSF_FADEOUT;
 			}
 
-			F_RunWipe(wipetypepost, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
+			F_RunWipe(wipetypepost, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
 		}
 
 		// reset counters so timedemo doesn't count the wipe duration
@@ -769,6 +769,12 @@ void D_SRB2Loop(void)
 	// make sure to do a d_display to init mode _before_ load a level
 	SCR_SetMode(); // change video mode
 	SCR_Recalc();
+
+#ifdef TOUCHINPUTS
+	if (usertouchcontrols == NULL)
+		TS_DefaultControlLayout(true);
+	TS_UpdateControls();
+#endif
 
 	// Check and print which version is executed.
 	// Use this as the border between setup and the main game loop being entered.
@@ -1412,7 +1418,6 @@ void D_SRB2Main(void)
 #ifdef TOUCHINPUTS
 	TS_InitLayouts();
 	TS_LoadUserLayouts(); // will call TS_LoadLayouts
-	TS_UpdateControls();
 #endif
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)

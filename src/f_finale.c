@@ -29,6 +29,7 @@
 #include "m_menu.h"
 #include "dehacked.h"
 #include "g_input.h"
+#include "ts_main.h" // touchfingers
 #include "console.h"
 #include "m_random.h"
 #include "m_misc.h" // moviemode functionality
@@ -184,6 +185,8 @@ static boolean knux_blink_twice = false;
 static boolean knux_blinked_already = false;
 static INT32 knux_idle_start = 0;
 static INT32 knux_idle_end = 0;
+
+static tic_t ttblink[3];
 
 // ttmode user
 static patch_t *ttuser[TTMAX_USER];
@@ -532,7 +535,7 @@ static void F_IntroDrawScene(void)
 	{
 		case 0:
 			bgxoffs = 28;
-			break;	
+			break;
 		case 1:
 			background = W_CachePatchName("INTRO1", PU_PATCH);
 			break;
@@ -621,7 +624,7 @@ static void F_IntroDrawScene(void)
 			V_DrawScaledPatch(bgxoffs, 0, 0, background);
 	}
 	else if (intro_scenenum == 0) // STJr presents
-	{	 
+	{
 		if (intro_curtime > 1 && intro_curtime < (INT32)introscenetime[intro_scenenum])
 		{
 			V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
@@ -629,13 +632,13 @@ static void F_IntroDrawScene(void)
 				sprintf(stjrintro, "STJRI%03u", intro_curtime-1);
 			else if (intro_curtime >= TICRATE-6 && intro_curtime < 2*TICRATE-20) // Pause on black screen for just a second
 				return;
-			else if (intro_curtime == 2*TICRATE-19) 
+			else if (intro_curtime == 2*TICRATE-19)
 			{
 				// Fade in the text
 				// The text fade out is automatically handled when switching to a new intro scene
 				strncpy(stjrintro, "STJRI029", 9);
 				S_ChangeMusicInternal("_stjr", false);
-				
+
 				background = W_CachePatchName(stjrintro, PU_PATCH);
 				wipestyleflags = WSF_FADEIN;
 				F_WipeStartScreen();
@@ -644,7 +647,7 @@ static void F_IntroDrawScene(void)
 				F_WipeEndScreen();
 				F_RunWipe(0,true);
 			}
-			
+
 			if (!WipeInAction) // Draw the patch if not in a wipe
 			{
 				background = W_CachePatchName(stjrintro, PU_PATCH);
@@ -864,7 +867,7 @@ void F_IntroDrawer(void)
 				F_WipeEndScreen();
 				F_RunWipe(99,true);
 			}
-		
+
 			S_ChangeMusicInternal("_intro", false);
 		}
 		else if (intro_scenenum == 10)
@@ -2678,6 +2681,22 @@ static void F_FigureActiveTtScale(void)
 		F_LoadAlacroixGraphics(activettscale);
 }
 
+#define ALACROIX_CHARSTART 41
+#define ALACROIX_SONICSTART (ALACROIX_CHARSTART+0)
+#define ALACROIX_SONICIDLE (ALACROIX_SONICSTART+57)
+#define ALACROIX_SONICX 89
+#define ALACROIX_SONICY 13
+#define ALACROIX_TAILSSTART (ALACROIX_CHARSTART+27)
+#define ALACROIX_TAILSIDLE (ALACROIX_TAILSSTART+60)
+#define ALACROIX_TAILSX 35
+#define ALACROIX_TAILSY 19
+#define ALACROIX_KNUXSTART (ALACROIX_CHARSTART+44)
+#define ALACROIX_KNUXIDLE (ALACROIX_KNUXSTART+70)
+#define ALACROIX_KNUXX 167
+#define ALACROIX_KNUXY 7
+#define ALACROIX_BLINKFRAMES 7
+#define ALACROIX_BLINKTWICEFRAMES 17
+
 // (no longer) De-Demo'd Title Screen
 void F_TitleScreenDrawer(void)
 {
@@ -2847,19 +2866,19 @@ void F_TitleScreenDrawer(void)
 			// Delay the start a bit for better music timing.
 			//
 
-#define CHARSTART 41
-#define SONICSTART (CHARSTART+0)
-#define SONICIDLE (SONICSTART+57)
-#define SONICX 89
-#define SONICY 13
-#define TAILSSTART (CHARSTART+27)
-#define TAILSIDLE (TAILSSTART+60)
-#define TAILSX 35
-#define TAILSY 19
-#define KNUXSTART (CHARSTART+44)
-#define KNUXIDLE (KNUXSTART+70)
-#define KNUXX 167
-#define KNUXY 7
+#define CHARSTART ALACROIX_CHARSTART
+#define SONICSTART ALACROIX_SONICSTART
+#define SONICIDLE ALACROIX_SONICIDLE
+#define SONICX ALACROIX_SONICX
+#define SONICY ALACROIX_SONICY
+#define TAILSSTART ALACROIX_TAILSSTART
+#define TAILSIDLE ALACROIX_TAILSIDLE
+#define TAILSX ALACROIX_TAILSX
+#define TAILSY ALACROIX_TAILSY
+#define KNUXSTART ALACROIX_KNUXSTART
+#define KNUXIDLE ALACROIX_KNUXIDLE
+#define KNUXX ALACROIX_KNUXX
+#define KNUXY ALACROIX_KNUXY
 
 			// Decide who gets to blink or not.
 			// Make this decision at the END of an idle/blink cycle.
@@ -2885,7 +2904,7 @@ void F_TitleScreenDrawer(void)
 					knux_idle_start = finalecount;
 				}
 
-				knux_idle_end = knux_blink ? (knux_blink_twice ? 17 : 7) : 46;
+				knux_idle_end = knux_blink ? (knux_blink_twice ? ALACROIX_BLINKTWICEFRAMES : ALACROIX_BLINKFRAMES) : 46;
 			}
 
 			if (finalecount >= TAILSIDLE)
@@ -2909,7 +2928,7 @@ void F_TitleScreenDrawer(void)
 
 				// Tails does not actually have a non-blink idle cycle, but make up a number
 				// so he can still blink.
-				tails_idle_end = tails_blink ? (tails_blink_twice ? 17 : 7) : 30;
+				tails_idle_end = tails_blink ? (tails_blink_twice ? ALACROIX_BLINKTWICEFRAMES : ALACROIX_BLINKFRAMES) : 30;
 			}
 
 			if (finalecount >= SONICIDLE)
@@ -2931,7 +2950,7 @@ void F_TitleScreenDrawer(void)
 					sonic_idle_start = finalecount;
 				}
 
-				sonic_idle_end = sonic_blink ? (sonic_blink_twice ? 17 : 7) : 25;
+				sonic_idle_end = sonic_blink ? (sonic_blink_twice ? ALACROIX_BLINKTWICEFRAMES : ALACROIX_BLINKFRAMES) : 25;
 			}
 
 
@@ -3435,6 +3454,122 @@ luahook:
 	LUAh_TitleHUD();
 }
 
+static void F_TitleBlink(tic_t *blink, INT32 *idle)
+{
+	if (*blink)
+	{
+		*idle = finalecount - *blink;
+		if (*blink <= 2)
+			(*blink)++;
+	}
+}
+
+void F_TitleFingerResponder(event_t *ev)
+{
+#ifdef TOUCHINPUTS
+	INT32 fx = ev->x;
+	INT32 fy = ev->y;
+	touchfinger_t *finger = &touchfingers[ev->key];
+
+    if (curttmode == TTMODE_ALACROIX && ev->type == ev_touchdown)
+	{
+		fixed_t x, y, w, h;
+		fixed_t sc = FRACUNIT / activettscale;
+		INT32 i;
+
+		for (i = 0; i < 3; i++)
+		{
+			boolean *blink = NULL;
+			boolean *blink_twice = NULL;
+			INT32 *idle_start = NULL;
+			INT32 *idle_end = NULL;
+			INT32 idle = 0;
+			patch_t *patch;
+
+			switch (i)
+			{
+				case 0:
+					blink = &sonic_blink;
+					blink_twice = &sonic_blink_twice;
+					idle_start = &sonic_idle_start;
+					idle_end = &sonic_idle_end;
+					idle = ALACROIX_SONICIDLE;
+					x = ALACROIX_SONICX<<FRACBITS;
+					y = ALACROIX_SONICY<<FRACBITS;
+					patch = TTSOBA[0];
+					break;
+				case 1:
+					blink = &tails_blink;
+					blink_twice = &tails_blink_twice;
+					idle_start = &tails_idle_start;
+					idle_end = &tails_idle_end;
+					idle = ALACROIX_TAILSIDLE;
+					x = ALACROIX_TAILSX<<FRACBITS;
+					y = ALACROIX_TAILSY<<FRACBITS;
+					patch = TTTABA[0];
+					break;
+				case 2:
+					blink = &knux_blink;
+					blink_twice = &knux_blink_twice;
+					idle_start = &knux_idle_start;
+					idle_end = &knux_idle_end;
+					idle = ALACROIX_KNUXIDLE;
+					x = ALACROIX_KNUXX<<FRACBITS;
+					y = ALACROIX_KNUXY<<FRACBITS;
+					patch = TTKNBA[0];
+					break;
+				default:
+					return;
+			}
+
+			if (blink == NULL)
+				break;
+
+			if (finalecount < idle)
+				continue;
+
+			V_GetPatchScreenRegion(&x, &y, &w, &h, sc, sc, 0, patch);
+
+			x >>= FRACBITS;
+			y >>= FRACBITS;
+			w >>= FRACBITS;
+			h >>= FRACBITS;
+
+			if (fx >= x && fx <= x+w && fy >= y && fy <= y+h)
+			{
+				finger->action = (i+1);
+
+				if (fx >= (x + ((i < 2) ? (w / 2) : 0)))
+				{
+					*blink = true;
+					*blink_twice = false; // !(M_RandomKey(100) % 5);
+
+					*idle_start = finalecount;
+					*idle_end = (*blink_twice ? ALACROIX_BLINKTWICEFRAMES : ALACROIX_BLINKFRAMES);
+
+					ttblink[i] = 1;
+				}
+				else
+					continue;
+
+				break;
+			}
+		}
+	}
+	else
+	{
+		if (!finger->action)
+			M_StartControlPanel();
+
+		ttblink[finger->action-1] = 0;
+		finger->action = 0;
+	}
+#else
+	(void)ev;
+	M_StartControlPanel();
+#endif
+}
+
 // separate animation timer for backgrounds, since we also count
 // during GS_TIMEATTACK
 void F_MenuPresTicker(boolean run)
@@ -3452,6 +3587,18 @@ void F_TitleScreenTicker(boolean run)
 	// don't trigger if doing anything besides idling on title
 	if (gameaction != ga_nothing || gamestate != GS_TITLESCREEN)
 		return;
+
+	if (curttmode == TTMODE_ALACROIX)
+	{
+		if (!menuactive)
+		{
+			F_TitleBlink(&ttblink[0], &sonic_idle_start);
+			F_TitleBlink(&ttblink[1], &tails_idle_start);
+			F_TitleBlink(&ttblink[2], &knux_idle_start);
+		}
+		else
+			ttblink[0] = ttblink[1] = ttblink[2] = 0;
+	}
 
 	// Execute the titlemap camera settings
 	if (titlemapinaction)

@@ -2557,11 +2557,11 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 			CL_Reset();
 			D_StartTitle();
 			if (serverlist[i].info.refusereason == 1)
-				M_StartMessage(M_GetText("The server is not accepting\njoins for the moment.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+				M_ShowESCMessage("The server is not accepting\njoins for the moment.\n\n");
 			else if (serverlist[i].info.refusereason == 2)
-				M_StartMessage(va(M_GetText("Maximum players reached: %d\n\n" PRESS_ESC_MESSAGE), serverlist[i].info.maxplayer), NULL, MM_NOTHING);
+				M_StartMessage(va(M_GetText("Maximum players reached: %d\n\n%s"), serverlist[i].info.maxplayer, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 			else
-				M_StartMessage(M_GetText("You can't join.\nI don't know why,\nbut you can't join.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+				M_ShowESCMessage("You can't join.\nI don't know why,\nbut you can't join.\n\n");
 			return false;
 		}
 
@@ -2576,12 +2576,10 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				D_QuitNetGame();
 				CL_Reset();
 				D_StartTitle();
-				M_StartMessage(M_GetText(
+				M_ShowESCMessage(
 					"You have too many WAD files loaded\n"
 					"to add ones the server is using.\n"
-					"Please restart SRB2 before connecting.\n\n"
-					PRESS_ESC_MESSAGE
-				), NULL, MM_NOTHING);
+					"Please restart SRB2 before connecting.\n\n");
 				return false;
 			}
 			else if (i == 2) // cannot join for some reason
@@ -2589,14 +2587,12 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				D_QuitNetGame();
 				CL_Reset();
 				D_StartTitle();
-				M_StartMessage(M_GetText(
+				M_ShowESCMessage(
 					"You have WAD files loaded or have\n"
 					"modified the game in some way, and\n"
 					"your file list does not match\n"
 					"the server's file list.\n"
-					"Please restart SRB2 before connecting.\n\n"
-					PRESS_ESC_MESSAGE
-				), NULL, MM_NOTHING);
+					"Please restart SRB2 before connecting.\n\n");
 				return false;
 			}
 			else if (i == 1)
@@ -2610,14 +2606,12 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 					D_QuitNetGame();
 					CL_Reset();
 					D_StartTitle();
-					M_StartMessage(M_GetText(
+					M_ShowESCMessage(
 						"You cannot connect to this server\n"
 						"because you cannot download the files\n"
 						"that you are missing from the server.\n\n"
 						"See the console or log file for\n"
-						"more details.\n\n"
-						PRESS_ESC_MESSAGE
-					), NULL, MM_NOTHING);
+						"more details.\n\n");
 					return false;
 				}
 				// no problem if can't send packet, we will retry later
@@ -2746,7 +2740,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		{
 			G_MapEventsToControls(&events[eventtail]);
 #ifdef TOUCHINPUTS
-			if (touch_screenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
+			if (touchscreenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
 				exit = true;
 #endif
 		}
@@ -2758,7 +2752,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		{
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
 #ifdef TOUCHINPUTS
-			M_StartMessage(M_GetText("Network game synchronization aborted.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Network game synchronization aborted.\n\n");
 #endif
 
 #ifndef NONET
@@ -3724,17 +3718,17 @@ static void Got_KickCmd(UINT8 **p, INT32 playernum)
 		CL_Reset();
 		D_StartTitle();
 		if (msg == KICK_MSG_CON_FAIL)
-			M_StartMessage(M_GetText("Server closed connection\n(synch failure)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Server closed connection\n(synch failure)\n");
 		else if (msg == KICK_MSG_PING_HIGH)
-			M_StartMessage(M_GetText("Server closed connection\n(Broke ping limit)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Server closed connection\n(Broke ping limit)\n");
 		else if (msg == KICK_MSG_BANNED)
-			M_StartMessage(M_GetText("You have been banned by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("You have been banned by the server\n\n");
 		else if (msg == KICK_MSG_CUSTOM_KICK)
-			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\n%s"), reason, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_CUSTOM_BAN)
-			M_StartMessage(va(M_GetText("You have been banned\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been banned\n(%s)\n%s"), reason, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		else
-			M_StartMessage(M_GetText("You have been kicked by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("You have been kicked by the server\n\n");
 	}
 	else if (keepbody)
 	{
@@ -4391,7 +4385,7 @@ static void HandleShutdown(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server has shutdown\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+	M_ShowESCMessage("Server has shutdown\n\n");
 }
 
 /** Called when a PT_NODETIMEOUT packet is received
@@ -4407,7 +4401,7 @@ static void HandleTimeout(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server Timeout\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+	M_ShowESCMessage("Server Timeout\n\n");
 }
 
 #ifndef NONET
