@@ -2277,7 +2277,23 @@ void HU_Drawer(void)
 	if (modeattacking && pausedelay > 0 && !pausebreakkey)
 	{
 		INT32 strength = ((pausedelay - 1 - NEWTICRATE/2)*10)/(NEWTICRATE/3);
-		INT32 y = hudinfo[HUD_LIVES].y - 13;
+		INT32 x, y, f;
+
+		if (cv_liveshudpos.value == 1)
+		{
+			x = hudinfo[HUD_LIVES].x;
+			y = hudinfo[HUD_LIVES].y + 10;
+			f = hudinfo[HUD_LIVES].f;
+
+			if (demoinputdrawn)
+				y -= 24;
+		}
+		else
+		{
+			x = ST_GetLivesHUDInfo()->x;
+			y = (ST_GetLivesHUDInfo()->y) - 13;
+			f = ST_GetLivesHUDInfo()->f;
+		}
 
 		if (players[consoleplayer].powers[pw_carry] == CR_NIGHTSMODE)
 			y -= 16;
@@ -2289,8 +2305,8 @@ void HU_Drawer(void)
 				y -= 8;
 		}
 
-		V_DrawThinString(hudinfo[HUD_LIVES].x-2, y,
-			hudinfo[HUD_LIVES].f|((leveltime & 4) ? V_SKYMAP : V_BLUEMAP),
+		V_DrawThinString(x-2, y,
+			f|((leveltime & 4) ? V_SKYMAP : V_BLUEMAP),
 			"HOLD TO RETRY...");
 
 		if (strength > 9)

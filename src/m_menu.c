@@ -1455,7 +1455,7 @@ static menuitem_t OP_TouchOptionsMenu[] =
 
 static menuitem_t OP_TouchControlsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Enable Controls",      &cv_touchinputs,           10},
+	{IT_STRING | IT_CVAR, NULL, "Show Controls",        &cv_touchinputs,           10},
 	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           20},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
 	                      NULL, "Preset Scale",         &cv_touchguiscale,         30},

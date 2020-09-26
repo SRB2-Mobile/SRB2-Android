@@ -165,6 +165,7 @@ void G_ResetJoysticks(void);
 void G_ResetMice(void);
 
 boolean G_HandlePauseKey(boolean ispausebreak);
+boolean G_CanRetryModeAttack(void);
 boolean G_DoViewpointSwitch(void);
 boolean G_ToggleChaseCam(void);
 boolean G_ToggleChaseCam2(void);

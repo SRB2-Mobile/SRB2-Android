@@ -150,6 +150,7 @@ typedef struct
 	touchpreset_e preset; // touch_preset
 	touchmovementstyle_e movementstyle; // touch_movementstyle
 
+	boolean altliveshud; // ST_AltLivesHUDEnabled
 	boolean ringslinger; // G_RingSlingerGametype
 	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
 	boolean nights; // maptol & TOL_NIGHTS

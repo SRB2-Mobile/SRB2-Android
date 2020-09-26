@@ -5352,7 +5352,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 	if (cv_glskydome.value)
 	{
 		FTransform dometransform;
-		const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
+		const float fpov = HWR_GetFOV(player);
 		postimg_t *type;
 
 		if (splitscreen && player == &players[secondarydisplayplayer])
@@ -5559,6 +5559,27 @@ void HWR_SetViewSize(void)
 	HWD.pfnFlushScreenTextures();
 }
 
+float HWR_GetFOV(player_t *player)
+{
+	fixed_t pfov = cv_fov.value;
+	float fov;
+
+	if (player)
+		pfov += player->fovadd;
+
+	fov = FixedToFloat(pfov);
+
+#ifdef NATIVESCREENRES
+	if (cv_nativeres.value && cv_nativeresfov.value)
+	{
+		float resmul = ((float)vid.width / (float)vid.height);
+		fov = atan(tan(fov*M_PI/360)*(resmul*0.7))*360/M_PI;
+	}
+#endif
+
+	return fov;
+}
+
 // Set view aiming, for the sky dome, the skybox,
 // and the normal view, all with a single function.
 static void HWR_SetTransformAiming(FTransform *trans, player_t *player, boolean skybox)
@@ -5586,7 +5607,7 @@ static void HWR_SetTransformAiming(FTransform *trans, player_t *player, boolean 
 // ==========================================================================
 void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 {
-	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
+	const float fpov = HWR_GetFOV(player);
 	postimg_t *type;
 
 	if (splitscreen && player == &players[secondarydisplayplayer])
@@ -5683,7 +5704,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 #ifdef NEWCLIP
 	if (rendermode == render_opengl)
 	{
-		angle_t a1 = gld_FrustumAngle(gl_aimingangle);
+		angle_t a1 = gld_FrustumAngle(gl_aimingangle, player);
 		gld_clipper_Clear();
 		gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
 #ifdef HAVE_SPHEREFRUSTRUM
@@ -5719,7 +5740,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 		viewangle = localaiming2;
 
 	// Handle stuff when you are looking farther up or down.
-	if ((gl_aimingangle || cv_fov.value+player->fovadd > 90*FRACUNIT))
+	if ((gl_aimingangle || HWR_GetFOV(player) > 90.0f))
 	{
 		dup_viewangle += ANGLE_90;
 		HWR_ClearClipSegs();
@@ -5782,7 +5803,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 // ==========================================================================
 void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 {
-	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
+	const float fpov = HWR_GetFOV(player);
 	postimg_t *type;
 
 	const boolean skybox = (skyboxmo[0] && cv_skybox.value); // True if there's a skybox object and skyboxes are on
@@ -5898,7 +5919,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 #ifdef NEWCLIP
 	if (rendermode == render_opengl)
 	{
-		angle_t a1 = gld_FrustumAngle(gl_aimingangle);
+		angle_t a1 = gld_FrustumAngle(gl_aimingangle, player);
 		gld_clipper_Clear();
 		gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
 #ifdef HAVE_SPHEREFRUSTRUM
@@ -5938,7 +5959,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		viewangle = localaiming2;
 
 	// Handle stuff when you are looking farther up or down.
-	if ((gl_aimingangle || cv_fov.value+player->fovadd > 90*FRACUNIT))
+	if ((gl_aimingangle || HWR_GetFOV(player) > 90.0f))
 	{
 		dup_viewangle += ANGLE_90;
 		HWR_ClearClipSegs();

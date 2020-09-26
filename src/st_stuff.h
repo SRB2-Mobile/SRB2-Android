@@ -93,6 +93,7 @@ typedef struct
 typedef enum
 {
 	HUD_LIVES,
+	HUD_LIVESALT,
 
 	HUD_RINGS,
 	HUD_RINGSNUM,
@@ -126,6 +127,11 @@ extern hudinfo_t hudinfo[NUMHUDITEMS];
 #define ST_WEAPONS_Y 176 // HUD_LIVES
 #define ST_WEAPONS_W 20
 #define ST_WEAPONS_H 20
+
+hudinfo_t *ST_GetLivesHUDInfo(void);
+boolean ST_AltLivesHUDEnabled(void);
+
+extern boolean demoinputdrawn;
 
 extern UINT16 objectsdrawn;
 

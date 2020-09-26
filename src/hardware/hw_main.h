@@ -52,6 +52,8 @@ void HWR_DrawPic(INT32 x,INT32 y,lumpnum_t lumpnum);
 UINT8 *HWR_GetScreenshot(void);
 boolean HWR_Screenshot(const char *pathname);
 
+float HWR_GetFOV(player_t *player);
+
 void HWR_AddCommands(void);
 void HWR_AddSessionCommands(void);
 void transform(float *cx, float *cy, float *cz);

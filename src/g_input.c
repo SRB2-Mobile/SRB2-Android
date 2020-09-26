@@ -256,7 +256,7 @@ static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt)
 
 boolean G_HandlePauseKey(boolean ispausebreak)
 {
-	if (modeattacking && !demoplayback && (gamestate == GS_LEVEL))
+	if (G_CanRetryModeAttack())
 	{
 		pausebreakkey = ispausebreak;
 		if (menuactive || pausedelay < 0 || leveltime < 2)
@@ -284,6 +284,11 @@ boolean G_HandlePauseKey(boolean ispausebreak)
 	}
 
 	return false;
+}
+
+boolean G_CanRetryModeAttack(void)
+{
+	return (modeattacking && !demoplayback && (gamestate == GS_LEVEL));
 }
 
 // Handles the viewpoint switch key being pressed.

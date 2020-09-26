@@ -392,6 +392,7 @@ void TS_BuildLayoutFromPreset(touchlayout_t *layout)
 
 void TS_DefaultControlLayout(boolean makelayout)
 {
+	usertouchconfigstatus.altliveshud = true;
 	usertouchconfigstatus.ringslinger = true;
 	usertouchconfigstatus.ctfgametype = true;
 	usertouchconfigstatus.canpause = true;

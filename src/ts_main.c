@@ -82,7 +82,7 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 	{touchpreset_tiny, "Tiny"},
 	{0, NULL}};
 
-consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchstyle =  {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, TS_PresetChanged, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchlayout = {"touch_layout", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, TS_LoadLayoutFromCVar, 0, NULL, NULL, 0, 0, NULL};
@@ -96,7 +96,7 @@ consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t,
 consvar_t cv_touchmenutrans = {"touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Touch layout options
-#define TOUCHLAYOUTCVAR(name, default, func) {name, default, CV_CALL|CV_NOINIT, CV_OnOff, func, 0, NULL, NULL, 0, 0, NULL}
+#define TOUCHLAYOUTCVAR(name, default, func) {name, default, CV_CALL|CV_NOINIT, CV_YesNo, func, 0, NULL, NULL, 0, 0, NULL}
 
 static void ClearLayoutAndKeepSettings(void)
 {
@@ -137,8 +137,8 @@ static void WideScreen_OnChange(void)
 		M_StartMessage(va("Changing this option will clear the current layout.\nProceed anyway?\n\n(%s)\n", M_GetUserActionString(CONFIRM_MESSAGE)), WideScreen_OnChangeResponse, MM_YESNO);
 }
 
-consvar_t cv_touchlayoutusegrid = TOUCHLAYOUTCVAR("touch_layoutusegrid", "On", UseGrid_OnChange);
-consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "On", WideScreen_OnChange);
+consvar_t cv_touchlayoutusegrid = TOUCHLAYOUTCVAR("touch_layoutusegrid", "Yes", UseGrid_OnChange);
+consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "Yes", WideScreen_OnChange);
 
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
@@ -571,6 +571,19 @@ void TS_UpdateFingers(INT32 realtics)
 				finger->longpress = 0;
 			}
 		}
+		// Mode Attack retry
+		else if (finger->down && finger->u.gamecontrol == gc_pause && G_InGameInput())
+		{
+			if (pausedelay < 0)
+				finger->longpress = 0;
+			else if (finger->longpress < TICRATE)
+			{
+				pausedelay = 3;
+				finger->longpress++;
+			}
+			else if (G_CanRetryModeAttack())
+				G_HandlePauseKey(false);
+		}
 	}
 }
 
@@ -742,7 +755,9 @@ static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status,
 
 		if (status)
 		{
-			if (status->ringslinger)
+			if (status->altliveshud)
+				touch_joystick_y += 8 * FRACUNIT;
+			else if (status->ringslinger)
 				touch_joystick_y -= 4 * FRACUNIT;
 
 			if (status->specialstage && !status->nights)
@@ -759,7 +774,9 @@ static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status,
 
 		if (status)
 		{
-			if (status->ringslinger)
+			if (status->altliveshud)
+				touch_joystick_y += 16 * FRACUNIT;
+			else if (status->ringslinger)
 				touch_joystick_y -= 8 * FRACUNIT;
 
 			if (status->specialstage && !status->nights)
@@ -945,7 +962,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	fixed_t x, y, w, h;
 	fixed_t dx, dy, dw, dh;
 	fixed_t corneroffset = 4 * FRACUNIT;
-	fixed_t rightcorner, bottomcorner;
+	fixed_t topcorner, bottomcorner, rightcorner;
 	fixed_t jsoffs = status->ringslinger ? (-4 * FRACUNIT) : 0, jumph;
 	fixed_t offs = (promptactive ? -16 : 0);
 	fixed_t nonjoyoffs = -12 * FRACUNIT;
@@ -965,6 +982,11 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 		rightcorner = BASEVIDWIDTH * FRACUNIT;
 		bottomcorner = BASEVIDHEIGHT * FRACUNIT;
 	}
+
+	if (status->altliveshud)
+		topcorner = (ST_GetLivesHUDInfo()->y * FRACUNIT) + (16 * FRACUNIT) + corneroffset;
+	else
+		topcorner = corneroffset;
 
 	// For the D-Pad
 	if (widescreen && (vid.height != BASEVIDHEIGHT * vid.dupy))
@@ -1075,7 +1097,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	controls[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].x = (rightcorner - controls[gc_systemmenu].w - corneroffset);
-	controls[gc_systemmenu].y = (corneroffset + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
+	controls[gc_systemmenu].y = (topcorner + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
 
 	// Pause
 	controls[gc_pause].x = controls[gc_systemmenu].x;
@@ -1411,6 +1433,7 @@ void TS_DefineButtons(void)
 		status.preset = touch_preset;
 		status.movementstyle = touch_movementstyle;
 
+		status.altliveshud = ST_AltLivesHUDEnabled();
 		status.ringslinger = G_RingSlingerGametype();
 		status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
 		status.nights = (maptol & TOL_NIGHTS);
