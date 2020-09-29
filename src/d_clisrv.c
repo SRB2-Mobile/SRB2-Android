@@ -1296,19 +1296,25 @@ static UINT8 Snake_GetOppositeDir(UINT8 dir)
 		return 12 + 5 - dir;
 }
 
-static void Snake_FindFreeSlot(UINT8 *x, UINT8 *y, UINT8 headx, UINT8 heady)
+static void Snake_FindFreeSlot(UINT8 *freex, UINT8 *freey, UINT8 headx, UINT8 heady)
 {
+	UINT8 x, y;
 	UINT16 i;
 
 	do
 	{
-		*x = M_RandomKey(SNAKE_NUM_BLOCKS_X);
-		*y = M_RandomKey(SNAKE_NUM_BLOCKS_Y);
+		x = M_RandomKey(SNAKE_NUM_BLOCKS_X);
+		y = M_RandomKey(SNAKE_NUM_BLOCKS_Y);
 
 		for (i = 0; i < snake->snakelength; i++)
-			if (*x == snake->snakex[i] && *y == snake->snakey[i])
+			if (x == snake->snakex[i] && y == snake->snakey[i])
 				break;
-	} while (i < snake->snakelength || (*x == headx && *y == heady));
+	} while (i < snake->snakelength || (x == headx && y == heady)
+		|| (x == snake->applex && y == snake->appley)
+		|| (snake->bonustype != SNAKE_BONUS_NONE && x == snake->bonusx && y == snake->bonusy));
+
+	*freex = x;
+	*freey = y;
 }
 
 static void Snake_Handle(void)
@@ -1439,7 +1445,7 @@ static void Snake_Handle(void)
 	// Check collision with apple
 	if (x == snake->applex && y == snake->appley)
 	{
-		if (snake->snakelength + 1 < SNAKE_NUM_BLOCKS_X * SNAKE_NUM_BLOCKS_Y)
+		if (snake->snakelength + 3 < SNAKE_NUM_BLOCKS_X * SNAKE_NUM_BLOCKS_Y)
 		{
 			snake->snakelength++;
 			snake->snakex  [snake->snakelength - 1] = snake->snakex  [snake->snakelength - 2];
@@ -2588,11 +2594,11 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				CL_Reset();
 				D_StartTitle();
 				M_ShowESCMessage(
-					"You have WAD files loaded or have\n"
-					"modified the game in some way, and\n"
-					"your file list does not match\n"
-					"the server's file list.\n"
-					"Please restart SRB2 before connecting.\n\n");
+					"You have the wrong addons loaded.\n\n"
+					"To play on this server, restart\n"
+					"the game and don't load any addons.\n"
+					"SRB2 will automatically add\n"
+					"everything you need when you join.\n\n");
 				return false;
 			}
 			else if (i == 1)
@@ -3247,6 +3253,8 @@ static void CL_RemovePlayer(INT32 playernum, kickreason_t reason)
 	// Reset the name
 	sprintf(player_names[playernum], "Player %d", playernum+1);
 
+	player_name_changes[playernum] = 0;
+
 	if (IsPlayerAdmin(playernum))
 	{
 		RemoveAdminPlayer(playernum); // don't stay admin after you're gone
@@ -3862,6 +3870,8 @@ void SV_ResetServer(void)
 		sprintf(player_names[i], "Player %d", i + 1);
 		adminplayers[i] = -1; // Populate the entire adminplayers array with -1.
 	}
+
+	memset(player_name_changes, 0, sizeof player_name_changes);
 
 	mynode = 0;
 	cl_packetmissed = false;
@@ -5524,10 +5534,14 @@ void TryRunTics(tic_t realtics)
 			{
 				DEBFILE(va("============ Running tic %d (local %d)\n", gametic, localgametic));
 
+				rs_tictime = I_GetTimeMicros();
+
 				G_Ticker((gametic % NEWTICRATERATIO) == 0);
 				ExtraDataTicker();
 				gametic++;
 				consistancy[gametic%BACKUPTICS] = Consistancy();
+
+				rs_tictime = I_GetTimeMicros() - rs_tictime;
 
 				// Leave a certain amount of tics present in the net buffer as long as we've ran at least one tic this frame.
 				if (client && gamestate == GS_LEVEL && leveltime > 3 && neededtic <= gametic + cv_netticbuffer.value)

@@ -1190,6 +1190,8 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 		if (!memcmp(wadfiles[i]->md5sum, md5sum, 16))
 		{
 			W_FileLoadError(M_GetText("%s is already loaded"), filename);
+			if (important)
+				packetsizetally -= nameonlylength(filename) + 22;
 			if (handle)
 				File_Close(handle);
 			return W_InitFileError(filename, false);

@@ -434,6 +434,8 @@ player_t *seenplayer; // player we're aiming at right now
 // so that it doesn't have to be updated depending on the value of MAXPLAYERS
 char player_names[MAXPLAYERS][MAXPLAYERNAME+1];
 
+INT32 player_name_changes[MAXPLAYERS];
+
 INT16 rw_maximums[NUM_WEAPONS] =
 {
 	800, // MAX_INFINITY
@@ -2371,6 +2373,11 @@ void G_Ticker(boolean run)
 
 		if (camtoggledelay2)
 			camtoggledelay2--;
+
+		if (gametic % NAMECHANGERATE == 0)
+		{
+			memset(player_name_changes, 0, sizeof player_name_changes);
+		}
 	}
 }
 
@@ -3826,7 +3833,7 @@ static void G_DoCompleted(void)
 	// a map of the proper gametype -- skip levels that don't support
 	// the current gametype. (Helps avoid playing boss levels in Race,
 	// for instance).
-	if (!spec)
+	if (!spec || nextmapoverride)
 	{
 		if (nextmap >= 0 && nextmap < NUMMAPS)
 		{
@@ -3878,7 +3885,8 @@ static void G_DoCompleted(void)
 		if (nextmap < 0 || (nextmap >= NUMMAPS && nextmap < 1100-1) || nextmap > 1103-1)
 			I_Error("Followed map %d to invalid map %d\n", prevmap + 1, nextmap + 1);
 
-		lastmap = nextmap; // Remember last map for when you come out of the special stage.
+		if (!spec)
+			lastmap = nextmap; // Remember last map for when you come out of the special stage.
 	}
 
 	if ((gottoken = ((gametyperules & GTR_SPECIALSTAGES) && token)))
@@ -3899,7 +3907,7 @@ static void G_DoCompleted(void)
 		}
 	}
 
-	if (spec && !gottoken)
+	if (spec && !gottoken && !nextmapoverride)
 		nextmap = lastmap; // Exiting from a special stage? Go back to the game. Tails 08-11-2001
 
 	automapactive = false;
