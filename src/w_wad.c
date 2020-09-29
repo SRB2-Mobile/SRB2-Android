@@ -79,15 +79,28 @@
 #define O_BINARY 0
 #endif
 
+static char filenamebuf[MAX_WADPATH];
 
+// Lactozilla: Preemptively store file handles for W_InitFile
+// (File unpacking uses this)
+typedef struct
+{
+	void *handle;
+	char *filename;
+	fhandletype_t type;
+} wadfilehandle_t;
+
+static wadfilehandle_t wadhandles[MAX_WADFILES];
+
+// Lump checklist for file verification
 typedef struct
 {
 	const char *name;
 	size_t len;
 } lumpchecklist_t;
 
-// Must be a power of two
-#define LUMPNUMCACHESIZE 64
+// Lumpnum cache
+#define LUMPNUMCACHESIZE 64 // Must be a power of two
 
 typedef struct lumpnum_cache_s
 {
@@ -114,6 +127,7 @@ void W_Shutdown(void)
 	while (numwadfiles--)
 	{
 		wadfile_t *wad = wadfiles[numwadfiles];
+		wadfilehandle_t *wadhandle = &wadhandles[numwadfiles];
 
 		File_Close(wad->handle);
 		Z_Free(wad->filename);
@@ -123,120 +137,26 @@ void W_Shutdown(void)
 			Z_Free(wad->lumpinfo[wad->numlumps].fullname);
 		}
 
+		if (wadhandle->handle)
+		{
+			File_Close(wadhandle->handle);
+			Z_Free(wadhandle->filename);
+		}
+
 		Z_Free(wad->lumpinfo);
 		Z_Free(wad);
 	}
 }
 
 //===========================================================================
-//                                                        LUMP BASED ROUTINES
+//                                                             FILE UNPACKING
 //===========================================================================
 
-// W_AddFile
-// All files are optional, but at least one file must be
-//  found (PWAD, if all required lumps are present).
-// Files with a .wad extension are wadlink files
-//  with multiple lumps.
-// Other files are single lumps with the base filename
-//  for the lump name.
-
-static char filenamebuf[MAX_WADPATH];
-
-// W_OpenWadFile
-// Helper function for opening the WAD file.
-// Returns the file handle for the file, or NULL if not found or could not be opened
-// If "useerrors" is true then print errors in the console, else just don't bother
-// "filename" may be modified to have the correct path the actual file is located in, if necessary
-void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean mainfile, boolean useerrors)
-{
-	void *handle;
-
-#ifndef HAVE_WHANDLE
-	(void)type;
-#endif
-
-#if !(defined(UNPACK_FILES) && defined(__ANDROID__))
-	(void)mainfile;
-#endif
-
-	// Officially, strncpy should not have overlapping buffers, since W_VerifyNMUSlumps is called after this, and it
-	// changes filename to point at filenamebuf, it would technically be doing that. I doubt any issue will occur since
-	// they point to the same location, but it's better to be safe and this is a simple change.
-	if (filenamebuf != *filename)
-	{
-		strncpy(filenamebuf, *filename, MAX_WADPATH);
-		filenamebuf[MAX_WADPATH - 1] = '\0';
-		*filename = filenamebuf;
-	}
-
-	// open wad file
-	if ((handle = File_Open(*filename, "rb", type)) == NULL)
-	{
-		// If we failed to load the file with the path as specified by
-		// the user, strip the directories and search for the file.
-		nameonly(filenamebuf);
-
-		// If findfile finds the file, the full path will be returned
-		// in filenamebuf == *filename.
-		if (findfile(filenamebuf, NULL, true))
-		{
-			if ((handle = File_Open(*filename, "rb", type)) == NULL)
-			{
-				if (useerrors)
-					W_FileLoadError(M_GetText("Can't open %s"), *filename);
-				return NULL;
-			}
-		}
-		else
-		{
-#if defined(__ANDROID__)
-			// Lactozilla: Search inside the app package.
-			handle = File_Open(*filename, "rb", type);
-			if (handle)
-			{
 #ifdef UNPACK_FILES
-				if (mainfile)
-				{
-					if (W_UnpackFile(*filename, handle))
-					{
-						// close the current file handle
-						// (W_UnpackFile won't do that)
-						File_Close(handle);
+static char *startupunpack[MAX_WADFILES];
+static UINT16 numstartupunpack = 0;
+static UINT16 startupfiles = 0;
 
-						// Give a notice that the file was unpacked
-						CONS_Alert(CONS_NOTICE, "Unpacked file %s\n", *filename);
-
-						handle = File_Open(va("%s"PATHSEP"%s", I_SystemLocateWad(), *filename), "rb", type);
-						if (handle)
-							return handle;
-						else
-						{
-							// Couldn't open unpacked file, load from APK
-							CONS_Alert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", *filename);
-							handle = File_Open(*filename, "rb", type);
-						}
-					}
-					else
-					{
-						// Couldn't unpack, load from APK
-						CONS_Alert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", *filename);
-						handle = File_Open(*filename, "rb", type);
-					}
-				}
-#endif
-				if (handle)
-					return handle;
-			}
-#endif
-			if (useerrors)
-				W_FileLoadError(M_GetText("File %s not found."), *filename);
-			return NULL;
-		}
-	}
-	return handle;
-}
-
-#ifdef UNPACK_FILES
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle)
 {
@@ -246,14 +166,12 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	size_t read, write;
 	boolean success = true;
 
-	unpack_progress_t *progress = &unpack_progress;
-
 	INT64 storagespace = 0;
 
-#ifdef UNPACK_FILES_PROGRESS
+	// progress report
+	unpack_progress_t *progress = &unpack_progress;
 	int status = -1, curstatus;
 	float fstatus;
-#endif
 
 	File_Seek(handle, 0, SEEK_END);
 	fullsize = File_Tell(handle);
@@ -278,7 +196,6 @@ boolean W_UnpackFile(const char *filename, void *handle)
 		read = File_Read(buf, 1, UNPACK_BUFFER_SIZE, handle);
 		totalread += read;
 
-#ifdef UNPACK_FILES_PROGRESS
 		if (progress->report)
 		{
 			fstatus = ((float)totalread / (float)fullsize);
@@ -298,7 +215,6 @@ boolean W_UnpackFile(const char *filename, void *handle)
 				status = curstatus;
 			}
 		}
-#endif
 
 		if (!read)
 			break;
@@ -318,8 +234,79 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	return success;
 }
 
+//
+// BASE LIST OF FILES TO UNPACK
+//
+
+static const char *baseunpacklist[] = {
+	"srb2.pk3",
+	NULL,
+};
+
+static boolean W_CheckInBaseUnpackList(char *filename)
+{
+	INT32 i = 0;
+
+	for (; baseunpacklist[i]; i++)
+	{
+		if (!strcmp(baseunpacklist[i], filename))
+			return true;
+	}
+
+	return false;
+}
+
+void W_UnpackBaseFiles(void)
+{
+	UINT16 wadnum = 0;
+	void *handle = NULL, *apkhandle = NULL;
+	const fhandletype_t type = FILEHANDLE_SDL;
+
+	for (; wadnum < startupfiles; wadnum++)
+	{
+		char *filename = startupunpack[wadnum], *fname = filename;
+		wadfilehandle_t *wadhandle = &wadhandles[wadnum];
+
+		if (filename == NULL)
+			continue;
+
+		apkhandle = File_Open(filename, "rb", type);
+
+		if (W_UnpackFile(filename, apkhandle))
+		{
+			// Give a notice that the file was unpacked
+			CONS_Alert(CONS_NOTICE, "Unpacked file %s\n", filename);
+
+			// Open the unpacked file
+			fname = Z_StrDup(va("%s"PATHSEP"%s", I_SystemLocateWad(), filename));
+			handle = File_Open(fname, "rb", type);
+
+			if (handle)
+				File_Close(apkhandle);
+			else
+			{
+				// Couldn't open the unpacked file, load from APK
+				CONS_Alert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", filename);
+				handle = apkhandle;
+			}
+		}
+		else
+		{
+			// Couldn't unpack, load from APK
+			CONS_Alert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", filename);
+			handle = apkhandle;
+		}
+
+		wadhandle->handle = handle;
+		wadhandle->filename = fname;
+		wadhandle->type = type;
+
+		Z_Free(filename);
+	}
+}
+
 // Checks if a file can be unpacked.
-boolean W_CanUnpackFile(const char *filename)
+boolean W_CanUnpackFile(const char *filename, size_t *filesize)
 {
 #if defined(__ANDROID__)
 	void *handle = NULL;
@@ -343,12 +330,21 @@ boolean W_CanUnpackFile(const char *filename)
 		{
 			handle = File_Open(fname, "rb", FILEHANDLE_SDL);
 			if (handle) // If it is found in the application package, it can be unpacked
+			{
 				canunpack = true;
+				if (filesize)
+				{
+					File_Seek(handle, 0, SEEK_END);
+					*filesize = File_Tell(handle);
+					File_Seek(handle, 0, SEEK_SET);
+				}
+			}
 		}
 	}
 
 	if (handle)
 		File_Close(handle);
+
 	return canunpack;
 #else
 	(void)filename;
@@ -356,7 +352,51 @@ boolean W_CanUnpackFile(const char *filename)
 #endif
 }
 
-#ifdef UNPACK_FILES_PROGRESS
+boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles)
+{
+	UINT16 fnum = 0;
+	size_t totalsize = 0;
+
+	INT64 storagespace = 0;
+	I_GetDiskFreeSpace(&storagespace);
+
+	numstartupunpack = 0;
+
+	for (; (fnum < mainfiles) && filenames[fnum]; fnum++)
+	{
+		size_t size = 0;
+
+		// Get the resource filename
+		// It'll be needed for W_CheckInBaseUnpackList,
+		// and for startupunpack[]
+		strncpy(filenamebuf, filenames[fnum], MAX_WADPATH);
+		filenamebuf[MAX_WADPATH - 1] = '\0';
+		nameonly(filenamebuf);
+
+		if (!W_CheckInBaseUnpackList(filenamebuf) || !W_CanUnpackFile(filenames[fnum], &size))
+			startupunpack[fnum] = NULL;
+		else
+		{
+			startupunpack[fnum] = Z_StrDup(filenamebuf);
+			numstartupunpack++;
+			totalsize += size;
+		}
+
+		startupfiles = fnum;
+	}
+
+	// Not enough storage space
+	if ((INT64)totalsize > storagespace)
+		return false;
+
+	// Startup files can be unpacked
+	return true;
+}
+
+//
+// PROGRESS REPORTING
+//
+
 unpack_progress_t unpack_progress;
 
 void UnpackFile_ProgressClear(void)
@@ -392,7 +432,6 @@ void UnpackFile_ProgressReport(int progress)
 #endif
 	I_ReportProgress(progress);
 }
-#endif
 
 #ifdef UNPACK_FILES_DEBUG
 static void UnpackFile_Debug(const char *source, const char *dest)
@@ -428,20 +467,84 @@ static void UnpackFile_Debug(const char *source, const char *dest)
 
 void Command_Unpacktest_f(void)
 {
-#ifdef UNPACK_FILES_PROGRESS
 	UnpackFile_ProgressClear();
 	UnpackFile_ProgressSetTotalFiles(4);
 	UnpackFile_ProgressSetReportFlag(true);
-#endif
 
 	UnpackFile_Debug("srb2.pk3", "srb2-unpacked.pk3");
 	UnpackFile_Debug("zones.pk3", "zones-unpacked.pk3");
 	UnpackFile_Debug("player.dta", "player-unpacked.dta");
 	UnpackFile_Debug("music.dta", "music-unpacked.dta");
 }
-#endif
+#endif // UNPACK_FILES_DEBUG
 
 #endif
+
+//===========================================================================
+//                                                        LUMP BASED ROUTINES
+//===========================================================================
+
+// W_AddFile
+// All files are optional, but at least one file must be
+//  found (PWAD, if all required lumps are present).
+// Files with a .wad extension are wadlink files
+//  with multiple lumps.
+// Other files are single lumps with the base filename
+//  for the lump name.
+
+// W_OpenWadFile
+// Helper function for opening the WAD file.
+// Returns the file handle for the file, or NULL if not found or could not be opened
+// If "useerrors" is true then print errors in the console, else just don't bother
+// "filename" may be modified to have the correct path the actual file is located in, if necessary
+void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors)
+{
+	void *handle;
+
+	// Officially, strncpy should not have overlapping buffers, since W_VerifyNMUSlumps is called after this, and it
+	// changes filename to point at filenamebuf, it would technically be doing that. I doubt any issue will occur since
+	// they point to the same location, but it's better to be safe and this is a simple change.
+	if (filenamebuf != *filename)
+	{
+		strncpy(filenamebuf, *filename, MAX_WADPATH);
+		filenamebuf[MAX_WADPATH - 1] = '\0';
+		*filename = filenamebuf;
+	}
+
+	// open wad file
+	if ((handle = File_Open(*filename, "rb", type)) == NULL)
+	{
+		// If we failed to load the file with the path as specified by
+		// the user, strip the directories and search for the file.
+		nameonly(filenamebuf);
+
+		// If findfile finds the file, the full path will be returned
+		// in filenamebuf == *filename.
+		if (findfile(filenamebuf, NULL, true))
+		{
+			if ((handle = File_Open(*filename, "rb", type)) == NULL)
+			{
+				if (useerrors)
+					W_FileLoadError(M_GetText("Can't open %s"), *filename);
+				return NULL;
+			}
+		}
+		else
+		{
+#if defined(__ANDROID__)
+			// Lactozilla: Search inside the app package.
+			handle = File_Open(*filename, "rb", type);
+			if (handle)
+				return handle;
+#endif
+
+			if (useerrors)
+				W_FileLoadError(M_GetText("File %s not found."), *filename);
+			return NULL;
+		}
+	}
+	return handle;
+}
 
 // Look for all DEHACKED and Lua scripts inside a PK3 archive.
 static inline void W_LoadDehackedLumpsPK3(UINT16 wadnum, boolean mainfile)
@@ -1006,6 +1109,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	void *handle;
 	lumpinfo_t *lumpinfo = NULL;
 	wadfile_t *wadfile;
+	wadfilehandle_t *wadhandle;
 	restype_t type;
 	UINT16 numlumps = 0;
 #ifndef NOMD5
@@ -1040,7 +1144,14 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	}
 
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, handletype, mainfile, true)) == NULL)
+	wadhandle = &wadhandles[numwadfiles];
+	if (wadhandle->handle)
+	{
+		handle = wadhandle->handle;
+		handletype = wadhandle->type;
+		filename = wadhandle->filename;
+	}
+	else if ((handle = W_OpenWadFile(&filename, handletype, true)) == NULL)
 		return W_InitFileError(filename, startup);
 
 	// Check if wad files will overflow fileneededbuffer. Only the filename part
@@ -1196,25 +1307,14 @@ void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
 	numwadfiles = 0;
 
 #if defined(__ANDROID__) && defined(UNPACK_FILES)
-	// Count the total number of files to unpack
+	W_CheckUnpacking(filenames, mainfiles);
+
+	if (numstartupunpack)
 	{
-		char **testunpack = filenames;
-		int totalfiles = 0;
-
-#ifdef UNPACK_FILES_PROGRESS
 		UnpackFile_ProgressClear();
-#endif
-
-		for (; *testunpack; testunpack++)
-		{
-			if (W_CanUnpackFile(*testunpack))
-				totalfiles++;
-		}
-
-#ifdef UNPACK_FILES_PROGRESS
-		UnpackFile_ProgressSetTotalFiles(totalfiles);
+		UnpackFile_ProgressSetTotalFiles(numstartupunpack);
 		UnpackFile_ProgressSetReportFlag(true);
-#endif
+		W_UnpackBaseFiles();
 	}
 #endif
 
@@ -2367,7 +2467,7 @@ static int W_VerifyFile(const char *filename, lumpchecklist_t *checklist,
 	if (!checklist)
 		I_Error("No checklist for %s\n", filename);
 	// open wad file
-	if ((handle = W_OpenWadFile(&filename, type, false, false)) == NULL)
+	if ((handle = W_OpenWadFile(&filename, type, false)) == NULL)
 		return -1;
 
 	if (stricmp(&filename[strlen(filename) - 4], ".pk3") == 0)

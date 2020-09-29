@@ -3359,7 +3359,7 @@ static void Command_Addfile(void)
 #else
 		FILE *fhandle;
 
-		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, false, true)) != NULL)
+		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, true)) != NULL)
 		{
 			tic_t t = I_GetTime();
 			CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",fn);

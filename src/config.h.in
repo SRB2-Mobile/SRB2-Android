@@ -11,11 +11,14 @@
 
 #ifdef CMAKECONFIG
 
-#define ASSET_HASH_SRB2_PK3   "${SRB2_ASSET_srb2.pk3_HASH}"
-#define ASSET_HASH_PLAYER_DTA "${SRB2_ASSET_player.dta_HASH}"
-#define ASSET_HASH_ZONES_PK3  "${SRB2_ASSET_zones.pk3_HASH}"
+#define ASSET_HASH_SRB2_PK3    "${SRB2_ASSET_srb2.pk3_HASH}"
+#define ASSET_HASH_PLAYER_DTA  "${SRB2_ASSET_player.dta_HASH}"
+#define ASSET_HASH_ZONES_PK3   "${SRB2_ASSET_zones.pk3_HASH}"
 #ifdef USE_PATCH_DTA
-#define ASSET_HASH_PATCH_PK3  "${SRB2_ASSET_patch.pk3_HASH}"
+#define ASSET_HASH_PATCH_PK3   "${SRB2_ASSET_patch.pk3_HASH}"
+#endif
+#ifdef USE_ANDROID_PK3
+#define ASSET_HASH_ANDROID_PK3 "${SRB2_ASSET_android.pk3_HASH}"
 #endif
 
 #define SRB2_COMP_REVISION    "${SRB2_COMP_REVISION}"
@@ -34,14 +37,14 @@
  * Last updated 2020 / 07 / 10 - v2.2.6 - player.dta & patch.pk3
  * Last updated 2020 / 09 / 01 - v2.2.7 - patch.pk3
  */
-#define ASSET_HASH_SRB2_PK3   "0277c9416756627004e83cbb5b2e3e28"
-#define ASSET_HASH_ZONES_PK3  "f7e88afb6af7996a834c7d663144bead"
-#define ASSET_HASH_PLAYER_DTA "49dad7b24634c89728cc3e0b689e12bb"
+#define ASSET_HASH_SRB2_PK3    "0277c9416756627004e83cbb5b2e3e28"
+#define ASSET_HASH_ZONES_PK3   "f7e88afb6af7996a834c7d663144bead"
+#define ASSET_HASH_PLAYER_DTA  "49dad7b24634c89728cc3e0b689e12bb"
 #ifdef USE_PATCH_DTA
-#define ASSET_HASH_PATCH_PK3  "97b440b48139c53fa666b585a4e208f2"
+#define ASSET_HASH_PATCH_PK3   "97b440b48139c53fa666b585a4e208f2"
 #endif
 #ifdef USE_ANDROID_PK3
-#define ASSET_HASH_ANDROID_PK3 "4b3f7438eefa5067d2676c5af8aa450d"
+#define ASSET_HASH_ANDROID_PK3 "e1a16cf1b446f23b6633d4036c5689fb"
 #endif
 
 #endif

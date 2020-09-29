@@ -1024,7 +1024,7 @@ static inline void D_CleanFile(void)
 		startupwadfiles[pnumwadfiles] = NULL;
 	}
 
-#ifdef UNPACK_FILES_PROGRESS
+#ifdef UNPACK_FILES
 	UnpackFile_ProgressClear();
 #endif
 }

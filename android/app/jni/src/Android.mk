@@ -49,6 +49,7 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/command.c  \
 			$(OBJDIR)/console.c  \
 			$(OBJDIR)/hu_stuff.c \
+			$(OBJDIR)/hu_font.c  \
 			$(OBJDIR)/y_inter.c  \
 			$(OBJDIR)/st_stuff.c \
 			$(OBJDIR)/m_aatree.c \

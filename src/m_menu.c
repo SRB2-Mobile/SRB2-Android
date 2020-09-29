@@ -24,7 +24,7 @@
 #include "console.h"
 #include "r_local.h"
 #include "hu_stuff.h"
-#include "hu_font.h" // font_t
+#include "hu_font.h"
 #include "g_game.h"
 #include "g_input.h"
 #include "m_argv.h"
