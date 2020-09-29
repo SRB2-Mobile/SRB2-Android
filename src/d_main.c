@@ -987,7 +987,7 @@ void D_StartTitle(void)
 #ifdef TOUCHINPUTS
 			"Tap 'Confirm' to save\nTap 'Back' to keep \nyour current controls",
 #else
-			PRESS_Y_MESSAGE" or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
+			"Press 'Y' or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
 #endif
 			M_TutorialSaveControlResponse, MM_YESNO);
 	}

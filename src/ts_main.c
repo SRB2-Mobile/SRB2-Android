@@ -27,10 +27,6 @@
 
 #include "s_sound.h" // S_StartSound
 
-// Is there a touch screen in the device?
-// (This variable exists even without TOUCHINPUTS)
-boolean touchscreenexists = false;
-
 #ifdef TOUCHINPUTS
 boolean ts_ready = false;
 

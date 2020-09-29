@@ -57,6 +57,10 @@ INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymo
 // current state of the keys: true if pushed
 UINT8 gamekeydown[NUMINPUTS];
 
+// Is there a touch screen in the device?
+// (This variable exists even without TOUCHINPUTS)
+boolean touchscreenexists = false;
+
 // two key codes (or virtual key) per game control
 INT32 gamecontrol[num_gamecontrols][2];
 INT32 gamecontrolbis[num_gamecontrols][2]; // secondary splitscreen player

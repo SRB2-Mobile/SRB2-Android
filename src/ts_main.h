@@ -19,9 +19,6 @@
 #include "d_event.h"
 #include "g_input.h"
 
-// Is there a touch screen in the device?
-extern boolean touchscreenexists;
-
 #ifdef TOUCHINPUTS
 extern boolean ts_ready;
 

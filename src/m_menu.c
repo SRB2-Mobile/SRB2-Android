@@ -277,8 +277,6 @@ static INT32 M_GetMobileMenuBottomSpacing(void);
 static void M_GetMobileMenuElementSize(INT32 e, INT32 *w, INT32 *h);
 static INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll);
 
-static void M_ScrollMobileMenu(fixed_t scroll);
-
 // Prototyping is fun, innit?
 // ==========================================================================
 // NEEDED FUNCTION PROTOTYPES GO HERE
@@ -4068,10 +4066,12 @@ tic_t MobileMenuState_GetAnimationTime(INT32 type)
 	return 0; // Compiler be like
 }
 
+#ifdef TOUCHINPUTS
 void M_ScrollMobileMenu(fixed_t scroll)
 {
 	mobileMenuState.fingerSlide = scroll;
 }
+#endif
 
 //
 // String drawing
@@ -4255,6 +4255,7 @@ INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll)
 }
 
 // Touch screen
+#ifdef TOUCHINPUTS
 static boolean M_FingerTouchingMobileSelection(INT32 fx, INT32 fy, INT32 x, INT32 y, INT32 *w, INT32 *h, INT16 selection)
 {
 	M_GetMobileMenuElementSize(selection, w, h);
@@ -4311,6 +4312,7 @@ static INT16 M_IsTouchingMobileMenuSelection(INT32 fx, INT32 fy)
 
 	return -1;
 }
+#endif
 
 //
 // M_Responder
