@@ -3520,7 +3520,7 @@ boolean M_TSNav_CanShowConfirm(void)
 
 boolean M_TSNav_CanShowConsole(void)
 {
-	if (currentMenu == &SPauseDef || currentMenu == &MPauseDef) // always shown
+	if (currentMenu == &SPauseDef || currentMenu == &MPauseDef || currentMenu == &OP_MainDef) // always shown
 		return true;
 	return tsnav_showconsole;
 }
