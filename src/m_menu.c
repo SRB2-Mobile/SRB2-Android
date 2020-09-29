@@ -693,9 +693,7 @@ static menuitem_t MainMenu[] =
 	{IT_STRING|IT_CALL,    NULL, "Extras",      M_SecretsMenu,           92},
 	{IT_CALL  |IT_STRING,  NULL, "Addons",      M_Addons,               100},
 	{IT_STRING|IT_CALL,    NULL, "Options",     M_Options,              108},
-#ifndef TOUCHINPUTS
 	{IT_STRING|IT_CALL,    NULL, "Quit Game",   M_QuitSRB2,             116},
-#endif
 };
 
 typedef enum
@@ -4182,6 +4180,7 @@ INT32 M_GetMobileMenuScrollHeight(menu_t *menudef)
 
 INT32 M_GetMobileMenuY(menu_t *menudef, INT32 scroll)
 {
+#if 0
 	if (M_IsMobileScreenWide(menudef))
 	{
 		INT32 h = M_GetMobileMenuHeight(menudef);
@@ -4190,6 +4189,7 @@ INT32 M_GetMobileMenuY(menu_t *menudef, INT32 scroll)
 		return y;
 	}
 	else
+#endif
 		return (menudef->y - scroll);
 }
 
@@ -4479,7 +4479,7 @@ boolean M_Responder(event_t *ev)
 
 					if (TS_IsCustomizingControls())
 						ch = touchkey;
-					else if (!M_OnMobileMenu())
+					else if (!M_OnMobileMenu() || currentMenu == &MessageDef)
 						finger->u.keyinput = touchkey;
 				}
 			}
@@ -4575,7 +4575,7 @@ boolean M_Responder(event_t *ev)
 
 			if (finger->type.menu)
 			{
-				if (M_OnMobileMenu())
+				if (M_OnMobileMenu() && currentMenu != &MessageDef)
 				{
 					INT32 key = finger->extra.selection;
 					boolean doEnter = (routine == M_StopMessage);
@@ -4921,7 +4921,7 @@ void M_Drawer(void)
 			M_DrawGameVersion();
 
 #ifdef TOUCHINPUTS
-		if (!M_OnMobileMenu())
+		if (!M_OnMobileMenu() || currentMenu == &MessageDef)
 			TS_DrawMenuNavigation();
 #endif
 	}
@@ -7896,8 +7896,16 @@ void M_StartMessage(const char *string, void *routine,
 	M_ClearItemOn();
 
 #ifdef TOUCHINPUTS
+	// update touch screen navigation
+	M_TSNav_Update();
+
 	if (M_TSNav_OnMessage())
 		M_TSNav_HideAll();
+	else
+	{
+		M_TSNav_ShowAll();
+		M_TSNav_SetConsoleVisible(false);
+	}
 #endif
 }
 
