@@ -1584,16 +1584,16 @@ enum
 static menuitem_t OP_VideoOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Screen", NULL, 0},
-	{IT_STRING | IT_CALL,  NULL, "Set Resolution...",       M_ResolutionMenu,         6},
+	{IT_STRING | IT_CALL,  NULL, "Set Resolution...",        M_ResolutionMenu,     6},
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
-	{IT_STRING|IT_CVAR,      NULL, "Fullscreen",             &cv_fullscreen,         11},
+	{IT_STRING|IT_CVAR,   NULL, "Fullscreen",                &cv_fullscreen,      11},
 #endif
-	{IT_STRING | IT_CVAR, NULL, "Vertical Sync",                &cv_vidwait,         16},
+	{IT_STRING | IT_CVAR, NULL, "Vertical Sync",             &cv_vidwait,         16},
 #ifdef HWRENDER
-	{IT_STRING | IT_CVAR, NULL, "Renderer",                     &cv_newrenderer,        21},
+	{IT_STRING | IT_CVAR, NULL, "Renderer",                  &cv_newrenderer,     21},
 #else
-	{IT_TRANSTEXT | IT_PAIR, "Renderer", "Software",            &cv_renderer,           21},
+	{IT_TRANSTEXT | IT_PAIR,    "Renderer", "Software",      &cv_renderer,        21},
 #endif
 
 	{IT_HEADER, NULL, "Color Profile", NULL, 30},
@@ -1602,42 +1602,43 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_SUBMENU|IT_STRING, NULL, "Advanced Settings...",     &OP_ColorOptionsDef,  46},
 
 	{IT_HEADER, NULL, "Heads-Up Display", NULL, 55},
-	{IT_STRING | IT_CVAR, NULL, "Show HUD",                  &cv_showhud,          61},
+	{IT_STRING | IT_CVAR, NULL, "Show HUD",                  &cv_showhud,         61},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "HUD Transparency",          &cv_translucenthud,   66},
-	{IT_STRING | IT_CVAR, NULL, "Score/Time/Rings",          &cv_timetic,          71},
-	{IT_STRING | IT_CVAR, NULL, "Show Powerups",             &cv_powerupdisplay,   76},
-	{IT_STRING | IT_CVAR, NULL, "Local ping display",		&cv_showping,			81}, // shows ping next to framerate if we want to.
+	                      NULL, "HUD Transparency",          &cv_translucenthud,  66},
+	{IT_STRING | IT_CVAR, NULL, "Score/Time/Rings",          &cv_timetic,         71},
+	{IT_STRING | IT_CVAR, NULL, "Show Powerups",             &cv_powerupdisplay,  76},
+	{IT_STRING | IT_CVAR, NULL, "Lives HUD Position",        &cv_liveshudpos,     81},
+	{IT_STRING | IT_CVAR, NULL, "Local Ping Display",        &cv_showping,        86}, // shows ping next to framerate if we want to.
 #ifdef SEENAMES
-	{IT_STRING | IT_CVAR, NULL, "Show player names",         &cv_seenames,         86},
+	{IT_STRING | IT_CVAR, NULL, "Show Player Names",         &cv_seenames,        91},
 #endif
 
-	{IT_HEADER, NULL, "Console", NULL, 95},
-	{IT_STRING | IT_CVAR, NULL, "Background color",          &cons_backcolor,      101},
-	{IT_STRING | IT_CVAR, NULL, "Text Size",                 &cv_constextsize,    106},
+	{IT_HEADER, NULL, "Console", NULL, 100},
+	{IT_STRING | IT_CVAR, NULL, "Background color",          &cons_backcolor,     106},
+	{IT_STRING | IT_CVAR, NULL, "Text Size",                 &cv_constextsize,    111},
 
-	{IT_HEADER, NULL, "Chat", NULL, 115},
-	{IT_STRING | IT_CVAR, NULL, "Chat Mode",            		 	 &cv_consolechat,  121},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",    &cv_chatwidth,     126},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",   &cv_chatheight,    131},
-	{IT_STRING | IT_CVAR, NULL, "Message Fadeout Time",              &cv_chattime,    136},
-	{IT_STRING | IT_CVAR, NULL, "Chat Notifications",           	 &cv_chatnotifications,  141},
-	{IT_STRING | IT_CVAR, NULL, "Spam Protection",           		 &cv_chatspamprotection,  146},
-	{IT_STRING | IT_CVAR, NULL, "Chat background tint",           	 &cv_chatbacktint,  151},
+	{IT_HEADER, NULL, "Chat", NULL, 120},
+	{IT_STRING | IT_CVAR, NULL, "Chat Mode",                        &cv_consolechat,        126},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",    &cv_chatwidth,          131},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",   &cv_chatheight,         136},
+	{IT_STRING | IT_CVAR, NULL, "Message Fadeout Time",             &cv_chattime,           141},
+	{IT_STRING | IT_CVAR, NULL, "Chat Notifications",           	&cv_chatnotifications,  146},
+	{IT_STRING | IT_CVAR, NULL, "Spam Protection",                  &cv_chatspamprotection, 151},
+	{IT_STRING | IT_CVAR, NULL, "Chat Background Tint",           	&cv_chatbacktint,       156},
 
-	{IT_HEADER, NULL, "Level", NULL, 160},
-	{IT_STRING | IT_CVAR, NULL, "Draw Distance",             &cv_drawdist,        166},
-	{IT_STRING | IT_CVAR, NULL, "Weather Draw Dist.",        &cv_drawdist_precip, 171},
-	{IT_STRING | IT_CVAR, NULL, "NiGHTS Hoop Draw Dist.",    &cv_drawdist_nights, 176},
+	{IT_HEADER, NULL, "Level", NULL, 165},
+	{IT_STRING | IT_CVAR, NULL, "Draw Distance",             &cv_drawdist,        171},
+	{IT_STRING | IT_CVAR, NULL, "Weather Draw Dist.",        &cv_drawdist_precip, 176},
+	{IT_STRING | IT_CVAR, NULL, "NiGHTS Hoop Draw Dist.",    &cv_drawdist_nights, 181},
 
-	{IT_HEADER, NULL, "Diagnostic", NULL, 184},
-	{IT_STRING | IT_CVAR, NULL, "Show FPS",                  &cv_ticrate,         190},
-	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      195},
-	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   200},
+	{IT_HEADER, NULL, "Diagnostic", NULL, 190},
+	{IT_STRING | IT_CVAR, NULL, "Show FPS",                  &cv_ticrate,         196},
+	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      202},
+	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   208},
 
 #ifdef HWRENDER
-	{IT_HEADER, NULL, "Renderer", NULL, 208},
-	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 214},
+	{IT_HEADER, NULL, "Renderer", NULL, 217},
+	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 223},
 #endif
 };
 
