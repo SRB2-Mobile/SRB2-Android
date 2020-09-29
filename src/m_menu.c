@@ -271,10 +271,11 @@ static tic_t MobileMenuState_GetAnimationTime(INT32 type);
 
 static INT32 M_GetMobileMenuHeight(menu_t *menudef);
 static INT32 M_GetMobileMenuScrollHeight(menu_t *menudef);
+static INT32 M_GetMobileMenuY(menu_t *menudef, INT32 scroll);
 static INT32 M_GetMobileMenuBottomSpacing(void);
 
 static void M_GetMobileMenuElementSize(INT32 e, INT32 *w, INT32 *h);
-static INT32 M_GetMobileMenuElementPos(INT32 e);
+static INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll);
 
 static void M_ScrollMobileMenu(fixed_t scroll);
 
@@ -692,7 +693,9 @@ static menuitem_t MainMenu[] =
 	{IT_STRING|IT_CALL,    NULL, "Extras",      M_SecretsMenu,           92},
 	{IT_CALL  |IT_STRING,  NULL, "Addons",      M_Addons,               100},
 	{IT_STRING|IT_CALL,    NULL, "Options",     M_Options,              108},
+#ifndef TOUCHINPUTS
 	{IT_STRING|IT_CALL,    NULL, "Quit Game",   M_QuitSRB2,             116},
+#endif
 };
 
 typedef enum
@@ -3857,7 +3860,7 @@ static void M_MobileOptScroll(void)
 	mobileMenuState_t *st = &mobileMenuState;
 
 	INT32 dupz = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
-	INT32 pos = M_GetMobileMenuElementPos(itemOn);
+	INT32 pos = M_GetMobileMenuElementPos(itemOn, true);
 	INT32 top, bot;
 	INT32 h, off = 16;
 
@@ -4119,16 +4122,15 @@ INT32 M_GetMobileMenuHeight(menu_t *menudef)
 			case IT_BIGSLIDER:
 				h += MOBILE_LINEHEIGHT;
 				break;
-			case IT_STRING:
-			case IT_STRING2:
-			case IT_WHITESTRING:
 			case IT_TRANSTEXT:
 			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
+				break; // Do nothing
+			case IT_STRING:
+			case IT_STRING2:
+			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
 				str = menudef->menuitems[i].text;
-				if (status == IT_QUESTIONMARKS)
-					str = M_CreateSecretMenuOption(str);
 				M_MenuStringSize(str, V_ALLOWLOWERCASE, MOBILEMENU_FONT_DEFAULT, FRACUNIT, NULL, &th);
 				h += th;
 				break;
@@ -4152,12 +4154,12 @@ static void M_GetMobileMenuHeightVars(menu_t *menudef, INT32 *mh, INT32 *bs, INT
 		*th = totalHeight;
 }
 
-static INT32 M_IsMobileScreenWideFromHeight(INT32 totalHeight)
+static boolean M_IsMobileScreenWideFromHeight(INT32 totalHeight)
 {
 	return ((totalHeight * vid.dupy) < vid.height);
 }
 
-static INT32 M_IsMobileScreenWide(menu_t *menudef)
+static boolean M_IsMobileScreenWide(menu_t *menudef)
 {
 	INT32 totalHeight;
 	M_GetMobileMenuHeightVars(menudef, NULL, NULL, &totalHeight);
@@ -4178,6 +4180,19 @@ INT32 M_GetMobileMenuScrollHeight(menu_t *menudef)
 	return max(menuHeight - (BASEVIDHEIGHT - menudef->y), 0);
 }
 
+INT32 M_GetMobileMenuY(menu_t *menudef, INT32 scroll)
+{
+	if (M_IsMobileScreenWide(menudef))
+	{
+		INT32 h = M_GetMobileMenuHeight(menudef);
+		INT32 y = ((vid.height / (vid.dupy * 2)) - (h / 2));
+		y -= scroll; // (Hopefully no scrolling actually needed)
+		return y;
+	}
+	else
+		return (menudef->y - scroll);
+}
+
 INT32 M_GetMobileMenuBottomSpacing(void)
 {
 	return (MOBILE_LINEHEIGHT * 2);
@@ -4186,16 +4201,20 @@ INT32 M_GetMobileMenuBottomSpacing(void)
 void M_GetMobileMenuElementSize(INT32 e, INT32 *w, INT32 *h)
 {
 	const char *str = currentMenu->menuitems[e].text;
+#if 0
 	if ((currentMenu->menuitems[e].status & IT_DISPLAY) == IT_QUESTIONMARKS)
 		str = M_CreateSecretMenuOption(str);
-
+#endif
 	M_MenuStringSize(str, V_ALLOWLOWERCASE, MOBILEMENU_FONT_DEFAULT, FRACUNIT, w, h);
 }
 
-INT32 M_GetMobileMenuElementPos(INT32 e)
+INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll)
 {
-	INT32 y = currentMenu->y - FixedInt(mobileMenuState.scroll);
+	INT32 y = currentMenu->y;
 	INT32 h, i;
+
+	if (scroll)
+		y -= FixedInt(mobileMenuState.scroll);
 
 	for (i = 0; i < currentMenu->numitems; i++)
 	{
@@ -4214,12 +4233,13 @@ INT32 M_GetMobileMenuElementPos(INT32 e)
 			case IT_BIGSLIDER:
 				y += MOBILE_LINEHEIGHT;
 				break;
-			case IT_STRING:
-			case IT_STRING2:
-			case IT_WHITESTRING:
 			case IT_TRANSTEXT:
 			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
+				break; // Do nothing
+			case IT_STRING:
+			case IT_STRING2:
+			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
 				M_GetMobileMenuElementSize(i, NULL, &h);
 				break;
@@ -4252,10 +4272,9 @@ static boolean M_FingerTouchingMobileSelection(INT32 fx, INT32 fy, INT32 x, INT3
 
 static INT16 M_IsTouchingMobileMenuSelection(INT32 fx, INT32 fy)
 {
-	INT32 x, y, w, h, i;
-
-	x = currentMenu->x;
-	y = currentMenu->y - FixedInt(mobileMenuState.scroll);
+	INT32 x = currentMenu->x;
+	INT32 y = M_GetMobileMenuY(currentMenu, FixedInt(mobileMenuState.scroll));
+	INT32 w, h, i;
 
 	for (i = 0; i < currentMenu->numitems; i++)
 	{
@@ -4274,12 +4293,13 @@ static INT16 M_IsTouchingMobileMenuSelection(INT32 fx, INT32 fy)
 			case IT_BIGSLIDER:
 				y += MOBILE_LINEHEIGHT;
 				break;
-			case IT_STRING:
-			case IT_STRING2:
-			case IT_WHITESTRING:
 			case IT_TRANSTEXT:
 			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
+				break; // Do nothing
+			case IT_STRING:
+			case IT_STRING2:
+			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
 				if (M_FingerTouchingMobileSelection(fx, fy, x, y, &w, &h, i))
 					return i;
@@ -6027,7 +6047,7 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 	// DRAW MENU
 	INT32 x, i;
 	INT32 scroll = FixedInt(st->scroll);
-	INT32 y = menudef->y - scroll;
+	INT32 y = M_GetMobileMenuY(menudef, scroll);
 
 	M_DrawMenuTitle(); // draw title (or big pic)
 
@@ -6110,17 +6130,15 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 				M_DrawThermo(x, y, (consvar_t *)menudef->menuitems[i].itemaction);
 				y += MOBILE_LINEHEIGHT;
 				break;
-			case IT_STRING:
-			case IT_STRING2:
-			case IT_WHITESTRING:
 			case IT_TRANSTEXT:
 			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
+				break; // Do nothing
+			case IT_STRING:
+			case IT_STRING2:
+			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
 				str = menudef->menuitems[i].text;
-				if (status == IT_QUESTIONMARKS)
-					str = M_CreateSecretMenuOption(str);
-
 				flags = (V_SNAPTOLEFT| V_SNAPTOTOP);
 				stringflags = (V_ALLOWLOWERCASE | flags);
 
@@ -15660,8 +15678,10 @@ void M_QuitResponse(INT32 ch)
 
 static void M_QuitSRB2(INT32 choice)
 {
-	// We pick index 0 which is language sensitive, or one at random,
-	// between 1 and maximum number.
 	(void)choice;
-	M_StartYNQuestion(M_GetText("Are you sure you want to close the game?"), M_QuitResponse);
+
+	if (touchscreenexists)
+		M_StartYNQuestion(M_GetText("Are you sure you want to close the game?"), M_QuitResponse);
+	else
+		M_StartMessage(quitmsg[M_RandomKey(NUM_QUITMESSAGES)], M_QuitResponse, MM_YESNO);
 }
