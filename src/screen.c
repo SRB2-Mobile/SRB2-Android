@@ -80,7 +80,7 @@ static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height
 #define NATIVERESCVAR(name, default, possiblevalue) NATIVERESCVAR_CALL(name, default, possiblevalue, SCR_ToggleNativeRes)
 
 consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
-consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "1.5", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
+consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "3", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
 consvar_t cv_nativeresauto = NATIVERESCVAR_CALL("nativeresauto", "On", CV_OnOff, SCR_NativeResAutoChanged);
 consvar_t cv_nativeresfov = NATIVERESCVAR("nativeresfov", "On", CV_OnOff);
 consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Width", nativerescompare_cons_t);
@@ -477,7 +477,7 @@ void SCR_CheckDefaultMode(void)
 		CONS_Printf(M_GetText("Default resolution: %d x %d (%d bits)\n"), cv_scr_width.value,
 			cv_scr_height.value, cv_scr_depth.value);
 		// see note above
-		setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
+		SCR_SetModeFromConfig();
 	}
 
 	SCR_ActuallyChangeRenderer();
@@ -492,6 +492,12 @@ void SCR_SetDefaultMode(void)
 	CV_SetValue(&cv_scr_depth, vid.bpp*8);
 }
 
+// Set the mode number based on the resolution saved in the config
+void SCR_SetModeFromConfig(void)
+{
+	setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
+}
+
 // Change fullscreen on/off according to cv_fullscreen
 void SCR_ChangeFullscreen(void)
 {
@@ -504,6 +510,13 @@ void SCR_ChangeFullscreen(void)
 	if (graphics_started)
 	{
 		VID_PrepareModeList();
+
+#ifdef NATIVESCREENRES
+		if (cv_nativeres.value)
+			SCR_SetModeFromConfig();
+		else
+#endif
+		// Lactozilla: This only works with the preset video modes.
 		setmodeneeded = VID_GetModeForSize(vid.width, vid.height) + 1;
 	}
 	return;
@@ -619,22 +632,17 @@ void SCR_ResetNativeResDivider(void)
 	CV_StealthSet(&cv_nativeresdiv, cv_nativeresdiv.defaultvalue);
 }
 
-static void SCR_ForceSetMode(void)
-{
-	setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
-}
-
 static void SCR_ToggleNativeRes(void)
 {
 	scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
-	SCR_ForceSetMode();
+	SCR_SetModeFromConfig();
 }
 
 static void SCR_NativeResDivChanged(void)
 {
 	CV_StealthSetValue(&cv_nativeresauto, 0);
-	if (cv_nativeres.value)
-		SCR_ToggleNativeRes();
+	CV_StealthSetValue(&cv_nativeres, 1);
+	SCR_ToggleNativeRes();
 }
 
 static void SCR_NativeResAutoChanged(void)
@@ -656,27 +664,29 @@ static void SCR_NativeResAutoChanged(void)
 		SCR_ResetNativeResDivider();
 
 	if (cv_nativeres.value)
-		SCR_ForceSetMode();
+		SCR_SetModeFromConfig();
 }
 
 #define RESDIVFACTOR (1.0f / 16.0f)
 
 float SCR_GetNativeResDivider(INT32 width, INT32 height)
 {
-	(void)height;
-
 	if (cv_nativeresauto.value)
 	{
-		float size = (float)width;
+		float w = (float)width;
+		float h = (float)height;
+		float wsize, hsize;
 		float div = 1.0f;
 
 		while (true)
 		{
-			size = ((float)width / div);
-			if (size < 900.0f)
+			wsize = (w / div);
+			hsize = (h / div);
+
+			if (wsize <= (w / 3) || hsize <= (h / 3))
 				break;
 
-			div += RESDIVFACTOR;
+			div += 1.0f;
 			if (div > 10)
 				break;
 		}

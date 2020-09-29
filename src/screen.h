@@ -217,8 +217,10 @@ void SCR_SetDrawFuncs(void);
 void SCR_Recalc(void);
 // Check parms once at startup
 void SCR_CheckDefaultMode(void);
-// Set the mode number which is saved in the config
-void SCR_SetDefaultMode (void);
+// Saves the current resolution in the config
+void SCR_SetDefaultMode(void);
+// Set the mode number based on the resolution saved in the config
+void SCR_SetModeFromConfig(void);
 
 void SCR_Startup (void);
 
