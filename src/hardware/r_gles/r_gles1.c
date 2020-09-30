@@ -63,9 +63,7 @@ boolean GLBackend_LoadExtraFunctions(void)
 	GETOPENGLFUNC(GenerateMipmap)
 
 	GETOPENGLFUNC(ActiveTexture)
-	GETOPENGLFUNC(MultiTexCoord2f)
 	GETOPENGLFUNC(ClientActiveTexture)
-	GETOPENGLFUNC(MultiTexCoord2fv)
 
 	GETOPENGLFUNC(GenBuffers)
 	GETOPENGLFUNC(BindBuffer)

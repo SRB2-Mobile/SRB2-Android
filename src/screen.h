@@ -178,6 +178,7 @@ extern INT32 setmodeneeded; // mode number to set if needed, or 0
 void SCR_ChangeRenderer(void);
 void SCR_ChangeRendererCVars(INT32 mode);
 extern UINT8 setrenderneeded;
+extern UINT8 renderswitcherror;
 
 extern INT32 scr_bpp;
 extern UINT8 *scr_borderpatch; // patch used to fill the view borders

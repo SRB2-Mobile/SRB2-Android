@@ -58,6 +58,7 @@ void (*spanfuncs_npo2[SPANDRAWFUNC_MAX])(void);
 viddef_t vid;
 INT32 setmodeneeded; //video mode change needed if > 0 (the mode number to set + 1)
 UINT8 setrenderneeded = 0;
+UINT8 renderswitcherror = 0;
 
 static CV_PossibleValue_t scr_depth_cons_t[] = {{8, "8 bits"}, {16, "16 bits"}, {24, "24 bits"}, {32, "32 bits"}, {0, NULL}};
 
@@ -536,7 +537,10 @@ void SCR_ActuallyChangeRenderer(void)
 		if (M_CheckParm("-nogl"))
 			CONS_Alert(CONS_ERROR, "OpenGL rendering was disabled!\n");
 		else
-			CONS_Alert(CONS_ERROR, "OpenGL never loaded\n");
+		{
+			renderswitcherror = render_opengl;
+			CV_StealthSetValue(&cv_newrenderer, rendermode);
+		}
 		setrenderneeded = 0;
 		return;
 	}

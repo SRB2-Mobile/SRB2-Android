@@ -84,6 +84,7 @@
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
+#include "../hardware/r_glcommon/r_glcommon.h" // lastglerror
 // For dynamic referencing of HW rendering functions
 #include "hwsym_sdl.h"
 #include "ogl_sdl.h"
@@ -1663,13 +1664,28 @@ static SDL_bool Impl_CreateContext(void)
 	return SDL_TRUE;
 }
 
+void VID_DisplayGLError(void)
+{
+#ifdef HWRENDER
+	CONS_Alert(CONS_ERROR, "OpenGL never loaded\n");
+
+	if (menuactive)
+	{
+		if (lastglerror)
+			M_StartMessage(va(M_GetText("OpenGL failed to load:\n%s\n\n%s"), lastglerror, M_GetUserActionString(PRESS_A_KEY_MESSAGE)), NULL, MM_NOTHING);
+		else
+			M_ShowAnyKeyMessage("OpenGL failed to load.\nCheck the console\nor log file for details.\n\n");
+	}
+#endif
+}
+
 void VID_CheckGLLoaded(rendermode_t oldrender)
 {
 	(void)oldrender;
 #ifdef HWRENDER
 	if (vid_opengl_state == -1) // Well, it didn't work the first time anyway.
 	{
-		CONS_Alert(CONS_ERROR, "OpenGL never loaded\n");
+		renderswitcherror = render_opengl;
 		rendermode = oldrender;
 		if (chosenrendermode == render_opengl) // fallback to software
 			rendermode = render_soft;
@@ -1734,8 +1750,13 @@ void VID_CheckRenderer(void)
 				}
 #endif
 			}
-			else if (vid_opengl_state == -1)
+
+			if (vid_opengl_state == -1)
+			{
+				renderswitcherror = render_opengl;
 				rendererchanged = false;
+				CV_StealthSetValue(&cv_newrenderer, oldrenderer);
+			}
 		}
 #endif
 

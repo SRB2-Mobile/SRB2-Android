@@ -375,7 +375,7 @@ boolean Shader_Compile(void)
 		gl_vertShader = pglCreateShader(GL_VERTEX_SHADER);
 		if (!gl_vertShader)
 		{
-			Shader_CompileError("Shader_Compile: Error creating vertex shader %d\n", i);
+			Shader_CompileError("Shader_Compile: Error creating vertex shader %d", i);
 			continue;
 		}
 
@@ -404,7 +404,7 @@ boolean Shader_Compile(void)
 		gl_fragShader = pglCreateShader(GL_FRAGMENT_SHADER);
 		if (!gl_fragShader)
 		{
-			Shader_CompileError("Shader_Compile: Error creating fragment shader %d\n", i);
+			Shader_CompileError("Shader_Compile: Error creating fragment shader %d", i);
 			continue;
 		}
 
@@ -444,7 +444,7 @@ boolean Shader_Compile(void)
 		{
 			shader->program = 0;
 			shader->custom = false;
-			Shader_CompileError("Shader_Compile: Error linking shader program %d\n", i);
+			Shader_CompileError("Shader_Compile: Error linking shader program %d", i);
 			continue;
 		}
 

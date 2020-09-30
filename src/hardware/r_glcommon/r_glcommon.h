@@ -61,6 +61,8 @@ void GL_DBG_Printf(const char *format, ...);
 void GL_MSG_Warning(const char *format, ...);
 void GL_MSG_Error(const char *format, ...);
 
+extern char *lastglerror;
+
 #ifdef DEBUG_TO_FILE
 extern FILE *gllogstream;
 #endif
@@ -205,14 +207,8 @@ extern PFNglActiveTexture pglActiveTexture;
 
 #ifndef HAVE_GLES2
 	#ifdef STATIC_OPENGL
-		#define pglMultiTexCoord2f glMultiTexCoord2f
-		#define pglMultiTexCoord2fv glMultiTexCoord2fv
 		#define pglClientActiveTexture glClientActiveTexture
 	#else
-		typedef void (R_GL_APIENTRY * PFNglMultiTexCoord2f) (GLenum, GLfloat, GLfloat);
-		extern PFNglMultiTexCoord2f pglMultiTexCoord2f;
-		typedef void (R_GL_APIENTRY * PFNglMultiTexCoord2fv) (GLenum target, const GLfloat *v);
-		extern PFNglMultiTexCoord2fv pglMultiTexCoord2fv;
 		typedef void (R_GL_APIENTRY * PFNglClientActiveTexture) (GLenum);
 		extern PFNglClientActiveTexture pglClientActiveTexture;
 	#endif
@@ -292,8 +288,6 @@ extern PFNglGenerateMipmap pglGenerateMipmap;
 
 typedef void (R_GL_APIENTRY * PFNglMatrixMode) (GLenum mode);
 extern PFNglMatrixMode pglMatrixMode;
-typedef void (R_GL_APIENTRY * PFNglViewport) (GLint x, GLint y, GLsizei width, GLsizei height);
-extern PFNglViewport pglViewport;
 typedef void (R_GL_APIENTRY * PFNglPushMatrix) (void);
 extern PFNglPushMatrix pglPushMatrix;
 typedef void (R_GL_APIENTRY * PFNglPopMatrix) (void);

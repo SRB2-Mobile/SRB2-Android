@@ -41,7 +41,11 @@ INT32 VID_SetMode(INT32 modenum)
 }
 
 void VID_CheckRenderer(void) {}
-void VID_CheckGLLoaded(rendermode_t oldrender) {}
+void VID_DisplayGLError(void) {}
+void VID_CheckGLLoaded(rendermode_t oldrender)
+{
+	(void)oldrender;
+}
 
 const char *VID_GetModeName(INT32 modenum)
 {

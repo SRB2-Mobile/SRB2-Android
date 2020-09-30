@@ -119,8 +119,6 @@ PFNglActiveTexture pglActiveTexture;
 
 #ifndef HAVE_GLES2
 #ifndef STATIC_OPENGL
-PFNglMultiTexCoord2f pglMultiTexCoord2f;
-PFNglMultiTexCoord2fv pglMultiTexCoord2fv;
 PFNglClientActiveTexture pglClientActiveTexture;
 #endif
 #endif
@@ -663,8 +661,9 @@ void GL_MSG_Warning(const char *format, ...)
 	va_end(arglist);
 
 #ifdef HAVE_SDL
-	CONS_Alert(CONS_WARNING, "%s", str);
+	CONS_Alert(CONS_WARNING, "%s\n", str);
 #endif
+
 #ifdef DEBUG_TO_FILE
 	if (!gllogstream)
 		gllogstream = fopen("ogllog.txt", "w");
@@ -678,6 +677,8 @@ void GL_MSG_Warning(const char *format, ...)
 // Returns          :
 // -----------------+
 
+char *lastglerror = NULL;
+
 void GL_MSG_Error(const char *format, ...)
 {
 	char str[4096] = "";
@@ -688,8 +689,13 @@ void GL_MSG_Error(const char *format, ...)
 	va_end(arglist);
 
 #ifdef HAVE_SDL
-	CONS_Alert(CONS_ERROR, "%s", str);
+	CONS_Alert(CONS_ERROR, "%s\n", str);
+
+	if (lastglerror)
+		free(lastglerror);
+	lastglerror = strcpy(malloc(strlen(str) + 1), str);
 #endif
+
 #ifdef DEBUG_TO_FILE
 	if (!gllogstream)
 		gllogstream = fopen("ogllog.txt", "w");

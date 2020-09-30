@@ -88,7 +88,8 @@ boolean GLBackend_LoadFunctions(void)
 	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
 	if (!(p ## gl ## func)) \
 	{ \
-		GL_MSG_Warning("failed to get OpenGL function: %s", #func); \
+		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
+		return false; \
 	} \
 
 	if (!GLBackend_LoadCommonFunctions())
@@ -118,9 +119,7 @@ boolean GLBackend_LoadFunctions(void)
 boolean GLBackend_LoadExtraFunctions(void)
 {
 	GETOPENGLFUNC(ActiveTexture)
-	GETOPENGLFUNC(MultiTexCoord2f)
 	GETOPENGLFUNC(ClientActiveTexture)
-	GETOPENGLFUNC(MultiTexCoord2fv)
 
 	GETOPENGLFUNC(GenBuffers)
 	GETOPENGLFUNC(BindBuffer)

@@ -296,6 +296,10 @@ static void D_Display(void)
 #endif
 	}
 
+	if (renderswitcherror == render_opengl)
+		VID_DisplayGLError();
+	renderswitcherror = 0;
+
 	if (rendermode == render_soft && !splitscreen)
 		R_CheckViewMorph();
 

@@ -105,9 +105,13 @@ void VID_CheckRenderer(void);
 */
 void VID_StartupOpenGL(void);
 
-/**	\brief Checks if OpenGL loaded
+/**	\brief Checks if OpenGL successfully loaded
 */
 void VID_CheckGLLoaded(rendermode_t oldrender);
+
+/**	\brief Displays an error if OpenGL failed to load
+*/
+void VID_DisplayGLError(void);
 
 /**	\brief	The VID_GetModeName function
 

@@ -953,6 +953,7 @@ INT32 VID_SetMode(INT32 modenum)
 }
 
 void VID_CheckRenderer(void) {}
+void VID_DisplayGLError(void) {}
 void VID_CheckGLLoaded(rendermode_t oldrender)
 {
 	(void)oldrender;
