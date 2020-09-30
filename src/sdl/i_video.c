@@ -969,10 +969,10 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 	D_PostEvent(&event);
 	TS_PostFingerEvent(&event);
 
-	if (!touch_screenexists)
+	if (!touchscreenexists)
 	{
 		I_TouchScreenAvailable();
-		touch_screenexists = true;
+		touchscreenexists = true;
 	}
 }
 
@@ -1398,7 +1398,7 @@ void I_FinishUpdate(void)
 		SCR_DisplayLocalPing();
 
 #ifdef TOUCHINPUTS
-	if (touch_screenexists && cv_showfingers.value)
+	if (touchscreenexists && cv_showfingers.value)
 		SCR_DisplayFingers();
 #endif
 
@@ -1779,6 +1779,26 @@ void VID_CheckRenderer(void)
 #endif
 }
 
+void VID_GetNativeResolution(INT32 *width, INT32 *height)
+{
+	SDL_DisplayMode resolution;
+	int i;
+
+	for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
+	{
+		int nodisplay = SDL_GetCurrentDisplayMode(i, &resolution);
+
+		if (!nodisplay)
+		{
+			if (width)
+				*width = (INT32)(resolution.w);
+			if (height)
+				*height = (INT32)(resolution.h);
+			return;
+		}
+	}
+}
+
 INT32 VID_SetMode(INT32 modeNum)
 {
 	SDLdoUngrabMouse();
@@ -1789,31 +1809,24 @@ INT32 VID_SetMode(INT32 modeNum)
 #ifdef NATIVESCREENRES
 	if (cv_nativeres.value)
 	{
-		int i;
-		SDL_DisplayMode resolution;
+		INT32 w = 0, h = 0;
 
-		for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
-		{
-			int nodisplay = SDL_GetCurrentDisplayMode(i, &resolution);
-			if (!nodisplay)
-			{
-				vid.width = (INT32)(resolution.w) / (cv_nativeresdiv.value);
-				vid.height = (INT32)(resolution.h) / (cv_nativeresdiv.value);
+		SCR_GetNativeResolution(&w, &h);
 
-				if (vid.width > MAXVIDWIDTH)
-					vid.width = MAXVIDWIDTH;
-				else if (vid.width < BASEVIDWIDTH)
-					vid.width = BASEVIDWIDTH;
+		vid.width = (INT32)((float)w / scr_resdiv);
+		vid.height = (INT32)((float)h / scr_resdiv);
 
-				if (vid.height > MAXVIDHEIGHT)
-					vid.height = MAXVIDHEIGHT;
-				else if (vid.height < BASEVIDHEIGHT)
-					vid.height = BASEVIDHEIGHT;
+		if (vid.width > MAXVIDWIDTH)
+			vid.width = MAXVIDWIDTH;
+		else if (vid.width < BASEVIDWIDTH)
+			vid.width = BASEVIDWIDTH;
 
-				break;
-			}
-		}
+		if (vid.height > MAXVIDHEIGHT)
+			vid.height = MAXVIDHEIGHT;
+		else if (vid.height < BASEVIDHEIGHT)
+			vid.height = BASEVIDHEIGHT;
 
+		// Most likely will not exist
 		vid.modenum = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
 	}
 	else

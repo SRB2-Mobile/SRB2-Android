@@ -1296,19 +1296,25 @@ static UINT8 Snake_GetOppositeDir(UINT8 dir)
 		return 12 + 5 - dir;
 }
 
-static void Snake_FindFreeSlot(UINT8 *x, UINT8 *y, UINT8 headx, UINT8 heady)
+static void Snake_FindFreeSlot(UINT8 *freex, UINT8 *freey, UINT8 headx, UINT8 heady)
 {
+	UINT8 x, y;
 	UINT16 i;
 
 	do
 	{
-		*x = M_RandomKey(SNAKE_NUM_BLOCKS_X);
-		*y = M_RandomKey(SNAKE_NUM_BLOCKS_Y);
+		x = M_RandomKey(SNAKE_NUM_BLOCKS_X);
+		y = M_RandomKey(SNAKE_NUM_BLOCKS_Y);
 
 		for (i = 0; i < snake->snakelength; i++)
-			if (*x == snake->snakex[i] && *y == snake->snakey[i])
+			if (x == snake->snakex[i] && y == snake->snakey[i])
 				break;
-	} while (i < snake->snakelength || (*x == headx && *y == heady));
+	} while (i < snake->snakelength || (x == headx && y == heady)
+		|| (x == snake->applex && y == snake->appley)
+		|| (snake->bonustype != SNAKE_BONUS_NONE && x == snake->bonusx && y == snake->bonusy));
+
+	*freex = x;
+	*freey = y;
 }
 
 static void Snake_Handle(void)
@@ -1439,7 +1445,7 @@ static void Snake_Handle(void)
 	// Check collision with apple
 	if (x == snake->applex && y == snake->appley)
 	{
-		if (snake->snakelength + 1 < SNAKE_NUM_BLOCKS_X * SNAKE_NUM_BLOCKS_Y)
+		if (snake->snakelength + 3 < SNAKE_NUM_BLOCKS_X * SNAKE_NUM_BLOCKS_Y)
 		{
 			snake->snakelength++;
 			snake->snakex  [snake->snakelength - 1] = snake->snakex  [snake->snakelength - 2];
@@ -2557,11 +2563,11 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 			CL_Reset();
 			D_StartTitle();
 			if (serverlist[i].info.refusereason == 1)
-				M_StartMessage(M_GetText("The server is not accepting\njoins for the moment.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+				M_ShowESCMessage("The server is not accepting\njoins for the moment.\n\n");
 			else if (serverlist[i].info.refusereason == 2)
-				M_StartMessage(va(M_GetText("Maximum players reached: %d\n\n" PRESS_ESC_MESSAGE), serverlist[i].info.maxplayer), NULL, MM_NOTHING);
+				M_StartMessage(va(M_GetText("Maximum players reached: %d\n\n%s"), serverlist[i].info.maxplayer, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 			else
-				M_StartMessage(M_GetText("You can't join.\nI don't know why,\nbut you can't join.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+				M_ShowESCMessage("You can't join.\nI don't know why,\nbut you can't join.\n\n");
 			return false;
 		}
 
@@ -2576,12 +2582,10 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				D_QuitNetGame();
 				CL_Reset();
 				D_StartTitle();
-				M_StartMessage(M_GetText(
+				M_ShowESCMessage(
 					"You have too many WAD files loaded\n"
 					"to add ones the server is using.\n"
-					"Please restart SRB2 before connecting.\n\n"
-					PRESS_ESC_MESSAGE
-				), NULL, MM_NOTHING);
+					"Please restart SRB2 before connecting.\n\n");
 				return false;
 			}
 			else if (i == 2) // cannot join for some reason
@@ -2589,14 +2593,12 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				D_QuitNetGame();
 				CL_Reset();
 				D_StartTitle();
-				M_StartMessage(M_GetText(
-					"You have WAD files loaded or have\n"
-					"modified the game in some way, and\n"
-					"your file list does not match\n"
-					"the server's file list.\n"
-					"Please restart SRB2 before connecting.\n\n"
-					PRESS_ESC_MESSAGE
-				), NULL, MM_NOTHING);
+				M_ShowESCMessage(
+					"You have the wrong addons loaded.\n\n"
+					"To play on this server, restart\n"
+					"the game and don't load any addons.\n"
+					"SRB2 will automatically add\n"
+					"everything you need when you join.\n\n");
 				return false;
 			}
 			else if (i == 1)
@@ -2610,14 +2612,12 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 					D_QuitNetGame();
 					CL_Reset();
 					D_StartTitle();
-					M_StartMessage(M_GetText(
+					M_ShowESCMessage(
 						"You cannot connect to this server\n"
 						"because you cannot download the files\n"
 						"that you are missing from the server.\n\n"
 						"See the console or log file for\n"
-						"more details.\n\n"
-						PRESS_ESC_MESSAGE
-					), NULL, MM_NOTHING);
+						"more details.\n\n");
 					return false;
 				}
 				// no problem if can't send packet, we will retry later
@@ -2746,7 +2746,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		{
 			G_MapEventsToControls(&events[eventtail]);
 #ifdef TOUCHINPUTS
-			if (touch_screenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
+			if (touchscreenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
 				exit = true;
 #endif
 		}
@@ -2758,7 +2758,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		{
 			CONS_Printf(M_GetText("Network game synchronization aborted.\n"));
 #ifdef TOUCHINPUTS
-			M_StartMessage(M_GetText("Network game synchronization aborted.\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Network game synchronization aborted.\n\n");
 #endif
 
 #ifndef NONET
@@ -3253,6 +3253,8 @@ static void CL_RemovePlayer(INT32 playernum, kickreason_t reason)
 	// Reset the name
 	sprintf(player_names[playernum], "Player %d", playernum+1);
 
+	player_name_changes[playernum] = 0;
+
 	if (IsPlayerAdmin(playernum))
 	{
 		RemoveAdminPlayer(playernum); // don't stay admin after you're gone
@@ -3724,17 +3726,17 @@ static void Got_KickCmd(UINT8 **p, INT32 playernum)
 		CL_Reset();
 		D_StartTitle();
 		if (msg == KICK_MSG_CON_FAIL)
-			M_StartMessage(M_GetText("Server closed connection\n(synch failure)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Server closed connection\n(synch failure)\n");
 		else if (msg == KICK_MSG_PING_HIGH)
-			M_StartMessage(M_GetText("Server closed connection\n(Broke ping limit)\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("Server closed connection\n(Broke ping limit)\n");
 		else if (msg == KICK_MSG_BANNED)
-			M_StartMessage(M_GetText("You have been banned by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("You have been banned by the server\n\n");
 		else if (msg == KICK_MSG_CUSTOM_KICK)
-			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been kicked\n(%s)\n%s"), reason, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		else if (msg == KICK_MSG_CUSTOM_BAN)
-			M_StartMessage(va(M_GetText("You have been banned\n(%s)\n" PRESS_ESC_MESSAGE), reason), NULL, MM_NOTHING);
+			M_StartMessage(va(M_GetText("You have been banned\n(%s)\n%s"), reason, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		else
-			M_StartMessage(M_GetText("You have been kicked by the server\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+			M_ShowESCMessage("You have been kicked by the server\n\n");
 	}
 	else if (keepbody)
 	{
@@ -3868,6 +3870,8 @@ void SV_ResetServer(void)
 		sprintf(player_names[i], "Player %d", i + 1);
 		adminplayers[i] = -1; // Populate the entire adminplayers array with -1.
 	}
+
+	memset(player_name_changes, 0, sizeof player_name_changes);
 
 	mynode = 0;
 	cl_packetmissed = false;
@@ -4391,7 +4395,7 @@ static void HandleShutdown(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server has shutdown\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+	M_ShowESCMessage("Server has shutdown\n\n");
 }
 
 /** Called when a PT_NODETIMEOUT packet is received
@@ -4407,7 +4411,7 @@ static void HandleTimeout(SINT8 node)
 	D_QuitNetGame();
 	CL_Reset();
 	D_StartTitle();
-	M_StartMessage(M_GetText("Server Timeout\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+	M_ShowESCMessage("Server Timeout\n\n");
 }
 
 #ifndef NONET
@@ -5530,10 +5534,14 @@ void TryRunTics(tic_t realtics)
 			{
 				DEBFILE(va("============ Running tic %d (local %d)\n", gametic, localgametic));
 
+				rs_tictime = I_GetTimeMicros();
+
 				G_Ticker((gametic % NEWTICRATERATIO) == 0);
 				ExtraDataTicker();
 				gametic++;
 				consistancy[gametic%BACKUPTICS] = Consistancy();
+
+				rs_tictime = I_GetTimeMicros() - rs_tictime;
 
 				// Leave a certain amount of tics present in the net buffer as long as we've ran at least one tic this frame.
 				if (client && gamestate == GS_LEVEL && leveltime > 3 && neededtic <= gametic + cv_netticbuffer.value)

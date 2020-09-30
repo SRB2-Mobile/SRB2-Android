@@ -25,6 +25,8 @@
 #include "st_stuff.h"
 #include "hu_stuff.h" // chat (:LMFAOOO1:)
 
+#include "s_sound.h" // S_StartSound
+
 #ifdef TOUCHINPUTS
 boolean ts_ready = false;
 
@@ -52,8 +54,7 @@ touchconfigstatus_t touchnavigationstatus;
 INT32 touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h;
 fixed_t touch_gui_scale;
 
-// Is the touch screen available?
-boolean touch_screenexists = false;
+// Is the touch screen available for game inputs?
 boolean touch_useinputs = true;
 consvar_t cv_showfingers = {"showfingers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
@@ -77,7 +78,7 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 	{touchpreset_tiny, "Tiny"},
 	{0, NULL}};
 
-consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchstyle =  {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, TS_PresetChanged, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_touchlayout = {"touch_layout", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, TS_LoadLayoutFromCVar, 0, NULL, NULL, 0, 0, NULL};
@@ -91,7 +92,49 @@ consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t,
 consvar_t cv_touchmenutrans = {"touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 // Touch layout options
-consvar_t cv_touchlayoutusegrid = {"touch_layoutusegrid", "On", CV_CALL|CV_NOINIT, CV_OnOff, TS_SynchronizeCurrentLayout, 0, NULL, NULL, 0, 0, NULL};
+#define TOUCHLAYOUTCVAR(name, default, func) {name, default, CV_CALL|CV_NOINIT, CV_YesNo, func, 0, NULL, NULL, 0, 0, NULL}
+
+static void ClearLayoutAndKeepSettings(void)
+{
+	TS_ClearCurrentLayout(false);
+	TS_SynchronizeCurrentLayout();
+}
+
+static void UseGrid_OnChange(void)
+{
+	if (usertouchlayout->widescreen)
+	{
+		CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
+		M_ShowESCMessage("You cannot change this option\nif the layout is widescreen.\n\n");
+		return;
+	}
+
+	TS_SynchronizeCurrentLayout();
+	userlayoutnew = false;
+}
+
+static void WideScreen_OnChangeResponse(INT32 ch)
+{
+	if (ch != 'y' && ch != KEY_ENTER)
+	{
+		CV_StealthSetValue(&cv_touchlayoutwidescreen, usertouchlayout->widescreen);
+		return;
+	}
+
+	ClearLayoutAndKeepSettings();
+	S_StartSound(NULL, sfx_appear);
+}
+
+static void WideScreen_OnChange(void)
+{
+	if (userlayoutnew)
+		ClearLayoutAndKeepSettings();
+	else
+		M_StartMessage(va("Changing this option will clear the current layout.\nProceed anyway?\n\n(%s)\n", M_GetUserActionString(CONFIRM_MESSAGE)), WideScreen_OnChangeResponse, MM_YESNO);
+}
+
+consvar_t cv_touchlayoutusegrid = TOUCHLAYOUTCVAR("touch_layoutusegrid", "Yes", UseGrid_OnChange);
+consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "Yes", WideScreen_OnChange);
 
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
@@ -106,7 +149,7 @@ consvar_t cv_touchjoydeadzone = {"touch_joydeadzone", "0.125", CV_FLOAT|CV_SAVE,
 
 boolean TS_IsCustomizingControls(void)
 {
-	return M_IsCustomizingTouchControls();
+	return M_IsCustomizingTouchControls(); // How redundant
 }
 
 void TS_RegisterVariables(void)
@@ -118,6 +161,7 @@ void TS_RegisterVariables(void)
 
 	// Layout settings
 	CV_RegisterVar(&cv_touchlayoutusegrid);
+	CV_RegisterVar(&cv_touchlayoutwidescreen);
 
 	// Preset settings
 	CV_RegisterVar(&cv_touchguiscale);
@@ -344,7 +388,7 @@ void TS_HandleFingerEvent(event_t *ev)
 				}
 
 				// Ignore disabled player controls
-				if (!touch_useinputs && TS_ButtonIsPlayerControl(gc))
+				if (!touch_useinputs && TS_ButtonIsPlayerControl(i))
 					continue;
 
 				// Check if your finger touches this button.
@@ -508,6 +552,8 @@ void TS_UpdateFingers(INT32 realtics)
 		finger->lasty = finger->y;
 		finger->lastfx = finger->fx;
 		finger->lastfy = finger->fy;
+		finger->lastdx = finger->dx;
+		finger->lastdy = finger->dy;
 
 		// Run finger long press action
 		if (finger->longpressaction)
@@ -521,6 +567,19 @@ void TS_UpdateFingers(INT32 realtics)
 				finger->longpress = 0;
 			}
 		}
+		// Mode Attack retry
+		else if (finger->down && finger->u.gamecontrol == gc_pause && G_InGameInput())
+		{
+			if (pausedelay < 0)
+				finger->longpress = 0;
+			else if (finger->longpress < TICRATE)
+			{
+				pausedelay = 3;
+				finger->longpress++;
+			}
+			else if (G_CanRetryModeAttack())
+				G_HandlePauseKey(false);
+		}
 	}
 }
 
@@ -532,6 +591,8 @@ void TS_PostFingerEvent(event_t *event)
 	finger->y = event->y;
 	finger->fx = event->fx;
 	finger->fy = event->fy;
+	finger->dx = event->dx;
+	finger->dy = event->dy;
 	finger->pressure = event->pressure;
 
 	if (event->type == ev_touchdown)
@@ -690,7 +751,9 @@ static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status,
 
 		if (status)
 		{
-			if (status->ringslinger)
+			if (status->altliveshud)
+				touch_joystick_y += 8 * FRACUNIT;
+			else if (status->ringslinger)
 				touch_joystick_y -= 4 * FRACUNIT;
 
 			if (status->specialstage && !status->nights)
@@ -707,7 +770,9 @@ static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status,
 
 		if (status)
 		{
-			if (status->ringslinger)
+			if (status->altliveshud)
+				touch_joystick_y += 16 * FRACUNIT;
+			else if (status->ringslinger)
 				touch_joystick_y -= 8 * FRACUNIT;
 
 			if (status->specialstage && !status->nights)
@@ -737,7 +802,7 @@ void TS_DenormalizeCoords(fixed_t *x, fixed_t *y)
 
 void TS_CenterCoords(fixed_t *x, fixed_t *y)
 {
-	if (!TS_IsPresetActive())
+	if (!usertouchlayout->widescreen)
 	{
 		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 		if (vid.width != BASEVIDWIDTH * dup)
@@ -749,7 +814,7 @@ void TS_CenterCoords(fixed_t *x, fixed_t *y)
 
 void TS_CenterIntegerCoords(INT32 *x, INT32 *y)
 {
-	if (!TS_IsPresetActive())
+	if (!usertouchlayout->widescreen)
 	{
 		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 		if (vid.width != BASEVIDWIDTH * dup)
@@ -886,13 +951,14 @@ void TS_MarkDPadButtons(touchconfig_t *controls)
 	}
 }
 
-void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny)
+void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
+					touchmovementstyle_e tms, fixed_t scale,
+					boolean tiny, boolean widescreen)
 {
 	fixed_t x, y, w, h;
 	fixed_t dx, dy, dw, dh;
 	fixed_t corneroffset = 4 * FRACUNIT;
-	fixed_t rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
-	fixed_t bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
+	fixed_t topcorner, bottomcorner, rightcorner;
 	fixed_t jsoffs = status->ringslinger ? (-4 * FRACUNIT) : 0, jumph;
 	fixed_t offs = (promptactive ? -16 : 0);
 	fixed_t nonjoyoffs = -12 * FRACUNIT;
@@ -902,8 +968,24 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	boolean bothvisible;
 	boolean eithervisible;
 
+	if (widescreen)
+	{
+		rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
+		bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
+	}
+	else
+	{
+		rightcorner = BASEVIDWIDTH * FRACUNIT;
+		bottomcorner = BASEVIDHEIGHT * FRACUNIT;
+	}
+
+	if (status->altliveshud)
+		topcorner = (ST_GetLivesHUDInfo()->y * FRACUNIT) + (16 * FRACUNIT) + corneroffset;
+	else
+		topcorner = corneroffset;
+
 	// For the D-Pad
-	if (vid.height != BASEVIDHEIGHT * vid.dupy)
+	if (widescreen && (vid.height != BASEVIDHEIGHT * vid.dupy))
 		bottomalign = ((vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy) * FRACUNIT;
 
 	TS_GetJoystick(&dx, &dy, &dw, &dh, tiny);
@@ -1011,7 +1093,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchm
 	controls[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].x = (rightcorner - controls[gc_systemmenu].w - corneroffset);
-	controls[gc_systemmenu].y = (corneroffset + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
+	controls[gc_systemmenu].y = (topcorner + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
 
 	// Pause
 	controls[gc_pause].x = controls[gc_systemmenu].x;
@@ -1191,7 +1273,7 @@ void TS_PositionButtons(void)
 	if (TS_IsPresetActive())
 	{
 		memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
-		TS_BuildPreset(touchcontrols, status, touch_movementstyle, touch_gui_scale, (touch_preset == touchpreset_tiny));
+		TS_BuildPreset(touchcontrols, status, touch_movementstyle, touch_gui_scale, (touch_preset == touchpreset_tiny), true);
 	}
 
 	// Weapon select slots
@@ -1236,7 +1318,7 @@ void TS_PresetChanged(void)
 	if (!TS_IsPresetActive())
 	{
 		// Make a default custom controls set
-		TS_DefaultControlLayout();
+		TS_DefaultControlLayout(true);
 
 		// Copy custom controls
 		M_Memcpy(&touchcontrols, usertouchcontrols, sizeof(touchconfig_t) * num_gamecontrols);
@@ -1256,6 +1338,7 @@ void TS_PresetChanged(void)
 void TS_PositionNavigation(void)
 {
 	INT32 i;
+	touchconfigstatus_t *status = &touchnavigationstatus;
 	touchconfig_t *nav = touchnavigation;
 	INT32 corneroffset = 4 * FRACUNIT;
 
@@ -1270,7 +1353,9 @@ void TS_PositionNavigation(void)
 		nav[i].color = 16;
 
 	// Back
-	if (touchnavigationstatus.customizingcontrols)
+	if (!status->canreturn)
+		back->hidden = true;
+	else if (status->customizingcontrols)
 	{
 		back->w = 16 * FRACUNIT;
 		back->h = 16 * FRACUNIT;
@@ -1288,9 +1373,9 @@ void TS_PositionNavigation(void)
 	back->name = "\x1C";
 
 	// Confirm
-	if (touchnavigationstatus.layoutsubmenuopen)
+	if (status->layoutsubmenuopen || !status->canconfirm)
 		confirm->hidden = true;
-	else if (touchnavigationstatus.customizingcontrols)
+	else if (status->customizingcontrols)
 	{
 		confirm->w = 32 * FRACUNIT;
 		confirm->h = 16 * FRACUNIT;
@@ -1308,7 +1393,7 @@ void TS_PositionNavigation(void)
 	}
 
 	// Console
-	if (!touchnavigationstatus.canopenconsole)
+	if (!status->canopenconsole)
 		con->hidden = true;
 	else
 	{
@@ -1344,6 +1429,7 @@ void TS_DefineButtons(void)
 		status.preset = touch_preset;
 		status.movementstyle = touch_movementstyle;
 
+		status.altliveshud = ST_AltLivesHUDEnabled();
 		status.ringslinger = G_RingSlingerGametype();
 		status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
 		status.nights = (maptol & TOL_NIGHTS);
@@ -1385,7 +1471,9 @@ void TS_DefineButtons(void)
 	navstatus.vidheight = vid.height;
 	navstatus.customizingcontrols = TS_IsCustomizingControls();
 	navstatus.layoutsubmenuopen = TS_IsCustomizationSubmenuOpen();
-	navstatus.canopenconsole = (!(modeattacking || metalrecording) && !navstatus.customizingcontrols);
+	navstatus.canreturn = M_TSNav_CanShowBack();
+	navstatus.canconfirm = M_TSNav_CanShowConfirm();
+	navstatus.canopenconsole = ((!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole());
 
 	if (memcmp(&navstatus, &touchnavigationstatus, size))
 	{

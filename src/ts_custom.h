@@ -42,6 +42,7 @@ typedef struct
 	boolean saved, loaded;
 
 	boolean usegridlimits;
+	boolean widescreen;
 } touchlayout_t;
 
 extern touchlayout_t *touchlayouts;
@@ -50,6 +51,7 @@ extern INT32 numtouchlayouts;
 extern touchlayout_t *usertouchlayout;
 extern INT32 usertouchlayoutnum;
 extern boolean userlayoutsaved;
+extern boolean userlayoutnew;
 
 #define UNSAVEDTOUCHLAYOUT -1
 
@@ -67,13 +69,14 @@ void TS_NewLayout(void);
 void TS_ClearLayout(touchlayout_t *layout);
 void TS_DeleteLayout(INT32 layoutnum);
 
-void TS_DefaultControlLayout(void);
-void TS_BuildLayoutFromPreset(touchconfig_t *config);
-void TS_ClearCurrentLayout(void);
+void TS_DefaultControlLayout(boolean makelayout);
+void TS_BuildLayoutFromPreset(touchlayout_t *layout);
+void TS_ClearCurrentLayout(boolean setdefaults);
 
 void TS_SetDefaultLayoutSettings(touchlayout_t *layout);
-void TS_SynchronizeLayoutCvarsToSettings(touchlayout_t *layout);
-void TS_SynchronizeLayoutSettingsToCvars(touchlayout_t *layout);
+void TS_SetDefaultLayoutSettingsCompat(touchlayout_t *layout);
+void TS_SynchronizeLayoutCvarsFromSettings(touchlayout_t *layout);
+void TS_SynchronizeLayoutSettingsFromCvars(touchlayout_t *layout);
 void TS_SynchronizeCurrentLayout(void);
 
 void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from);

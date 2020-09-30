@@ -347,7 +347,7 @@ static void D_Display(void)
 				else if (F_TryColormapFade(31))
 					wipetypepost = -1; // Don't run the fade below this one
 				F_WipeEndScreen();
-				F_RunWipe(wipetypepre, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
+				F_RunWipe(wipetypepre, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
 			}
 
 			F_WipeStartScreen();
@@ -508,6 +508,8 @@ static void D_Display(void)
 				lastdraw = false;
 			}
 
+			rs_uitime = I_GetTimeMicros();
+
 			if (gamestate == GS_LEVEL)
 			{
 				ST_Drawer();
@@ -516,6 +518,10 @@ static void D_Display(void)
 			}
 			else
 				F_TitleScreenDrawer();
+		}
+		else
+		{
+			rs_uitime = I_GetTimeMicros();
 		}
 	}
 
@@ -557,6 +563,8 @@ static void D_Display(void)
 
 	CON_Drawer();
 
+	rs_uitime = I_GetTimeMicros() - rs_uitime;
+
 	//
 	// wipe update
 	//
@@ -590,7 +598,7 @@ static void D_Display(void)
 				wipestyleflags &= ~WSF_FADEOUT;
 			}
 
-			F_RunWipe(wipetypepost, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
+			F_RunWipe(wipetypepost, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
 		}
 
 		// reset counters so timedemo doesn't count the wipe duration
@@ -670,8 +678,12 @@ static void D_Display(void)
 				V_DrawThinString(30, 60, V_MONOSPACE | V_YELLOWMAP, s);
 				snprintf(s, sizeof s - 1, "sdrw %d", rs_hw_spritedrawtime / divisor);
 				V_DrawThinString(30, 70, V_MONOSPACE | V_YELLOWMAP, s);
-				snprintf(s, sizeof s - 1, "fin  %d", rs_swaptime / divisor);
+				snprintf(s, sizeof s - 1, "ui   %d", rs_uitime / divisor);
 				V_DrawThinString(30, 80, V_MONOSPACE | V_YELLOWMAP, s);
+				snprintf(s, sizeof s - 1, "fin  %d", rs_swaptime / divisor);
+				V_DrawThinString(30, 90, V_MONOSPACE | V_YELLOWMAP, s);
+				snprintf(s, sizeof s - 1, "tic  %d", rs_tictime / divisor);
+				V_DrawThinString(30, 105, V_MONOSPACE | V_GRAYMAP, s);
 				if (cv_glbatching.value)
 				{
 					snprintf(s, sizeof s - 1, "bsrt %d", rs_hw_batchsorttime / divisor);
@@ -704,8 +716,12 @@ static void D_Display(void)
 				V_DrawThinString(30, 50, V_MONOSPACE | V_YELLOWMAP, s);
 				snprintf(s, sizeof s - 1, "mskd %d", rs_sw_maskedtime / divisor);
 				V_DrawThinString(30, 60, V_MONOSPACE | V_YELLOWMAP, s);
-				snprintf(s, sizeof s - 1, "fin  %d", rs_swaptime / divisor);
+				snprintf(s, sizeof s - 1, "ui   %d", rs_uitime / divisor);
 				V_DrawThinString(30, 70, V_MONOSPACE | V_YELLOWMAP, s);
+				snprintf(s, sizeof s - 1, "fin  %d", rs_swaptime / divisor);
+				V_DrawThinString(30, 80, V_MONOSPACE | V_YELLOWMAP, s);
+				snprintf(s, sizeof s - 1, "tic  %d", rs_tictime / divisor);
+				V_DrawThinString(30, 95, V_MONOSPACE | V_GRAYMAP, s);
 			}
 		}
 
@@ -769,6 +785,12 @@ void D_SRB2Loop(void)
 	// make sure to do a d_display to init mode _before_ load a level
 	SCR_SetMode(); // change video mode
 	SCR_Recalc();
+
+#ifdef TOUCHINPUTS
+	if (usertouchcontrols == NULL)
+		TS_DefaultControlLayout(true);
+	TS_UpdateControls();
+#endif
 
 	// Check and print which version is executed.
 	// Use this as the border between setup and the main game loop being entered.
@@ -981,7 +1003,7 @@ void D_StartTitle(void)
 #ifdef TOUCHINPUTS
 			"Tap 'Confirm' to save\nTap 'Back' to keep \nyour current controls",
 #else
-			PRESS_Y_MESSAGE" or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
+			"Press 'Y' or 'Enter' to confirm\nPress 'N' or any key to keep \nyour current controls",
 #endif
 			M_TutorialSaveControlResponse, MM_YESNO);
 	}
@@ -1018,7 +1040,7 @@ static inline void D_CleanFile(void)
 		startupwadfiles[pnumwadfiles] = NULL;
 	}
 
-#ifdef UNPACK_FILES_PROGRESS
+#ifdef UNPACK_FILES
 	UnpackFile_ProgressClear();
 #endif
 }
@@ -1412,7 +1434,6 @@ void D_SRB2Main(void)
 #ifdef TOUCHINPUTS
 	TS_InitLayouts();
 	TS_LoadUserLayouts(); // will call TS_LoadLayouts
-	TS_UpdateControls();
 #endif
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)

@@ -165,6 +165,7 @@ void G_ResetJoysticks(void);
 void G_ResetMice(void);
 
 boolean G_HandlePauseKey(boolean ispausebreak);
+boolean G_CanRetryModeAttack(void);
 boolean G_DoViewpointSwitch(void);
 boolean G_ToggleChaseCam(void);
 boolean G_ToggleChaseCam2(void);
@@ -174,6 +175,10 @@ extern INT32 gamecontrol[num_gamecontrols][2];
 extern INT32 gamecontrolbis[num_gamecontrols][2]; // secondary splitscreen player
 extern INT32 gamecontroldefault[num_gamecontrolschemes][num_gamecontrols][2]; // default control storage, use 0 (gcs_custom) for memory retention
 extern INT32 gamecontrolbisdefault[num_gamecontrolschemes][num_gamecontrols][2];
+
+// Is there a touch screen in the device?
+// (Moved from ts_main.h)
+extern boolean touchscreenexists;
 
 #ifdef TOUCHINPUTS
 extern UINT8 touchcontroldown[num_gamecontrols];

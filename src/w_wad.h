@@ -147,7 +147,7 @@ extern wadfile_t *wadfiles[MAX_WADFILES];
 void W_Shutdown(void);
 
 // Opens a WAD file. Returns the file handle for the file, or NULL if not found or could not be opened
-void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean mainfile, boolean useerrors);
+void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors);
 
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
 UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup);
@@ -166,13 +166,17 @@ void W_FileLoadError(const char *fmt, ...);
 boolean W_UnpackFile(const char *filename, void *handle);
 
 // Checks if a file can be unpacked.
-boolean W_CanUnpackFile(const char *filename);
+boolean W_CanUnpackFile(const char *filename, size_t *filesize);
+
+// Count the total number of files to unpack
+boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles);
+
+// Unpack the main files needed at startup.
+void W_UnpackBaseFiles(void);
 
 #define UNPACK_BUFFER_SIZE 4096
-#define UNPACK_FILES_PROGRESS
 
 // Reports unpacking progress
-#ifdef UNPACK_FILES_PROGRESS
 typedef struct unpack_progress_s
 {
 	int status;
@@ -185,7 +189,6 @@ void UnpackFile_ProgressClear(void);
 void UnpackFile_ProgressSetReportFlag(boolean flag);
 void UnpackFile_ProgressSetTotalFiles(int files);
 void UnpackFile_ProgressReport(int progress);
-#endif
 
 #ifdef UNPACK_FILES_DEBUG
 void Command_Unpacktest_f(void);

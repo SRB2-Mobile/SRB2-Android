@@ -129,11 +129,14 @@ extern char logfilename[1024];
 #define VERSIONSTRING "Development EXE"
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
+// VERSIONSTRING_RC is for the resource-definition script used by windows builds
 #else
 #ifdef BETAVERSION
 #define VERSIONSTRING "v"SRB2VERSION" "BETAVERSION
+#define VERSIONSTRING_RC SRB2VERSION " " BETAVERSION "\0"
 #else
 #define VERSIONSTRING "v"SRB2VERSION
+#define VERSIONSTRING_RC SRB2VERSION "\0"
 #endif
 // Hey! If you change this, add 1 to the MODVERSION below!
 // Otherwise we can't force updates!
@@ -186,8 +189,7 @@ extern char logfilename[1024];
 "You will not be able to connect to\n"\
 "the Master Server until you update to\n"\
 "the newest version of the game.\n"\
-"\n"\
-PRESS_A_KEY_MESSAGE
+"\n%s"
 
 // The string used in the I_Error alert upon trying to host through command line parameters.
 // Generally less filled with newlines, since Windows gives you lots more room to work with.

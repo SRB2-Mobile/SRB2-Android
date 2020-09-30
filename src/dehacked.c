@@ -9364,6 +9364,7 @@ static const char *const POWERS_LIST[] = {
 
 static const char *const HUDITEMS_LIST[] = {
 	"LIVES",
+	"LIVESALT",
 
 	"RINGS",
 	"RINGSNUM",

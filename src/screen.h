@@ -34,28 +34,18 @@
 #define ST_HEIGHT 32
 #define ST_WIDTH 320
 
-// used now as a maximum video mode size for extra vesa modes.
-
 // we try to re-allocate a minimum of buffers for stability of the memory,
 // so all the small-enough tables based on screen size, are allocated once
 // and for all at the maximum size.
-#define MAXVIDWIDTH 1920 // don't set this too high because actually
-#define MAXVIDHEIGHT 1200 // lots of tables are allocated with the MAX size.
+
+// Lactozilla: Changed from 1920x1200 to 2160x1080.
+// Fairly common phone resolution (aspect ratio is 18:9)
+#define MAXVIDWIDTH 2160 // don't set this too high because actually
+#define MAXVIDHEIGHT 1080 // lots of tables are allocated with the MAX size.
 
 // NEVER CHANGE THIS! This is the original resolution of the graphics.
 #define BASEVIDWIDTH 320
 #define BASEVIDHEIGHT 200
-
-// Lactozilla: Default screen resolution,
-// as per the cv_scr_width and cv_scr_height CVARs.
-#if !defined(__ANDROID__)
-#define CONFIGVIDWIDTH "1280"
-#define CONFIGVIDHEIGHT "800"
-#else
-// In an Android build, the default resolution is 320x200
-#define CONFIGVIDWIDTH "320"
-#define CONFIGVIDHEIGHT "200"
-#endif
 
 // global video state
 typedef struct viddef_s
@@ -198,8 +188,20 @@ extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_re
 
 #ifdef NATIVESCREENRES
 extern consvar_t cv_nativeres;
-extern consvar_t cv_nativeresdiv, cv_nativerescompare;
-extern consvar_t cv_nativeresfov;
+extern consvar_t cv_nativeresdiv, cv_nativeresauto;
+extern consvar_t cv_nativeresfov, cv_nativerescompare;
+
+void SCR_GetNativeResolution(INT32 *width, INT32 *height);
+
+float SCR_GetNativeResDivider(INT32 width, INT32 height);
+
+float SCR_GetMaxNativeResDivider(void);
+void SCR_SetMaxNativeResDivider(float max);
+
+void SCR_ResetNativeResDivider(void);
+
+extern float scr_resdiv;
+extern INT32 scr_nativewidth, scr_nativeheight;
 #endif
 
 #ifdef HWRENDER
@@ -215,8 +217,10 @@ void SCR_SetDrawFuncs(void);
 void SCR_Recalc(void);
 // Check parms once at startup
 void SCR_CheckDefaultMode(void);
-// Set the mode number which is saved in the config
-void SCR_SetDefaultMode (void);
+// Saves the current resolution in the config
+void SCR_SetDefaultMode(void);
+// Set the mode number based on the resolution saved in the config
+void SCR_SetModeFromConfig(void);
 
 void SCR_Startup (void);
 

@@ -32,6 +32,7 @@ typedef boolean (*longpressaction_t) (void *finger);
 typedef struct
 {
 	INT32 x, y;
+	INT32 dx, dy;
 	float fx, fy;
 	float pressure;
 	boolean down;
@@ -41,7 +42,11 @@ typedef struct
 
 	INT32 lastx, lasty;
 	float lastfx, lastfy;
-	boolean ignoremotion;
+	INT32 lastdx, lastdy;
+
+	INT32 action;
+	boolean extrahandling, navinput;
+	boolean scrolling, ignoremotion;
 
 	// A finger has either a game control or a key input down.
 	union {
@@ -120,8 +125,8 @@ enum
 	FINGERMOTION_MOUSE,
 };
 
-// Is the touch screen available?
-extern boolean touch_screenexists, touch_useinputs;
+// Is the touch screen available for game inputs?
+extern boolean touch_useinputs;
 extern consvar_t cv_showfingers;
 
 // Finger event handler
@@ -142,6 +147,7 @@ typedef struct
 	touchpreset_e preset; // touch_preset
 	touchmovementstyle_e movementstyle; // touch_movementstyle
 
+	boolean altliveshud; // ST_AltLivesHUDEnabled
 	boolean ringslinger; // G_RingSlingerGametype
 	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
 	boolean nights; // maptol & TOL_NIGHTS
@@ -151,7 +157,9 @@ typedef struct
 	boolean cantalk; // netgame && !CHAT_MUTE
 	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
 	boolean promptblockcontrols; // promptblockcontrols
-	boolean canopenconsole; // modeattacking || metalrecording
+	boolean canreturn; // M_TSNav_CanShowBack
+	boolean canconfirm; // M_TSNav_CanShowConfirm
+	boolean canopenconsole; // !(modeattacking || metalrecording) && M_TSNav_CanShowConsole
 	boolean customizingcontrols; // TS_IsCustomizingControls
 	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
 } touchconfigstatus_t;
@@ -170,6 +178,7 @@ extern consvar_t cv_touchguiscale;
 
 // Touch layout options
 extern consvar_t cv_touchlayoutusegrid;
+extern consvar_t cv_touchlayoutwidescreen;
 
 // Touch screen sensitivity
 extern consvar_t cv_touchsens, cv_touchvertsens;
@@ -200,7 +209,9 @@ fixed_t TS_GetDefaultScale(void);
 void TS_GetJoystick(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean tiny);
 
 void TS_PresetChanged(void);
-void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status, touchmovementstyle_e tms, fixed_t scale, boolean tiny);
+void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
+					touchmovementstyle_e tms, fixed_t scale,
+					boolean tiny, boolean widescreen);
 
 // Returns the names of a touch button
 const char *TS_GetButtonName(INT32 gc, touchconfigstatus_t *status);

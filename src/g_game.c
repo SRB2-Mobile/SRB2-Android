@@ -434,6 +434,8 @@ player_t *seenplayer; // player we're aiming at right now
 // so that it doesn't have to be updated depending on the value of MAXPLAYERS
 char player_names[MAXPLAYERS][MAXPLAYERNAME+1];
 
+INT32 player_name_changes[MAXPLAYERS];
+
 INT16 rw_maximums[NUM_WEAPONS] =
 {
 	800, // MAX_INFINITY
@@ -1994,12 +1996,19 @@ boolean G_Responder(event_t *ev)
 	if (gameaction == ga_nothing && !singledemo &&
 		((demoplayback && !modeattacking && !titledemo) || gamestate == GS_TITLESCREEN))
 	{
-		if (((ev->type == ev_keydown && ev->key != 301) || ev->type == ev_touchdown)
+		boolean finger = (ev->type == ev_touchdown || ev->type == ev_touchup);
+
+		if (((ev->type == ev_keydown && ev->key != 301) || finger)
 		&& !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
 		{
-			M_StartControlPanel();
+			if (finger && (!menuactive))
+				F_TitleFingerResponder(ev);
+			else
+				M_StartControlPanel();
+
 			return true;
 		}
+
 		return false;
 	}
 	else if (demoplayback && titledemo)
@@ -2364,6 +2373,11 @@ void G_Ticker(boolean run)
 
 		if (camtoggledelay2)
 			camtoggledelay2--;
+
+		if (gametic % NAMECHANGERATE == 0)
+		{
+			memset(player_name_changes, 0, sizeof player_name_changes);
+		}
 	}
 }
 
@@ -3819,7 +3833,7 @@ static void G_DoCompleted(void)
 	// a map of the proper gametype -- skip levels that don't support
 	// the current gametype. (Helps avoid playing boss levels in Race,
 	// for instance).
-	if (!spec)
+	if (!spec || nextmapoverride)
 	{
 		if (nextmap >= 0 && nextmap < NUMMAPS)
 		{
@@ -3871,7 +3885,8 @@ static void G_DoCompleted(void)
 		if (nextmap < 0 || (nextmap >= NUMMAPS && nextmap < 1100-1) || nextmap > 1103-1)
 			I_Error("Followed map %d to invalid map %d\n", prevmap + 1, nextmap + 1);
 
-		lastmap = nextmap; // Remember last map for when you come out of the special stage.
+		if (!spec)
+			lastmap = nextmap; // Remember last map for when you come out of the special stage.
 	}
 
 	if ((gottoken = ((gametyperules & GTR_SPECIALSTAGES) && token)))
@@ -3892,7 +3907,7 @@ static void G_DoCompleted(void)
 		}
 	}
 
-	if (spec && !gottoken)
+	if (spec && !gottoken && !nextmapoverride)
 		nextmap = lastmap; // Exiting from a special stage? Go back to the game. Tails 08-11-2001
 
 	automapactive = false;
@@ -4425,12 +4440,12 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (strcmp((const char *)save_p, (const char *)vcheck))
 	{
 #ifdef SAVEGAME_OTHERVERSIONS
-		M_StartMessage(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n("CONFIRM_MESSAGE")\n"),
-		               M_ForceLoadGameResponse, MM_YESNO);
+		M_StartMessage(va(M_GetText("Save game from different version.\nYou can load this savegame, but\nsaving afterwards will be disabled.\n\nDo you want to continue anyway?\n\n(%s)\n"),
+		               M_GetUserActionString(CONFIRM_MESSAGE)), M_ForceLoadGameResponse, MM_YESNO);
 		//Freeing done by the callback function of the above message
 #else
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Save game from different version\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+		M_ShowESCMessage("Save game from different version\n\n");
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;
@@ -4452,7 +4467,7 @@ void G_LoadGame(UINT32 slot, INT16 mapoverride)
 	if (!P_LoadGame(mapoverride))
 	{
 		M_ClearMenus(true); // so ESC backs out to title
-		M_StartMessage(M_GetText("Savegame file corrupted\n\n" PRESS_ESC_MESSAGE), NULL, MM_NOTHING);
+		M_ShowESCMessage("Savegame file corrupted\n\n");
 		Command_ExitGame_f();
 		Z_Free(savebuffer);
 		save_p = savebuffer = NULL;

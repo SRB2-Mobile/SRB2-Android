@@ -324,6 +324,9 @@ consvar_t cv_timetic = {"timerres", "Classic", CV_SAVE, timetic_cons_t, NULL, 0,
 static CV_PossibleValue_t powerupdisplay_cons_t[] = {{0, "Never"}, {1, "First-person only"}, {2, "Always"}, {0, NULL}};
 consvar_t cv_powerupdisplay = {"powerupdisplay", "First-person only", CV_SAVE, powerupdisplay_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+static CV_PossibleValue_t liveshudpos_cons_t[] = {{0, "Bottom left"}, {1, "Top right"}, {0, NULL}};
+consvar_t cv_liveshudpos = {"liveshudpos", "Bottom left", CV_SAVE, liveshudpos_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 static CV_PossibleValue_t pointlimit_cons_t[] = {{1, "MIN"}, {MAXSCORE, "MAX"}, {0, "None"}, {0, NULL}};
 consvar_t cv_pointlimit = {"pointlimit", "None", CV_NETVAR|CV_CALL|CV_NOINIT, pointlimit_cons_t,
 	PointLimit_OnChange, 0, NULL, NULL, 0, 0, NULL};
@@ -727,6 +730,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_itemfinder);
 	CV_RegisterVar(&cv_showinputjoy);
 
+#ifdef TOUCHINPUTS
+	cv_liveshudpos.defaultvalue = "Top right";
+#endif
+	CV_RegisterVar(&cv_liveshudpos);
+
 	// time attack ghost options are also saved to config
 	CV_RegisterVar(&cv_ghost_bestscore);
 	CV_RegisterVar(&cv_ghost_besttime);
@@ -906,8 +914,11 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_scr_height);
 
 #ifdef NATIVESCREENRES
+	SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider());
+
 	CV_RegisterVar(&cv_nativeres);
 	CV_RegisterVar(&cv_nativeresdiv);
+	CV_RegisterVar(&cv_nativeresauto);
 	CV_RegisterVar(&cv_nativeresfov);
 	CV_RegisterVar(&cv_nativerescompare);
 #endif
@@ -1169,6 +1180,8 @@ static void SetPlayerName(INT32 playernum, char *newname)
 			if (netgame)
 				HU_AddChatText(va("\x82*%s renamed to %s", player_names[playernum], newname), false);
 
+			player_name_changes[playernum]++;
+
 			strcpy(player_names[playernum], newname);
 		}
 	}
@@ -1345,7 +1358,12 @@ static void SendNameAndColor(void)
 	snacpending++;
 
 	// Don't change name if muted
-	if (cv_mute.value && !(server || IsPlayerAdmin(consoleplayer)))
+	if (player_name_changes[consoleplayer] >= MAXNAMECHANGES)
+	{
+		CV_StealthSet(&cv_playername, player_names[consoleplayer]);
+		HU_AddChatText("\x85*You must wait to change your name again", false);
+	}
+	else if (cv_mute.value && !(server || IsPlayerAdmin(consoleplayer)))
 		CV_StealthSet(&cv_playername, player_names[consoleplayer]);
 	else // Cleanup name if changing it
 		CleanupPlayerName(consoleplayer, cv_playername.zstring);
@@ -1506,8 +1524,11 @@ static void Got_NameAndColor(UINT8 **cp, INT32 playernum)
 	skin = READUINT8(*cp);
 
 	// set name
-	if (strcasecmp(player_names[playernum], name) != 0)
-		SetPlayerName(playernum, name);
+	if (player_name_changes[playernum] < MAXNAMECHANGES)
+	{
+		if (strcasecmp(player_names[playernum], name) != 0)
+			SetPlayerName(playernum, name);
+	}
 
 	// set color
 	p->skincolor = color % numskincolors;
@@ -3264,12 +3285,12 @@ static void Got_RunSOCcmd(UINT8 **cp, INT32 playernum)
 			if (ncs == FS_NOTFOUND)
 			{
 				CONS_Printf(M_GetText("The server tried to add %s,\nbut you don't have this file.\nYou need to find it in order\nto play on this server.\n"), filename);
-				M_StartMessage(va("The server added a file\n(%s)\nthat you do not have.\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+				M_StartMessage(va("The server added a file\n(%s)\nthat you do not have.\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 			}
 			else
 			{
 				CONS_Printf(M_GetText("Unknown error finding soc file (%s) the server added.\n"), filename);
-				M_StartMessage(va("Unknown error trying to load a file\nthat the server added\n(%s).\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+				M_StartMessage(va("Unknown error trying to load a file\nthat the server added\n(%s).\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 			}
 			return;
 		}
@@ -3348,7 +3369,7 @@ static void Command_Addfile(void)
 #else
 		FILE *fhandle;
 
-		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, false, true)) != NULL)
+		if ((fhandle = W_OpenWadFile(&fn, FILEHANDLE_STANDARD, true)) != NULL)
 		{
 			tic_t t = I_GetTime();
 			CONS_Debug(DBG_SETUP, "Making MD5 for %s\n",fn);
@@ -3462,22 +3483,22 @@ static void Got_Addfilecmd(UINT8 **cp, INT32 playernum)
 		if (ncs == FS_FOUND)
 		{
 			CONS_Printf(M_GetText("The server tried to add %s,\nbut you have too many files added.\nRestart the game to clear loaded files\nand play on this server."), filename);
-			M_StartMessage(va("The server added a file \n(%s)\nbut you have too many files added.\nRestart the game to clear loaded files.\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+			M_StartMessage(va("The server added a file \n(%s)\nbut you have too many files added.\nRestart the game to clear loaded files.\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		}
 		else if (ncs == FS_NOTFOUND)
 		{
 			CONS_Printf(M_GetText("The server tried to add %s,\nbut you don't have this file.\nYou need to find it in order\nto play on this server."), filename);
-			M_StartMessage(va("The server added a file \n(%s)\nthat you do not have.\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+			M_StartMessage(va("The server added a file \n(%s)\nthat you do not have.\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		}
 		else if (ncs == FS_MD5SUMBAD)
 		{
 			CONS_Printf(M_GetText("Checksum mismatch while loading %s.\nMake sure you have the copy of\nthis file that the server has.\n"), filename);
-			M_StartMessage(va("Checksum mismatch while loading \n%s.\nThe server seems to have a\ndifferent version of this file.\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+			M_StartMessage(va("Checksum mismatch while loading \n%s.\nThe server seems to have a\ndifferent version of this file.\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		}
 		else
 		{
 			CONS_Printf(M_GetText("Unknown error finding wad file (%s) the server added.\n"), filename);
-			M_StartMessage(va("Unknown error trying to load a file\nthat the server added \n(%s).\n\n" PRESS_ESC_MESSAGE,filename), NULL, MM_NOTHING);
+			M_StartMessage(va("Unknown error trying to load a file\nthat the server added \n(%s).\n\n%s", filename, M_GetUserActionString(PRESS_ESC_MESSAGE)), NULL, MM_NOTHING);
 		}
 		return;
 	}

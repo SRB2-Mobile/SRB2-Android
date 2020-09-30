@@ -837,6 +837,27 @@ void I_OutputMsg(const char *fmt, ...)
 #endif
 }
 
+INT32 I_AskQuestion(const char *message)
+{
+	int id;
+
+	const SDL_MessageBoxButtonData buttons[] = {
+		{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "No"},
+		{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Yes"},
+	};
+
+	const SDL_MessageBoxData data = {
+		SDL_MESSAGEBOX_INFORMATION, NULL,
+		"SRB2 "VERSIONSTRING, message,
+		SDL_arraysize(buttons), buttons, NULL
+	};
+
+	if (SDL_ShowMessageBox(&data, &id) < 0)
+		I_Error("Error displaying message box");
+
+    return (INT32)id;
+}
+
 //
 // I_GetKey
 //
