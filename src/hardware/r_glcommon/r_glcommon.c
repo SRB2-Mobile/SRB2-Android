@@ -172,7 +172,6 @@ PFNglShadeModel pglShadeModel;
 PFNglLightfv pglLightfv;
 PFNglLightModelfv pglLightModelfv;
 PFNglMaterialfv pglMaterialfv;
-PFNglMateriali pglMateriali;
 
 /* Texture mapping */
 PFNglTexEnvi pglTexEnvi;
@@ -258,7 +257,6 @@ boolean GLBackend_LoadLegacyFunctions(void)
 	GETOPENGLFUNC(Lightfv)
 	GETOPENGLFUNC(LightModelfv)
 	GETOPENGLFUNC(Materialfv)
-	GETOPENGLFUNC(Materiali)
 #endif
 
 	return true;

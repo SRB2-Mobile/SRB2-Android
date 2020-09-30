@@ -279,7 +279,6 @@ extern PFNglGenerateMipmap pglGenerateMipmap;
 #define pglLightfv glLightfv
 #define pglLightModelfv glLightModelfv
 #define pglMaterialfv glMaterialfv
-#define pglMateriali glMateriali
 
 /* Texture mapping */
 #define pglTexEnvi glTexEnvi
@@ -326,8 +325,6 @@ typedef void (R_GL_APIENTRY * PFNglLightModelfv) (GLenum pname, GLfloat *params)
 extern PFNglLightModelfv pglLightModelfv;
 typedef void (R_GL_APIENTRY * PFNglMaterialfv) (GLint face, GLenum pname, GLfloat *params);
 extern PFNglMaterialfv pglMaterialfv;
-typedef void (R_GL_APIENTRY * PFNglMateriali) (GLint face, GLenum pname, GLint param);
-extern PFNglMateriali pglMateriali;
 
 /* Texture mapping */
 typedef void (R_GL_APIENTRY * PFNglTexEnvi) (GLenum target, GLenum pname, GLint param);
