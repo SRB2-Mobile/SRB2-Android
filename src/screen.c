@@ -83,7 +83,7 @@ consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
 consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "3", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
 consvar_t cv_nativeresauto = NATIVERESCVAR_CALL("nativeresauto", "On", CV_OnOff, SCR_NativeResAutoChanged);
 consvar_t cv_nativeresfov = NATIVERESCVAR("nativeresfov", "On", CV_OnOff);
-consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Width", nativerescompare_cons_t);
+consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Height", nativerescompare_cons_t);
 
 #undef NATIVERESCVAR
 
