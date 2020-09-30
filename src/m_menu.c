@@ -3508,8 +3508,10 @@ boolean M_TSNav_CanShowBack(void)
 
 boolean M_TSNav_CanShowConfirm(void)
 {
+#if 0
 	if (currentMenu == &SP_LoadDef || currentMenu == &SP_PlayerDef) // always hidden
 		return false;
+#endif
 	return tsnav_showconfirm;
 }
 
