@@ -1632,12 +1632,12 @@ static menuitem_t OP_VideoOptionsMenu[] =
 
 	{IT_HEADER, NULL, "Diagnostic", NULL, 190},
 	{IT_STRING | IT_CVAR, NULL, "Show FPS",                  &cv_ticrate,         196},
-	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      202},
-	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   208},
+	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      201},
+	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   206},
 
 #ifdef HWRENDER
-	{IT_HEADER, NULL, "Renderer", NULL, 217},
-	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 223},
+	{IT_HEADER, NULL, "Renderer", NULL, 215},
+	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 221},
 #endif
 };
 
@@ -2804,8 +2804,7 @@ static void Newrenderer_OnChange(void)
 				"The OpenGL renderer is incomplete.\n"
 				"Some visuals may fail to appear, or\n"
 				"appear incorrectly.\n"
-				"Do you still want to switch to it?\n"
-				"\n",
+				"Do you still want to switch to it?",
 				Newrenderer_AREYOUSURE
 		);
 	}
