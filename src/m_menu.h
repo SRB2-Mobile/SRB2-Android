@@ -313,6 +313,7 @@ boolean M_CanShowLevelInList(INT32 mapnum, INT32 gt);
 #define IT_GRAYEDOUT2  (IT_SPACE  +IT_TRANSTEXT2)
 #define IT_HEADER      (IT_SPACE  +IT_HEADERTEXT)
 #define IT_SECRET      (IT_SPACE  +IT_QUESTIONMARKS)
+#define IT_GOBACK      (IT_TRANSTEXT2)
 
 // Confirm (press 'Y') / Return (press 'N') / Press a key / ESC messages
 const char *M_GetUserActionString(INT32 type);

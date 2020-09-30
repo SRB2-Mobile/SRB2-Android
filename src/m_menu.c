@@ -689,9 +689,9 @@ static menuitem_t MainMenu[] =
 	                       NULL, "Multiplayer", M_StartSplitServerMenu,  84},
 #endif
 	{IT_STRING|IT_CALL,    NULL, "Extras",      M_SecretsMenu,           92},
-	{IT_CALL  |IT_STRING,  NULL, "Addons",      M_Addons,               100},
+	{IT_STRING|IT_CALL,    NULL, "Addons",      M_Addons,               100},
 	{IT_STRING|IT_CALL,    NULL, "Options",     M_Options,              108},
-	{IT_STRING|IT_CALL,    NULL, "Quit Game",   M_QuitSRB2,             116},
+	{IT_GOBACK|IT_CALL,    NULL, "Quit Game",   M_QuitSRB2,             116},
 };
 
 typedef enum
@@ -945,7 +945,7 @@ static menuitem_t SP_MainMenu[] =
 	{IT_SECRET,                                 NULL, "Marathon Run",  M_Marathon,                100},
 	{IT_CALL | IT_STRING,                       NULL, "Tutorial",      M_StartTutorial,           108},
 	{IT_CALL | IT_STRING | IT_CALL_NOTMODIFIED, NULL, "Statistics",    M_Statistics,              116},
-	{IT_CALL | IT_STRING2,                      NULL, "Back",          M_NavGoBack,                 0}
+	{IT_CALL | IT_GOBACK,                       NULL, "Back",          M_NavGoBack,                 0}
 };
 
 enum
@@ -4066,13 +4066,6 @@ tic_t MobileMenuState_GetAnimationTime(INT32 type)
 	return 0; // Compiler be like
 }
 
-#ifdef TOUCHINPUTS
-void M_ScrollMobileMenu(fixed_t scroll)
-{
-	mobileMenuState.fingerSlide = scroll;
-}
-#endif
-
 //
 // String drawing
 //
@@ -4121,13 +4114,13 @@ INT32 M_GetMobileMenuHeight(menu_t *menudef)
 				h += MOBILE_LINEHEIGHT;
 				break;
 			case IT_TRANSTEXT:
-			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
 				break; // Do nothing
 			case IT_STRING:
 			case IT_STRING2:
 			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
+			case IT_GOBACK:
 				str = menudef->menuitems[i].text;
 				M_MenuStringSize(str, V_ALLOWLOWERCASE, MOBILEMENU_FONT_DEFAULT, FRACUNIT, NULL, &th);
 				h += th;
@@ -4234,13 +4227,13 @@ INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll)
 				y += MOBILE_LINEHEIGHT;
 				break;
 			case IT_TRANSTEXT:
-			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
 				break; // Do nothing
 			case IT_STRING:
 			case IT_STRING2:
 			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
+			case IT_GOBACK:
 				M_GetMobileMenuElementSize(i, NULL, &h);
 				break;
 		}
@@ -4273,15 +4266,32 @@ static boolean M_FingerTouchingMobileSelection(INT32 fx, INT32 fy, INT32 x, INT3
 
 static INT16 M_IsTouchingMobileMenuSelection(INT32 fx, INT32 fy)
 {
+	INT32 scroll = FixedInt(mobileMenuState.scroll);
 	INT32 x = currentMenu->x;
-	INT32 y = M_GetMobileMenuY(currentMenu, FixedInt(mobileMenuState.scroll));
+	INT32 y = M_GetMobileMenuY(currentMenu, scroll);
 	INT32 w, h, i;
 
 	for (i = 0; i < currentMenu->numitems; i++)
 	{
 		UINT16 status = currentMenu->menuitems[i].status & IT_DISPLAY;
 
-		if (status == IT_STRING2)
+		if (status == IT_GOBACK)
+		{
+			INT32 newy;
+
+			M_GetMobileMenuElementSize(i, NULL, &h);
+			newy = (vid.height / vid.dupy) - (h * 2);
+
+			if (!M_IsMobileScreenWide(currentMenu))
+			{
+				y = M_GetMobileMenuHeight(currentMenu) - scroll;
+				y += M_GetMobileMenuY(currentMenu, false) + M_GetMobileMenuBottomSpacing();
+				y -= (h * 2);
+			}
+			else if ((newy + scroll) > y)
+				y = (newy + scroll);
+		}
+		else if (status == IT_STRING2)
 			y += 10;
 
 		switch (status)
@@ -4295,13 +4305,13 @@ static INT16 M_IsTouchingMobileMenuSelection(INT32 fx, INT32 fy)
 				y += MOBILE_LINEHEIGHT;
 				break;
 			case IT_TRANSTEXT:
-			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
 				break; // Do nothing
 			case IT_STRING:
 			case IT_STRING2:
 			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
+			case IT_GOBACK:
 				if (M_FingerTouchingMobileSelection(fx, fy, x, y, &w, &h, i))
 					return i;
 				else
@@ -4513,9 +4523,9 @@ boolean M_Responder(event_t *ev)
 					fixed_t dy = ev->dy << FRACBITS;
 					if (dy)
 					{
-						M_ScrollMobileMenu(dy>>1);
 						finger->scrolling = true;
 						finger->extra.selection = -1;
+						mobileMenuState.fingerSlide = (dy>>1);
 						mobileMenuState.usedKeyboard = false;
 					}
 				}
@@ -6133,20 +6143,33 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 				y += MOBILE_LINEHEIGHT;
 				break;
 			case IT_TRANSTEXT:
-			case IT_TRANSTEXT2:
 			case IT_QUESTIONMARKS:
 				break; // Do nothing
 			case IT_STRING:
 			case IT_STRING2:
 			case IT_WHITESTRING:
 			case IT_HEADERTEXT:
+			case IT_GOBACK:
 				str = menudef->menuitems[i].text;
 				flags = (V_SNAPTOLEFT| V_SNAPTOTOP);
 				stringflags = (V_ALLOWLOWERCASE | flags);
 
 				M_MenuStringSize(str, stringflags, MOBILEMENU_FONT_DEFAULT, FRACUNIT, &w, &h);
 
-				if (status == IT_STRING2)
+				if (status == IT_GOBACK)
+				{
+					INT32 newy = (vid.height / vid.dupy) - (h * 2);
+
+					if (!M_IsMobileScreenWide(menudef))
+					{
+						y = M_GetMobileMenuHeight(menudef) - scroll;
+						y += M_GetMobileMenuY(menudef, false) + M_GetMobileMenuBottomSpacing();
+						y -= (h * 2);
+					}
+					else if ((newy + scroll) > y)
+						y = (newy + scroll);
+				}
+				else if (status == IT_STRING2)
 					y += 10;
 
 				patch = W_CachePatchName(MOBILEMENU_PATCH_TRIANGLE, PU_PATCH);
