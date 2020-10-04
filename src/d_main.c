@@ -1129,7 +1129,7 @@ static void IdentifyVersion(void)
 
 #if defined(__ANDROID__)
 	// Lactozilla: srb2.pk3 is always present, inside the APK, so just add it
-	D_AddFile(FILEPATH(basepk3));
+	D_AddFile(startupwadfiles, FILEPATH(basepk3));
 #else
 	// will be overwritten in case of -cdrom or unix/win home
 	snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2waddir);

@@ -169,7 +169,7 @@ boolean W_UnpackFile(const char *filename, void *handle);
 boolean W_CanUnpackFile(const char *filename, size_t *filesize);
 
 // Count the total number of files to unpack
-boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles);
+boolean W_CheckUnpacking(char **filenames, UINT16 filecount);
 
 // Unpack the main files needed at startup.
 void W_UnpackMultipleFiles(char **filenames);

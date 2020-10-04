@@ -258,7 +258,7 @@ static boolean W_CheckInBaseUnpackList(char *filename)
 
 void W_UnpackMultipleFiles(char **filenames)
 {
-	W_CheckUnpacking(filenames, mainfiles);
+	W_CheckUnpacking(filenames, mainwads);
 
 	if (numstartupunpack)
 	{
@@ -365,7 +365,7 @@ boolean W_CanUnpackFile(const char *filename, size_t *filesize)
 #endif
 }
 
-boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles)
+boolean W_CheckUnpacking(char **filenames, UINT16 filecount)
 {
 	UINT16 fnum = 0;
 	size_t totalsize = 0;
@@ -375,7 +375,7 @@ boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles)
 
 	numstartupunpack = 0;
 
-	for (; (fnum < mainfiles) && filenames[fnum]; fnum++)
+	for (; (fnum < filecount) && filenames[fnum]; fnum++)
 	{
 		size_t size = 0;
 
