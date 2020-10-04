@@ -88,13 +88,15 @@ android {
     task generateCompTime(type: Exec) {
         def comptimeScript = 'comptime'
 
-        workingDir "$projectDir/../../"
         println "${comptimeScript}: Generating build time"
 
+        workingDir "$projectDir/../../"
+        ignoreExitValue true
+
         if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
-            commandLine 'cmd', '/c', comptimeScript + '.bat src/'
+            commandLine 'cmd', '/c', comptimeScript + '.bat', 'src/'
         } else {
-            commandLine 'sh', comptimeScript + '.sh src/'
+            commandLine 'sh', comptimeScript + '.sh', 'src/'
         }
     }
     preBuild.dependsOn generateCompTime
