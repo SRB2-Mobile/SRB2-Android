@@ -94,7 +94,7 @@ android {
         if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
             commandLine 'cmd', '/c', comptimeScript + '.bat src/'
         } else {
-            commandLine 'sh', '-c', comptimeScript + '.sh src/'
+            commandLine './' + comptimeScript + '.sh src/'
         }
     }
     preBuild.dependsOn generateCompTime
