@@ -160,7 +160,7 @@ HMS_set_cert (CURL *curl)
 	{
 		CONS_Printf("HMS: unpacking CA bundle '%s'... ", hms_ca_bundle);
 
-		if (W_UnpackFile(hms_cert_path, handle))
+		if (W_UnpackFile(hms_cert_path, ca))
 			CONS_Printf("succeeded\n");
 		else
 			CONS_Printf("failed\n");
