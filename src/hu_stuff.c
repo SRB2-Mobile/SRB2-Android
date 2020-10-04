@@ -350,8 +350,6 @@ void HU_Init(void)
 
 	// set shift translation table
 	shiftxform = english_shiftxform;
-
-	HU_LoadGraphics();
 }
 
 static inline void HU_Stop(void)

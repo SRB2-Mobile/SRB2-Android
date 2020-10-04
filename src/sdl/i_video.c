@@ -1692,7 +1692,6 @@ void VID_CheckGLLoaded(rendermode_t oldrender)
 		if (setrenderneeded)
 		{
 			CV_StealthSetValue(&cv_renderer, oldrender);
-			CV_StealthSetValue(&cv_newrenderer, oldrender);
 			setrenderneeded = 0;
 		}
 	}
@@ -1755,7 +1754,6 @@ void VID_CheckRenderer(void)
 			{
 				renderswitcherror = render_opengl;
 				rendererchanged = false;
-				CV_StealthSetValue(&cv_newrenderer, oldrenderer);
 			}
 		}
 #endif

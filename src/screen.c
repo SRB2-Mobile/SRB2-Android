@@ -91,7 +91,7 @@ consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Height", nati
 #endif
 
 static void SCR_ActuallyChangeRenderer(void);
-CV_PossibleValue_t cv_renderer_t[] = {
+static CV_PossibleValue_t cv_renderer_t[] = {
 	{1, "Software"},
 #ifdef HWRENDER
 	{2, "OpenGL"},
@@ -537,10 +537,7 @@ void SCR_ActuallyChangeRenderer(void)
 		if (M_CheckParm("-nogl"))
 			CONS_Alert(CONS_ERROR, "OpenGL rendering was disabled!\n");
 		else
-		{
 			renderswitcherror = render_opengl;
-			CV_StealthSetValue(&cv_newrenderer, rendermode);
-		}
 		setrenderneeded = 0;
 		return;
 	}
@@ -585,9 +582,6 @@ void SCR_ChangeRendererCVars(INT32 mode)
 		CV_StealthSetValue(&cv_renderer, 1);
 	else if (mode == render_opengl)
 		CV_StealthSetValue(&cv_renderer, 2);
-#ifdef HWRENDER
-	CV_StealthSetValue(&cv_newrenderer, cv_renderer.value);
-#endif
 }
 
 boolean SCR_IsAspectCorrect(INT32 width, INT32 height)
