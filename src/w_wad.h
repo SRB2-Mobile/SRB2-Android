@@ -153,7 +153,7 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup);
 
 // W_InitMultipleFiles exits if a file was not found, but not if all is okay.
-void W_InitMultipleFiles(char **filenames, UINT16 mainfiles);
+void W_InitMultipleFiles(char **filenames, fhandletype_t handletype);
 
 // Prints an error in the console if something goes wrong while adding a file.
 // If it's an exit-worthy error, W_InitFileError will display such error message.
@@ -172,6 +172,7 @@ boolean W_CanUnpackFile(const char *filename, size_t *filesize);
 boolean W_CheckUnpacking(char **filenames, UINT16 mainfiles);
 
 // Unpack the main files needed at startup.
+void W_UnpackMultipleFiles(char **filenames);
 void W_UnpackBaseFiles(void);
 
 #define UNPACK_BUFFER_SIZE 4096

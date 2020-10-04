@@ -108,6 +108,9 @@ UINT8 window_notinfocus = false;
 // DEMO LOOP
 //
 static char *startupwadfiles[MAX_WADFILES];
+static char *startuppwads[MAX_WADFILES];
+
+static fhandletype_t startuphandletype = FILEHANDLE_STANDARD;
 
 boolean devparm = false; // started game with -devparm
 
@@ -1017,12 +1020,12 @@ void D_StartTitle(void)
 //
 // D_AddFile
 //
-static void D_AddFile(const char *file)
+static void D_AddFile(char **list, const char *file)
 {
 	size_t pnumwadfiles;
 	char *newfile;
 
-	for (pnumwadfiles = 0; startupwadfiles[pnumwadfiles]; pnumwadfiles++)
+	for (pnumwadfiles = 0; list[pnumwadfiles]; pnumwadfiles++)
 		;
 
 	newfile = malloc(strlen(file) + 1);
@@ -1032,21 +1035,17 @@ static void D_AddFile(const char *file)
 	}
 	strcpy(newfile, file);
 
-	startupwadfiles[pnumwadfiles] = newfile;
+	list[pnumwadfiles] = newfile;
 }
 
-static inline void D_CleanFile(void)
+static inline void D_CleanFile(char **list)
 {
 	size_t pnumwadfiles;
-	for (pnumwadfiles = 0; startupwadfiles[pnumwadfiles]; pnumwadfiles++)
+	for (pnumwadfiles = 0; list[pnumwadfiles]; pnumwadfiles++)
 	{
-		free(startupwadfiles[pnumwadfiles]);
-		startupwadfiles[pnumwadfiles] = NULL;
+		free(list[pnumwadfiles]);
+		list[pnumwadfiles] = NULL;
 	}
-
-#ifdef UNPACK_FILES
-	UnpackFile_ProgressClear();
-#endif
 }
 
 ///\brief Checks if a netgame URL is being handled, and changes working directory to the EXE's if so.
@@ -1145,7 +1144,7 @@ static void IdentifyVersion(void)
 
 	// Load the IWAD
 	if (srb2wad != NULL && FIL_ReadFileOK(srb2wad))
-		D_AddFile(srb2wad);
+		D_AddFile(startupwadfiles, srb2wad);
 	else
 		I_Error("%s not found! Expected in %s, ss file: %s\n", basepk3, srb2waddir, srb2wad);
 
@@ -1157,19 +1156,19 @@ static void IdentifyVersion(void)
 	// checking in D_SRB2Main
 
 	// Add the maps
-	D_AddFile(FILEPATH("zones.pk3"));
+	D_AddFile(startupwadfiles, FILEPATH("zones.pk3"));
 
 	// Add the players
-	D_AddFile(FILEPATH("player.dta"));
+	D_AddFile(startupwadfiles, FILEPATH("player.dta"));
 
 #ifdef USE_PATCH_DTA
 	// Add our crappy patches to fix our bugs
-	D_AddFile(FILEPATH("patch.pk3"));
+	D_AddFile(startupwadfiles, FILEPATH("patch.pk3"));
 #endif
 
 #ifdef USE_ANDROID_PK3
 	// Android assets
-	D_AddFile(ANDROID_PK3_FILENAME);
+	D_AddFile(startupwadfiles, ANDROID_PK3_FILENAME);
 #endif
 
 #if !defined (HAVE_SDL) || defined (HAVE_MIXER)
@@ -1179,7 +1178,7 @@ static void IdentifyVersion(void)
 			const char *musicpath = FILEPATH(str);\
 			int ms = W_VerifyNMUSlumps(musicpath,handletype); \
 			if (ms == 1) \
-				D_AddFile(musicpath); \
+				D_AddFile(startupwadfiles, musicpath); \
 			else if (ms == 0) \
 				I_Error("File "str" has been modified with non-music/sound lumps"); \
 		}
@@ -1333,7 +1332,7 @@ void D_SRB2Main(void)
 				{
 					if (!W_VerifyNMUSlumps(s, FILEHANDLE_STANDARD))
 						G_SetGameModified(true);
-					D_AddFile(s);
+					D_AddFile(startuppwads, s);
 				}
 			}
 		}
@@ -1375,10 +1374,23 @@ void D_SRB2Main(void)
 	mainwads++;
 #endif
 
+#if defined(__ANDROID__) && defined(UNPACK_FILES) && defined(HAVE_WHANDLE) && defined(HAVE_SDL)
+	CONS_Printf("W_UnpackMultipleFiles(): Unpacking IWAD and main PWADs.\n");
+	W_UnpackMultipleFiles(startupwadfiles);
+
+	// The main files added at startup are handled by SDL_RWops
+	// and can be loaded from the inside the APK.
+	startuphandletype = FILEHANDLE_SDL;
+#endif
+
 	// load wad, including the main wad file
 	CONS_Printf("W_InitMultipleFiles(): Adding IWAD and main PWADs.\n");
-	W_InitMultipleFiles(startupwadfiles, mainwads);
-	D_CleanFile();
+	W_InitMultipleFiles(startupwadfiles, startuphandletype);
+	D_CleanFile(startupwadfiles);
+
+#ifdef UNPACK_FILES
+	UnpackFile_ProgressClear();
+#endif
 
 #ifndef DEVELOP // md5s last updated 22/02/20 (ddmmyy)
 
@@ -1429,6 +1441,10 @@ void D_SRB2Main(void)
 	S_RegisterSoundStuff();
 
 	I_RegisterSysCommands();
+
+	CONS_Printf("W_InitMultipleFiles(): Adding extra PWADs.\n");
+	W_InitMultipleFiles(startuppwads, FILEHANDLE_STANDARD);
+	D_CleanFile(startuppwads);
 
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"

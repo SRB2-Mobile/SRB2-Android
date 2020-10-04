@@ -256,6 +256,19 @@ static boolean W_CheckInBaseUnpackList(char *filename)
 	return false;
 }
 
+void W_UnpackMultipleFiles(char **filenames)
+{
+	W_CheckUnpacking(filenames, mainfiles);
+
+	if (numstartupunpack)
+	{
+		UnpackFile_ProgressClear();
+		UnpackFile_ProgressSetTotalFiles(numstartupunpack);
+		UnpackFile_ProgressSetReportFlag(true);
+		W_UnpackBaseFiles();
+	}
+}
+
 void W_UnpackBaseFiles(void)
 {
 	UINT16 wadnum = 0;
@@ -1299,36 +1312,13 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
   *
   * \param filenames A null-terminated list of files to use.
   */
-void W_InitMultipleFiles(char **filenames, UINT16 mainfiles)
+void W_InitMultipleFiles(char **filenames, fhandletype_t handletype)
 {
-	fhandletype_t handletype = FILEHANDLE_STANDARD;
-
-#if (defined(HAVE_WHANDLE) && defined(HAVE_SDL))
-	// All files added at startup are handled by SDL_RWops and can be loaded from the inside the APK.
-	// This also means that any file added with -file can be loaded from the package's assets folder.
-	handletype = FILEHANDLE_SDL;
-#endif
-
-	// open all the files, load headers, and count lumps
-	numwadfiles = 0;
-
-#if defined(__ANDROID__) && defined(UNPACK_FILES)
-	W_CheckUnpacking(filenames, mainfiles);
-
-	if (numstartupunpack)
-	{
-		UnpackFile_ProgressClear();
-		UnpackFile_ProgressSetTotalFiles(numstartupunpack);
-		UnpackFile_ProgressSetReportFlag(true);
-		W_UnpackBaseFiles();
-	}
-#endif
-
 	// will be realloced as lumps are added
 	for (; *filenames; filenames++)
 	{
 		//CONS_Debug(DBG_SETUP, "Loading %s\n", *filenames);
-		W_InitFile(*filenames, handletype, (numwadfiles < mainfiles), true);
+		W_InitFile(*filenames, handletype, (numwadfiles < mainwads), true);
 	}
 }
 
