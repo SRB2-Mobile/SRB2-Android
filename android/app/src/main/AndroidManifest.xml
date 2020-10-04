@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
-    android:versionCode="2270"
-    android:versionName="2.2.7"
+    android:versionCode="2280"
+    android:versionName="2.2.8"
     android:installLocation="auto">
 
     <!-- OpenGL ES 1.1 -->
@@ -60,14 +60,6 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Drop file event -->
-            <!--
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-            -->
         </activity>
     </application>
 
