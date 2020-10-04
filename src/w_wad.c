@@ -173,6 +173,18 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	int status = -1, curstatus;
 	float fstatus;
 
+	if (filename == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "W_UnpackFile: cannot unpack without a filename\n");
+		return false;
+	}
+
+	if (handle == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "W_UnpackFile: cannot unpack %s without a handle\n", filename);
+		return false;
+	}
+
 	File_Seek(handle, 0, SEEK_END);
 	fullsize = File_Tell(handle);
 	File_Seek(handle, 0, SEEK_SET);
