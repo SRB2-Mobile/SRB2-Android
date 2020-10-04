@@ -252,6 +252,10 @@ boolean W_UnpackFile(const char *filename, void *handle)
 
 static const char *baseunpacklist[] = {
 	"srb2.pk3",
+	"player.dta",
+#ifdef USE_PATCH_DTA
+	"patch.pk3",
+#endif
 	NULL,
 };
 
