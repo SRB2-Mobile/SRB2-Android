@@ -429,6 +429,7 @@ void M_TSNav_SetConsoleVisible(boolean set);
 
 void M_TSNav_ShowAll(void);
 void M_TSNav_HideAll(void);
+void M_TSNav_ShowAllExceptConsole(void);
 
 boolean M_IsCustomizingTouchControls(void);
 #endif

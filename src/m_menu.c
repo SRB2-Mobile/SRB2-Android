@@ -3511,6 +3511,12 @@ void M_TSNav_HideAll(void)
 	M_TSNav_SetConsoleVisible(false);
 }
 
+void M_TSNav_ShowAllExceptConsole(void)
+{
+	M_TSNav_ShowAll();
+	M_TSNav_SetConsoleVisible(false);
+}
+
 void M_TSNav_Update(void)
 {
 	memset(touchfingers, 0x00, sizeof(touchfingers)); // clear all fingers
@@ -5251,8 +5257,7 @@ void M_SetupNextMenu(menu_t *menudef)
 #ifdef TOUCHINPUTS
 	// update touch screen navigation
 	M_TSNav_Update();
-	M_TSNav_ShowAll();
-	M_TSNav_SetConsoleVisible(false);
+	M_TSNav_ShowAllExceptConsole();
 #endif
 }
 
@@ -7882,10 +7887,7 @@ void M_StartMessage(const char *string, void *routine,
 	if (M_TSNav_OnMessage())
 		M_TSNav_HideAll();
 	else
-	{
-		M_TSNav_ShowAll();
-		M_TSNav_SetConsoleVisible(false);
-	}
+		M_TSNav_ShowAllExceptConsole();
 #endif
 }
 
@@ -12505,6 +12507,13 @@ static void M_ModeAttackEndGame(INT32 choice)
 		wipetypepost = menupres[MN_SP_NIGHTSATTACK].enterwipe;
 		break;
 	}
+
+#ifdef TOUCHINPUTS
+	// update touch screen navigation
+	M_TSNav_Update();
+	M_TSNav_ShowAllExceptConsole();
+#endif
+
 	M_SetItemOn(currentMenu->lastOn);
 	G_SetGamestate(GS_TIMEATTACK);
 	modeattacking = ATTACKING_NONE;
