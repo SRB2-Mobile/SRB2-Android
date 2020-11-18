@@ -610,7 +610,7 @@ void M_FreePlayerSetupColors(void);
 	NULL\
 }
 
-#if 0
+#ifndef TOUCHMENUS
 #define CENTERMENUSTYLE(id, header, source, prev, y)\
 {\
 	id,0,\

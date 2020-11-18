@@ -218,7 +218,10 @@ static tic_t keydown = 0;
 //
 
 static void M_GoBack(INT32 choice);
+#ifdef TOUCHMENUS
 static void M_NavGoBack(INT32 choice);
+#endif
+
 static void M_StopMessage(INT32 choice);
 static boolean stopstopmessage = false;
 
@@ -505,11 +508,12 @@ static void M_CacheCharacterSelect(void);
 // Drawing functions
 static void M_DrawGenericMenu(void);
 static void M_DrawGenericScrollMenu(void);
-#if 0
+#ifndef TOUCHMENUS
 static void M_DrawCenteredMenu(void);
-#endif
+#else
 static void M_DrawMobileMenuDef(menu_t *menudef);
 static void M_DrawMobileMenu(void);
+#endif
 static void M_DrawGameVersion(void);
 static void M_DrawAddons(void);
 static void M_DrawChecklist(void);
@@ -666,24 +670,27 @@ consvar_t cv_dummyloadless = {"dummyloadless", "In-game", CV_HIDEN, loadless_con
 // ---------
 // Main Menu
 // ---------
+
 static menuitem_t MainMenu[] =
 {
+#ifdef TOUCHMENUS
 	{IT_STRING|IT_CALL,    NULL, "1 Player",    M_SinglePlayerMenu,      76},
+#else
+	{IT_STRING|IT_CALL,    NULL, "1  Player",   M_SinglePlayerMenu,      76},
+#endif
 #ifndef NONET
 	{IT_STRING|IT_SUBMENU, NULL, "Multiplayer", &MP_MainDef,             84},
 #else
-	{IT_STRING |
-#if !defined(__ANDROID__)
-	IT_CALL,
-#else
-	IT_GRAYEDOUT,
-#endif
-	                       NULL, "Multiplayer", M_StartSplitServerMenu,  84},
+	{IT_STRING|IT_CALL,    NULL, "Multiplayer", M_StartSplitServerMenu,  84},
 #endif
 	{IT_STRING|IT_CALL,    NULL, "Extras",      M_SecretsMenu,           92},
 	{IT_STRING|IT_CALL,    NULL, "Addons",      M_Addons,               100},
 	{IT_STRING|IT_CALL,    NULL, "Options",     M_Options,              108},
+#ifdef TOUCHMENUS
 	{IT_GOBACK|IT_CALL,    NULL, "Quit Game",   M_QuitSRB2,             116},
+#else
+	{IT_STRING|IT_CALL,    NULL, "Quit  Game",  M_QuitSRB2,             116},
+#endif
 };
 
 typedef enum
@@ -937,7 +944,9 @@ static menuitem_t SP_MainMenu[] =
 	{IT_SECRET,                                 NULL, "Marathon Run",  M_Marathon,                100},
 	{IT_CALL | IT_STRING,                       NULL, "Tutorial",      M_StartTutorial,           108},
 	{IT_CALL | IT_STRING | IT_CALL_NOTMODIFIED, NULL, "Statistics",    M_Statistics,              116},
+#ifdef TOUCHMENUS
 	{IT_CALL | IT_GOBACK,                       NULL, "Back",          M_NavGoBack,                 0}
+#endif
 };
 
 enum
@@ -1148,15 +1157,10 @@ static menuitem_t MP_MainMenu[] =
 	{IT_STRING|IT_KEYHANDLER, NULL, "Specify IPv4 address:", M_HandleConnectIP,      22},
 	{IT_HEADER, NULL, "Host a game", NULL, 54},
 	{IT_STRING|IT_CALL,       NULL, "Internet/LAN...",       M_StartServerMenu,      66},
-#if !defined(__ANDROID__)
 	{IT_STRING|IT_CALL,       NULL, "Splitscreen...",        M_StartSplitServerMenu, 76},
 	{IT_HEADER, NULL, "Player setup", NULL, 94},
 	{IT_STRING|IT_CALL,       NULL, "Player 1...",           M_SetupMultiPlayer,    106},
 	{IT_STRING|IT_CALL,       NULL, "Player 2... ",          M_SetupMultiPlayer2,   116},
-#else
-	{IT_HEADER, NULL, "Player setup", NULL, 84},
-	{IT_STRING|IT_CALL,       NULL, "Player 1...",           M_SetupMultiPlayer,    96},
-#endif
 };
 
 static menuitem_t MP_ServerMenu[] =
@@ -1946,7 +1950,11 @@ static menuitem_t OP_MonitorToggleMenu[] =
 // ==========================================================================
 
 // Main Menu and related
+#ifdef TOUCHMENUS
 menu_t MainDef = MOBILEMENUSTYLE(MN_MAIN, NULL, MainMenu, NULL, 20, 20);
+#else
+menu_t MainDef = CENTERMENUSTYLE(MN_MAIN, NULL, MainMenu, NULL, 72);
+#endif
 
 menu_t MISC_AddonsDef =
 {
@@ -2050,13 +2058,23 @@ menu_t SR_EmblemHintDef =
 // Single Player
 menu_t SP_MainDef =
 {
-	MN_SP_MAIN, MENUSTYLE_MOBILE,
+	MN_SP_MAIN,
+#ifdef TOUCHMENUS
+	MENUSTYLE_MOBILE,
+#else
+	0,
+#endif
 	NULL,
 	sizeof(SP_MainMenu)/sizeof(menuitem_t),
 	&MainDef,
 	SP_MainMenu,
+#ifdef TOUCHMENUS
 	M_DrawMobileMenu,
 	20, 20,
+#else
+	M_DrawCenteredMenu,
+	BASEVIDWIDTH/2, 72,
+#endif
 	0,
 	NULL
 };
@@ -3398,11 +3416,13 @@ static void M_GoBack(INT32 choice)
 		M_ClearMenus(true);
 }
 
+#ifdef TOUCHMENUS
 static void M_NavGoBack(INT32 choice)
 {
 	(void)choice;
 	M_NavigationReturn(currentMenu->prevMenu);
 }
+#endif
 
 static useractionstring_t useractionstrings[] = {
 	{PRESS_Y_MESSAGE,         "Press 'Y'",            "Tap 'Confirm'"},
@@ -6195,10 +6215,12 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 	ntsatkdrawtimer++;
 }
 
+#ifdef TOUCHMENUS
 static void M_DrawMobileMenu(void)
 {
 	M_DrawMobileMenuDef(currentMenu);
 }
+#endif
 
 const char *PlaystyleNames[4] = {"Strafe", "Standard", "Simple", "Old Analog??"};
 const char *PlaystyleDesc[4] = {
@@ -6589,7 +6611,7 @@ static void M_DrawPauseMenu(void)
 	M_DrawGenericMenu();
 }
 
-#if 0
+#ifndef TOUCHMENUS
 static void M_DrawCenteredMenu(void)
 {
 	INT32 x, y, i, cursory = 0;
@@ -13604,13 +13626,11 @@ static void M_DrawMPMainMenu(void)
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+66,
 		((itemOn == 4) ? V_YELLOWMAP : 0), va("(2-%d players)", MAXPLAYERS));
 
-#if !defined(__ANDROID__)
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+76,
 		((itemOn == 5) ? V_YELLOWMAP : 0), "(2 players)");
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+116,
 		((itemOn == 8) ? V_YELLOWMAP : 0), "(splitscreen)");
-#endif
 
 	y += 22;
 
