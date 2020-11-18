@@ -606,7 +606,7 @@ void TS_GetSettings(void)
 	if (!TS_Ready())
 		return;
 
-	touch_useinputs = cv_touchinputs.value;
+	touch_useinputs = cv_touchinputs.value && (!splitscreen);
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	touch_preset = cv_touchpreset.value;
