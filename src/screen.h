@@ -38,10 +38,8 @@
 // so all the small-enough tables based on screen size, are allocated once
 // and for all at the maximum size.
 
-// Lactozilla: Changed from 1920x1200 to 2160x1080.
-// Fairly common phone resolution (aspect ratio is 18:9)
 #define MAXVIDWIDTH 2160 // don't set this too high because actually
-#define MAXVIDHEIGHT 1080 // lots of tables are allocated with the MAX size.
+#define MAXVIDHEIGHT 1200 // lots of tables are allocated with the MAX size.
 
 // NEVER CHANGE THIS! This is the original resolution of the graphics.
 #define BASEVIDWIDTH 320
