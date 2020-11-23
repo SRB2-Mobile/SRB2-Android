@@ -18,8 +18,8 @@
 
 #include "../r_glcommon/r_glcommon.h"
 
-extern boolean gl_allowshaders;
 extern boolean gl_shadersenabled;
+extern hwdshaderoption_t gl_allowshaders;
 
 void Shader_LoadFunctions(void);
 
@@ -213,7 +213,7 @@ typedef enum
 } glattribute_t;
 #endif
 
-typedef struct gl_shaderprogram_s
+typedef struct gl_shader_s
 {
 	GLuint program;
 	boolean custom;
@@ -228,33 +228,39 @@ typedef struct gl_shaderprogram_s
 	fmatrix4_t viewMatrix;
 	fmatrix4_t modelMatrix;
 #endif
-} gl_shaderprogram_t;
-extern gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
+} gl_shader_t;
 
-#ifdef HAVE_GLES2
-extern gl_shaderprogram_t *shader_base;
-extern gl_shaderprogram_t *shader_current;
-#endif
+extern gl_shader_t gl_shaders[HWR_MAXSHADERS];
+extern gl_shader_t gl_usershaders[HWR_MAXSHADERS];
+extern shadersource_t gl_customshaders[HWR_MAXSHADERS];
 
-void Shader_Set(int shader);
+// 09102020
+typedef struct gl_shaderstate_s
+{
+	gl_shader_t *current;
+	GLuint type;
+	GLuint program;
+	boolean changed;
+} gl_shaderstate_t;
+extern gl_shaderstate_t gl_shaderstate;
+
+void Shader_Set(int type);
 void Shader_UnSet(void);
 
 #ifdef HAVE_GLES2
-boolean Shader_SetProgram(gl_shaderprogram_t *shader);
 void Shader_SetTransform(void);
 #endif
 
-void *Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
-void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
-void Shader_SetSampler(gl_shaderprogram_t *shader, gluniform_t uniform, GLint value);
-#define Shader_SetIntegerUniform Shader_SetSampler
-
-void Shader_SetInfo(hwdshaderinfo_t info, INT32 value);
+void Shader_LoadCustom(int number, char *code, size_t size, boolean isfragment);
 
 boolean Shader_Compile(void);
-boolean Shader_InitCustom(void);
+void Shader_Clean(void);
 
-void Shader_LoadCustom(int number, char *shader, size_t size, boolean fragment);
+void Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+void Shader_SetSampler(gl_shader_t *shader, gluniform_t uniform, GLint value);
+#define Shader_SetIntegerUniform Shader_SetSampler
+void Shader_SetInfo(hwdshaderinfo_t info, INT32 value);
 
 #if defined(GLSL_USE_ATTRIBUTE_QUALIFIER)
 int Shader_AttribLoc(int loc);

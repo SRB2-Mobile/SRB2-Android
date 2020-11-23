@@ -588,23 +588,23 @@ static void Dummymares_OnChange(void);
 // CONSOLE VARIABLES AND THEIR POSSIBLE VALUES GO HERE.
 // ==========================================================================
 
-consvar_t cv_showfocuslost = {"showfocuslost", "Yes", CV_SAVE, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL };
+consvar_t cv_showfocuslost = CVAR_INIT ("showfocuslost", "Yes", CV_SAVE, CV_YesNo, NULL);
 
 static CV_PossibleValue_t map_cons_t[] = {
 	{1,"MIN"},
 	{NUMMAPS, "MAX"},
 	{0,NULL}
 };
-consvar_t cv_nextmap = {"nextmap", "1", CV_HIDEN|CV_CALL, map_cons_t, Nextmap_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_nextmap = CVAR_INIT ("nextmap", "1", CV_HIDEN|CV_CALL, map_cons_t, Nextmap_OnChange);
 
 static CV_PossibleValue_t skins_cons_t[MAXSKINS+1] = {{1, DEFAULTSKIN}};
-consvar_t cv_chooseskin = {"chooseskin", DEFAULTSKIN, CV_HIDEN|CV_CALL, skins_cons_t, Nextmap_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_chooseskin = CVAR_INIT ("chooseskin", DEFAULTSKIN, CV_HIDEN|CV_CALL, skins_cons_t, Nextmap_OnChange);
 
 // This gametype list is integral for many different reasons.
 // When you add gametypes here, don't forget to update them in dehacked.c and doomstat.h!
 CV_PossibleValue_t gametype_cons_t[NUMGAMETYPES+1];
 
-consvar_t cv_newgametype = {"newgametype", "Co-op", CV_HIDEN|CV_CALL, gametype_cons_t, Newgametype_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_newgametype = CVAR_INIT ("newgametype", "Co-op", CV_HIDEN|CV_CALL, gametype_cons_t, Newgametype_OnChange);
 
 static CV_PossibleValue_t serversort_cons_t[] = {
 	{0,"Ping"},
@@ -615,22 +615,22 @@ static CV_PossibleValue_t serversort_cons_t[] = {
 	{5,"Gametype"},
 	{0,NULL}
 };
-consvar_t cv_serversort = {"serversort", "Ping", CV_HIDEN | CV_CALL, serversort_cons_t, M_SortServerList, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_serversort = CVAR_INIT ("serversort", "Ping", CV_HIDEN | CV_CALL, serversort_cons_t, M_SortServerList);
 
 // first time memory
-consvar_t cv_tutorialprompt = {"tutorialprompt", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_tutorialprompt = CVAR_INIT ("tutorialprompt", "On", CV_SAVE, CV_OnOff, NULL);
 
 // autorecord demos for time attack
-static consvar_t cv_autorecord = {"autorecord", "Yes", 0, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
+static consvar_t cv_autorecord = CVAR_INIT ("autorecord", "Yes", 0, CV_YesNo, NULL);
 
 CV_PossibleValue_t ghost_cons_t[] = {{0, "Hide"}, {1, "Show"}, {2, "Show All"}, {0, NULL}};
 CV_PossibleValue_t ghost2_cons_t[] = {{0, "Hide"}, {1, "Show"}, {0, NULL}};
 
-consvar_t cv_ghost_bestscore = {"ghost_bestscore", "Show", CV_SAVE, ghost_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ghost_besttime  = {"ghost_besttime",  "Show", CV_SAVE, ghost_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ghost_bestrings = {"ghost_bestrings", "Show", CV_SAVE, ghost_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ghost_last      = {"ghost_last",      "Show", CV_SAVE, ghost_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ghost_guest     = {"ghost_guest",     "Show", CV_SAVE, ghost2_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ghost_bestscore = CVAR_INIT ("ghost_bestscore", "Show", CV_SAVE, ghost_cons_t, NULL);
+consvar_t cv_ghost_besttime  = CVAR_INIT ("ghost_besttime",  "Show", CV_SAVE, ghost_cons_t, NULL);
+consvar_t cv_ghost_bestrings = CVAR_INIT ("ghost_bestrings", "Show", CV_SAVE, ghost_cons_t, NULL);
+consvar_t cv_ghost_last      = CVAR_INIT ("ghost_last",      "Show", CV_SAVE, ghost_cons_t, NULL);
+consvar_t cv_ghost_guest     = CVAR_INIT ("ghost_guest",     "Show", CV_SAVE, ghost2_cons_t, NULL);
 
 //Console variables used solely in the menu system.
 //todo: add a way to use non-console variables in the menu
@@ -644,19 +644,19 @@ static CV_PossibleValue_t dummymares_cons_t[] = {
 	{-1, "END"}, {0,"Overall"}, {1,"Mare 1"}, {2,"Mare 2"}, {3,"Mare 3"}, {4,"Mare 4"}, {5,"Mare 5"}, {6,"Mare 6"}, {7,"Mare 7"}, {8,"Mare 8"}, {0,NULL}
 };
 
-static consvar_t cv_dummyteam = {"dummyteam", "Spectator", CV_HIDEN, dummyteam_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-static consvar_t cv_dummyscramble = {"dummyscramble", "Random", CV_HIDEN, dummyscramble_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-static consvar_t cv_dummyrings = {"dummyrings", "0", CV_HIDEN, ringlimit_cons_t,	NULL, 0, NULL, NULL, 0, 0, NULL};
-static consvar_t cv_dummylives = {"dummylives", "0", CV_HIDEN, liveslimit_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-static consvar_t cv_dummycontinues = {"dummycontinues", "0", CV_HIDEN, contlimit_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-static consvar_t cv_dummymares = {"dummymares", "Overall", CV_HIDEN|CV_CALL, dummymares_cons_t, Dummymares_OnChange, 0, NULL, NULL, 0, 0, NULL};
+static consvar_t cv_dummyteam = CVAR_INIT ("dummyteam", "Spectator", CV_HIDEN, dummyteam_cons_t, NULL);
+static consvar_t cv_dummyscramble = CVAR_INIT ("dummyscramble", "Random", CV_HIDEN, dummyscramble_cons_t, NULL);
+static consvar_t cv_dummyrings = CVAR_INIT ("dummyrings", "0", CV_HIDEN, ringlimit_cons_t,	NULL);
+static consvar_t cv_dummylives = CVAR_INIT ("dummylives", "0", CV_HIDEN, liveslimit_cons_t, NULL);
+static consvar_t cv_dummycontinues = CVAR_INIT ("dummycontinues", "0", CV_HIDEN, contlimit_cons_t, NULL);
+static consvar_t cv_dummymares = CVAR_INIT ("dummymares", "Overall", CV_HIDEN|CV_CALL, dummymares_cons_t, Dummymares_OnChange);
 
 CV_PossibleValue_t marathon_cons_t[] = {{0, "Standard"}, {1, "Live Event Backup"}, {2, "Ultimate"}, {0, NULL}};
 CV_PossibleValue_t loadless_cons_t[] = {{0, "Realtime"}, {1, "In-game"}, {0, NULL}};
 
-consvar_t cv_dummymarathon = {"dummymarathon", "Standard", CV_HIDEN, marathon_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_dummycutscenes = {"dummycutscenes", "Off", CV_HIDEN, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_dummyloadless = {"dummyloadless", "In-game", CV_HIDEN, loadless_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_dummymarathon = CVAR_INIT ("dummymarathon", "Standard", CV_HIDEN, marathon_cons_t, NULL);
+consvar_t cv_dummycutscenes = CVAR_INIT ("dummycutscenes", "Off", CV_HIDEN, CV_OnOff, NULL);
+consvar_t cv_dummyloadless = CVAR_INIT ("dummyloadless", "In-game", CV_HIDEN, loadless_cons_t, NULL);
 
 // ==========================================================================
 // ORGANIZATION START.
@@ -2453,15 +2453,20 @@ menu_t OP_PlaystyleDef = {
 static void M_VideoOptions(INT32 choice)
 {
 	(void)choice;
-#ifdef HWRENDER
-	if (vid_opengl_state == -1)
-	{
-		OP_VideoOptionsMenu[op_video_renderer].status = (IT_TRANSTEXT | IT_PAIR);
-		OP_VideoOptionsMenu[op_video_renderer].patch = "Renderer";
-		OP_VideoOptionsMenu[op_video_renderer].text = "Software";
-	}
 
+	OP_VideoOptionsMenu[op_video_renderer].status = (IT_TRANSTEXT | IT_PAIR);
+	OP_VideoOptionsMenu[op_video_renderer].patch = "Renderer";
+	OP_VideoOptionsMenu[op_video_renderer].text = "Software";
+
+#ifdef HWRENDER
+	if (vid.glstate != VID_GL_LIBRARY_ERROR)
+	{
+		OP_VideoOptionsMenu[op_video_renderer].status = (IT_STRING | IT_CVAR);
+		OP_VideoOptionsMenu[op_video_renderer].patch = NULL;
+		OP_VideoOptionsMenu[op_video_renderer].text = "Renderer";
+	}
 #endif
+
 	M_SetupNextMenu(&OP_VideoOptionsDef);
 }
 
@@ -3556,9 +3561,6 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 		menutouchfx_t *ssfx = &saveselectfx;
 		INT32 i;
 
-		if (needpatchrecache)
-			M_CacheLoadGameData();
-
 		ssfx->finger.down = (event->type != ev_touchup);
 
 		if (event->type == ev_touchmotion)
@@ -3631,9 +3633,6 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 		INT32 prev = 0, next = 0;
 		INT32 ix, iy, i;
 		fixed_t x, y, w, h;
-
-		if (needpatchrecache)
-			M_CacheCharacterSelect();
 
 		ssfx->finger.down = (event->type != ev_touchup);
 
@@ -7380,9 +7379,6 @@ static void M_DrawLevelPlatterWideMap(UINT8 row, UINT8 col, INT32 x, INT32 y, bo
 	if (map <= 0)
 		return;
 
-	if (needpatchrecache)
-		M_CacheLevelPlatter();
-
 	//  A 564x100 image of the level as entry MAPxxW
 	if (!(levelselect.rows[row].mapavailable[col]))
 	{
@@ -7413,9 +7409,6 @@ static void M_DrawLevelPlatterMap(UINT8 row, UINT8 col, INT32 x, INT32 y, boolea
 	INT32 map = levelselect.rows[row].maplist[col];
 	if (map <= 0)
 		return;
-
-	if (needpatchrecache)
-		M_CacheLevelPlatter();
 
 	//  A 160x100 image of the level as entry MAPxxP
 	if (!(levelselect.rows[row].mapavailable[col]))
@@ -7658,8 +7651,6 @@ static void M_DrawNightsAttackSuperSonic(void)
 	const UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, SKINCOLOR_YELLOW, GTC_CACHE);
 	INT32 timer = (ntsatkdrawtimer/4) % 2;
 	angle_t fa = (FixedAngle(((ntsatkdrawtimer * 4) % 360)<<FRACBITS)>>ANGLETOFINESHIFT) & FINEMASK;
-	ntssupersonic[0] = W_CachePatchName("NTSSONC1", PU_PATCH);
-	ntssupersonic[1] = W_CachePatchName("NTSSONC2", PU_PATCH);
 	V_DrawFixedPatch(235<<FRACBITS, (120<<FRACBITS) - (8*FINESINE(fa)), FRACUNIT, 0, ntssupersonic[timer], colormap);
 }
 
@@ -8065,7 +8056,7 @@ static void M_StopMessage(INT32 choice)
 static void M_DrawImageDef(void)
 {
 	// Grr.  Need to autodetect for pic_ts.
-	pic_t *pictest = (pic_t *)W_CachePatchName(currentMenu->menuitems[itemOn].text,PU_CACHE);
+	pic_t *pictest = (pic_t *)W_CacheLumpName(currentMenu->menuitems[itemOn].text,PU_CACHE);
 	if (!pictest->zero)
 		V_DrawScaledPic(0,0,0,W_GetNumForName(currentMenu->menuitems[itemOn].text));
 	else
@@ -8335,10 +8326,6 @@ static void M_DrawAddons(void)
 		M_DrawMessageMenu();
 		return;
 	}
-
-	// Lactozilla: Load addons menu patches.
-	if (needpatchrecache)
-		M_LoadAddonsPatches();
 
 	if (Playing())
 		V_DrawCenteredString(BASEVIDWIDTH/2, 5, warningflags, "Adding files mid-game may cause problems.");
@@ -9494,9 +9481,6 @@ static void M_DrawSoundTest(void)
 	fixed_t hscale = FRACUNIT/2, vscale = FRACUNIT/2, bounce = 0;
 	UINT8 frame[4] = {0, 0, -1, SKINCOLOR_RUBY};
 
-	if (needpatchrecache)
-		M_CacheSoundTest();
-
 	// let's handle the ticker first. ideally we'd tick this somewhere else, BUT...
 	if (curplaying)
 	{
@@ -10135,14 +10119,15 @@ static void M_CacheLoadGameData(void)
 
 static void M_DrawLoadGameData(void)
 {
-	INT32 i, savetodraw, x, y;
+	INT32 i, prev_i = 1, savetodraw, x, y, hsep = 90;
 	skin_t *charskin = NULL;
 
-	if (needpatchrecache)
-		M_CacheLoadGameData();
+	if (vid.width != BASEVIDWIDTH*vid.dupx)
+		hsep = (hsep*vid.width)/(BASEVIDWIDTH*vid.dupx);
 
-	for (i = -2; i <= 2; i++)
+	for (i = 2; prev_i; i = -(i + ((UINT32)i >> 31))) // draws from outwards in; 2, -2, 1, -1, 0
 	{
+		prev_i = i;
 		savetodraw = (saveSlotSelected + i + numsaves)%numsaves;
 		M_GetSaveSelectSlotPosition(i, &x, &y);
 
@@ -11031,6 +11016,10 @@ static boolean M_CharacterSelectPrev(void)
 	return false;
 }
 
+// ================
+// CHARACTER SELECT
+// ================
+
 static void M_CacheCharacterSelectEntry(INT32 i, INT32 skinnum)
 {
 	if (!(description[i].picname[0]))
@@ -11049,22 +11038,6 @@ static void M_CacheCharacterSelectEntry(INT32 i, INT32 skinnum)
 
 	if (description[i].nametag[0])
 		description[i].namepic = W_CachePatchName(description[i].nametag, PU_PATCH);
-}
-
-static void M_CacheCharacterSelect(void)
-{
-	INT32 i, skinnum;
-
-	for (i = 0; i < MAXSKINS; i++)
-	{
-		if (!description[i].used)
-			continue;
-
-		// Already set in M_SetupChoosePlayer
-		skinnum = description[i].skinnum[0];
-		if ((skinnum != -1) && (R_SkinUsable(-1, skinnum)))
-			M_CacheCharacterSelectEntry(i, skinnum);
-	}
 }
 
 static UINT8 M_SetupChoosePlayerDirect(INT32 choice)
@@ -11257,9 +11230,6 @@ static void M_DrawSetupChoosePlayerMenu(void)
 	INT32 bw, sw;
 	INT32 w = (vid.width/vid.dupx);
 	fixed_t scroll = M_GetCharacterSelectScroll();
-
-	if (needpatchrecache)
-		M_CacheCharacterSelect();
 
 	M_GetCharacterSelectPrevNext(char_on, &prev, &next);
 
@@ -12682,10 +12652,6 @@ void M_DrawMarathon(void)
 	char *work;
 	angle_t fa;
 	INT32 dupz = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy), xspan = (vid.width/dupz), yspan = (vid.height/dupz), diffx = (xspan - BASEVIDWIDTH)/2, diffy = (yspan - BASEVIDHEIGHT)/2, maxy = BASEVIDHEIGHT + diffy;
-
-	// lactozilla: the renderer changed so recache patches
-	if (needpatchrecache)
-		M_CacheCharacterSelect();
 
 	curbgxspeed = 0;
 	curbgyspeed = 18;

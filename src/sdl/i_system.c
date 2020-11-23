@@ -1569,8 +1569,7 @@ void I_InitTouchScreen(void)
 
 void I_TouchScreenAvailable(void)
 {
-    if (!cv_captionbackgrounds.changed)
-		CV_Set(&cv_captionbackgrounds, "On");
+	// FIXME: unused
 }
 #endif
 

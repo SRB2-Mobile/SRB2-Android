@@ -126,6 +126,8 @@ boolean GLBackend_LoadExtraFunctions(void)
 	GETOPENGLFUNC(BufferData)
 	GETOPENGLFUNC(DeleteBuffers)
 
+	GETOPENGLFUNC(BlendEquation)
+
 #ifdef GL_SHADERS
 	Shader_LoadFunctions();
 #endif
@@ -138,8 +140,19 @@ boolean GLBackend_LoadExtraFunctions(void)
 
 #undef GETOPENGLFUNC
 
-// jimita
-EXPORT boolean HWRAPI(LoadShaders) (void)
+EXPORT void HWRAPI(SetShader) (int type)
+{
+#ifdef GL_SHADERS
+	// If using model lighting, set the appropriate shader.
+	// However don't override a custom shader.
+	if (type == SHADER_MODEL && model_lighting
+	&& !(gl_shaders[SHADER_MODEL].custom && !gl_shaders[SHADER_MODEL_LIGHTING].custom))
+		type = SHADER_MODEL_LIGHTING;
+#endif
+	Shader_Set(type);
+}
+
+EXPORT boolean HWRAPI(CompileShaders) (void)
 {
 	return Shader_Compile();
 }
@@ -154,33 +167,14 @@ EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boo
 	Shader_LoadCustom(number, shader, size, fragment);
 }
 
-EXPORT boolean HWRAPI(InitCustomShaders) (void)
-{
-	return Shader_InitCustom();
-}
-
-EXPORT void HWRAPI(SetShader) (int shader)
-{
-#ifdef GL_SHADERS
-	// If using model lighting, set the appropriate shader.
-	// However don't override a custom shader.
-	if (shader == SHADER_MODEL && model_lighting
-	&& !(gl_shaderprograms[SHADER_MODEL].custom && !gl_shaderprograms[SHADER_MODEL_LIGHTING].custom))
-		shader = SHADER_MODEL_LIGHTING;
-	Shader_Set(shader);
-#else
-	(void)shader;
-#endif
-}
-
 EXPORT void HWRAPI(UnSetShader) (void)
 {
 	Shader_UnSet();
 }
 
-EXPORT void HWRAPI(KillShaders) (void)
+EXPORT void HWRAPI(CleanShaders) (void)
 {
-	// Nothing
+	Shader_Clean();
 }
 
 // -----------------+
@@ -318,6 +312,7 @@ void SetStates(void)
 
 	pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
+	pglEnable(GL_ALPHA_TEST);
 	pglAlphaFunc(GL_NOTEQUAL, 0.0f);
 
 	//pglBlendFunc(GL_ONE, GL_ZERO); // copy pixel to frame buffer (opaque)
@@ -357,6 +352,17 @@ void SetStates(void)
 	pglLoadIdentity();
 	pglScalef(1.0f, 1.0f, -1.0f);
 	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
+}
+
+
+// -----------------+
+// DeleteTexture    : Deletes a texture from the GPU and frees its data
+// -----------------+
+EXPORT void HWRAPI(DeleteTexture) (FTextureInfo *pTexInfo)
+{
+	if (pTexInfo->downloaded)
+		pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+	pTexInfo->downloaded = 0;
 }
 
 
@@ -527,64 +533,110 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 	pglEnable(GL_TEXTURE_2D);
 }
 
-static void Clamp2D(GLenum pname)
-{
-	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP); // fallback clamp
-	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP_TO_EDGE);
-}
-
 
 // -----------------+
 // SetBlend         : Set render mode
 // -----------------+
 // PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
 //             is it faster when pixels are discarded ?
+
+static void Clamp2D(GLenum pname)
+{
+	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP); // fallback clamp
+	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP_TO_EDGE);
+}
+
+static void SetBlendEquation(GLenum mode)
+{
+	if (pglBlendEquation)
+		pglBlendEquation(mode);
+}
+
+static void SetBlendMode(FBITFIELD flags)
+{
+	// Set blending function
+	switch (flags)
+	{
+		case PF_Translucent & PF_Blending:
+			pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
+			break;
+		case PF_Masked & PF_Blending:
+			// Hurdler: does that mean lighting is only made by alpha src?
+			// it sounds ok, but not for polygonsmooth
+			pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
+			break;
+		case PF_Additive & PF_Blending:
+		case PF_Subtractive & PF_Blending:
+		case PF_ReverseSubtract & PF_Blending:
+		case PF_Environment & PF_Blending:
+			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			break;
+		case PF_AdditiveSource & PF_Blending:
+			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
+			break;
+		case PF_Multiplicative & PF_Blending:
+			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
+			break;
+		case PF_Fog & PF_Fog:
+			// Sryder: Fog
+			// multiplies input colour by input alpha, and destination colour by input colour, then adds them
+			pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
+			break;
+		default: // must be 0, otherwise it's an error
+			// No blending
+			pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
+			break;
+	}
+
+	// Set blending equation
+	switch (flags)
+	{
+		case PF_Subtractive & PF_Blending:
+			SetBlendEquation(GL_FUNC_SUBTRACT);
+			break;
+		case PF_ReverseSubtract & PF_Blending:
+			// good for shadow
+			// not really but what else ?
+			SetBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+			break;
+		default:
+			SetBlendEquation(GL_FUNC_ADD);
+			break;
+	}
+
+	// Alpha test
+	switch (flags)
+	{
+		case PF_Masked & PF_Blending:
+			pglAlphaFunc(GL_GREATER, 0.5f);
+			break;
+		case PF_Translucent & PF_Blending:
+		case PF_Additive & PF_Blending:
+		case PF_AdditiveSource & PF_Blending:
+		case PF_Subtractive & PF_Blending:
+		case PF_ReverseSubtract & PF_Blending:
+		case PF_Environment & PF_Blending:
+		case PF_Multiplicative & PF_Blending:
+			pglAlphaFunc(GL_NOTEQUAL, 0.0f);
+			break;
+		case PF_Fog & PF_Fog:
+			pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
+			break;
+		default:
+			pglAlphaFunc(GL_GREATER, 0.5f);
+			break;
+	}
+}
+
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 {
 	FBITFIELD Xor;
 	Xor = CurrentPolyFlags^PolyFlags;
-	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible|PF_NoAlphaTest))
+	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible))
 	{
-		if (Xor&(PF_Blending)) // if blending mode must be changed
-		{
-			switch (PolyFlags & PF_Blending) {
-				case PF_Translucent & PF_Blending:
-					pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Masked & PF_Blending:
-					// Hurdler: does that mean lighting is only made by alpha src?
-					// it sounds ok, but not for polygonsmooth
-					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
-					pglAlphaFunc(GL_GREATER, 0.5f);
-					break;
-				case PF_Additive & PF_Blending:
-					pglBlendFunc(GL_SRC_ALPHA, GL_ONE);                 // src * alpha + dest
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Environment & PF_Blending:
-					pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Substractive & PF_Blending:
-					// good for shadow
-					// not really but what else ?
-					pglBlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Fog & PF_Fog:
-					// Sryder: Fog
-					// multiplies input colour by input alpha, and destination colour by input colour, then adds them
-					pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
-					pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
-					break;
-				default : // must be 0, otherwise it's an error
-					// No blending
-					pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
-					pglAlphaFunc(GL_GREATER, 0.5f);
-					break;
-			}
-		}
+		if (Xor & PF_Blending) // if blending mode must be changed
+			SetBlendMode(PolyFlags & PF_Blending);
+
 		if (Xor & PF_NoAlphaTest)
 		{
 			if (PolyFlags & PF_NoAlphaTest)
@@ -601,7 +653,7 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 				pglDisable(GL_POLYGON_OFFSET_FILL);
 		}
 
-		if (Xor&PF_NoDepthTest)
+		if (Xor & PF_NoDepthTest)
 		{
 			if (PolyFlags & PF_NoDepthTest)
 				pglDepthFunc(GL_ALWAYS); //pglDisable(GL_DEPTH_TEST);
@@ -609,25 +661,25 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 				pglDepthFunc(GL_LEQUAL); //pglEnable(GL_DEPTH_TEST);
 		}
 
-		if (Xor&PF_RemoveYWrap)
+		if (Xor & PF_RemoveYWrap)
 		{
 			if (PolyFlags & PF_RemoveYWrap)
 				Clamp2D(GL_TEXTURE_WRAP_T);
 		}
 
-		if (Xor&PF_ForceWrapX)
+		if (Xor & PF_ForceWrapX)
 		{
 			if (PolyFlags & PF_ForceWrapX)
 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		}
 
-		if (Xor&PF_ForceWrapY)
+		if (Xor & PF_ForceWrapY)
 		{
 			if (PolyFlags & PF_ForceWrapY)
 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		}
 
-		if (Xor&PF_Modulated)
+		if (Xor & PF_Modulated)
 		{
 #if defined (__unix__) || defined (UNIXCOMMON)
 			if (oglflags & GLF_NOTEXENV)
@@ -1153,15 +1205,7 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_SHADERS:
-			switch (Value)
-			{
-				case 1:
-					gl_allowshaders = true;
-					break;
-				default:
-					gl_allowshaders = false;
-					break;
-			}
+			gl_allowshaders = (hwdshaderoption_t)Value;
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
@@ -1205,6 +1249,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	boolean useVBO = true;
 
+	FBITFIELD flags;
 	int i;
 
 	// Because otherwise, scaling the screen negatively vertically breaks the lighting
@@ -1272,8 +1317,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	else
 		pglColor4ubv((GLubyte*)&Surface->PolyColor.s);
 
-	SetBlend((poly.alpha < 1 ? PF_Translucent : (PF_Masked|PF_Occlude))|PF_Modulated);
-
 	tint.red   = byte2float[Surface->TintColor.s.red];
 	tint.green = byte2float[Surface->TintColor.s.green];
 	tint.blue  = byte2float[Surface->TintColor.s.blue];
@@ -1284,6 +1327,13 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float[Surface->FadeColor.s.blue];
 	fade.alpha = byte2float[Surface->FadeColor.s.alpha];
 
+	flags = (Surface->PolyFlags | PF_Modulated);
+	if (Surface->PolyFlags & (PF_Additive|PF_AdditiveSource|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
+		flags |= PF_Occlude;
+	else if (Surface->PolyColor.s.alpha == 0xFF)
+		flags |= (PF_Occlude | PF_Masked);
+
+	SetBlend(flags);
 	Shader_SetColors(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
@@ -1833,7 +1883,7 @@ static void DoWipe(void)
 
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	SetBlend(PF_Modulated|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	SetBlend(PF_Modulated|PF_NoDepthTest);
 	pglEnable(GL_TEXTURE_2D);
 
 	// Draw the original screen
@@ -1843,7 +1893,7 @@ static void DoWipe(void)
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
 	// Draw the end screen that fades in
 	pglActiveTexture(GL_TEXTURE0);

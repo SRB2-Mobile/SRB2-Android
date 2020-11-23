@@ -40,11 +40,7 @@ consvar_t cv_thinkless = {"reducedthinking", "On", CV_SAVE, CV_OnOff, NULL, 0, N
 #endif
 
 static CV_PossibleValue_t CV_BobSpeed[] = {{0, "MIN"}, {4*FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_movebob = {"movebob", "1.0", CV_FLOAT|CV_SAVE, CV_BobSpeed, NULL, 0, NULL, NULL, 0, 0, NULL};
-
-#ifdef WALLSPLATS
-consvar_t cv_splats = {"splats", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-#endif
+consvar_t cv_movebob = CVAR_INIT ("movebob", "1.0", CV_FLOAT|CV_SAVE, CV_BobSpeed, NULL);
 
 actioncache_t actioncachehead;
 
@@ -1965,29 +1961,6 @@ void P_XYMovement(mobj_t *mo)
 				return;
 			}
 
-			// draw damage on wall
-			//SPLAT TEST ----------------------------------------------------------
-#ifdef WALLSPLATS
-			if (blockingline && mo->type != MT_REDRING && mo->type != MT_FIREBALL
-			&& !(mo->flags2 & (MF2_AUTOMATIC|MF2_RAILRING|MF2_BOUNCERING|MF2_EXPLOSION|MF2_SCATTER)))
-				// set by last P_TryMove() that failed
-			{
-				divline_t divl;
-				divline_t misl;
-				fixed_t frac;
-
-				P_MakeDivline(blockingline, &divl);
-				misl.x = mo->x;
-				misl.y = mo->y;
-				misl.dx = mo->momx;
-				misl.dy = mo->momy;
-				frac = P_InterceptVector(&divl, &misl);
-				R_AddWallSplat(blockingline, P_PointOnLineSide(mo->x,mo->y,blockingline),
-					"A_DMG3", mo->z, frac, SPLATDRAWMODE_SHADE);
-			}
-#endif
-			// --------------------------------------------------------- SPLAT TEST
-
 			P_ExplodeMissile(mo);
 			return;
 		}
@@ -3540,16 +3513,19 @@ static boolean P_CameraCheckHeat(camera_t *thiscam)
 {
 	sector_t *sector;
 	fixed_t halfheight = thiscam->z + (thiscam->height >> 1);
+	size_t i;
 
 	// see if we are in water
 	sector = thiscam->subsector->sector;
 
-	if (P_FindSpecialLineFromTag(13, sector->tag, -1) != -1)
-		return true;
+	for (i = 0; i < sector->tags.count; i++)
+		if (Tag_FindLineSpecial(13, sector->tags.tags[i]) != -1)
+			return true;
 
 	if (sector->ffloors)
 	{
 		ffloor_t *rover;
+		size_t j;
 
 		for (rover = sector->ffloors; rover; rover = rover->next)
 		{
@@ -3561,7 +3537,8 @@ static boolean P_CameraCheckHeat(camera_t *thiscam)
 			if (halfheight <= P_GetFFloorBottomZAt(rover, thiscam->x, thiscam->y))
 				continue;
 
-			if (P_FindSpecialLineFromTag(13, rover->master->frontsector->tag, -1) != -1)
+			for (j = 0; j < rover->master->frontsector->tags.count; j++)
+			if (Tag_FindLineSpecial(13, rover->master->frontsector->tags.tags[j]) != -1)
 				return true;
 		}
 	}
@@ -4630,16 +4607,18 @@ static boolean P_Boss4MoveCage(mobj_t *mobj, fixed_t delta)
 	const UINT16 tag = 65534 + (mobj->spawnpoint ? mobj->spawnpoint->extrainfo*LE_PARAMWIDTH : 0);
 	INT32 snum;
 	sector_t *sector;
-	for (snum = sectors[tag%numsectors].firsttag; snum != -1; snum = sector->nexttag)
+	boolean gotcage = false;
+	TAG_ITER_DECLARECOUNTER(0);
+
+	TAG_ITER_SECTORS(0, tag, snum)
 	{
 		sector = &sectors[snum];
-		if (sector->tag != tag)
-			continue;
 		sector->floorheight += delta;
 		sector->ceilingheight += delta;
 		P_CheckSector(sector, true);
+		gotcage = true;
 	}
-	return sectors[tag%numsectors].firsttag != -1;
+	return gotcage;
 }
 
 // Move Boss4's arms to angle
@@ -4711,25 +4690,15 @@ static void P_Boss4PinchSpikeballs(mobj_t *mobj, angle_t angle, fixed_t dz)
 static void P_Boss4DestroyCage(mobj_t *mobj)
 {
 	const UINT16 tag = 65534 + (mobj->spawnpoint ? mobj->spawnpoint->extrainfo*LE_PARAMWIDTH : 0);
-	INT32 snum, next;
+	INT32 snum;
 	size_t a;
 	sector_t *sector, *rsec;
 	ffloor_t *rover;
+	TAG_ITER_DECLARECOUNTER(0);
 
-	// This will be the final iteration of sector tag.
-	// We'll destroy the tag list as we go.
-	next = sectors[tag%numsectors].firsttag;
-	sectors[tag%numsectors].firsttag = -1;
-
-	for (snum = next; snum != -1; snum = next)
+	TAG_ITER_SECTORS(0, tag, snum)
 	{
 		sector = &sectors[snum];
-
-		next = sector->nexttag;
-		sector->nexttag = -1;
-		if (sector->tag != tag)
-			continue;
-		sector->tag = 0;
 
 		// Destroy the FOFs.
 		for (a = 0; a < sector->numattached; a++)
@@ -9618,12 +9587,6 @@ static boolean P_MobjRegularThink(mobj_t *mobj)
 			mobj->fuse = 1; // Return to base.
 		break;
 	}
-	case MT_CANNONBALL:
-#ifdef FLOORSPLATS
-		R_AddFloorSplat(mobj->tracer->subsector, mobj->tracer, "TARGET", mobj->tracer->x,
-			mobj->tracer->y, mobj->tracer->floorz, SPLATDRAWMODE_SHADE);
-#endif
-		break;
 	case MT_SPINDUST: // Spindash dust
 		mobj->momx = FixedMul(mobj->momx, (3*FRACUNIT)/4); // originally 50000
 		mobj->momy = FixedMul(mobj->momy, (3*FRACUNIT)/4); // same
@@ -10067,11 +10030,12 @@ void P_MobjThinker(mobj_t *mobj)
 	// Sector special (2,8) allows ANY mobj to trigger a linedef exec
 	if (mobj->subsector && GETSECSPECIAL(mobj->subsector->sector->special, 2) == 8)
 	{
-		sector_t *sec2;
-
-		sec2 = P_ThingOnSpecial3DFloor(mobj);
+		sector_t *sec2 = P_ThingOnSpecial3DFloor(mobj);
 		if (sec2 && GETSECSPECIAL(sec2->special, 2) == 1)
-			P_LinedefExecute(sec2->tag, mobj, sec2);
+		{
+			mtag_t tag = Tag_FGet(&sec2->tags);
+			P_LinedefExecute(tag, mobj, sec2);
+		}
 	}
 
 	if (mobj->scale != mobj->destscale)
@@ -10295,14 +10259,19 @@ void P_PushableThinker(mobj_t *mobj)
 	sec = mobj->subsector->sector;
 
 	if (GETSECSPECIAL(sec->special, 2) == 1 && mobj->z == sec->floorheight)
-		P_LinedefExecute(sec->tag, mobj, sec);
+	{
+		mtag_t tag = Tag_FGet(&sec->tags);
+		P_LinedefExecute(tag, mobj, sec);
+	}
+
 //	else if (GETSECSPECIAL(sec->special, 2) == 8)
 	{
-		sector_t *sec2;
-
-		sec2 = P_ThingOnSpecial3DFloor(mobj);
+		sector_t *sec2 = P_ThingOnSpecial3DFloor(mobj);
 		if (sec2 && GETSECSPECIAL(sec2->special, 2) == 1)
-			P_LinedefExecute(sec2->tag, mobj, sec2);
+		{
+			mtag_t tag = Tag_FGet(&sec2->tags);
+			P_LinedefExecute(tag, mobj, sec2);
+		}
 	}
 
 	// it has to be pushable RIGHT NOW for this part to happen
@@ -10522,6 +10491,12 @@ mobj_t *P_SpawnMobj(fixed_t x, fixed_t y, fixed_t z, mobjtype_t type)
 	// TODO: Make this a special map header
 	if ((maptol & TOL_ERZ3) && !(mobj->type == MT_BLACKEGGMAN))
 		mobj->destscale = FRACUNIT/2;
+
+	// Sprite rendering
+	mobj->blendmode = AST_TRANSLUCENT;
+	mobj->spritexscale = mobj->spriteyscale = mobj->scale;
+	mobj->spritexoffset = mobj->spriteyoffset = 0;
+	mobj->floorspriteslope = NULL;
 
 	// set subsector and/or block links
 	P_SetThingPosition(mobj);
@@ -10923,6 +10898,22 @@ static inline precipmobj_t *P_SpawnSnowMobj(fixed_t x, fixed_t y, fixed_t z, mob
 	return mo;
 }
 
+void *P_CreateFloorSpriteSlope(mobj_t *mobj)
+{
+	if (mobj->floorspriteslope)
+		Z_Free(mobj->floorspriteslope);
+	mobj->floorspriteslope = Z_Calloc(sizeof(pslope_t), PU_LEVEL, NULL);
+	mobj->floorspriteslope->normal.z = FRACUNIT;
+	return (void *)mobj->floorspriteslope;
+}
+
+void P_RemoveFloorSpriteSlope(mobj_t *mobj)
+{
+	if (mobj->floorspriteslope)
+		Z_Free(mobj->floorspriteslope);
+	mobj->floorspriteslope = NULL;
+}
+
 //
 // P_RemoveMobj
 //
@@ -10979,10 +10970,13 @@ void P_RemoveMobj(mobj_t *mobj)
 		P_DelSeclist(sector_list);
 		sector_list = NULL;
 	}
+
 	mobj->flags |= MF_NOSECTOR|MF_NOBLOCKMAP;
 	mobj->subsector = NULL;
 	mobj->state = NULL;
 	mobj->player = NULL;
+
+	P_RemoveFloorSpriteSlope(mobj);
 
 	// stop any playing sound
 	S_StopSound(mobj);
@@ -11068,10 +11062,10 @@ void P_RemoveSavegameMobj(mobj_t *mobj)
 }
 
 static CV_PossibleValue_t respawnitemtime_cons_t[] = {{1, "MIN"}, {300, "MAX"}, {0, NULL}};
-consvar_t cv_itemrespawntime = {"respawnitemtime", "30", CV_NETVAR|CV_CHEAT, respawnitemtime_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_itemrespawn = {"respawnitem", "On", CV_NETVAR, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_itemrespawntime = CVAR_INIT ("respawnitemtime", "30", CV_SAVE|CV_NETVAR|CV_CHEAT, respawnitemtime_cons_t, NULL);
+consvar_t cv_itemrespawn = CVAR_INIT ("respawnitem", "On", CV_SAVE|CV_NETVAR, CV_OnOff, NULL);
 static CV_PossibleValue_t flagtime_cons_t[] = {{0, "MIN"}, {300, "MAX"}, {0, NULL}};
-consvar_t cv_flagtime = {"flagtime", "30", CV_NETVAR|CV_CHEAT, flagtime_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_flagtime = CVAR_INIT ("flagtime", "30", CV_SAVE|CV_NETVAR|CV_CHEAT, flagtime_cons_t, NULL);
 
 void P_SpawnPrecipitation(void)
 {
@@ -11977,9 +11971,6 @@ static mobjtype_t P_GetMobjtypeSubstitute(mapthing_t *mthing, mobjtype_t i)
 			return MT_SCORE1K_BOX; // 1,000
 	}
 
-	if (mariomode && i == MT_ROSY)
-		return MT_TOAD; // don't remove on penalty of death
-
 	return i;
 }
 
@@ -12054,8 +12045,7 @@ static boolean P_SetupMace(mapthing_t *mthing, mobj_t *mobj, boolean *doangle)
 	const size_t mthingi = (size_t)(mthing - mapthings);
 
 	// Find the corresponding linedef special, using angle as tag
-	// P_FindSpecialLineFromTag works here now =D
-	line = P_FindSpecialLineFromTag(9, mthing->angle, -1);
+	line = Tag_FindLineSpecial(9, mthing->angle);
 
 	if (line == -1)
 	{
@@ -12365,7 +12355,7 @@ static boolean P_SetupParticleGen(mapthing_t *mthing, mobj_t *mobj)
 	const size_t mthingi = (size_t)(mthing - mapthings);
 
 	// Find the corresponding linedef special, using angle as tag
-	line = P_FindSpecialLineFromTag(15, mthing->angle, -1);
+	line = Tag_FindLineSpecial(15, mthing->angle);
 
 	if (line == -1)
 	{
@@ -12604,17 +12594,20 @@ static boolean P_SetupSpawnedMapThing(mapthing_t *mthing, mobj_t *mobj, boolean 
 		break;
 	}
 	case MT_SKYBOX:
-		if (mthing->tag < 0 || mthing->tag > 15)
+	{
+		mtag_t tag = Tag_FGet(&mthing->tags);
+		if (tag < 0 || tag > 15)
 		{
-			CONS_Debug(DBG_GAMELOGIC, "P_SetupSpawnedMapThing: Skybox ID %d of mapthing %s is not between 0 and 15!\n", mthing->tag, sizeu1((size_t)(mthing - mapthings)));
+			CONS_Debug(DBG_GAMELOGIC, "P_SetupSpawnedMapThing: Skybox ID %d of mapthing %s is not between 0 and 15!\n", tag, sizeu1((size_t)(mthing - mapthings)));
 			break;
 		}
 
 		if (mthing->options & MTF_OBJECTSPECIAL)
-			skyboxcenterpnts[mthing->tag] = mobj;
+			skyboxcenterpnts[tag] = mobj;
 		else
-			skyboxviewpnts[mthing->tag] = mobj;
+			skyboxviewpnts[tag] = mobj;
 		break;
+	}
 	case MT_EGGSTATUE:
 		if (mthing->options & MTF_EXTRA)
 		{
@@ -13101,8 +13094,8 @@ static mobj_t *P_SpawnMobjFromMapThing(mapthing_t *mthing, fixed_t x, fixed_t y,
 	mobj = P_SpawnMobj(x, y, z, i);
 	mobj->spawnpoint = mthing;
 
-	P_SetScale(mobj, mthing->scale);
-	mobj->destscale = mthing->scale;
+	P_SetScale(mobj, FixedMul(mobj->scale, mthing->scale));
+	mobj->destscale = FixedMul(mobj->destscale, mthing->scale);
 
 	if (!P_SetupSpawnedMapThing(mthing, mobj, &doangle))
 		return mobj;

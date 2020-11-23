@@ -95,11 +95,6 @@ EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boo
 	(void)fragment;
 }
 
-EXPORT boolean HWRAPI(InitCustomShaders) (void)
-{
-	return false;
-}
-
 EXPORT void HWRAPI(SetShader) (int shader)
 {
 	(void)shader;

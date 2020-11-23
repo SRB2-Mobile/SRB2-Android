@@ -69,7 +69,7 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 {
 	SetSurface(w, h);
 
-	granisotropicmode_cons_t[1].value = maximumAnisotropy;
+	glanisotropicmode_cons_t[1].value = maximumAnisotropy;
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
 
 	HWR_Startup();

@@ -56,7 +56,7 @@ fixed_t touch_gui_scale;
 
 // Is the touch screen available for game inputs?
 boolean touch_useinputs = true;
-consvar_t cv_showfingers = {"showfingers", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_showfingers = CVAR_INIT ("showfingers", "Off", CV_SAVE, CV_OnOff, NULL);
 
 // Finger event handler
 void (*touch_fingerhandler)(touchfinger_t *, event_t *) = NULL;
@@ -78,21 +78,23 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 	{touchpreset_tiny, "Tiny"},
 	{0, NULL}};
 
-consvar_t cv_touchinputs = {"touch_inputs", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_YesNo, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchstyle =  {"touch_movementstyle", "Joystick", CV_SAVE|CV_CALL|CV_NOINIT, touchstyle_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchpreset = {"touch_preset", "Default", CV_SAVE|CV_CALL|CV_NOINIT, touchpreset_cons_t, TS_PresetChanged, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchlayout = {"touch_layout", "None", CV_SAVE|CV_CALL|CV_NOINIT, NULL, TS_LoadLayoutFromCVar, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchcamera = {"touch_camera", "On", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+#define TOUCHCVARFLAGS (CV_SAVE | CV_CALL | CV_NOINIT)
+
+consvar_t cv_touchinputs = CVAR_INIT ("touch_inputs", "On", TOUCHCVARFLAGS, CV_YesNo, TS_UpdateControls);
+consvar_t cv_touchstyle  = CVAR_INIT ("touch_movementstyle", "Joystick", TOUCHCVARFLAGS, touchstyle_cons_t, TS_UpdateControls);
+consvar_t cv_touchpreset = CVAR_INIT ("touch_preset", "Default", TOUCHCVARFLAGS, touchpreset_cons_t, TS_PresetChanged);
+consvar_t cv_touchlayout = CVAR_INIT ("touch_layout", "None", TOUCHCVARFLAGS, NULL, TS_LoadLayoutFromCVar);
+consvar_t cv_touchcamera = CVAR_INIT ("touch_camera", "On", TOUCHCVARFLAGS, CV_OnOff, TS_UpdateControls);
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchguiscale = {"touch_guiscale", "0.75", CV_FLOAT|CV_SAVE|CV_CALL|CV_NOINIT, touchguiscale_cons_t, TS_UpdateControls, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchguiscale = CVAR_INIT ("touch_guiscale", "0.75", CV_FLOAT | TOUCHCVARFLAGS, touchguiscale_cons_t, TS_UpdateControls);
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
-consvar_t cv_touchtrans = {"touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchmenutrans = {"touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL);
+consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL);
 
 // Touch layout options
-#define TOUCHLAYOUTCVAR(name, default, func) {name, default, CV_CALL|CV_NOINIT, CV_YesNo, func, 0, NULL, NULL, 0, 0, NULL}
+#define TOUCHLAYOUTCVAR(name, default, func) CVAR_INIT (name, default, (CV_CALL | CV_NOINIT), CV_YesNo, func);
 
 static void ClearLayoutAndKeepSettings(void)
 {
@@ -139,13 +141,15 @@ consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
 static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
-consvar_t cv_touchsens = {"touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchvertsens = {"touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchsens = CVAR_INIT ("touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL);
+consvar_t cv_touchvertsens = CVAR_INIT ("touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL);
+
+#define TOUCHJOYCVARFLAGS (CV_FLOAT | CV_SAVE)
 
 static CV_PossibleValue_t touchjoysens_cons_t[] = {{FRACUNIT/100, "MIN"}, {4 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchjoyhorzsens = {"touch_joyhorzsens", "2.0", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchjoyvertsens = {"touch_joyvertsens", "2.0", CV_FLOAT|CV_SAVE, touchjoysens_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_touchjoydeadzone = {"touch_joydeadzone", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_touchjoyhorzsens = CVAR_INIT ("touch_joyhorzsens", "2.0", TOUCHJOYCVARFLAGS, touchjoysens_cons_t, NULL);
+consvar_t cv_touchjoyvertsens = CVAR_INIT ("touch_joyvertsens", "2.0", TOUCHJOYCVARFLAGS, touchjoysens_cons_t, NULL);
+consvar_t cv_touchjoydeadzone = CVAR_INIT ("touch_joydeadzone", "0.125", TOUCHJOYCVARFLAGS, zerotoone_cons_t, NULL);
 
 boolean TS_IsCustomizingControls(void)
 {

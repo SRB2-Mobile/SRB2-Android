@@ -277,7 +277,7 @@ OPTS += -DCOMPVERSION
 
 ifndef NONX86
 ifndef GCC29
-	ARCHOPTS?=-march=pentium
+	ARCHOPTS?=-msse3 -mfpmath=sse
 else
 	ARCHOPTS?=-mpentium
 endif
@@ -502,6 +502,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/m_fixed.o  \
 		$(OBJDIR)/m_menu.o   \
 		$(OBJDIR)/m_misc.o   \
+		$(OBJDIR)/m_perfstats.o \
 		$(OBJDIR)/m_random.o \
 		$(OBJDIR)/m_queue.o  \
 		$(OBJDIR)/info.o     \
@@ -534,9 +535,12 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/r_splats.o \
 		$(OBJDIR)/r_things.o \
 		$(OBJDIR)/r_textures.o \
+		$(OBJDIR)/r_patch.o \
+		$(OBJDIR)/r_patchrotation.o \
 		$(OBJDIR)/r_picformats.o \
 		$(OBJDIR)/r_portal.o \
 		$(OBJDIR)/screen.o   \
+		$(OBJDIR)/taglist.o  \
 		$(OBJDIR)/v_video.o  \
 		$(OBJDIR)/s_sound.o  \
 		$(OBJDIR)/sounds.o   \
@@ -622,8 +626,9 @@ ifndef VALGRIND
 ifndef NOOBJDUMP
 	@echo Dumping debugging info
 	$(OBJDUMP) $(OBJDUMP_OPTS) $(BIN)/$(EXENAME) > $(BIN)/$(DBGNAME).txt
+ifdef WINDOWSHELL
 	-$(GZIP) $(GZIP_OPTS) $(BIN)/$(DBGNAME).txt
-ifndef WINDOWSHELL
+else
 	-$(GZIP) $(GZIP_OPT2) $(BIN)/$(DBGNAME).txt
 endif
 endif
@@ -643,8 +648,9 @@ endif
 reobjdump:
 	@echo Redumping debugging info
 	$(OBJDUMP) $(OBJDUMP_OPTS) $(BIN)/$(DBGNAME) > $(BIN)/$(DBGNAME).txt
+ifdef WINDOWSHELL
 	-$(GZIP) $(GZIP_OPTS) $(BIN)/$(DBGNAME).txt
-ifndef WINDOWSHELL
+else
 	-$(GZIP) $(GZIP_OPT2) $(BIN)/$(DBGNAME).txt
 endif
 

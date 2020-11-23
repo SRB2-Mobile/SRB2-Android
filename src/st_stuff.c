@@ -253,7 +253,7 @@ void ST_doPaletteStuff(void)
 
 void ST_UnloadGraphics(void)
 {
-	Z_FreeTag(PU_HUDGFX);
+	Patch_FreeTag(PU_HUDGFX);
 }
 
 void ST_LoadGraphics(void)
@@ -2145,21 +2145,21 @@ static void ST_drawNiGHTSHUD(void)
 			if (stplyr->powers[pw_nights_superloop])
 			{
 				pwr = stplyr->powers[pw_nights_superloop];
-				V_DrawSmallScaledPatch(110, 44, 0, W_CachePatchName("NPRUA0",PU_CACHE));
+				V_DrawSmallScaledPatch(110, 44, 0, W_CachePatchName("NPRUA0",PU_SPRITE));
 				V_DrawThinString(106, 52, V_MONOSPACE, va("%2d.%02d", pwr/TICRATE, G_TicsToCentiseconds(pwr)));
 			}
 
 			if (stplyr->powers[pw_nights_helper])
 			{
 				pwr = stplyr->powers[pw_nights_helper];
-				V_DrawSmallScaledPatch(150, 44, 0, W_CachePatchName("NPRUC0",PU_CACHE));
+				V_DrawSmallScaledPatch(150, 44, 0, W_CachePatchName("NPRUC0",PU_SPRITE));
 				V_DrawThinString(146, 52, V_MONOSPACE, va("%2d.%02d", pwr/TICRATE, G_TicsToCentiseconds(pwr)));
 			}
 
 			if (stplyr->powers[pw_nights_linkfreeze])
 			{
 				pwr = stplyr->powers[pw_nights_linkfreeze];
-				V_DrawSmallScaledPatch(190, 44, 0, W_CachePatchName("NPRUE0",PU_CACHE));
+				V_DrawSmallScaledPatch(190, 44, 0, W_CachePatchName("NPRUE0",PU_SPRITE));
 				V_DrawThinString(186, 52, V_MONOSPACE, va("%2d.%02d", pwr/TICRATE, G_TicsToCentiseconds(pwr)));
 			}
 		}
@@ -2841,9 +2841,6 @@ static void ST_overlayDrawer(void)
 
 void ST_Drawer(void)
 {
-	if (needpatchrecache)
-		R_ReloadHUDGraphics();
-
 #ifdef SEENAMES
 	if (cv_seenames.value && cv_allowseenames.value && displayplayer == consoleplayer && seenplayer && seenplayer->mo)
 	{

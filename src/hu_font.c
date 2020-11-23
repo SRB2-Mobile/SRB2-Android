@@ -233,18 +233,6 @@ static void Font_MakeChars(font_t *font)
 			chr->patch = Picture_Convert(PICFMT_FLAT16, chr->pixels, PICFMT_PATCH, 0, NULL, chr->w, chr->h, 0, 0, 0);
 			Z_Free(chr->pixels);
 			chr->pixels = NULL;
-
-#ifdef HWRENDER
-			if (rendermode == render_opengl)
-			{
-				patch_t *swPatch = chr->patch;
-				GLPatch_t *grPatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
-				grPatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);
-				grPatch->rawpatch = swPatch;
-				chr->patch = (patch_t *)grPatch;
-				HWR_MakePatch(swPatch, grPatch, grPatch->mipmap, false);
-			}
-#endif
 		}
 	}
 }

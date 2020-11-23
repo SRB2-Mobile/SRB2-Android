@@ -42,6 +42,7 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
 EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
 EXPORT void HWRAPI(SetTexture) (FTextureInfo *TexInfo);
 EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *TexInfo);
+EXPORT void HWRAPI(DeleteTexture) (FTextureInfo *TexInfo);
 EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
 EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
 EXPORT void HWRAPI(ClearMipMapCache) (void);
@@ -69,14 +70,13 @@ EXPORT void HWRAPI(DrawScreenFinalTexture) (int width, int height);
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
 
 // jimita
-EXPORT boolean HWRAPI(LoadShaders) (void);
-EXPORT void HWRAPI(KillShaders) (void);
-EXPORT void HWRAPI(SetShader) (int shader);
+EXPORT boolean HWRAPI(CompileShaders) (void);
+EXPORT void HWRAPI(CleanShaders) (void);
+EXPORT void HWRAPI(SetShader) (int type);
 EXPORT void HWRAPI(UnSetShader) (void);
 
 EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value);
-EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boolean fragment);
-EXPORT boolean HWRAPI(InitCustomShaders) (void);
+EXPORT void HWRAPI(LoadCustomShader) (int number, char *code, size_t size, boolean isfragment);
 
 // ==========================================================================
 //                                      HWR DRIVER OBJECT, FOR CLIENT PROGRAM
@@ -97,6 +97,7 @@ struct hwdriver_s
 	ClearBuffer         pfnClearBuffer;
 	SetTexture          pfnSetTexture;
 	UpdateTexture       pfnUpdateTexture;
+	DeleteTexture       pfnDeleteTexture;
 	ReadRect            pfnReadRect;
 	GClipRect           pfnGClipRect;
 	ClearMipMapCache    pfnClearMipMapCache;
@@ -122,14 +123,13 @@ struct hwdriver_s
 	MakeScreenFinalTexture  pfnMakeScreenFinalTexture;
 	DrawScreenFinalTexture  pfnDrawScreenFinalTexture;
 
-	LoadShaders         pfnLoadShaders;
-	KillShaders         pfnKillShaders;
+	CompileShaders      pfnCompileShaders;
+	CleanShaders        pfnCleanShaders;
 	SetShader           pfnSetShader;
 	UnSetShader         pfnUnSetShader;
 
 	SetShaderInfo       pfnSetShaderInfo;
 	LoadCustomShader    pfnLoadCustomShader;
-	InitCustomShaders   pfnInitCustomShaders;
 };
 
 extern struct hwdriver_s hwdriver;

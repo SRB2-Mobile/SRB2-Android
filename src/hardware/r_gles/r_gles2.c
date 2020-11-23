@@ -121,11 +121,6 @@ EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boo
 	Shader_LoadCustom(number, shader, size, fragment);
 }
 
-EXPORT boolean HWRAPI(InitCustomShaders) (void)
-{
-	return Shader_InitCustom();
-}
-
 EXPORT void HWRAPI(SetShader) (int shader)
 {
 	Shader_Set(shader);
@@ -1568,7 +1563,7 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
 	shader = &gl_shaderprograms[tinted ? SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE : SHADER_FADEMASK];
-	changed = Shader_SetProgram(shader);
+	changed = true; //Shader_SetProgram(shader);
 
 	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
 	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD1));

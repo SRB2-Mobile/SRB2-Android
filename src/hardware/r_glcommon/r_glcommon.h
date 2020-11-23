@@ -359,6 +359,10 @@ extern PFNglBufferData pglBufferData;
 typedef void (R_GL_APIENTRY * PFNglDeleteBuffers) (GLsizei n, const GLuint *buffers);
 extern PFNglDeleteBuffers pglDeleteBuffers;
 
+/* 2.0 functions */
+typedef void (APIENTRY * PFNglBlendEquation) (GLenum mode);
+extern PFNglBlendEquation pglBlendEquation;
+
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================

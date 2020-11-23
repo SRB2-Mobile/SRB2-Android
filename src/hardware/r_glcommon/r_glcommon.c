@@ -191,6 +191,9 @@ PFNglBindBuffer pglBindBuffer;
 PFNglBufferData pglBufferData;
 PFNglDeleteBuffers pglDeleteBuffers;
 
+/* 2.0 functions */
+PFNglBlendEquation pglBlendEquation;
+
 boolean GLBackend_LoadCommonFunctions(void)
 {
 #define GETOPENGLFUNC(func) \
@@ -277,6 +280,20 @@ void SetSurface(INT32 w, INT32 h)
 
 		GL_DBG_Printf("OpenGL %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
+
+#if !defined(__ANDROID__)
+		if (strcmp((const char*)gl_renderer, "GDI Generic") == 0 &&
+			strcmp((const char*)gl_version, "1.1.0") == 0)
+		{
+			// Oh no... Windows gave us the GDI Generic rasterizer, so something is wrong...
+			// The game will crash later on when unsupported OpenGL commands are encountered.
+			// Instead of a nondescript crash, show a more informative error message.
+			// Also set the renderer variable back to software so the next launch won't
+			// repeat this error.
+			CV_StealthSet(&cv_renderer, "Software");
+			I_Error("OpenGL Error: Failed to access the GPU. There may be an issue with your graphics drivers.");
+		}
+#endif
 	}
 
 	if (gl_extensions == NULL)
@@ -295,12 +312,6 @@ void SetSurface(INT32 w, INT32 h)
 
 	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
-
-/* 1.5 functions for buffers */
-PFNglGenBuffers pglGenBuffers;
-PFNglBindBuffer pglBindBuffer;
-PFNglBufferData pglBufferData;
-PFNglDeleteBuffers pglDeleteBuffers;
 
 static size_t lerpBufferSize = 0;
 float *vertBuffer = NULL;

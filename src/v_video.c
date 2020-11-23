@@ -43,45 +43,45 @@ UINT8 *screens[5];
 // screens[4] = fade screen end, postimage tempoarary buffer
 
 static CV_PossibleValue_t ticrate_cons_t[] = {{0, "No"}, {1, "Full"}, {2, "Compact"}, {0, NULL}};
-consvar_t cv_ticrate = {"showfps", "No", CV_SAVE, ticrate_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_ticrate = CVAR_INIT ("showfps", "No", CV_SAVE, ticrate_cons_t, NULL);
 
 static void CV_palette_OnChange(void);
 
 static CV_PossibleValue_t gamma_cons_t[] = {{-15, "MIN"}, {5, "MAX"}, {0, NULL}};
-consvar_t cv_globalgamma = {"gamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_globalgamma = CVAR_INIT ("gamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
 
 static CV_PossibleValue_t saturation_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
-consvar_t cv_globalsaturation = {"saturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_globalsaturation = CVAR_INIT ("saturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
 
 #define huecoloursteps 4
 
 static CV_PossibleValue_t hue_cons_t[] = {{0, "MIN"}, {(huecoloursteps*6)-1, "MAX"}, {0, NULL}};
-consvar_t cv_rhue = {"rhue",  "0", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_yhue = {"yhue",  "4", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ghue = {"ghue",  "8", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_chue = {"chue", "12", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_bhue = {"bhue", "16", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_mhue = {"mhue", "20", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_rhue = CVAR_INIT ("rhue",  "0", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
+consvar_t cv_yhue = CVAR_INIT ("yhue",  "4", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
+consvar_t cv_ghue = CVAR_INIT ("ghue",  "8", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
+consvar_t cv_chue = CVAR_INIT ("chue", "12", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
+consvar_t cv_bhue = CVAR_INIT ("bhue", "16", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
+consvar_t cv_mhue = CVAR_INIT ("mhue", "20", CV_SAVE|CV_CALL, hue_cons_t, CV_palette_OnChange);
 
-consvar_t cv_rgamma = {"rgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ygamma = {"ygamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ggamma = {"ggamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_cgamma = {"cgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_bgamma = {"bgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_mgamma = {"mgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_rgamma = CVAR_INIT ("rgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
+consvar_t cv_ygamma = CVAR_INIT ("ygamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
+consvar_t cv_ggamma = CVAR_INIT ("ggamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
+consvar_t cv_cgamma = CVAR_INIT ("cgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
+consvar_t cv_bgamma = CVAR_INIT ("bgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
+consvar_t cv_mgamma = CVAR_INIT ("mgamma", "0", CV_SAVE|CV_CALL, gamma_cons_t, CV_palette_OnChange);
 
-consvar_t cv_rsaturation = {"rsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_ysaturation = {"ysaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_gsaturation = {"gsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_csaturation = {"csaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_bsaturation = {"bsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_msaturation = {"msaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_rsaturation = CVAR_INIT ("rsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
+consvar_t cv_ysaturation = CVAR_INIT ("ysaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
+consvar_t cv_gsaturation = CVAR_INIT ("gsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
+consvar_t cv_csaturation = CVAR_INIT ("csaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
+consvar_t cv_bsaturation = CVAR_INIT ("bsaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
+consvar_t cv_msaturation = CVAR_INIT ("msaturation", "10", CV_SAVE|CV_CALL, saturation_cons_t, CV_palette_OnChange);
 
 static CV_PossibleValue_t constextsize_cons_t[] = {
 	{V_NOSCALEPATCH, "Small"}, {V_SMALLSCALEPATCH, "Medium"}, {V_MEDSCALEPATCH, "Large"}, {0, "Huge"},
 	{0, NULL}};
 static void CV_constextsize_OnChange(void);
-consvar_t cv_constextsize = {"con_textsize", "Medium", CV_SAVE|CV_CALL, constextsize_cons_t, CV_constextsize_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_constextsize = CVAR_INIT ("con_textsize", "Medium", CV_SAVE|CV_CALL, constextsize_cons_t, CV_constextsize_OnChange);
 
 // local copy of the palette for V_GetColor()
 RGBA_t *pLocalPalette = NULL;
@@ -558,7 +558,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 	//if (rendermode != render_soft && !con_startup)		// Why?
 	if (rendermode == render_opengl)
 	{
-		HWR_DrawStretchyFixedPatch((GLPatch_t *)patch, x, y, pscale, vscale, scrn, colormap);
+		HWR_DrawStretchyFixedPatch(patch, x, y, pscale, vscale, scrn, colormap);
 		return;
 	}
 #endif
@@ -580,7 +580,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 
 		if (alphalevel)
 		{
-			v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
+			v_translevel = R_GetTranslucencyTable(alphalevel);
 			patchdrawfunc = translucentpdraw;
 		}
 	}
@@ -717,7 +717,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 			// if it's meant to cover the whole screen, black out the rest (ONLY IF TOP LEFT ISN'T TRANSPARENT)
 			if (x == 0 && SHORT(patch->width) == BASEVIDWIDTH && y == 0 && SHORT(patch->height) == BASEVIDHEIGHT)
 			{
-				column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[0]));
+				column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[0]));
 				if (!column->topdelta)
 				{
 					source = (const UINT8 *)(column) + 3;
@@ -785,7 +785,7 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 			if (x+offx >= vid.width) // don't draw off the right of the screen (WRAP PREVENTION)
 				break;
 		}
-		column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[col>>FRACBITS]));
+		column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[col>>FRACBITS]));
 
 		while (column->topdelta != 0xff)
 		{
@@ -984,7 +984,7 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 	//if (rendermode != render_soft && !con_startup)		// Not this again
 	if (rendermode == render_opengl)
 	{
-		HWR_DrawCroppedPatch((GLPatch_t*)patch,x,y,pscale,scrn,sx,sy,w,h);
+		HWR_DrawCroppedPatch(patch,x,y,pscale,scrn,sx,sy,w,h);
 		return;
 	}
 #endif
@@ -1006,7 +1006,7 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 
 		if (alphalevel)
 		{
-			v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
+			v_translevel = R_GetTranslucencyTable(alphalevel);
 			patchdrawfunc = translucentpdraw;
 		}
 	}
@@ -1160,7 +1160,7 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 			continue;
 		if (x >= vid.width) // don't draw off the right of the screen (WRAP PREVENTION)
 			break;
-		column = (const column_t *)((const UINT8 *)(patch) + LONG(patch->columnofs[col>>FRACBITS]));
+		column = (const column_t *)((const UINT8 *)(patch->columns) + (patch->columnofs[col>>FRACBITS]));
 
 		while (column->topdelta != 0xff)
 		{
@@ -1655,7 +1655,7 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	// Jimita (12-04-2018)
 	if (alphalevel)
 	{
-		fadetable = ((UINT8 *)transtables + ((alphalevel-1)<<FF_TRANSSHIFT) + (c*256));
+		fadetable = R_GetTranslucencyTable(alphalevel) + (c*256);
 		for (;(--h >= 0) && dest < deststop; dest += vid.width)
 		{
 			u = 0;
@@ -1838,7 +1838,7 @@ void V_DrawFadeFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c, UINT16 color, U
 
 	fadetable = ((color & 0xFF00) // Color is not palette index?
 		? ((UINT8 *)colormaps + strength*256) // Do COLORMAP fade.
-		: ((UINT8 *)transtables + ((9-strength)<<FF_TRANSSHIFT) + color*256)); // Else, do TRANSMAP** fade.
+		: ((UINT8 *)R_GetTranslucencyTable((9-strength)+1) + color*256)); // Else, do TRANSMAP** fade.
 	for (;(--h >= 0) && dest < deststop; dest += vid.width)
 	{
 		u = 0;
@@ -1984,7 +1984,7 @@ void V_DrawFadeScreen(UINT16 color, UINT8 strength)
 		? ((UINT8 *)(((color & 0x0F00) == 0x0A00) ? fadecolormap // Do fadecolormap fade.
 		: (((color & 0x0F00) == 0x0B00) ? fadecolormap + (256 * FADECOLORMAPROWS) // Do white fadecolormap fade.
 		: colormaps)) + strength*256) // Do COLORMAP fade.
-		: ((UINT8 *)transtables + ((9-strength)<<FF_TRANSSHIFT) + color*256)); // Else, do TRANSMAP** fade.
+		: ((UINT8 *)R_GetTranslucencyTable((9-strength)+1) + color*256)); // Else, do TRANSMAP** fade.
 		const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
 		UINT8 *buf = screens[0];
 
@@ -3720,7 +3720,7 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 		angle_t disStart = (leveltime * 128) & FINEMASK; // in 0 to FINEANGLE
 		INT32 newpix;
 		INT32 sine;
-		//UINT8 *transme = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
+		//UINT8 *transme = R_GetTranslucencyTable(tr_trans50);
 
 		for (y = yoffset; y < yoffset+height; y++)
 		{
@@ -3777,7 +3777,7 @@ Unoptimized version
 		INT32 x, y;
 
 		// TODO: Add a postimg_param so that we can pick the translucency level...
-		UINT8 *transme = transtables + ((param-1)<<FF_TRANSSHIFT);
+		UINT8 *transme = R_GetTranslucencyTable(param);
 
 		for (y = yoffset; y < yoffset+height; y++)
 		{
@@ -3923,5 +3923,50 @@ void V_Init(void)
 	CONS_Debug(DBG_RENDER, "V_Init done:\n");
 	for (i = 0; i < NUMSCREENS; i++)
 		CONS_Debug(DBG_RENDER, " screens[%d] = %x\n", i, screens[i]);
+#endif
+}
+
+void V_Recalc(void)
+{
+	INT32 dup;
+	fixed_t fdup;
+
+	// scale 1,2,3 times in x and y the patches for the menus and overlays...
+	// calculated once and for all, used by routines in v_video.c and v_draw.c
+	vid.dupx = max(1, vid.width / BASEVIDWIDTH);
+	vid.dupy = max(1, vid.height / BASEVIDHEIGHT);
+
+	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
+	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
+
+#ifdef NATIVESCREENRES
+	if (cv_nativeres.value && !cv_nativerescompare.value)
+	{
+		dup = (vid.dupx >= vid.dupy ? vid.dupx : vid.dupy);
+		fdup = (vid.fdupx >= vid.fdupy ? vid.fdupx : vid.fdupy);
+	}
+	else
+#endif
+	{
+		dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
+		fdup = (vid.fdupx < vid.fdupy ? vid.fdupx : vid.fdupy);
+	}
+
+	// Set a constant scale for both axes
+	vid.dupx = vid.dupy = dup;
+	vid.fdupx = vid.fdupy = fdup;
+
+	vid.meddupx = (UINT8)(vid.dupx >> 1) + 1;
+	vid.meddupy = (UINT8)(vid.dupy >> 1) + 1;
+#ifdef HWRENDER
+	vid.fmeddupx = vid.meddupx*FRACUNIT;
+	vid.fmeddupy = vid.meddupy*FRACUNIT;
+#endif
+
+	vid.smalldupx = (UINT8)(vid.dupx / 3) + 1;
+	vid.smalldupy = (UINT8)(vid.dupy / 3) + 1;
+#ifdef HWRENDER
+	vid.fsmalldupx = vid.smalldupx*FRACUNIT;
+	vid.fsmalldupy = vid.smalldupy*FRACUNIT;
 #endif
 }
