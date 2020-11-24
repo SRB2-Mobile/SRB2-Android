@@ -448,7 +448,7 @@ static UINT8 *MakeBlock(GLMipmap_t *grMipmap)
 	INT32 bpp, i;
 	UINT16 bu16 = ((0x00 <<8) | HWR_PATCHES_CHROMAKEY_COLORINDEX);
 
-	bpp =  format2bpp(grMipmap->format);
+	bpp   = format2bpp(grMipmap->format);
 	block = Z_Malloc(blocksize*bpp, PU_HWRCACHE, &(grMipmap->data));
 
 	switch (bpp)

@@ -12,8 +12,6 @@
 #include "gl_shaders.h"
 #include "../r_glcommon/r_glcommon.h"
 
-// NOTE: HAVE_GLES2 should imply GL_SHADERS
-
 boolean gl_shadersenabled = false;
 hwdshaderoption_t gl_allowshaders = HWD_SHADEROPTION_OFF;
 
@@ -264,8 +262,8 @@ void Shader_Set(int type)
 void Shader_UnSet(void)
 {
 #ifdef HAVE_GLES2
-	Shader_Set(SHADER_BASE);
-	Shader_SetUniforms(NULL, &shader_defaultcolor, NULL, NULL);
+	Shader_Set(SHADER_DEFAULT);
+	Shader_SetUniforms(NULL, NULL, NULL, NULL);
 #else
 	gl_shaderstate.current = NULL;
 	gl_shaderstate.type = 0;
@@ -296,6 +294,12 @@ void Shader_Clean(void)
 	}
 }
 
+#ifdef HAVE_GLES2
+#define Shader_ErrorMessage I_Error
+#else
+#define Shader_ErrorMessage GL_MSG_Error
+#endif
+
 static void Shader_CompileError(const char *message, GLuint program, INT32 shadernum)
 {
 	GLchar *infoLog = NULL;
@@ -309,7 +313,7 @@ static void Shader_CompileError(const char *message, GLuint program, INT32 shade
 		pglGetShaderInfoLog(program, logLength, NULL, infoLog);
 	}
 
-	GL_MSG_Error("Shader_CompileProgram: %s (%s)\n%s", message, HWR_GetShaderName(shadernum), (infoLog ? infoLog : ""));
+	Shader_ErrorMessage("Shader_CompileProgram: %s (%s)\n%s", message, HWR_GetShaderName(shadernum), (infoLog ? infoLog : ""));
 
 	if (infoLog)
 		free(infoLog);
@@ -326,7 +330,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	gl_vertShader = pglCreateShader(GL_VERTEX_SHADER);
 	if (!gl_vertShader)
 	{
-		GL_MSG_Error("Shader_CompileProgram: Error creating vertex shader %s\n", HWR_GetShaderName(i));
+		Shader_ErrorMessage("Shader_CompileProgram: Error creating vertex shader %s\n", HWR_GetShaderName(i));
 		return false;
 	}
 
@@ -348,7 +352,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	gl_fragShader = pglCreateShader(GL_FRAGMENT_SHADER);
 	if (!gl_fragShader)
 	{
-		GL_MSG_Error("Shader_CompileProgram: Error creating fragment shader %s\n", HWR_GetShaderName(i));
+		Shader_ErrorMessage("Shader_CompileProgram: Error creating fragment shader %s\n", HWR_GetShaderName(i));
 		pglDeleteShader(gl_vertShader);
 		pglDeleteShader(gl_fragShader);
 		return false;
@@ -382,7 +386,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	// couldn't link?
 	if (result != GL_TRUE)
 	{
-		GL_MSG_Error("Shader_CompileProgram: Error linking shader program %s\n", HWR_GetShaderName(i));
+		Shader_ErrorMessage("Shader_CompileProgram: Error linking shader program %s\n", HWR_GetShaderName(i));
 		pglDeleteProgram(shader->program);
 		return false;
 	}
@@ -395,14 +399,14 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	memset(shader->modelMatrix, 0x00, sizeof(fmatrix4_t));
 
 	// transform
-	shader->uniforms[gluniform_model]       = GETUNI("model");
-	shader->uniforms[gluniform_view]        = GETUNI("view");
-	shader->uniforms[gluniform_projection]  = GETUNI("projection");
+	shader->uniforms[gluniform_model]       = GETUNI("u_model");
+	shader->uniforms[gluniform_view]        = GETUNI("u_view");
+	shader->uniforms[gluniform_projection]  = GETUNI("u_projection");
 
 	// samplers
-	shader->uniforms[gluniform_startscreen] = GETUNI("start_screen");
-	shader->uniforms[gluniform_endscreen]   = GETUNI("end_screen");
-	shader->uniforms[gluniform_fademask]    = GETUNI("fade_mask");
+	shader->uniforms[gluniform_startscreen] = GETUNI("t_startscreen");
+	shader->uniforms[gluniform_endscreen]   = GETUNI("t_endscreen");
+	shader->uniforms[gluniform_fademask]    = GETUNI("t_fademask");
 
 	// misc.
 	shader->uniforms[gluniform_isfadingin]  = GETUNI("is_fading_in");
@@ -426,11 +430,11 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 
 #define GETATTRIB(attribute) pglGetAttribLocation(shader->program, attribute)
 
-	shader->attributes[glattribute_position]     = GETATTRIB("attribute_position");
-	shader->attributes[glattribute_texcoord]     = GETATTRIB("attribute_texcoord");
-	shader->attributes[glattribute_normal]       = GETATTRIB("attribute_normal");
-	shader->attributes[glattribute_colors]       = GETATTRIB("attribute_colors");
-	shader->attributes[glattribute_fadetexcoord] = GETATTRIB("attribute_fadetexcoord");
+	shader->attributes[glattribute_position]     = GETATTRIB("a_position");
+	shader->attributes[glattribute_texcoord]     = GETATTRIB("a_texcoord");
+	shader->attributes[glattribute_normal]       = GETATTRIB("a_normal");
+	shader->attributes[glattribute_colors]       = GETATTRIB("a_colors");
+	shader->attributes[glattribute_fadetexcoord] = GETATTRIB("a_fadetexcoord");
 
 #undef GETATTRIB
 
@@ -499,22 +503,12 @@ boolean Shader_Compile(void)
 	return true;
 }
 
-void Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
+static void Shader_SetIfChanged(gl_shader_t *shader)
 {
-	gl_shader_t *shader = gl_shaderstate.current;
-
-	if (gl_shadersenabled && (shader != NULL) && pglUseProgram)
+	if (gl_shaderstate.changed)
 	{
-		if (!shader->program)
-			return;
-
-		if (gl_shaderstate.changed)
-		{
-			pglUseProgram(shader->program);
-			gl_shaderstate.changed = false;
-		}
-
-		Shader_SetUniforms(Surface, poly, tint, fade);
+		pglUseProgram(shader->program);
+		gl_shaderstate.changed = false;
 	}
 }
 
@@ -524,6 +518,8 @@ void Shader_SetTransform(void)
 	gl_shader_t *shader = gl_shaderstate.current;
 	if (!shader)
 		return;
+
+	Shader_SetIfChanged(shader);
 
 	if (memcmp(projMatrix, shader->projMatrix, sizeof(fmatrix4_t)))
 	{
@@ -557,11 +553,7 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 			return;
 		}
 
-		if (gl_shaderstate.changed)
-		{
-			pglUseProgram(shader->program);
-			gl_shaderstate.changed = false;
-		}
+		Shader_SetIfChanged(shader);
 
 		// Color uniforms can be left NULL and will be set to white (1.0f, 1.0f, 1.0f, 1.0f)
 		if (poly == NULL)
@@ -614,11 +606,7 @@ void Shader_SetSampler(gluniform_t uniform, GLint value)
 	if (!shader)
 		return;
 
-	if (gl_shaderstate.changed)
-	{
-		pglUseProgram(shader->program);
-		gl_shaderstate.changed = false;
-	}
+	Shader_SetIfChanged(shader);
 
 	if (shader->uniforms[uniform] != -1)
 		pglUniform1i(shader->uniforms[uniform], value);

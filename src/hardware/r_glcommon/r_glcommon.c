@@ -68,6 +68,12 @@ GLuint endScreenWipe = 0;
 GLuint finalScreenTexture = 0;
 
 // ==========================================================================
+//                                                                 EXTENSIONS
+// ==========================================================================
+
+boolean gl_ext_arb_vertex_buffer_object = true;
+
+// ==========================================================================
 //                                                           OPENGL FUNCTIONS
 // ==========================================================================
 
@@ -371,6 +377,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 		if (Xor & PF_Blending) // if blending mode must be changed
 			SetBlendMode(PolyFlags & PF_Blending);
 
+#ifndef HAVE_GLES2
 		if (Xor & PF_NoAlphaTest)
 		{
 			if (PolyFlags & PF_NoAlphaTest)
@@ -378,6 +385,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 			else
 				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
 		}
+#endif
 
 		if (Xor & PF_Decal)
 		{
@@ -413,6 +421,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		}
 
+#ifndef HAVE_GLES2
 		if (Xor & PF_Modulated)
 		{
 			if (PolyFlags & PF_Modulated)
@@ -424,6 +433,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 			}
 		}
+#endif
 
 		if (Xor & PF_Occlude) // depth test but (no) depth write
 		{
@@ -897,11 +907,11 @@ void GL_MSG_Error(const char *format, ...)
 
 #ifdef HAVE_SDL
 	CONS_Alert(CONS_ERROR, "%s\n", str);
+#endif
 
 	if (lastglerror)
 		free(lastglerror);
 	lastglerror = strcpy(malloc(strlen(str) + 1), str);
-#endif
 
 #ifdef DEBUG_TO_FILE
 	if (!gllogstream)

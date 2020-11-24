@@ -408,6 +408,11 @@ extern float NEAR_CLIPPING_PLANE;
 // shortcut for ((float)1/i)
 #define byte2float(x) (x / 255.0f)
 
+#define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
+#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
+#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
+#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
+
 /* 1.2 Parms */
 /* GL_CLAMP_TO_EDGE_EXT */
 #ifndef GL_CLAMP_TO_EDGE
@@ -523,5 +528,11 @@ extern fmatrix4_t projMatrix;
 extern fmatrix4_t viewMatrix;
 extern fmatrix4_t modelMatrix;
 #endif
+
+// ==========================================================================
+//                                                                 EXTENSIONS
+// ==========================================================================
+
+extern boolean gl_ext_arb_vertex_buffer_object;
 
 #endif // _R_GLCOMMON_H_

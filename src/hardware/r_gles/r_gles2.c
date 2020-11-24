@@ -42,19 +42,11 @@ fmatrix4_t modelMatrix;
 
 static GLint viewport[4];
 
-/* Depth Buffer */
-typedef void (R_GL_APIENTRY * PFNglClearDepthf) (GLclampf depth);
-static PFNglClearDepthf pglClearDepthf;
-typedef void (R_GL_APIENTRY * PFNglDepthRangef) (GLclampf near_val, GLclampf far_val);
-static PFNglDepthRangef pglDepthRangef;
-
 /* Drawing Functions */
 typedef void (R_GL_APIENTRY * PFNglEnableVertexAttribArray) (GLuint index);
 static PFNglEnableVertexAttribArray pglEnableVertexAttribArray;
 typedef void (R_GL_APIENTRY * PFNglDisableVertexAttribArray) (GLuint index);
 static PFNglDisableVertexAttribArray pglDisableVertexAttribArray;
-typedef void (R_GL_APIENTRY * PFNglGenerateMipmap) (GLenum target);
-static PFNglGenerateMipmap pglGenerateMipmap;
 typedef void (R_GL_APIENTRY * PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
 static PFNglVertexAttribPointer pglVertexAttribPointer;
 
@@ -617,6 +609,12 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 	GLRGBAFloat *c_poly = NULL, *c_tint = NULL, *c_fade = NULL;
 	boolean modulated;
 
+	if (gl_shaderstate.current)
+	{
+		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_POSITION));
+		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+	}
+
 	if (PolyFlags & PF_Corona)
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
@@ -698,13 +696,6 @@ EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutV
 	// the DrawPolygon variant of this has some code about polyflags and wrapping here but havent noticed any problems from omitting it?
 }
 
-static const boolean gl_ext_arb_vertex_buffer_object = true;
-
-#define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
-#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
-#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
-#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
-
 EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 {
 	int i, j;
@@ -748,16 +739,16 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 
 	// bind VBO in order to use
 	if (gl_ext_arb_vertex_buffer_object)
-		pglBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
 	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_x);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_u);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_COLORS), 4, GL_FLOAT, GL_FALSE, sizeof(vbo->data[0]), sky_vbo_r);
+	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
+	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
+	pglVertexAttribPointer(Shader_AttribLoc(LOC_COLORS), 4, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// set transforms
-	scale[1] = ((float)texh / 230.0f);
+	scale[1] = (float)sky->height / 200.0f;
 	lzml_matrix4_scale(viewMatrix, scale);
 	lzml_matrix4_rotate_y(viewMatrix, Deg2Rad(270.0f));
 

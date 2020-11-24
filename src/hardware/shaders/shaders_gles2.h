@@ -11,25 +11,21 @@
 
 #include "gl_shaders.h"
 
-// ================
-//  Vertex shaders
-// ================
-
-#define GLSL_BASE_IN \
+#define GLSL_BASE_VARYING \
 	"varying vec2 v_texcoord;\n" \
 	"varying vec3 v_normal;\n" \
 	"varying vec4 v_colors;\n"
 
-//
-// Generic vertex shader
-//
+// ================
+//  Vertex shaders
+// ================
 
 #define GLSL_DEFAULT_VERTEX_SHADER \
 	"attribute vec3 a_position;\n" \
-	"attribute vec3 a_texcoord;\n" \
+	"attribute vec2 a_texcoord;\n" \
 	"attribute vec3 a_normal;\n" \
-	"attribute vec3 a_colors;\n" \
-	GLSL_BASE_IN \
+	"attribute vec4 a_colors;\n" \
+	GLSL_BASE_VARYING \
 	"uniform mat4 u_model;\n" \
 	"uniform mat4 u_view;\n" \
 	"uniform mat4 u_projection;\n" \
@@ -37,8 +33,8 @@
 	"{\n" \
 		"gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0f);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
-		"v_normal = a_normal";\n" \
-		"v_colors = a_colors";\n" \
+		"v_normal = a_normal;\n" \
+		"v_colors = a_colors;\n" \
 	"}\0"
 
 //
@@ -47,7 +43,7 @@
 
 #define GLSL_FADEMASK_VERTEX_SHADER \
 	"attribute vec3 a_position;\n" \
-	"attribute vec3 a_texcoord;\n" \
+	"attribute vec2 a_texcoord;\n" \
 	"attribute vec2 a_fademasktexcoord;\n" \
 	"varying vec2 v_texcoord;\n" \
 	"varying vec3 v_fademasktexcoord;\n" \
@@ -56,7 +52,7 @@
 	"{\n" \
 		"gl_Position = u_projection * vec4(a_position, 1.0f);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
-		"v_fademasktexcoord  = vec2(a_fadetex.x, a_fadetex.y);\n" \
+		"v_fademasktexcoord = vec2(a_fadetex.x, a_fadetex.y);\n" \
 	"}\0"
 
 // replicates the way fixed function lighting is used by the model lighting option,
@@ -64,9 +60,9 @@
 // (ambient lighting of 0.75 and diffuse lighting from above)
 #define GLSL_MODEL_LIGHTING_VERTEX_SHADER \
 	"attribute vec3 a_position;\n" \
-	"attribute vec3 a_texcoord;\n" \
+	"attribute vec2 a_texcoord;\n" \
 	"attribute vec3 a_normal;\n" \
-	"attribute vec3 a_colors;\n" \
+	"attribute vec4 a_colors;\n" \
 	"varying vec2 v_texcoord;\n" \
 	"varying vec3 v_normal;\n" \
 	"varying vec4 v_colors;\n" \
@@ -79,7 +75,7 @@
 		"float light = 0.75 + max(nDotVP, 0.0);\n" \
 		"gl_Position = u_projection * vec4(a_position, 1.0f);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
-		"v_normal = a_normal";\n" \
+		"v_normal = a_normal;\n" \
 		"v_colors = vec4(light, light, light, 1.0) * a_colors;\n" \
 	"}\0"
 
@@ -87,16 +83,13 @@
 //  Fragment shaders
 // ==================
 
+#define GLSL_BASE_SAMPLER "uniform sampler2D t_texsampler;\n"
 #define GLSL_BASE_UNIFORMS \
-	"uniform sampler2D t_texsampler;\n" \
+	GLSL_BASE_SAMPLER \
 	"uniform vec4 poly_color;\n" \
 
-//
-// Generic fragment shader
-//
-
 #define GLSL_DEFAULT_FRAGMENT_SHADER \
-	GLSL_BASE_IN \
+	GLSL_BASE_VARYING \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
 		"gl_FragColor = texture2D(t_texsampler, v_texcoord) * poly_color;\n" \
@@ -107,7 +100,7 @@
 //
 
 #define GLSL_SKY_FRAGMENT_SHADER \
-	GLSL_BASE_IN \
+	GLSL_BASE_VARYING \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
 		"gl_FragColor = texture2D(t_texsampler, v_texcoord) * v_colors;\n" \
@@ -176,26 +169,26 @@
 #include "shaders_software.h"
 
 #define GLSL_SOFTWARE_FRAGMENT_SHADER \
-	GLSL_BASE_IN \
-	GLSL_BASE_UNIFORMS \
+	GLSL_BASE_VARYING \
+	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
-		"vec4 Texel = " GLSL_TEXTURE_FUNCTION "(" GLSL_UNIFORM_TEXSAMPLER ", " GLSL_LINKAGE_TEXCOORD ");\n" \
-		"vec4 BaseColor = Texel * " GLSL_UNIFORM_POLYCOLOR ";\n" \
+		"vec4 Texel = texture2D(t_texsampler, v_texcoord);\n" \
+		"vec4 BaseColor = Texel * poly_color;\n" \
 		"vec4 FinalColor = BaseColor;\n" \
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
-		"FinalColor.a = Texel.a * " GLSL_UNIFORM_POLYCOLOR ".a;\n" \
-		GLSL_FRAGMENT_OUTPUT " = FinalColor;\n" \
+		"FinalColor.a = Texel.a * poly_color.a;\n" \
+		"gl_FragColor = FinalColor;\n" \
 	"}\0"
 
 // same as above but multiplies results with the lighting value from the
 // accompanying vertex shader (stored in gl_Color)
 #define GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER \
-	GLSL_BASE_IN \
-	GLSL_BASE_UNIFORMS \
+	GLSL_BASE_VARYING \
+	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
@@ -206,7 +199,7 @@
 		GLSL_SOFTWARE_TINT_EQUATION \
 		GLSL_SOFTWARE_FADE_EQUATION \
 		"FinalColor *= v_colors;\n" \
-		"FinalColor.a = Texel.a * PolyColor.a;\n" \
+		"FinalColor.a = Texel.a * poly_color.a;\n" \
 		"gl_FragColor = FinalColor;\n" \
 	"}\0"
 
@@ -215,8 +208,8 @@
 //
 
 #define GLSL_WATER_FRAGMENT_SHADER \
-	GLSL_BASE_IN \
-	GLSL_BASE_UNIFORMS \
+	GLSL_BASE_VARYING \
+	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_WATER_VARIABLES \
 	GLSL_DOOM_COLORMAP \
