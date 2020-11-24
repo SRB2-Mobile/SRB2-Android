@@ -69,7 +69,6 @@ PFNglGetString pglGetString;
 
 /**	\brief SDL video display surface
 */
-INT32 oglflags = 0;
 void *GLUhandle = NULL;
 SDL_GLContext sdlglcontext = 0;
 
@@ -155,7 +154,6 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 {
 	INT32 cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
 
-	oglflags = 0;
 	GLBackend_LoadExtraFunctions();
 
 	SetSurface(w, h);

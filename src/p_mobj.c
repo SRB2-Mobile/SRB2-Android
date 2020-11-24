@@ -36,7 +36,7 @@
 #include "m_cond.h"
 
 #if defined(__ANDROID__)
-consvar_t cv_thinkless = {"reducedthinking", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_thinkless = CVAR_INIT ("reducedthinking", "On", CV_SAVE, CV_OnOff, NULL);
 #endif
 
 static CV_PossibleValue_t CV_BobSpeed[] = {{0, "MIN"}, {4*FRACUNIT, "MAX"}, {0, NULL}};

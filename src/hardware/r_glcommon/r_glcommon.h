@@ -360,7 +360,7 @@ typedef void (R_GL_APIENTRY * PFNglDeleteBuffers) (GLsizei n, const GLuint *buff
 extern PFNglDeleteBuffers pglDeleteBuffers;
 
 /* 2.0 functions */
-typedef void (APIENTRY * PFNglBlendEquation) (GLenum mode);
+typedef void (R_GL_APIENTRY * PFNglBlendEquation) (GLenum mode);
 extern PFNglBlendEquation pglBlendEquation;
 
 // ==========================================================================
@@ -382,11 +382,16 @@ boolean GLBackend_LoadCommonFunctions(void);
 boolean GLBackend_LoadLegacyFunctions(void);
 void   *GLBackend_GetFunction(const char *proc);
 
+INT32 GLBackend_GetShaderType(INT32 type);
+
 boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start);
 
 void SetSurface(INT32 w, INT32 h);
 void SetModelView(GLint w, GLint h);
 void SetStates(void);
+void SetBlendingStates(FBITFIELD PolyFlags);
+void SetNoTexture(void);
+void SetClamp(GLenum pname);
 
 // ==========================================================================
 //                                                                  CONSTANTS
@@ -399,6 +404,9 @@ extern GLuint NOTEXTURE_NUM;
 
 #define FAR_CLIPPING_PLANE      32768.0f // Draw further! Tails 01-21-2001
 extern float NEAR_CLIPPING_PLANE;
+
+// shortcut for ((float)1/i)
+#define byte2float(x) (x / 255.0f)
 
 /* 1.2 Parms */
 /* GL_CLAMP_TO_EDGE_EXT */
@@ -434,6 +442,18 @@ extern float NEAR_CLIPPING_PLANE;
 
 #ifndef GL_ARRAY_BUFFER
 #define GL_ARRAY_BUFFER 0x8892
+#endif
+
+#ifndef GL_FUNC_ADD
+#define GL_FUNC_ADD 0x8006
+#endif
+
+#ifndef GL_FUNC_SUBTRACT
+#define GL_FUNC_SUBTRACT 0x800A
+#endif
+
+#ifndef GL_FUNC_REVERSE_SUBTRACT
+#define GL_FUNC_REVERSE_SUBTRACT 0x800B
 #endif
 
 #ifndef GL_EXT_texture_filter_anisotropic
@@ -474,6 +494,8 @@ extern GLboolean MipMap;
 extern GLint min_filter;
 extern GLint mag_filter;
 extern GLint anisotropic_filter;
+
+extern boolean model_lighting;
 
 extern FTextureInfo *gl_cachetail;
 extern FTextureInfo *gl_cachehead;

@@ -265,7 +265,7 @@ consvar_t cv_joyscale2 = CVAR_INIT ("padscale2", "1", CV_SAVE|CV_HIDEN, NULL, NU
 #endif
 #if defined(__ANDROID__)
 static CV_PossibleValue_t accelscale_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
-consvar_t cv_accelscale = {"accelerometer_scale", "8", CV_SAVE, accelscale_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_accelscale = CVAR_INIT ("accelerometer_scale", "8", CV_SAVE, accelscale_cons_t, NULL);
 #endif
 #if (defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)
 consvar_t cv_mouse2port = CVAR_INIT ("mouse2port", "/dev/gpmdata", CV_SAVE, mouse2port_cons_t, NULL);

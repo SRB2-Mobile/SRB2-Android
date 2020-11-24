@@ -1,7 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
 // Copyright (C) 2020 by Jaime "Lactozilla" Passos.
-// Copyright (C) 1998-2020 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -18,7 +17,6 @@
 boolean gl_shadersenabled = false;
 hwdshaderoption_t gl_allowshaders = HWD_SHADEROPTION_OFF;
 
-#ifdef GL_SHADERS
 typedef GLuint (R_GL_APIENTRY *PFNglCreateShader)       (GLenum);
 typedef void   (R_GL_APIENTRY *PFNglShaderSource)       (GLuint, GLsizei, const GLchar**, GLint*);
 typedef void   (R_GL_APIENTRY *PFNglCompileShader)      (GLuint);
@@ -122,11 +120,8 @@ static struct {
 	{NULL, NULL},
 };
 
-#endif	// GL_SHADERS
-
 void Shader_LoadFunctions(void)
 {
-#ifdef GL_SHADERS
 	pglCreateShader = GLBackend_GetFunction("glCreateShader");
 	pglShaderSource = GLBackend_GetFunction("glShaderSource");
 	pglCompileShader = GLBackend_GetFunction("glCompileShader");
@@ -150,12 +145,12 @@ void Shader_LoadFunctions(void)
 	pglUniformMatrix4fv = GLBackend_GetFunction("glUniformMatrix4fv");
 	pglGetUniformLocation = GLBackend_GetFunction("glGetUniformLocation");
 	pglGetAttribLocation = GLBackend_GetFunction("glGetAttribLocation");
-#endif
 }
 
-#if defined(GLSL_USE_ATTRIBUTE_QUALIFIER) && defined(HAVE_GLES2)
+#ifdef HAVE_GLES2
 int Shader_AttribLoc(int loc)
 {
+	gl_shader_t *shader = gl_shaderstate.current;
 	int pos, attrib;
 
 	glattribute_t LOC_TO_ATTRIB[glattribute_max] =
@@ -167,11 +162,11 @@ int Shader_AttribLoc(int loc)
 		glattribute_fadetexcoord, // LOC_TEXCOORD1
 	};
 
-	if (shader_current == NULL)
+	if (shader == NULL)
 		I_Error("Shader_AttribLoc: shader not set");
 
 	attrib = LOC_TO_ATTRIB[loc];
-	pos = shader_current->attributes[attrib];
+	pos = shader->attributes[attrib];
 
 	if (pos == -1)
 		return 0;
@@ -187,7 +182,6 @@ int Shader_AttribLoc(int loc)
 
 void Shader_SetInfo(hwdshaderinfo_t info, INT32 value)
 {
-#ifdef GL_SHADERS
 	switch (info)
 	{
 		case HWD_SHADERINFO_LEVELTIME:
@@ -196,10 +190,6 @@ void Shader_SetInfo(hwdshaderinfo_t info, INT32 value)
 		default:
 			break;
 	}
-#else
-	(void)info;
-	(void)value;
-#endif
 }
 
 //
@@ -207,7 +197,6 @@ void Shader_SetInfo(hwdshaderinfo_t info, INT32 value)
 //
 void Shader_LoadCustom(int number, char *code, size_t size, boolean isfragment)
 {
-#ifdef GL_SHADERS
 	shadersource_t *shader;
 
 	if (!pglUseProgram)
@@ -232,63 +221,60 @@ void Shader_LoadCustom(int number, char *code, size_t size, boolean isfragment)
 		COPYSHADER(fragment)
 	else
 		COPYSHADER(vertex)
-
-#else
-	(void)number;
-	(void)shader;
-	(void)size;
-	(void)fragment;
-#endif
 }
 
 void Shader_Set(int type)
 {
-#ifdef GL_SHADERS
-	if (gl_allowshaders != HWD_SHADEROPTION_OFF)
-	{
-		gl_shader_t *shader = gl_shaderstate.current;
+	gl_shader_t *shader = gl_shaderstate.current;
 
-		if ((shader == NULL) || (GLuint)type != gl_shaderstate.type)
-		{
-			gl_shader_t *baseshader = &gl_shaders[type];
-			gl_shader_t *usershader = &gl_usershaders[type];
-
-			if (usershader->program)
-				shader = (gl_allowshaders == HWD_SHADEROPTION_NOCUSTOM) ? baseshader : usershader;
-			else
-				shader = baseshader;
-
-			gl_shaderstate.current = shader;
-			gl_shaderstate.type = type;
-			gl_shaderstate.changed = true;
-		}
-
-		if (gl_shaderstate.program != shader->program)
-		{
-			gl_shaderstate.program = shader->program;
-			gl_shaderstate.changed = true;
-		}
-
-		gl_shadersenabled = (shader->program != 0);
+#ifndef HAVE_GLES2
+	if (gl_allowshaders == HWD_SHADEROPTION_OFF)
 		return;
+#endif
+
+	if ((shader == NULL) || (GLuint)type != gl_shaderstate.type)
+	{
+		gl_shader_t *baseshader = &gl_shaders[type];
+		gl_shader_t *usershader = &gl_usershaders[type];
+
+		if (usershader->program)
+			shader = (gl_allowshaders == HWD_SHADEROPTION_NOCUSTOM) ? baseshader : usershader;
+		else
+			shader = baseshader;
+
+		gl_shaderstate.current = shader;
+		gl_shaderstate.type = type;
+		gl_shaderstate.changed = true;
 	}
+
+	if (gl_shaderstate.program != shader->program)
+	{
+		gl_shaderstate.program = shader->program;
+		gl_shaderstate.changed = true;
+	}
+
+#ifdef HAVE_GLES2
+	Shader_SetTransform();
+	gl_shadersenabled = true;
 #else
-	(void)type;
+	gl_shadersenabled = (shader->program != 0);
 #endif
 }
 
 void Shader_UnSet(void)
 {
-#ifdef GL_SHADERS
+#ifdef HAVE_GLES2
+	Shader_Set(SHADER_BASE);
+	Shader_SetUniforms(NULL, &shader_defaultcolor, NULL, NULL);
+#else
 	gl_shaderstate.current = NULL;
 	gl_shaderstate.type = 0;
 	gl_shaderstate.program = 0;
 
 	if (pglUseProgram)
 		pglUseProgram(0);
-#endif
-
 	gl_shadersenabled = false;
+#endif
 }
 
 void Shader_Clean(void)
@@ -401,28 +387,60 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 		return false;
 	}
 
-	// 13062019
-#define GETUNI(uniform) pglGetUniformLocation(shader->program, uniform);
+#define GETUNI(uniform) pglGetUniformLocation(shader->program, uniform)
+
+#ifdef HAVE_GLES2
+	memset(shader->projMatrix, 0x00, sizeof(fmatrix4_t));
+	memset(shader->viewMatrix, 0x00, sizeof(fmatrix4_t));
+	memset(shader->modelMatrix, 0x00, sizeof(fmatrix4_t));
+
+	// transform
+	shader->uniforms[gluniform_model]       = GETUNI("model");
+	shader->uniforms[gluniform_view]        = GETUNI("view");
+	shader->uniforms[gluniform_projection]  = GETUNI("projection");
+
+	// samplers
+	shader->uniforms[gluniform_startscreen] = GETUNI("start_screen");
+	shader->uniforms[gluniform_endscreen]   = GETUNI("end_screen");
+	shader->uniforms[gluniform_fademask]    = GETUNI("fade_mask");
+
+	// misc.
+	shader->uniforms[gluniform_isfadingin]  = GETUNI("is_fading_in");
+	shader->uniforms[gluniform_istowhite]   = GETUNI("is_to_white");
+#endif
 
 	// lighting
-	shader->uniforms[gluniform_poly_color] = GETUNI("poly_color");
-	shader->uniforms[gluniform_tint_color] = GETUNI("tint_color");
-	shader->uniforms[gluniform_fade_color] = GETUNI("fade_color");
-	shader->uniforms[gluniform_lighting] = GETUNI("lighting");
-	shader->uniforms[gluniform_fade_start] = GETUNI("fade_start");
-	shader->uniforms[gluniform_fade_end] = GETUNI("fade_end");
+	shader->uniforms[gluniform_poly_color]  = GETUNI("poly_color");
+	shader->uniforms[gluniform_tint_color]  = GETUNI("tint_color");
+	shader->uniforms[gluniform_fade_color]  = GETUNI("fade_color");
+	shader->uniforms[gluniform_lighting]    = GETUNI("lighting");
+	shader->uniforms[gluniform_fade_start]  = GETUNI("fade_start");
+	shader->uniforms[gluniform_fade_end]    = GETUNI("fade_end");
 
 	// misc. (custom shaders)
-	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
+	shader->uniforms[gluniform_leveltime]   = GETUNI("leveltime");
 
 #undef GETUNI
+
+#ifdef HAVE_GLES2
+
+#define GETATTRIB(attribute) pglGetAttribLocation(shader->program, attribute)
+
+	shader->attributes[glattribute_position]     = GETATTRIB("attribute_position");
+	shader->attributes[glattribute_texcoord]     = GETATTRIB("attribute_texcoord");
+	shader->attributes[glattribute_normal]       = GETATTRIB("attribute_normal");
+	shader->attributes[glattribute_colors]       = GETATTRIB("attribute_colors");
+	shader->attributes[glattribute_fadetexcoord] = GETATTRIB("attribute_fadetexcoord");
+
+#undef GETATTRIB
+
+#endif
 
 	return true;
 }
 
 boolean Shader_Compile(void)
 {
-#ifdef GL_SHADERS
 	GLint i;
 
 	if (!pglUseProgram)
@@ -466,22 +484,23 @@ boolean Shader_Compile(void)
 
 		if (!Shader_CompileProgram(usershader, i, vert_shader, frag_shader))
 		{
-			GL_MSG_Warning("CompileShaders: Could not compile custom shader program for %s\n", HWR_GetShaderName(i));
+			GL_MSG_Warning("Shader_Compile: Could not compile custom shader program for %s\n", HWR_GetShaderName(i));
 			usershader->program = 0;
 		}
 	}
 
 	Shader_Set(SHADER_DEFAULT);
 
-	return true;
-#else
-	return false;
+#ifdef HAVE_GLES2
+	pglUseProgram(gl_shaderstate.program);
+	gl_shaderstate.changed = false;
 #endif
+
+	return true;
 }
 
 void Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
 {
-#ifdef GL_SHADERS
 	gl_shader_t *shader = gl_shaderstate.current;
 
 	if (gl_shadersenabled && (shader != NULL) && pglUseProgram)
@@ -497,43 +516,37 @@ void Shader_SetColors(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tin
 
 		Shader_SetUniforms(Surface, poly, tint, fade);
 	}
-#else
-	(void)Surface;
-	(void)poly;
-	(void)tint;
-	(void)fade;
-#endif
 }
 
 #ifdef HAVE_GLES2
 void Shader_SetTransform(void)
 {
-	if (shader_current == NULL)
+	gl_shader_t *shader = gl_shaderstate.current;
+	if (!shader)
 		return;
 
-	if (memcmp(projMatrix, shader_current->projMatrix, sizeof(fmatrix4_t)))
+	if (memcmp(projMatrix, shader->projMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->projMatrix, projMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader_current->uniforms[gluniform_projection], 1, GL_FALSE, (float *)projMatrix);
+		memcpy(shader->projMatrix, projMatrix, sizeof(fmatrix4_t));
+		pglUniformMatrix4fv(shader->uniforms[gluniform_projection], 1, GL_FALSE, (float *)projMatrix);
 	}
 
-	if (memcmp(viewMatrix, shader_current->viewMatrix, sizeof(fmatrix4_t)))
+	if (memcmp(viewMatrix, shader->viewMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->viewMatrix, viewMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader_current->uniforms[gluniform_view], 1, GL_FALSE, (float *)viewMatrix);
+		memcpy(shader->viewMatrix, viewMatrix, sizeof(fmatrix4_t));
+		pglUniformMatrix4fv(shader->uniforms[gluniform_view], 1, GL_FALSE, (float *)viewMatrix);
 	}
 
-	if (memcmp(modelMatrix, shader_current->modelMatrix, sizeof(fmatrix4_t)))
+	if (memcmp(modelMatrix, shader->modelMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->modelMatrix, modelMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader_current->uniforms[gluniform_model], 1, GL_FALSE, (float *)modelMatrix);
+		memcpy(shader->modelMatrix, modelMatrix, sizeof(fmatrix4_t));
+		pglUniformMatrix4fv(shader->uniforms[gluniform_model], 1, GL_FALSE, (float *)modelMatrix);
 	}
 }
 #endif
 
 void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
 {
-#ifdef GL_SHADERS
 	gl_shader_t *shader = gl_shaderstate.current;
 
 	if (gl_shadersenabled && (shader != NULL) && pglUseProgram)
@@ -593,18 +606,19 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 		#undef UNIFORM_3
 		#undef UNIFORM_4
 	}
-#else
-	(void)Surface;
-	(void)poly;
-	(void)tint;
-	(void)fade;
-#endif
 }
 
-void Shader_SetSampler(gl_shader_t *shader, gluniform_t uniform, GLint value)
+void Shader_SetSampler(gluniform_t uniform, GLint value)
 {
-	if (shader == NULL)
+	gl_shader_t *shader = gl_shaderstate.current;
+	if (!shader)
 		return;
+
+	if (gl_shaderstate.changed)
+	{
+		pglUseProgram(shader->program);
+		gl_shaderstate.changed = false;
+	}
 
 	if (shader->uniforms[uniform] != -1)
 		pglUniform1i(shader->uniforms[uniform], value);

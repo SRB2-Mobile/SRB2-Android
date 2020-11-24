@@ -11,8 +11,8 @@
 /// \file r_gles.h
 /// \brief OpenGL ES API for Sonic Robo Blast 2
 
-#ifndef _R_OPENGL_H_
-#define _R_OPENGL_H_
+#ifndef _R_GLES_H_
+#define _R_GLES_H_
 
 #define GL_GLEXT_PROTOTYPES
 #undef DRIVER_STRING
@@ -27,7 +27,7 @@
 #define DRIVER_STRING "OpenGL ES 2.0"
 #endif
 
-#define _CREATE_DLL_ // This is apparently required
+#define _CREATE_DLL_
 #undef DEBUG_TO_FILE
 
 #include "../../doomdef.h"
@@ -38,23 +38,5 @@
 // ==========================================================================
 
 #include "../r_glcommon/r_glcommon.h"
-
-// ==========================================================================
-//                                                                     GLOBAL
-// ==========================================================================
-
-extern const GLubyte	*gl_version;
-extern const GLubyte	*gl_renderer;
-extern const GLubyte	*gl_extensions;
-
-extern RGBA_t           myPaletteData[];
-extern GLint            screen_width;
-extern GLint            screen_height;
-extern GLbyte           screen_depth;
-extern GLint            maximumAnisotropy;
-
-/**	\brief OpenGL flags for video driver
-*/
-extern GLint            textureformatGL;
 
 #endif

@@ -49,10 +49,10 @@ static void Font_LoadSource(font_t *font)
 	else
 #endif
 	{
-		patch_t *patch = (patch_t *)lump;
+		patch_t *patch = W_CachePatchNum(lumpnum, PU_PATCH);
 
-		font->width = SHORT(patch->width);
-		font->height = SHORT(patch->height);
+		font->width = patch->width;
+		font->height = patch->height;
 
 		pixels = (UINT16 *)Picture_Convert(PICFMT_PATCH, patch, PICFMT_FLAT16, 0, NULL, 0, 0, 0, 0, 0);
 	}

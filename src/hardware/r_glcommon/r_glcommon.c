@@ -16,6 +16,10 @@
 #include "../../doomdef.h"
 #include "../../console.h"
 
+#ifdef GL_SHADERS
+#include "../shaders/gl_shaders.h"
+#endif
+
 #include <stdarg.h>
 
 const GLubyte *gl_version = NULL;
@@ -44,6 +48,8 @@ GLboolean MipMap = GL_FALSE;
 GLint min_filter = GL_LINEAR;
 GLint mag_filter = GL_LINEAR;
 GLint anisotropic_filter = 0;
+
+boolean model_lighting = false;
 
 FTextureInfo *gl_cachetail = NULL;
 FTextureInfo *gl_cachehead = NULL;
@@ -270,6 +276,198 @@ boolean GLBackend_LoadLegacyFunctions(void)
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================
+
+static void SetBlendEquation(GLenum mode)
+{
+	if (pglBlendEquation)
+		pglBlendEquation(mode);
+}
+
+static void SetBlendMode(FBITFIELD flags)
+{
+	// Set blending function
+	switch (flags)
+	{
+		case PF_Translucent & PF_Blending:
+			pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
+			break;
+		case PF_Masked & PF_Blending:
+			// Hurdler: does that mean lighting is only made by alpha src?
+			// it sounds ok, but not for polygonsmooth
+			pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
+			break;
+		case PF_Additive & PF_Blending:
+		case PF_Subtractive & PF_Blending:
+		case PF_ReverseSubtract & PF_Blending:
+		case PF_Environment & PF_Blending:
+			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			break;
+		case PF_AdditiveSource & PF_Blending:
+			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
+			break;
+		case PF_Multiplicative & PF_Blending:
+			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
+			break;
+		case PF_Fog & PF_Fog:
+			// Sryder: Fog
+			// multiplies input colour by input alpha, and destination colour by input colour, then adds them
+			pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
+			break;
+		default: // must be 0, otherwise it's an error
+			// No blending
+			pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
+			break;
+	}
+
+	// Set blending equation
+	switch (flags)
+	{
+		case PF_Subtractive & PF_Blending:
+			SetBlendEquation(GL_FUNC_SUBTRACT);
+			break;
+		case PF_ReverseSubtract & PF_Blending:
+			// good for shadow
+			// not really but what else ?
+			SetBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+			break;
+		default:
+			SetBlendEquation(GL_FUNC_ADD);
+			break;
+	}
+
+	// Alpha test
+	switch (flags)
+	{
+		case PF_Masked & PF_Blending:
+			pglAlphaFunc(GL_GREATER, 0.5f);
+			break;
+		case PF_Translucent & PF_Blending:
+		case PF_Additive & PF_Blending:
+		case PF_AdditiveSource & PF_Blending:
+		case PF_Subtractive & PF_Blending:
+		case PF_ReverseSubtract & PF_Blending:
+		case PF_Environment & PF_Blending:
+		case PF_Multiplicative & PF_Blending:
+			pglAlphaFunc(GL_NOTEQUAL, 0.0f);
+			break;
+		case PF_Fog & PF_Fog:
+			pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
+			break;
+		default:
+			pglAlphaFunc(GL_GREATER, 0.5f);
+			break;
+	}
+}
+
+// PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
+//             is it faster when pixels are discarded ?
+
+void SetBlendingStates(FBITFIELD PolyFlags)
+{
+	FBITFIELD Xor = CurrentPolyFlags^PolyFlags;
+
+	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible))
+	{
+		if (Xor & PF_Blending) // if blending mode must be changed
+			SetBlendMode(PolyFlags & PF_Blending);
+
+		if (Xor & PF_NoAlphaTest)
+		{
+			if (PolyFlags & PF_NoAlphaTest)
+				pglDisable(GL_ALPHA_TEST);
+			else
+				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
+		}
+
+		if (Xor & PF_Decal)
+		{
+			if (PolyFlags & PF_Decal)
+				pglEnable(GL_POLYGON_OFFSET_FILL);
+			else
+				pglDisable(GL_POLYGON_OFFSET_FILL);
+		}
+
+		if (Xor & PF_NoDepthTest)
+		{
+			if (PolyFlags & PF_NoDepthTest)
+				pglDepthFunc(GL_ALWAYS);
+			else
+				pglDepthFunc(GL_LEQUAL);
+		}
+
+		if (Xor & PF_RemoveYWrap)
+		{
+			if (PolyFlags & PF_RemoveYWrap)
+				SetClamp(GL_TEXTURE_WRAP_T);
+		}
+
+		if (Xor & PF_ForceWrapX)
+		{
+			if (PolyFlags & PF_ForceWrapX)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		}
+
+		if (Xor & PF_ForceWrapY)
+		{
+			if (PolyFlags & PF_ForceWrapY)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		}
+
+		if (Xor & PF_Modulated)
+		{
+			if (PolyFlags & PF_Modulated)
+			{   // mix texture colour with Surface->PolyColor
+				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			}
+			else
+			{   // colour from texture is unchanged before blending
+				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+			}
+		}
+
+		if (Xor & PF_Occlude) // depth test but (no) depth write
+		{
+			if (PolyFlags&PF_Occlude)
+			{
+				pglDepthMask(1);
+			}
+			else
+				pglDepthMask(0);
+		}
+		////Hurdler: not used if we don't define POLYSKY
+		if (Xor & PF_Invisible)
+		{
+			if (PolyFlags&PF_Invisible)
+				pglBlendFunc(GL_ZERO, GL_ONE);         // transparent blending
+			else
+			{   // big hack: (TODO: manage that better)
+				// we test only for PF_Masked because PF_Invisible is only used
+				// (for now) with it (yeah, that's crappy, sorry)
+				if ((PolyFlags&PF_Blending)==PF_Masked)
+					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);
+			}
+		}
+		if (PolyFlags & PF_NoTexture)
+		{
+			SetNoTexture();
+		}
+	}
+
+	CurrentPolyFlags = PolyFlags;
+}
+
+INT32 GLBackend_GetShaderType(INT32 type)
+{
+#ifdef GL_SHADERS
+	// If using model lighting, set the appropriate shader.
+	// However don't override a custom shader.
+	if (type == SHADER_MODEL && model_lighting
+	&& !(gl_shaders[SHADER_MODEL].custom && !gl_shaders[SHADER_MODEL_LIGHTING].custom))
+		return SHADER_MODEL_LIGHTING;
+#endif
+
+	return type;
+}
 
 void SetSurface(INT32 w, INT32 h)
 {

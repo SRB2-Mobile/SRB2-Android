@@ -30,52 +30,14 @@
 
 static const GLubyte white[4] = { 255, 255, 255, 255 };
 
-// **************************************************************************
+// ==========================================================================
 //                                                                    GLOBALS
-// **************************************************************************
-
-static boolean model_lighting = false;
+// ==========================================================================
 
 //Hurdler: 04/10/2000: added for the kick ass coronas as Boris wanted;-)
 static GLfloat modelMatrix[16];
 static GLfloat projMatrix[16];
 static GLint   viewport[4];
-
-// shortcut for ((float)1/i)
-static const GLfloat byte2float[256] = {
-	0.000000f, 0.003922f, 0.007843f, 0.011765f, 0.015686f, 0.019608f, 0.023529f, 0.027451f,
-	0.031373f, 0.035294f, 0.039216f, 0.043137f, 0.047059f, 0.050980f, 0.054902f, 0.058824f,
-	0.062745f, 0.066667f, 0.070588f, 0.074510f, 0.078431f, 0.082353f, 0.086275f, 0.090196f,
-	0.094118f, 0.098039f, 0.101961f, 0.105882f, 0.109804f, 0.113725f, 0.117647f, 0.121569f,
-	0.125490f, 0.129412f, 0.133333f, 0.137255f, 0.141176f, 0.145098f, 0.149020f, 0.152941f,
-	0.156863f, 0.160784f, 0.164706f, 0.168627f, 0.172549f, 0.176471f, 0.180392f, 0.184314f,
-	0.188235f, 0.192157f, 0.196078f, 0.200000f, 0.203922f, 0.207843f, 0.211765f, 0.215686f,
-	0.219608f, 0.223529f, 0.227451f, 0.231373f, 0.235294f, 0.239216f, 0.243137f, 0.247059f,
-	0.250980f, 0.254902f, 0.258824f, 0.262745f, 0.266667f, 0.270588f, 0.274510f, 0.278431f,
-	0.282353f, 0.286275f, 0.290196f, 0.294118f, 0.298039f, 0.301961f, 0.305882f, 0.309804f,
-	0.313726f, 0.317647f, 0.321569f, 0.325490f, 0.329412f, 0.333333f, 0.337255f, 0.341176f,
-	0.345098f, 0.349020f, 0.352941f, 0.356863f, 0.360784f, 0.364706f, 0.368627f, 0.372549f,
-	0.376471f, 0.380392f, 0.384314f, 0.388235f, 0.392157f, 0.396078f, 0.400000f, 0.403922f,
-	0.407843f, 0.411765f, 0.415686f, 0.419608f, 0.423529f, 0.427451f, 0.431373f, 0.435294f,
-	0.439216f, 0.443137f, 0.447059f, 0.450980f, 0.454902f, 0.458824f, 0.462745f, 0.466667f,
-	0.470588f, 0.474510f, 0.478431f, 0.482353f, 0.486275f, 0.490196f, 0.494118f, 0.498039f,
-	0.501961f, 0.505882f, 0.509804f, 0.513726f, 0.517647f, 0.521569f, 0.525490f, 0.529412f,
-	0.533333f, 0.537255f, 0.541177f, 0.545098f, 0.549020f, 0.552941f, 0.556863f, 0.560784f,
-	0.564706f, 0.568627f, 0.572549f, 0.576471f, 0.580392f, 0.584314f, 0.588235f, 0.592157f,
-	0.596078f, 0.600000f, 0.603922f, 0.607843f, 0.611765f, 0.615686f, 0.619608f, 0.623529f,
-	0.627451f, 0.631373f, 0.635294f, 0.639216f, 0.643137f, 0.647059f, 0.650980f, 0.654902f,
-	0.658824f, 0.662745f, 0.666667f, 0.670588f, 0.674510f, 0.678431f, 0.682353f, 0.686275f,
-	0.690196f, 0.694118f, 0.698039f, 0.701961f, 0.705882f, 0.709804f, 0.713726f, 0.717647f,
-	0.721569f, 0.725490f, 0.729412f, 0.733333f, 0.737255f, 0.741177f, 0.745098f, 0.749020f,
-	0.752941f, 0.756863f, 0.760784f, 0.764706f, 0.768627f, 0.772549f, 0.776471f, 0.780392f,
-	0.784314f, 0.788235f, 0.792157f, 0.796078f, 0.800000f, 0.803922f, 0.807843f, 0.811765f,
-	0.815686f, 0.819608f, 0.823529f, 0.827451f, 0.831373f, 0.835294f, 0.839216f, 0.843137f,
-	0.847059f, 0.850980f, 0.854902f, 0.858824f, 0.862745f, 0.866667f, 0.870588f, 0.874510f,
-	0.878431f, 0.882353f, 0.886275f, 0.890196f, 0.894118f, 0.898039f, 0.901961f, 0.905882f,
-	0.909804f, 0.913726f, 0.917647f, 0.921569f, 0.925490f, 0.929412f, 0.933333f, 0.937255f,
-	0.941177f, 0.945098f, 0.949020f, 0.952941f, 0.956863f, 0.960784f, 0.964706f, 0.968628f,
-	0.972549f, 0.976471f, 0.980392f, 0.984314f, 0.988235f, 0.992157f, 0.996078f, 1.000000f
-};
 
 /* GLU functions */
 typedef GLint (APIENTRY * PFNgluBuild2DMipmaps) (GLenum target, GLint internalFormat, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *data);
@@ -143,44 +105,61 @@ boolean GLBackend_LoadExtraFunctions(void)
 EXPORT void HWRAPI(SetShader) (int type)
 {
 #ifdef GL_SHADERS
-	// If using model lighting, set the appropriate shader.
-	// However don't override a custom shader.
-	if (type == SHADER_MODEL && model_lighting
-	&& !(gl_shaders[SHADER_MODEL].custom && !gl_shaders[SHADER_MODEL_LIGHTING].custom))
-		type = SHADER_MODEL_LIGHTING;
+	Shader_Set(GLBackend_GetShaderType(type));
+#else
+	(void)type;
 #endif
-	Shader_Set(type);
 }
 
 EXPORT boolean HWRAPI(CompileShaders) (void)
 {
+#ifdef GL_SHADERS
 	return Shader_Compile();
+#else
+	return false;
+#endif
 }
 
 EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value)
 {
+#ifdef GL_SHADERS
 	Shader_SetInfo(info, value);
+#else
+	(void)info;
+	(void)value;
+#endif
 }
 
 EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boolean fragment)
 {
+#ifdef GL_SHADERS
 	Shader_LoadCustom(number, shader, size, fragment);
+#else
+	(void)number;
+	(void)shader;
+	(void)size;
+	(void)fragment;
+#endif
 }
 
 EXPORT void HWRAPI(UnSetShader) (void)
 {
+#ifdef GL_SHADERS
 	Shader_UnSet();
+#endif
 }
 
 EXPORT void HWRAPI(CleanShaders) (void)
 {
+#ifdef GL_SHADERS
 	Shader_Clean();
+#endif
 }
 
 // -----------------+
 // SetNoTexture     : Disable texture
 // -----------------+
-static void SetNoTexture(void)
+void SetNoTexture(void)
 {
 	// Disable texture.
 	if (tex_downloaded != NOTEXTURE_NUM)
@@ -533,200 +512,18 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 	pglEnable(GL_TEXTURE_2D);
 }
 
-
-// -----------------+
-// SetBlend         : Set render mode
-// -----------------+
-// PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
-//             is it faster when pixels are discarded ?
-
-static void Clamp2D(GLenum pname)
+void SetClamp(GLenum pname)
 {
 	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP); // fallback clamp
 	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP_TO_EDGE);
 }
 
-static void SetBlendEquation(GLenum mode)
-{
-	if (pglBlendEquation)
-		pglBlendEquation(mode);
-}
-
-static void SetBlendMode(FBITFIELD flags)
-{
-	// Set blending function
-	switch (flags)
-	{
-		case PF_Translucent & PF_Blending:
-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
-			break;
-		case PF_Masked & PF_Blending:
-			// Hurdler: does that mean lighting is only made by alpha src?
-			// it sounds ok, but not for polygonsmooth
-			pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
-			break;
-		case PF_Additive & PF_Blending:
-		case PF_Subtractive & PF_Blending:
-		case PF_ReverseSubtract & PF_Blending:
-		case PF_Environment & PF_Blending:
-			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-			break;
-		case PF_AdditiveSource & PF_Blending:
-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
-			break;
-		case PF_Multiplicative & PF_Blending:
-			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
-			break;
-		case PF_Fog & PF_Fog:
-			// Sryder: Fog
-			// multiplies input colour by input alpha, and destination colour by input colour, then adds them
-			pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
-			break;
-		default: // must be 0, otherwise it's an error
-			// No blending
-			pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
-			break;
-	}
-
-	// Set blending equation
-	switch (flags)
-	{
-		case PF_Subtractive & PF_Blending:
-			SetBlendEquation(GL_FUNC_SUBTRACT);
-			break;
-		case PF_ReverseSubtract & PF_Blending:
-			// good for shadow
-			// not really but what else ?
-			SetBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-			break;
-		default:
-			SetBlendEquation(GL_FUNC_ADD);
-			break;
-	}
-
-	// Alpha test
-	switch (flags)
-	{
-		case PF_Masked & PF_Blending:
-			pglAlphaFunc(GL_GREATER, 0.5f);
-			break;
-		case PF_Translucent & PF_Blending:
-		case PF_Additive & PF_Blending:
-		case PF_AdditiveSource & PF_Blending:
-		case PF_Subtractive & PF_Blending:
-		case PF_ReverseSubtract & PF_Blending:
-		case PF_Environment & PF_Blending:
-		case PF_Multiplicative & PF_Blending:
-			pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-			break;
-		case PF_Fog & PF_Fog:
-			pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
-			break;
-		default:
-			pglAlphaFunc(GL_GREATER, 0.5f);
-			break;
-	}
-}
-
+// -----------------+
+// SetBlend         : Set render mode
+// -----------------+
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 {
-	FBITFIELD Xor;
-	Xor = CurrentPolyFlags^PolyFlags;
-	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible))
-	{
-		if (Xor & PF_Blending) // if blending mode must be changed
-			SetBlendMode(PolyFlags & PF_Blending);
-
-		if (Xor & PF_NoAlphaTest)
-		{
-			if (PolyFlags & PF_NoAlphaTest)
-				pglDisable(GL_ALPHA_TEST);
-			else
-				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
-		}
-
-		if (Xor & PF_Decal)
-		{
-			if (PolyFlags & PF_Decal)
-				pglEnable(GL_POLYGON_OFFSET_FILL);
-			else
-				pglDisable(GL_POLYGON_OFFSET_FILL);
-		}
-
-		if (Xor & PF_NoDepthTest)
-		{
-			if (PolyFlags & PF_NoDepthTest)
-				pglDepthFunc(GL_ALWAYS); //pglDisable(GL_DEPTH_TEST);
-			else
-				pglDepthFunc(GL_LEQUAL); //pglEnable(GL_DEPTH_TEST);
-		}
-
-		if (Xor & PF_RemoveYWrap)
-		{
-			if (PolyFlags & PF_RemoveYWrap)
-				Clamp2D(GL_TEXTURE_WRAP_T);
-		}
-
-		if (Xor & PF_ForceWrapX)
-		{
-			if (PolyFlags & PF_ForceWrapX)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		}
-
-		if (Xor & PF_ForceWrapY)
-		{
-			if (PolyFlags & PF_ForceWrapY)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		}
-
-		if (Xor & PF_Modulated)
-		{
-#if defined (__unix__) || defined (UNIXCOMMON)
-			if (oglflags & GLF_NOTEXENV)
-			{
-				if (!(PolyFlags & PF_Modulated))
-					pglColor4ubv(white);
-			}
-			else
-#endif
-			if (PolyFlags & PF_Modulated)
-			{   // mix texture colour with Surface->PolyColor
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			}
-			else
-			{   // colour from texture is unchanged before blending
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			}
-		}
-
-		if (Xor & PF_Occlude) // depth test but (no) depth write
-		{
-			if (PolyFlags&PF_Occlude)
-			{
-				pglDepthMask(1);
-			}
-			else
-				pglDepthMask(0);
-		}
-		////Hurdler: not used if we don't define POLYSKY
-		if (Xor & PF_Invisible)
-		{
-			if (PolyFlags&PF_Invisible)
-				pglBlendFunc(GL_ZERO, GL_ONE);         // transparent blending
-			else
-			{   // big hack: (TODO: manage that better)
-				// we test only for PF_Masked because PF_Invisible is only used
-				// (for now) with it (yeah, that's crappy, sorry)
-				if ((PolyFlags&PF_Blending)==PF_Masked)
-					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);
-			}
-		}
-		if (PolyFlags & PF_NoTexture)
-		{
-			SetNoTexture();
-		}
-	}
-	CurrentPolyFlags = PolyFlags;
+	SetBlendingStates(PolyFlags);
 }
 
 // -----------------+
@@ -920,12 +717,12 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 	if (pTexInfo->flags & TF_WRAPX)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	else
-		Clamp2D(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_S);
 
 	if (pTexInfo->flags & TF_WRAPY)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	else
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_T);
 
 	if (maximumAnisotropy)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
@@ -971,9 +768,6 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 	static GLRGBAFloat tint = {0,0,0,0};
 	static GLRGBAFloat fade = {0,0,0,0};
 
-	if ((PolyFlags & PF_Corona) && (oglflags & GLF_NOZBUFREAD))
-		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
-
 	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
 
 	// PolyColor
@@ -983,25 +777,25 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		if (CurrentPolyFlags & PF_Modulated)
 		{
 			// Poly color
-			poly.red    = byte2float[pSurf->PolyColor.s.red];
-			poly.green  = byte2float[pSurf->PolyColor.s.green];
-			poly.blue   = byte2float[pSurf->PolyColor.s.blue];
-			poly.alpha  = byte2float[pSurf->PolyColor.s.alpha];
+			poly.red    = byte2float(pSurf->PolyColor.s.red);
+			poly.green  = byte2float(pSurf->PolyColor.s.green);
+			poly.blue   = byte2float(pSurf->PolyColor.s.blue);
+			poly.alpha  = byte2float(pSurf->PolyColor.s.alpha);
 
 			pglColor4ubv((GLubyte*)&pSurf->PolyColor.s);
 		}
 
 		// Tint color
-		tint.red   = byte2float[pSurf->TintColor.s.red];
-		tint.green = byte2float[pSurf->TintColor.s.green];
-		tint.blue  = byte2float[pSurf->TintColor.s.blue];
-		tint.alpha = byte2float[pSurf->TintColor.s.alpha];
+		tint.red   = byte2float(pSurf->TintColor.s.red);
+		tint.green = byte2float(pSurf->TintColor.s.green);
+		tint.blue  = byte2float(pSurf->TintColor.s.blue);
+		tint.alpha = byte2float(pSurf->TintColor.s.alpha);
 
 		// Fade color
-		fade.red   = byte2float[pSurf->FadeColor.s.red];
-		fade.green = byte2float[pSurf->FadeColor.s.green];
-		fade.blue  = byte2float[pSurf->FadeColor.s.blue];
-		fade.alpha = byte2float[pSurf->FadeColor.s.alpha];
+		fade.red   = byte2float(pSurf->FadeColor.s.red);
+		fade.green = byte2float(pSurf->FadeColor.s.green);
+		fade.blue  = byte2float(pSurf->FadeColor.s.blue);
+		fade.alpha = byte2float(pSurf->FadeColor.s.alpha);
 	}
 
 	// this test is added for new coronas' code (without depth buffer)
@@ -1061,7 +855,7 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		c[1] = pSurf->PolyColor.s.green;
 		c[2] = pSurf->PolyColor.s.blue;
 
-		alpha = byte2float[pSurf->PolyColor.s.alpha];
+		alpha = byte2float(pSurf->PolyColor.s.alpha);
 		alpha *= scalef; // change the alpha value (it seems better than changing the size of the corona)
 		c[3] = (unsigned char)(alpha * 255);
 		pglColor4ubv(c);
@@ -1085,10 +879,10 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	if (PolyFlags & PF_ForceWrapX)
-		Clamp2D(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_S);
 
 	if (PolyFlags & PF_ForceWrapY)
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_T);
 }
 
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
@@ -1278,10 +1072,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			pol = 0.0f;
 	}
 
-	poly.red    = byte2float[Surface->PolyColor.s.red];
-	poly.green  = byte2float[Surface->PolyColor.s.green];
-	poly.blue   = byte2float[Surface->PolyColor.s.blue];
-	poly.alpha  = byte2float[Surface->PolyColor.s.alpha];
+	poly.red    = byte2float(Surface->PolyColor.s.red);
+	poly.green  = byte2float(Surface->PolyColor.s.green);
+	poly.blue   = byte2float(Surface->PolyColor.s.blue);
+	poly.alpha  = byte2float(Surface->PolyColor.s.alpha);
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
 	if (model_lighting)
@@ -1317,15 +1111,15 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	else
 		pglColor4ubv((GLubyte*)&Surface->PolyColor.s);
 
-	tint.red   = byte2float[Surface->TintColor.s.red];
-	tint.green = byte2float[Surface->TintColor.s.green];
-	tint.blue  = byte2float[Surface->TintColor.s.blue];
-	tint.alpha = byte2float[Surface->TintColor.s.alpha];
+	tint.red   = byte2float(Surface->TintColor.s.red);
+	tint.green = byte2float(Surface->TintColor.s.green);
+	tint.blue  = byte2float(Surface->TintColor.s.blue);
+	tint.alpha = byte2float(Surface->TintColor.s.alpha);
 
-	fade.red   = byte2float[Surface->FadeColor.s.red];
-	fade.green = byte2float[Surface->FadeColor.s.green];
-	fade.blue  = byte2float[Surface->FadeColor.s.blue];
-	fade.alpha = byte2float[Surface->FadeColor.s.alpha];
+	fade.red   = byte2float(Surface->FadeColor.s.red);
+	fade.green = byte2float(Surface->FadeColor.s.green);
+	fade.blue  = byte2float(Surface->FadeColor.s.blue);
+	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
 
 	flags = (Surface->PolyFlags | PF_Modulated);
 	if (Surface->PolyFlags & (PF_Additive|PF_AdditiveSource|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
@@ -1744,8 +1538,8 @@ EXPORT void HWRAPI(StartScreenWipe) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1775,8 +1569,8 @@ EXPORT void HWRAPI(EndScreenWipe)(void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1958,8 +1752,8 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1988,8 +1782,8 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else

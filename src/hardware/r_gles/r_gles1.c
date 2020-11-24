@@ -21,8 +21,6 @@
 
 static const GLfloat white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-static boolean model_lighting = true;
-
 boolean GLBackend_LoadFunctions(void)
 {
 #define GETOPENGLFUNC(func) \
@@ -70,13 +68,19 @@ boolean GLBackend_LoadExtraFunctions(void)
 	GETOPENGLFUNC(BufferData)
 	GETOPENGLFUNC(DeleteBuffers)
 
+	GETOPENGLFUNC(BlendEquation)
+
 	return true;
 }
 
 #undef GETOPENGLFUNC
 
-// jimita
-EXPORT boolean HWRAPI(LoadShaders) (void)
+EXPORT void HWRAPI(SetShader) (int type)
+{
+	(void)type;
+}
+
+EXPORT boolean HWRAPI(CompileShaders) (void)
 {
 	return false;
 }
@@ -95,27 +99,15 @@ EXPORT void HWRAPI(LoadCustomShader) (int number, char *shader, size_t size, boo
 	(void)fragment;
 }
 
-EXPORT void HWRAPI(SetShader) (int shader)
-{
-	(void)shader;
-}
-
-EXPORT void HWRAPI(UnSetShader) (void)
-{
-
-}
-
-EXPORT void HWRAPI(KillShaders) (void)
-{
-
-}
+EXPORT void HWRAPI(UnSetShader) (void) {}
+EXPORT void HWRAPI(CleanShaders) (void) {}
 
 // -----------------+
 // SetNoTexture     : Disable texture
 // -----------------+
-static void SetNoTexture(void)
+void SetNoTexture(void)
 {
-	// Set small white texture.
+	// Disable texture.
 	if (tex_downloaded != NOTEXTURE_NUM)
 	{
 		if (NOTEXTURE_NUM == 0)
@@ -228,6 +220,16 @@ void SetStates(void)
 	// bp : when no t&l :)
 	pglLoadIdentity();
 	pglScalef(1.0f, 1.0f, -1.0f);
+}
+
+// -----------------+
+// DeleteTexture    : Deletes a texture from the GPU and frees its data
+// -----------------+
+EXPORT void HWRAPI(DeleteTexture) (FTextureInfo *pTexInfo)
+{
+	if (pTexInfo->downloaded)
+		pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+	pTexInfo->downloaded = 0;
 }
 
 
@@ -375,145 +377,17 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 	pglEnable(GL_TEXTURE_2D);
 }
 
-static void Clamp2D(GLenum pname)
+void SetClamp(GLenum pname)
 {
 	pglTexParameteri(GL_TEXTURE_2D, pname, GL_CLAMP_TO_EDGE);
 }
 
-
 // -----------------+
 // SetBlend         : Set render mode
 // -----------------+
-// PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
-//             is it faster when pixels are discarded ?
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 {
-	FBITFIELD Xor;
-	Xor = CurrentPolyFlags^PolyFlags;
-	if (Xor & (PF_Blending|PF_RemoveYWrap|PF_ForceWrapX|PF_ForceWrapY|PF_Occlude|PF_NoTexture|PF_Modulated|PF_NoDepthTest|PF_Decal|PF_Invisible|PF_NoAlphaTest))
-	{
-		if (Xor&(PF_Blending)) // if blending mode must be changed
-		{
-			switch (PolyFlags & PF_Blending) {
-				case PF_Translucent & PF_Blending:
-					pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Masked & PF_Blending:
-					// Hurdler: does that mean lighting is only made by alpha src?
-					// it sounds ok, but not for polygonsmooth
-					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
-					pglAlphaFunc(GL_GREATER, 0.5f);
-					break;
-				case PF_Additive & PF_Blending:
-					pglBlendFunc(GL_SRC_ALPHA, GL_ONE);                 // src * alpha + dest
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Environment & PF_Blending:
-					pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Substractive & PF_Blending:
-					// good for shadow
-					// not really but what else ?
-					pglBlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				case PF_Fog & PF_Fog:
-					// Sryder: Fog
-					// multiplies input colour by input alpha, and destination colour by input colour, then adds them
-					pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
-					pglAlphaFunc(GL_NOTEQUAL, 0.0f);
-					break;
-				default : // must be 0, otherwise it's an error
-					// No blending
-					pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
-					pglAlphaFunc(GL_GREATER, 0.5f);
-					break;
-			}
-		}
-		if (Xor & PF_NoAlphaTest)
-		{
-			if (PolyFlags & PF_NoAlphaTest)
-				pglDisable(GL_ALPHA_TEST);
-			else
-				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
-		}
-
-		if (Xor & PF_Decal)
-		{
-			if (PolyFlags & PF_Decal)
-				pglEnable(GL_POLYGON_OFFSET_FILL);
-			else
-				pglDisable(GL_POLYGON_OFFSET_FILL);
-		}
-
-		if (Xor&PF_NoDepthTest)
-		{
-			if (PolyFlags & PF_NoDepthTest)
-				pglDepthFunc(GL_ALWAYS); //pglDisable(GL_DEPTH_TEST);
-			else
-				pglDepthFunc(GL_LEQUAL); //pglEnable(GL_DEPTH_TEST);
-		}
-
-		if (Xor&PF_RemoveYWrap)
-		{
-			if (PolyFlags & PF_RemoveYWrap)
-				Clamp2D(GL_TEXTURE_WRAP_T);
-		}
-
-		if (Xor&PF_ForceWrapX)
-		{
-			if (PolyFlags & PF_ForceWrapX)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		}
-
-		if (Xor&PF_ForceWrapY)
-		{
-			if (PolyFlags & PF_ForceWrapY)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		}
-
-		if (Xor&PF_Modulated)
-		{
-			if (PolyFlags & PF_Modulated)
-			{   // mix texture colour with Surface->FlatColor
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			}
-			else
-			{   // colour from texture is unchanged before blending
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			}
-		}
-
-		if (Xor & PF_Occlude) // depth test but (no) depth write
-		{
-			if (PolyFlags&PF_Occlude)
-			{
-				pglDepthMask(1);
-			}
-			else
-				pglDepthMask(0);
-		}
-		////Hurdler: not used if we don't define POLYSKY
-		if (Xor & PF_Invisible)
-		{
-			if (PolyFlags&PF_Invisible)
-				pglBlendFunc(GL_ZERO, GL_ONE);         // transparent blending
-			else
-			{   // big hack: (TODO: manage that better)
-				// we test only for PF_Masked because PF_Invisible is only used
-				// (for now) with it (yeah, that's crappy, sorry)
-				if ((PolyFlags&PF_Blending)==PF_Masked)
-					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);
-			}
-		}
-		if (PolyFlags & PF_NoTexture)
-		{
-			SetNoTexture();
-		}
-	}
-	CurrentPolyFlags = PolyFlags;
+	SetBlendingStates(PolyFlags);
 }
 
 // -----------------+
@@ -650,12 +524,12 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 	if (pTexInfo->flags & TF_WRAPX)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	else
-		Clamp2D(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_S);
 
 	if (pTexInfo->flags & TF_WRAPY)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	else
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_T);
 
 	if (maximumAnisotropy)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
@@ -750,10 +624,10 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	if (PolyFlags & PF_ForceWrapX)
-		Clamp2D(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_S);
 
 	if (PolyFlags & PF_ForceWrapY)
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_T);
 }
 
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
@@ -901,6 +775,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	boolean useTinyFrames;
 
+	FBITFIELD flags;
 	int i;
 
 	// Because otherwise, scaling the screen negatively vertically breaks the lighting
@@ -965,8 +840,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	else
 		pglColor4f(poly.red, poly.green, poly.blue, poly.alpha);
 
-	SetBlend((poly.alpha < 1 ? PF_Translucent : (PF_Masked|PF_Occlude))|PF_Modulated);
-
 	tint.red   = (Surface->TintColor.s.red/255.0f);
 	tint.green = (Surface->TintColor.s.green/255.0f);
 	tint.blue  = (Surface->TintColor.s.blue/255.0f);
@@ -976,6 +849,13 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.green = (Surface->FadeColor.s.green/255.0f);
 	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
 	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
+
+	flags = (Surface->PolyFlags | PF_Modulated);
+	if (Surface->PolyFlags & (PF_Additive|PF_AdditiveSource|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
+		flags |= PF_Occlude;
+	else if (Surface->PolyColor.s.alpha == 0xFF)
+		flags |= (PF_Occlude | PF_Masked);
+	SetBlend(flags);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);
@@ -1360,8 +1240,8 @@ EXPORT void HWRAPI(StartScreenWipe) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1391,8 +1271,8 @@ EXPORT void HWRAPI(EndScreenWipe)(void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1499,7 +1379,7 @@ static void DoWipe(void)
 
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	SetBlend(PF_Modulated|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	SetBlend(PF_Modulated|PF_NoDepthTest);
 	pglEnable(GL_TEXTURE_2D);
 
 	// Draw the original screen
@@ -1509,7 +1389,7 @@ static void DoWipe(void)
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
 	// Draw the end screen that fades in
 	pglActiveTexture(GL_TEXTURE0);
@@ -1574,8 +1454,8 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
@@ -1604,8 +1484,8 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	{
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		Clamp2D(GL_TEXTURE_WRAP_S);
-		Clamp2D(GL_TEXTURE_WRAP_T);
+		SetClamp(GL_TEXTURE_WRAP_S);
+		SetClamp(GL_TEXTURE_WRAP_T);
 		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
