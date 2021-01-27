@@ -46,13 +46,13 @@
 	"attribute vec2 a_texcoord;\n" \
 	"attribute vec2 a_fademasktexcoord;\n" \
 	"varying vec2 v_texcoord;\n" \
-	"varying vec3 v_fademasktexcoord;\n" \
+	"varying vec2 v_fademasktexcoord;\n" \
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
 		"gl_Position = u_projection * vec4(a_position, 1.0f);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
-		"v_fademasktexcoord = vec2(a_fadetex.x, a_fadetex.y);\n" \
+		"v_fademasktexcoord = vec2(a_fademasktexcoord.x, a_fademasktexcoord.y);\n" \
 	"}\0"
 
 // replicates the way fixed function lighting is used by the model lighting option,
@@ -84,6 +84,7 @@
 // ==================
 
 #define GLSL_BASE_SAMPLER "uniform sampler2D t_texsampler;\n"
+
 #define GLSL_BASE_UNIFORMS \
 	GLSL_BASE_SAMPLER \
 	"uniform vec4 poly_color;\n" \
@@ -112,7 +113,7 @@
 
 #define GLSL_FADEMASK_BASE_IN \
 	"varying vec2 v_texcoord;\n" \
-	"varying vec3 v_fademasktexcoord;\n" \
+	"varying vec2 v_fademasktexcoord;\n" \
 	"uniform sampler2D t_startscreen;\n" \
 	"uniform sampler2D t_endscreen;\n" \
 	"uniform sampler2D t_fademask;\n"

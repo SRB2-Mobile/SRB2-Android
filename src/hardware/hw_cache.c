@@ -715,7 +715,7 @@ static boolean FreeColormapsCallback(void *mem)
 	return false;
 }
 
-static void HWR_FreePatchCache(boolean freeall)
+static void FreeTextureCache(boolean freeall)
 {
 	boolean (*callback)(void *mem) = FreeTextureCallback;
 
@@ -730,12 +730,13 @@ static void HWR_FreePatchCache(boolean freeall)
 void HWR_ClearAllTextures(void)
 {
 	HWD.pfnClearMipMapCache(); // free references to the textures
-	HWR_FreePatchCache(true);
+	//FreeTextureCache(true);
 }
 
+// free all texture colormaps after each level
 void HWR_FreeColormapCache(void)
 {
-	HWR_FreePatchCache(false);
+	FreeTextureCache(false);
 }
 
 void HWR_InitMapTextures(void)
