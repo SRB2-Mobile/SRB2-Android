@@ -1931,8 +1931,8 @@ static void HU_DrawChat_Old(void)
 	size_t i = 0;
 	const char *ntalk = "Say: ", *ttalk = "Say-Team: ";
 	const char *talk = ntalk;
-	INT32 charwidth = 8 * con_scalefactor; //SHORT(hu_font['A'-HU_FONTSTART]->width) * con_scalefactor;
-	INT32 charheight = 8 * con_scalefactor; //SHORT(hu_font['A'-HU_FONTSTART]->height) * con_scalefactor;
+	INT32 charwidth = 8 * con_scalefactor; //(hu_font['A'-HU_FONTSTART]->width) * con_scalefactor;
+	INT32 charheight = 8 * con_scalefactor; //(hu_font['A'-HU_FONTSTART]->height) * con_scalefactor;
 	if (teamtalk)
 	{
 		talk = ttalk;
@@ -1953,7 +1953,7 @@ static void HU_DrawChat_Old(void)
 		}
 		else
 		{
-			//charwidth = SHORT(hu_font[talk[i]-HU_FONTSTART]->width) * con_scalefactor;
+			//charwidth = (hu_font[talk[i]-HU_FONTSTART]->width) * con_scalefactor;
 			V_DrawCharacter(HU_INPUTX + c, y, talk[i++] | cv_constextsize.value | V_NOSCALESTART, true);
 		}
 		c += charwidth;
@@ -1981,7 +1981,7 @@ static void HU_DrawChat_Old(void)
 		}
 		else
 		{
-			//charwidth = SHORT(hu_font[w_chat[i]-HU_FONTSTART]->width) * con_scalefactor;
+			//charwidth = (hu_font[w_chat[i]-HU_FONTSTART]->width) * con_scalefactor;
 			V_DrawCharacter(HU_INPUTX + c, y, w_chat[i++] | cv_constextsize.value | V_NOSCALESTART | t, true);
 		}
 
@@ -2246,15 +2246,18 @@ void HU_Drawer(void)
 		return;
 
 	// draw the crosshair, not when viewing demos nor with chasecam
-	if (!automapactive && cv_crosshair.value && !demoplayback &&
-		(!camera.chase || ticcmd_ztargetfocus[0])
-	&& !players[displayplayer].spectator)
-		HU_DrawCrosshair();
+	if (LUA_HudEnabled(hud_crosshair))
+	{
+		if (!automapactive && cv_crosshair.value && !demoplayback &&
+			(!camera.chase || ticcmd_ztargetfocus[0])
+		&& !players[displayplayer].spectator)
+			HU_DrawCrosshair();
 
-	if (!automapactive && cv_crosshair2.value && !demoplayback &&
-		(!camera2.chase || ticcmd_ztargetfocus[1])
-	&& !players[secondarydisplayplayer].spectator)
-		HU_DrawCrosshair2();
+		if (!automapactive && cv_crosshair2.value && !demoplayback &&
+			(!camera2.chase || ticcmd_ztargetfocus[1])
+		&& !players[secondarydisplayplayer].spectator)
+			HU_DrawCrosshair2();
+	}
 
 	// draw desynch text
 	if (hu_redownloadinggamestate)
@@ -2517,7 +2520,7 @@ void HU_DrawTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scorelines, I
 		}
 
 		if (players[tab[i].num].exiting || (players[tab[i].num].pflags & PF_FINISHED))
-			V_DrawSmallScaledPatch(x - SHORT(exiticon->width)/2 - 1, y-3, 0, exiticon);
+			V_DrawSmallScaledPatch(x - exiticon->width/2 - 1, y-3, 0, exiticon);
 
 		if (gametyperankings[gametype] == GT_RACE)
 		{
@@ -2821,7 +2824,7 @@ void HU_DrawDualTabRankings(INT32 x, INT32 y, playersort_t *tab, INT32 scoreline
 			V_DrawSmallScaledPatch(x-28, y-4, 0, tagico);
 
 		if (players[tab[i].num].exiting || (players[tab[i].num].pflags & PF_FINISHED))
-			V_DrawSmallScaledPatch(x - SHORT(exiticon->width)/2 - 1, y-3, 0, exiticon);
+			V_DrawSmallScaledPatch(x - exiticon->width/2 - 1, y-3, 0, exiticon);
 
 		// Draw emeralds
 		if (players[tab[i].num].powers[pw_invulnerability] && (players[tab[i].num].powers[pw_invulnerability] == players[tab[i].num].powers[pw_sneakers]) && ((leveltime/7) & 1))
@@ -3247,7 +3250,7 @@ static void HU_DrawCoopOverlay(void)
 	if (LUA_HudEnabled(hud_tabemblems) && (!modifiedgame || savemoddata))
 	{
 		V_DrawString(160, 144, 0, va("- %d/%d", M_CountEmblems(), numemblems+numextraemblems));
-		V_DrawScaledPatch(128, 144 - SHORT(emblemicon->height)/4, 0, emblemicon);
+		V_DrawScaledPatch(128, 144 - emblemicon->height/4, 0, emblemicon);
 	}
 
 	if (!LUA_HudEnabled(hud_coopemeralds))

@@ -185,7 +185,6 @@ extern UINT8 setrenderneeded;
 extern UINT8 renderswitcherror;
 
 void SCR_ChangeRenderer(void);
-void SCR_SetTargetRenderer(void);
 
 extern CV_PossibleValue_t cv_renderer_t[];
 

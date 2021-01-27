@@ -118,9 +118,10 @@ patch_t *HWR_GetPic(lumpnum_t lumpnum);
 
 GLMapTexture_t *HWR_GetTexture(INT32 tex);
 void HWR_GetLevelFlat(levelflat_t *levelflat);
-void HWR_LiterallyGetFlat(lumpnum_t flatlumpnum);
+void HWR_GetRawFlat(lumpnum_t flatlumpnum);
 
 void HWR_FreeTexture(patch_t *patch);
+void HWR_FreeTextureData(patch_t *patch);
 void HWR_FreeTextureColormaps(patch_t *patch);
 void HWR_ClearAllTextures(void);
 void HWR_FreeColormapCache(void);

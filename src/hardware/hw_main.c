@@ -147,11 +147,11 @@ static angle_t gl_aimingangle;
 static void HWR_SetTransformAiming(FTransform *trans, player_t *player, boolean skybox);
 
 // Render stats
-int ps_hw_skyboxtime = 0;
-int ps_hw_nodesorttime = 0;
-int ps_hw_nodedrawtime = 0;
-int ps_hw_spritesorttime = 0;
-int ps_hw_spritedrawtime = 0;
+precise_t ps_hw_skyboxtime = 0;
+precise_t ps_hw_nodesorttime = 0;
+precise_t ps_hw_nodedrawtime = 0;
+precise_t ps_hw_spritesorttime = 0;
+precise_t ps_hw_spritedrawtime = 0;
 
 // Render stats for batching
 int ps_hw_numpolys = 0;
@@ -161,8 +161,8 @@ int ps_hw_numshaders = 0;
 int ps_hw_numtextures = 0;
 int ps_hw_numpolyflags = 0;
 int ps_hw_numcolors = 0;
-int ps_hw_batchsorttime = 0;
-int ps_hw_batchdrawtime = 0;
+precise_t ps_hw_batchsorttime = 0;
+precise_t ps_hw_batchdrawtime = 0;
 
 boolean gl_init = false;
 boolean gl_maploaded = false;
@@ -1151,7 +1151,7 @@ static void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 				texturevpegtop += gl_sidedef->rowoffset;
 
 				// This is so that it doesn't overflow and screw up the wall, it doesn't need to go higher than the texture's height anyway
-				texturevpegtop %= SHORT(textures[gl_toptexture]->height)<<FRACBITS;
+				texturevpegtop %= (textures[gl_toptexture]->height)<<FRACBITS;
 
 				wallVerts[3].t = wallVerts[2].t = texturevpegtop * grTex->scaleY;
 				wallVerts[0].t = wallVerts[1].t = (texturevpegtop + gl_frontsector->ceilingheight - gl_backsector->ceilingheight) * grTex->scaleY;
@@ -1217,7 +1217,7 @@ static void HWR_ProcessSeg(void) // Sort of like GLWall::Process in GZDoom
 				texturevpegbottom += gl_sidedef->rowoffset;
 
 				// This is so that it doesn't overflow and screw up the wall, it doesn't need to go higher than the texture's height anyway
-				texturevpegbottom %= SHORT(textures[gl_bottomtexture]->height)<<FRACBITS;
+				texturevpegbottom %= (textures[gl_bottomtexture]->height)<<FRACBITS;
 
 				wallVerts[3].t = wallVerts[2].t = texturevpegbottom * grTex->scaleY;
 				wallVerts[0].t = wallVerts[1].t = (texturevpegbottom + gl_backsector->floorheight - gl_frontsector->floorheight) * grTex->scaleY;
@@ -4660,7 +4660,7 @@ static void HWR_CreateDrawNodes(void)
 	// that is already lying around. This should all be in some sort of linked list or lists.
 	sortindex = Z_Calloc(sizeof(size_t) * (numplanes + numpolyplanes + numwalls), PU_STATIC, NULL);
 
-	ps_hw_nodesorttime = I_GetTimeMicros();
+	ps_hw_nodesorttime = I_GetPreciseTime();
 
 	for (i = 0; i < numplanes; i++, p++)
 	{
@@ -4715,9 +4715,9 @@ static void HWR_CreateDrawNodes(void)
 		}
 	}
 
-	ps_hw_nodesorttime = I_GetTimeMicros() - ps_hw_nodesorttime;
+	ps_hw_nodesorttime = I_GetPreciseTime() - ps_hw_nodesorttime;
 
-	ps_hw_nodedrawtime = I_GetTimeMicros();
+	ps_hw_nodedrawtime = I_GetPreciseTime();
 
 	// Okay! Let's draw it all! Woo!
 	HWD.pfnSetTransform(&atransform);
@@ -4754,7 +4754,7 @@ static void HWR_CreateDrawNodes(void)
 		}
 	}
 
-	ps_hw_nodedrawtime = I_GetTimeMicros() - ps_hw_nodedrawtime;
+	ps_hw_nodedrawtime = I_GetPreciseTime() - ps_hw_nodedrawtime;
 
 	numwalls = 0;
 	numplanes = 0;
@@ -5301,7 +5301,7 @@ static void HWR_ProjectSprite(mobj_t *thing)
 			vis->colormap = R_GetTranslationColormap(TC_DEFAULT, vis->mobj->color ? vis->mobj->color : SKINCOLOR_CYAN, GTC_CACHE);
 	}
 	else
-		vis->colormap = colormaps;
+		vis->colormap = NULL;
 
 	// set top/bottom coords
 	vis->gzt = gzt;
@@ -5402,7 +5402,7 @@ static void HWR_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->flip = flip;
 	vis->mobj = (mobj_t *)thing;
 
-	vis->colormap = colormaps;
+	vis->colormap = NULL;
 
 	// set top/bottom coords
 	vis->gzt = FIXED_TO_FLOAT(thing->z + spritecachedinfo[lumpoff].topoffset);
@@ -6056,10 +6056,10 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	if (viewnumber == 0) // Only do it if it's the first screen being rendered
 		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
 
-	ps_hw_skyboxtime = I_GetTimeMicros();
+	ps_hw_skyboxtime = I_GetPreciseTime();
 	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
 		HWR_RenderSkyboxView(viewnumber, player); // This is drawn before everything else so it is placed behind
-	ps_hw_skyboxtime = I_GetTimeMicros() - ps_hw_skyboxtime;
+	ps_hw_skyboxtime = I_GetPreciseTime() - ps_hw_skyboxtime;
 
 	{
 		// do we really need to save player (is it not the same)?
@@ -6171,7 +6171,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 	ps_numbspcalls = 0;
 	ps_numpolyobjects = 0;
-	ps_bsptime = I_GetTimeMicros();
+	ps_bsptime = I_GetPreciseTime();
 
 	validcount++;
 
@@ -6209,7 +6209,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	}
 #endif
 
-	ps_bsptime = I_GetTimeMicros() - ps_bsptime;
+	ps_bsptime = I_GetPreciseTime() - ps_bsptime;
 
 	if (cv_glbatching.value)
 		HWR_RenderBatches();
@@ -6225,12 +6225,12 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 	// Draw MD2 and sprites
 	ps_numsprites = gl_visspritecount;
-	ps_hw_spritesorttime = I_GetTimeMicros();
+	ps_hw_spritesorttime = I_GetPreciseTime();
 	HWR_SortVisSprites();
-	ps_hw_spritesorttime = I_GetTimeMicros() - ps_hw_spritesorttime;
-	ps_hw_spritedrawtime = I_GetTimeMicros();
+	ps_hw_spritesorttime = I_GetPreciseTime() - ps_hw_spritesorttime;
+	ps_hw_spritedrawtime = I_GetPreciseTime();
 	HWR_DrawSprites();
-	ps_hw_spritedrawtime = I_GetTimeMicros() - ps_hw_spritedrawtime;
+	ps_hw_spritedrawtime = I_GetPreciseTime() - ps_hw_spritedrawtime;
 
 #ifdef NEWCORONAS
 	//Hurdler: they must be drawn before translucent planes, what about gl fog?
@@ -6263,17 +6263,6 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 void HWR_LoadLevel(void)
 {
-	// Lactozilla (December 8, 2019)
-	// Level setup used to free EVERY mipmap from memory.
-	// Even mipmaps that aren't related to level textures.
-	// Presumably, the hardware render code used to store textures as level data.
-	// Meaning, they had memory allocated and marked with the PU_LEVEL tag.
-	// Level textures are only reloaded after R_LoadTextures, which is
-	// when the texture list is loaded.
-
-	// Sal: Unfortunately, NOT freeing them causes the dreaded Color Bug.
-	HWR_FreeColormapCache();
-
 #ifdef ALAM_LIGHTING
 	// BP: reset light between levels (we draw preview frame lights on current frame)
 	HWR_ResetLights();
@@ -6441,7 +6430,10 @@ void HWR_Switch(void)
 
 	// Create plane polygons
 	if (!gl_maploaded && (gamestate == GS_LEVEL || (gamestate == GS_TITLESCREEN && titlemapinaction)))
+	{
+		HWR_ClearAllTextures();
 		HWR_LoadLevel();
+	}
 }
 
 // --------------------------------------------------------------------------

@@ -156,6 +156,8 @@ static const struct {
 	{META_PIVOTLIST,    "spriteframepivot_t[]"},
 	{META_FRAMEPIVOT,   "spriteframepivot_t"},
 
+	{META_TAGLIST,      "taglist"},
+
 	{META_MOBJ,         "mobj_t"},
 	{META_MAPTHING,     "mapthing_t"},
 
@@ -164,6 +166,8 @@ static const struct {
 	{META_SKIN,         "skin_t"},
 	{META_POWERS,       "player_t.powers"},
 	{META_SOUNDSID,     "skin_t.soundsid"},
+	{META_SKINSPRITES,  "skin_t.sprites"},
+	{META_SKINSPRITESLIST,  "skin_t.sprites[]"},
 
 	{META_VERTEX,       "vertex_t"},
 	{META_LINE,         "line_t"},
@@ -185,6 +189,9 @@ static const struct {
 	{META_CVAR,         "consvar_t"},
 
 	{META_SECTORLINES,  "sector_t.lines"},
+#ifdef MUTABLE_TAGS
+	{META_SECTORTAGLIST, "sector_t.taglist"},
+#endif
 	{META_SIDENUM,      "line_t.sidenum"},
 	{META_LINEARGS,     "line_t.args"},
 	{META_LINESTRINGARGS, "line_t.stringargs"},
@@ -426,7 +433,8 @@ static int lib_pAproxDistance(lua_State *L)
 	fixed_t dx = luaL_checkfixed(L, 1);
 	fixed_t dy = luaL_checkfixed(L, 2);
 	//HUDSAFE
-	lua_pushfixed(L, P_AproxDistance(dx, dy));
+	LUA_Deprecated(L, "P_AproxDistance", "FixedHypot");
+	lua_pushfixed(L, FixedHypot(dx, dy));
 	return 1;
 }
 

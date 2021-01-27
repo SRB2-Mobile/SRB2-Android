@@ -727,9 +727,8 @@ static boolean PIT_CheckThing(mobj_t *thing)
 	|| (thing->player && thing->player->spectator))
 		return true;
 
-#ifdef SEENAMES
-  // Do name checks all the way up here
-  // So that NOTHING ELSE can see MT_NAMECHECK because it is client-side.
+	// Do name checks all the way up here
+	// So that NOTHING ELSE can see MT_NAMECHECK because it is client-side.
 	if (tmthing->type == MT_NAMECHECK)
 	{
 		// Ignore things that aren't players, ignore spectators, ignore yourself.
@@ -753,7 +752,6 @@ static boolean PIT_CheckThing(mobj_t *thing)
 		seenplayer = thing->player;
 		return false;
 	}
-#endif
 
 	// Metal Sonic destroys tiny baby objects.
 	if (tmthing->type == MT_METALSONIC_RACE
@@ -778,7 +776,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			if (thing->flags & MF_SOLID)
 				S_StartSound(tmthing, thing->info->deathsound);
 			for (iter = thing->subsector->sector->thinglist; iter; iter = iter->snext)
-				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || P_AproxDistance(P_AproxDistance(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
+				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || FixedHypot(FixedHypot(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
 					P_KillMobj(iter, tmthing, tmthing, 0);
 		}
 		else
@@ -817,7 +815,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			if (thing->flags & MF_SOLID)
 				S_StartSound(tmthing, thing->info->deathsound);
 			for (iter = thing->subsector->sector->thinglist; iter; iter = iter->snext)
-				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || P_AproxDistance(P_AproxDistance(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
+				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || FixedHypot(FixedHypot(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
 					P_KillMobj(iter, tmthing, tmthing, 0);
 			return true;
 		}
@@ -982,7 +980,8 @@ static boolean PIT_CheckThing(mobj_t *thing)
 	if (thing->type == MT_SALOONDOOR && tmthing->player)
 	{
 		mobj_t *ref = (tmthing->player->powers[pw_carry] == CR_MINECART && tmthing->tracer && !P_MobjWasRemoved(tmthing->tracer)) ? tmthing->tracer : tmthing;
-		if ((thing->flags2 & MF2_AMBUSH) || ref != tmthing)
+		if (((thing->flags2 & MF2_AMBUSH) && (tmthing->z <= thing->z + thing->height) && (tmthing->z + tmthing->height >= thing->z))
+			|| ref != tmthing)
 		{
 			fixed_t dm = min(FixedHypot(ref->momx, ref->momy), 16*FRACUNIT);
 			angle_t ang = R_PointToAngle2(0, 0, ref->momx, ref->momy) - thing->angle;
@@ -995,7 +994,8 @@ static boolean PIT_CheckThing(mobj_t *thing)
 
 	if (thing->type == MT_SALOONDOORCENTER && tmthing->player)
 	{
-		if ((thing->flags2 & MF2_AMBUSH) || (tmthing->player->powers[pw_carry] == CR_MINECART && tmthing->tracer && !P_MobjWasRemoved(tmthing->tracer)))
+		if (((thing->flags2 & MF2_AMBUSH) && (tmthing->z <= thing->z + thing->height) && (tmthing->z + tmthing->height >= thing->z))
+			|| (tmthing->player->powers[pw_carry] == CR_MINECART && tmthing->tracer && !P_MobjWasRemoved(tmthing->tracer)))
 			return true;
 	}
 
@@ -1683,7 +1683,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 					if (!(player->charability2 == CA2_MELEE && player->panim == PA_ABILITY2))
 					{
 						fixed_t setmomz = -*momz; // Store this, momz get changed by P_DoJump within P_DoBubbleBounce
-					
+
 						if (elementalpierce == 2) // Reset bubblewrap, part 1
 							P_DoBubbleBounce(player);
 						*momz = setmomz; // Therefore, you should be thrust in the opposite direction, vertically.
@@ -1692,7 +1692,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 						if (elementalpierce == 2) // Reset bubblewrap, part 2
 						{
 							boolean underwater = tmthing->eflags & MFE_UNDERWATER;
-							
+
 							if (underwater)
 								*momz /= 2;
 							*momz -= (*momz/(underwater ? 8 : 4)); // Cap the height!
@@ -2257,6 +2257,8 @@ boolean P_CheckPosition(mobj_t *thing, fixed_t x, fixed_t y)
 			{
 				if (!P_BlockThingsIterator(bx, by, PIT_CheckThing))
 					blockval = false;
+				else
+					tmhitthing = tmfloorthing;
 				if (P_MobjWasRemoved(tmthing))
 					return false;
 			}
@@ -3061,7 +3063,7 @@ static void P_HitCameraSlideLine(line_t *ld, camera_t *thiscam)
 	lineangle >>= ANGLETOFINESHIFT;
 	deltaangle >>= ANGLETOFINESHIFT;
 
-	movelen = P_AproxDistance(tmxmove, tmymove);
+	movelen = FixedHypot(tmxmove, tmymove);
 	newlen = FixedMul(movelen, FINECOSINE(deltaangle));
 
 	tmxmove = FixedMul(newlen, FINECOSINE(lineangle));
@@ -3147,7 +3149,7 @@ static void P_HitBounceLine(line_t *ld)
 	lineangle >>= ANGLETOFINESHIFT;
 	deltaangle >>= ANGLETOFINESHIFT;
 
-	movelen = P_AproxDistance(tmxmove, tmymove);
+	movelen = FixedHypot(tmxmove, tmymove);
 
 	tmxmove = FixedMul(movelen, FINECOSINE(deltaangle));
 	tmymove = FixedMul(movelen, FINESINE(deltaangle));
@@ -3443,9 +3445,17 @@ static boolean PTR_SlideTraverse(intercept_t *in)
 			P_ProcessSpecialSector(slidemo->player, slidemo->subsector->sector, li->polyobj->lines[0]->backsector);
 	}
 
-	if (slidemo->player && slidemo->player->charability == CA_GLIDEANDCLIMB
-		&& (slidemo->player->pflags & PF_GLIDING || slidemo->player->climbing))
-		PTR_GlideClimbTraverse(li);
+	if (slidemo->player)
+	{
+		if (slidemo->player->charability == CA_GLIDEANDCLIMB
+			&& (slidemo->player->pflags & PF_GLIDING || slidemo->player->climbing))
+			PTR_GlideClimbTraverse(li);
+		else
+		{
+			slidemo->player->lastsidehit = li->sidenum[P_PointOnLineSide(slidemo->x, slidemo->y, li)];
+			slidemo->player->lastlinehit = (INT16)(li - lines);
+		}
+	}
 
 	if (in->frac < bestslidefrac && (!slidemo->player || !slidemo->player->climbing))
 	{
@@ -4066,7 +4076,7 @@ static boolean PIT_RadiusAttack(mobj_t *thing)
 	dy = abs(thing->y - bombspot->y);
 	dz = abs(thing->z + (thing->height>>1) - bombspot->z);
 
-	dist = P_AproxDistance(P_AproxDistance(dx, dy), dz);
+	dist = FixedHypot(FixedHypot(dx, dy), dz);
 	dist -= thing->radius;
 
 	if (dist < 0)

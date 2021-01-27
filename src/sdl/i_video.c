@@ -1212,8 +1212,7 @@ void I_GetEvent(void)
 					M_SetupJoystickMenu(0);
 			 	break;
 			case SDL_QUIT:
-				if (Playing())
-					LUAh_GameQuit();
+				LUAh_GameQuit(true);
 				I_Quit();
 				break;
 		}
@@ -1765,7 +1764,7 @@ boolean VID_CheckRenderer(void)
 		setrenderneeded = 0;
 	}
 
-	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (rendererchanged ? SDL_FALSE : SDL_TRUE));
+	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (setmodeneeded ? SDL_TRUE : SDL_FALSE));
 	Impl_VideoSetupBuffer();
 
 	if (rendermode == render_soft)
@@ -1775,11 +1774,6 @@ boolean VID_CheckRenderer(void)
 			SDL_FreeSurface(bufSurface);
 			bufSurface = NULL;
 		}
-
-#ifdef HWRENDER
-		if (rendererchanged && vid.glstate == VID_GL_LIBRARY_LOADED) // Only if OpenGL ever loaded!
-			HWR_ClearAllTextures();
-#endif
 
 		SCR_SetDrawFuncs();
 	}
