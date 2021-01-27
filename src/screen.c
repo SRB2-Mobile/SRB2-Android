@@ -245,7 +245,7 @@ void SCR_SetMode(void)
 
 	// Set the video mode in the video interface.
 	if (setmodeneeded)
-		VID_SetMode(--setmodeneeded);
+		VID_SetMode(setmodeneeded - 1);
 
 	V_SetPalette(0);
 
@@ -444,7 +444,7 @@ void SCR_SetDefaultMode(void)
 // Set the mode number based on the resolution saved in the config
 void SCR_SetModeFromConfig(void)
 {
-	setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
+	setmodeneeded = max(0, VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value)) + 1;
 }
 
 // Change fullscreen on/off according to cv_fullscreen
@@ -554,7 +554,7 @@ void SCR_ResetNativeResDivider(void)
 static void SCR_ToggleNativeRes(void)
 {
 	scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
-	SCR_SetModeFromConfig();
+	setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
 }
 
 static void SCR_NativeResDivChanged(void)
