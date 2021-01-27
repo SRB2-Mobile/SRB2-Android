@@ -543,7 +543,7 @@ static void VID_Command_Mode_f (void)
 #ifdef NATIVESCREENRES
 		CV_StealthSetValue(&cv_nativeres, false);
 #endif
-		setmodeneeded = modenum+1; // request vid mode change
+		setmodeneeded = modenum + 1; // request vid mode change
 	}
 }
 
