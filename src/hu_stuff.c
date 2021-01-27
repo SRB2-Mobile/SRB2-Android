@@ -68,9 +68,6 @@ patch_t *tny_font[HU_FONTSIZE];
 patch_t *tallnum[10]; // 0-9
 patch_t *nightsnum[10]; // 0-9
 
-// Lactozilla: Menu fonts
-font_t *menu_fonts[MENU_NUMFONTS];
-
 // Level title and credits fonts
 patch_t *lt_font[LT_FONTSIZE];
 patch_t *cred_font[CRED_FONTSIZE];
@@ -175,8 +172,6 @@ static INT32 cechoflags = 0;
 //                          HEADS UP INIT
 //======================================================================
 
-static void HU_BuildMenuFontColormaps(void);
-
 #ifndef NONET
 // just after
 static void Command_Say_f(void);
@@ -211,18 +206,6 @@ void HU_LoadGraphics(void)
 		else
 			tny_font[i] = (patch_t *)W_CachePatchName(buffer, PU_HUDGFX);
 	}
-
-	// Lactozilla: Menu fonts
-	for (i = 0; i < MENU_NUMFONTS; i++)
-	{
-		sprintf(buffer, "MENUFON%.1d", (i+1));
-		if (W_CheckNumForName(buffer) == LUMPERROR)
-			menu_fonts[i] = NULL;
-		else
-			menu_fonts[i] = Font_Load(buffer, MENU_FONTSTART, MENU_FONTSIZE);
-	}
-
-	HU_BuildMenuFontColormaps();
 
 	j = LT_FONTSTART;
 	for (i = 0; i < LT_FONTSIZE; i++)
@@ -355,60 +338,6 @@ void HU_Init(void)
 static inline void HU_Stop(void)
 {
 	headsupactive = false;
-}
-
-UINT8 *menu_fontcolormaps = NULL;
-
-void HU_BuildMenuFontColormaps(void)
-{
-	UINT8 *memorysrc;
-	INT32 i;
-
-	if (menu_fontcolormaps)
-		Z_Free(menu_fontcolormaps);
-	menu_fontcolormaps = Z_Malloc((256*15), PU_STATIC, NULL);
-
-	memorysrc = menu_fontcolormaps;
-	for (i = 0; i < (256*15); i++, memorysrc++)
-		*memorysrc = (UINT8)(i & 0xFF); // remap each color to itself...
-
-	for (i = 0; i < (32*15); i++)
-	{
-		UINT8 index = (i % 32)>>1;
-		UINT8 color = (i / 32);
-		UINT8 trans;
-		skincolornum_t sk;
-
-		const skincolornum_t colortab[15] = {
-			SKINCOLOR_MAGENTA,
-			SKINCOLOR_YELLOW,
-			SKINCOLOR_GREEN,
-			SKINCOLOR_BLUE,
-			SKINCOLOR_RED,
-			SKINCOLOR_GREY,
-			SKINCOLOR_ORANGE,
-			SKINCOLOR_SKY,
-			SKINCOLOR_PURPLE,
-			SKINCOLOR_AQUA,
-			SKINCOLOR_PERIDOT,
-			SKINCOLOR_AZURE,
-			SKINCOLOR_BROWN,
-			SKINCOLOR_ROSY,
-			SKINCOLOR_WHITE // invert
-			};
-
-		sk = colortab[color];
-
-		if (sk == SKINCOLOR_WHITE) // invert
-			trans = (31 - (i % 32));
-		else
-		{
-			UINT8 *ramp = skincolors[sk].ramp;
-			trans = ramp[index];
-		}
-
-		menu_fontcolormaps[index + (color * 256)] = trans;
-	}
 }
 
 //

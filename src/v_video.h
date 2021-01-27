@@ -244,6 +244,9 @@ void V_DrawSmallThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char
 void V_DrawCenteredSmallThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *string);
 void V_DrawRightAlignedSmallThinStringAtFixed(fixed_t x, fixed_t y, INT32 option, const char *string);
 
+// Draws a scaled string.
+void V_DrawScaledString(fixed_t x, fixed_t y, fixed_t scale, INT32 option, const char *string);
+
 // Draw tall nums, used for menu, HUD, intermission
 void V_DrawTallNum(INT32 x, INT32 y, INT32 flags, INT32 num);
 void V_DrawPaddedTallNum(INT32 x, INT32 y, INT32 flags, INT32 num, INT32 digits);

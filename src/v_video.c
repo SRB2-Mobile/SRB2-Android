@@ -3085,6 +3085,110 @@ void V_DrawRightAlignedSmallThinStringAtFixed(fixed_t x, fixed_t y, INT32 option
 	V_DrawSmallThinStringAtFixed(x, y, option, string);
 }
 
+// Draws a scaled string.
+void V_DrawScaledString(fixed_t x, fixed_t y, fixed_t scale, INT32 option, const char *string)
+{
+	fixed_t cx = x, cy = y;
+	INT32 w, c, dupx, dupy, scrwidth, center = 0, left = 0;
+	const char *ch = string;
+	INT32 charflags = 0;
+	const UINT8 *colormap = NULL;
+	INT32 spacewidth = 4, charwidth = 0;
+
+	INT32 lowercase = (option & V_ALLOWLOWERCASE);
+	option &= ~V_FLIP; // which is also shared with V_ALLOWLOWERCASE...
+
+	if (option & V_NOSCALESTART)
+	{
+		dupx = vid.dupx;
+		dupy = vid.dupy;
+		scrwidth = vid.width;
+	}
+	else
+	{
+		dupx = dupy = 1;
+		scrwidth = vid.width/vid.dupx;
+		left = (scrwidth - BASEVIDWIDTH)/2;
+		scrwidth -= left;
+	}
+
+	if (option & V_NOSCALEPATCH)
+		scrwidth *= vid.dupx;
+
+	charflags = (option & V_CHARCOLORMASK);
+
+	switch (option & V_SPACINGMASK)
+	{
+		case V_MONOSPACE:
+			spacewidth = 8;
+			/* FALLTHRU */
+		case V_OLDSPACING:
+			charwidth = 8;
+			break;
+		case V_6WIDTHSPACE:
+			spacewidth = 6;
+		default:
+			break;
+	}
+
+	for (;;ch++)
+	{
+		if (!*ch)
+			break;
+		if (*ch & 0x80) //color ignoring
+		{
+			// manually set flags override color codes
+			if (!(option & V_CHARCOLORMASK))
+				charflags = ((*ch & 0x7f) << V_CHARCOLORSHIFT) & V_CHARCOLORMASK;
+			continue;
+		}
+		if (*ch == '\n')
+		{
+			cx = x;
+
+			if (option & V_RETURN8)
+				cy += (8*dupy)*scale;
+			else
+				cy += (12*dupy)*scale;
+
+			continue;
+		}
+
+		c = *ch;
+		if (!lowercase)
+			c = toupper(c);
+		c -= HU_FONTSTART;
+
+		// character does not exist or is a space
+		if (c < 0 || c >= HU_FONTSIZE || !hu_font[c])
+		{
+			cx += (spacewidth * dupx)*scale;
+			continue;
+		}
+
+		if (charwidth)
+		{
+			w = charwidth * dupx;
+			center = w/2 - SHORT(hu_font[c]->width)*(dupx/2);
+		}
+		else
+			w = SHORT(hu_font[c]->width) * dupx;
+
+		if ((cx>>FRACBITS) > scrwidth)
+			continue;
+		if ((cx>>FRACBITS)+left + w < 0) //left boundary check
+		{
+			cx += w*scale;
+			continue;
+		}
+
+		colormap = V_GetStringColormap(charflags);
+		V_DrawFixedPatch(cx + (center*scale), cy, scale, option, hu_font[c], colormap);
+
+		cx += w*scale;
+	}
+}
+
 // Draws a tallnum.  Replaces two functions in y_inter and st_stuff
 void V_DrawTallNum(INT32 x, INT32 y, INT32 flags, INT32 num)
 {

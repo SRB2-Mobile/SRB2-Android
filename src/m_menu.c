@@ -248,7 +248,7 @@ typedef struct
 static void M_ResetMenuTouchFX(menutouchfx_t *fx);
 static void M_RunSlideFX(INT32 slidefx[2]);
 
-#define SLIDEFXSPEED 0xCCCC // was 0x92C8
+#define SLIDEFXSPEED 0xCCCC
 #define SLIDEFXMIN   0x100
 
 enum
@@ -263,7 +263,6 @@ enum
 	MENUSTATE_NAV_PREV = 2,
 };
 
-static void MobileMenuState_SetMenu(menu_t *menudef);
 static void MobileMenuState_SetNextMenu(menu_t *menudef);
 static void MobileMenuState_SetPrevMenu(menu_t *menudef);
 static void MobileMenuState_SetCallMenu(void *routine);
@@ -487,7 +486,7 @@ static void M_CacheLoadGameData(void);
 static tic_t charsel_timer = 0;
 static fixed_t charsel_scroll = 0;
 static UINT16 charsel_color = 0;
-static boolean charsel_dimmed = false;
+static boolean charsel_changing = false;
 
 static menutouchfx_t charselectfx;
 
@@ -500,8 +499,6 @@ static boolean M_CharacterSelectPrev(void);
 
 static void M_GetCharacterSelectPrevNext(INT32 i, INT32 *prev, INT32 *next);
 static void M_GetCharacterSelectPosition(INT32 i, INT32 *x, INT32 *y);
-
-static void M_CacheCharacterSelect(void);
 
 // ====================================================================================================================
 
@@ -3192,7 +3189,7 @@ static void M_HandleMenuPresState(menu_t *newMenu)
 	curbgcolor = -1;
 	curbgxspeed = titlescrollxspeed;
 	curbgyspeed = titlescrollyspeed;
-	curbghide = (gamestate != GS_TIMEATTACK && !M_OnMobileMenu()); // show in time attack, hide in other menus
+	curbghide = (gamestate != GS_TIMEATTACK); // show in time attack, hide in other menus
 
 	curttmode = ttmode;
 	curttscale = ttscale;
@@ -3203,7 +3200,7 @@ static void M_HandleMenuPresState(menu_t *newMenu)
 	curtttics = tttics;
 
 	// don't do the below during the in-game menus
-	if (!(gamestate == GS_TITLESCREEN || gamestate == GS_TIMEATTACK || M_OnMobileMenu()))
+	if (!(gamestate == GS_TITLESCREEN || gamestate == GS_TIMEATTACK))
 		return;
 
 	M_SetMenuCurFadeValue(16);
@@ -3292,7 +3289,7 @@ static void M_HandleMenuPresState(menu_t *newMenu)
 	}
 
 	// Change the music
-	M_ChangeMenuMusic(MOBILEMENU_MUSIC_MAIN, false); // _title
+	M_ChangeMenuMusic("_title", false);
 
 	// Run the linedef execs
 	if (titlemapinaction)
@@ -3553,20 +3550,23 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 {
 	INT32 fx = event->x;
 	INT32 fy = event->y;
+	INT32 dx = event->dx;
+	INT32 dy = event->dy;
 
 	// TODO: Maybe, split those into their own functions
 	// (I will do it if I need to add another menu here)
 	if (currentMenu == &SP_LoadDef)
 	{
 		menutouchfx_t *ssfx = &saveselectfx;
-		INT32 i;
+		INT32 i, threshold = (vid.width / 8);
 
 		ssfx->finger.down = (event->type != ev_touchup);
 
 		if (event->type == ev_touchmotion)
 		{
-			ssfx->finger.sliding = true;
-			ssfx->slide[1] = (event->dx << FRACBITS);
+			if (abs(dx) > threshold)
+				ssfx->finger.sliding = true;
+			ssfx->slide[1] = (dx << FRACBITS);
 			finger->type.menu = true;
 			finger->extra.selection = 0;
 			return true;
@@ -3631,15 +3631,16 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 	{
 		menutouchfx_t *ssfx = &charselectfx;
 		INT32 prev = 0, next = 0;
-		INT32 ix, iy, i;
+		INT32 ix, iy, i, threshold = (vid.height / 16);
 		fixed_t x, y, w, h;
 
 		ssfx->finger.down = (event->type != ev_touchup);
 
 		if (event->type == ev_touchmotion)
 		{
-			ssfx->finger.sliding = true;
-			ssfx->slide[1] = (event->dy << FRACBITS);
+			if (abs(dy) > threshold)
+				ssfx->finger.sliding = true;
+			ssfx->slide[1] = (dy << FRACBITS);
 			finger->extra.selection = 0;
 			finger->type.menu = true;
 			return true;
@@ -3910,9 +3911,15 @@ static void Command_Manual_f(void)
 {
 	if (modeattacking)
 		return;
+
 	M_StartControlPanel();
 	currentMenu = &MISC_HelpDef;
 	M_ClearItemOn();
+
+#ifdef TOUCHINPUTS
+	M_TSNav_Update();
+	M_TSNav_HideAll();
+#endif
 }
 
 void M_ResetMenuTouchFX(menutouchfx_t *fx)
@@ -3956,27 +3963,10 @@ void M_CheckMobileMenuHeight(void)
 		mobileMenuState.scroll = height;
 }
 
-void M_MobileMenuWipe(void)
-{
-	const INT32 type = 77;
-
-	wipegamestate = -1;
-	wipestyleflags = WSF_FADEOUT;
-
-	F_WipeStartScreen();
-	F_TryColormapFade(31);
-	F_WipeEndScreen();
-
-	F_RunWipe(type, false);
-	wipetypepost = type;
-}
-
 void M_SetupMobileMenu(menu_t *menudef)
 {
 	mobileMenuState_t *st = &mobileMenuState;
-
 	mobileMenu = M_IsMobileMenu(menudef);
-	hidetitlemap = M_OnMobileMenu();
 
 	if (currentMenu == menudef
 	|| (currentMenu == &MessageDef && MessageDef.prevMenu == menudef))
@@ -3993,29 +3983,66 @@ void M_SetupMobileMenu(menu_t *menudef)
 		st->scroll = st->fingerSlide = 0;
 }
 
-void MobileMenuState_SetMenu(menu_t *menudef)
+static void MobileMenuState_Change(void)
 {
 	mobileMenuState_t *st = &mobileMenuState;
+
+#ifdef MOBILEMENU_ANIMATIONS
+	if (st->selection.switching == MENUSTATE_ANIM_EXIT)
+	{
+		MobileMenuState_SetSwitchState(MENUSTATE_ANIM_ENTER);
+		MobileMenuState_SetAnimationTime(MobileMenuState_GetAnimationTime(MENUSTATE_ANIM_ENTER));
+#endif
+		if (st->selection.callMenu)
+			(*st->selection.callMenu)();
+		else if (st->selection.nextMenu)
+			M_SetupNextMenu(st->selection.nextMenu);
+		else
+			M_GoBack(0);
+#ifdef MOBILEMENU_ANIMATIONS
+	}
+	else
+		st->selection.switching = 0;
+#endif
+
+	st->selection.nextMenu = NULL;
+	st->selection.callMenu = NULL;
+}
+
+static void MobileMenuState_SetMenu(menu_t *menudef)
+{
+	mobileMenuState_t *st = &mobileMenuState;
+
 	st->selection.itemOn = itemOn;
 	st->selection.nextMenu = menudef;
+
+#ifdef MOBILEMENU_ANIMATIONS
 	MobileMenuState_SetSwitchState(MENUSTATE_ANIM_EXIT);
 	MobileMenuState_SetAnimationTime(MobileMenuState_GetAnimationTime(MENUSTATE_ANIM_EXIT));
+#endif
 }
 
 void MobileMenuState_SetNextMenu(menu_t *menudef)
 {
-	mobileMenuState_t *st = &mobileMenuState;
 	MobileMenuState_SetMenu(menudef);
 
-	st->selection.navType = MENUSTATE_NAV_NEXT;
-
+#ifdef MOBILEMENU_ANIMATIONS
+	mobileMenuState.selection.navType = MENUSTATE_NAV_NEXT;
 	M_MobileOptScroll();
+#else
+	MobileMenuState_Change();
+#endif
 }
 
 void MobileMenuState_SetPrevMenu(menu_t *menudef)
 {
 	MobileMenuState_SetMenu(menudef);
+
+#ifdef MOBILEMENU_ANIMATIONS
 	mobileMenuState.selection.navType = MENUSTATE_NAV_PREV;
+#else
+	MobileMenuState_Change();
+#endif
 }
 
 void MobileMenuState_SetCallMenu(void *routine)
@@ -4025,16 +4052,25 @@ void MobileMenuState_SetCallMenu(void *routine)
 
 void MobileMenuState_SetSwitchState(INT32 state)
 {
+#ifdef MOBILEMENU_ANIMATIONS
 	mobileMenuState.selection.switching = state;
+#else
+	(void)state;
+#endif
 }
 
 void MobileMenuState_SetAnimationTime(tic_t time)
 {
+#ifdef MOBILEMENU_ANIMATIONS
 	mobileMenuState.selection.time[0] = mobileMenuState.selection.time[1] = time;
+#else
+	(void)time;
+#endif
 }
 
 tic_t MobileMenuState_GetAnimationTime(INT32 type)
 {
+#ifdef MOBILEMENU_ANIMATIONS
 	switch (type)
 	{
 		case MENUSTATE_ANIM_EXIT:
@@ -4042,28 +4078,30 @@ tic_t MobileMenuState_GetAnimationTime(INT32 type)
 		case MENUSTATE_ANIM_ENTER:
 			return (TICRATE / 4);
 	}
+#else
+	(void)type;
+#endif
 
-	return 0; // Compiler be like
+	return 0;
 }
 
 //
 // String drawing
 //
-void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, INT32 type, fixed_t scale, const char *string, INT32 color)
+void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, const char *string)
 {
-	UINT8 *colormap = NULL;
-
-	color--;
-	if (color >= 0 && color <= 15)
-		colormap = &menu_fontcolormaps[color * 256];
-
-	Font_DrawString(menu_fonts[type], x, y, option, scale, string, colormap);
+	V_DrawScaledString(x, y, FRACUNIT*2, option, string);
 }
 
 // Write a string using one of the menu fonts
-void M_MenuStringSize(const char *string, INT32 option, INT32 type, fixed_t scale, INT32 *strwidth, INT32 *strheight)
+void M_MenuStringSize(const char *string, INT32 option, INT32 *strwidth, INT32 *strheight)
 {
-	Font_GetStringSize(menu_fonts[type], string, option, scale, strwidth, strheight);
+	INT32 scale = 2;
+
+	if (strwidth)
+		*strwidth = V_StringWidth(string, option)*scale;
+	if (strheight)
+		*strheight = 10*scale;
 }
 
 //
@@ -4102,7 +4140,7 @@ INT32 M_GetMobileMenuHeight(menu_t *menudef)
 			case IT_HEADERTEXT:
 			case IT_GOBACK:
 				str = menudef->menuitems[i].text;
-				M_MenuStringSize(str, V_ALLOWLOWERCASE, MOBILEMENU_FONT_DEFAULT, FRACUNIT, NULL, &th);
+				M_MenuStringSize(str, V_ALLOWLOWERCASE, NULL, &th);
 				h += th;
 				break;
 		}
@@ -4178,7 +4216,7 @@ void M_GetMobileMenuElementSize(INT32 e, INT32 *w, INT32 *h)
 	if ((currentMenu->menuitems[e].status & IT_DISPLAY) == IT_QUESTIONMARKS)
 		str = M_CreateSecretMenuOption(str);
 #endif
-	M_MenuStringSize(str, V_ALLOWLOWERCASE, MOBILEMENU_FONT_DEFAULT, FRACUNIT, w, h);
+	M_MenuStringSize(str, V_ALLOWLOWERCASE, w, h);
 }
 
 INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll)
@@ -4232,9 +4270,6 @@ INT32 M_GetMobileMenuElementPos(INT32 e, boolean scroll)
 static boolean M_FingerTouchingMobileSelection(INT32 fx, INT32 fy, INT32 x, INT32 y, INT32 *w, INT32 *h, INT16 selection)
 {
 	M_GetMobileMenuElementSize(selection, w, h);
-
-	// >
-	(*w) += SHORT(((patch_t *)W_CachePatchName(MOBILEMENU_PATCH_TRIANGLE, PU_PATCH))->width);
 
 	x *= vid.dupx;
 	y *= vid.dupy;
@@ -4327,8 +4362,10 @@ boolean M_Responder(event_t *ev)
 	if (CON_Ready())
 		return false;
 
+#ifdef MOBILEMENU_ANIMATIONS
 	if (M_OnMobileMenu() && mobileMenuState.selection.switching)
 		return false;
+#endif
 
 	routine = currentMenu->menuitems[itemOn].itemaction;
 
@@ -4775,19 +4812,19 @@ boolean M_Responder(event_t *ev)
 	{
 		case KEY_DOWNARROW:
 			M_NextOpt();
-			S_StartSound(NULL, (M_OnMobileMenu()) ? MOBILEMENU_SOUND_NAV : sfx_menu1);
+			S_StartSound(NULL, sfx_menu1);
 			return true;
 
 		case KEY_UPARROW:
 			M_PrevOpt();
-			S_StartSound(NULL, (M_OnMobileMenu()) ? MOBILEMENU_SOUND_NAV : sfx_menu1);
+			S_StartSound(NULL, sfx_menu1);
 			return true;
 
 		case KEY_LEFTARROW:
 			if (routine && ((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_ARROWS
 				|| (currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR))
 			{
-				S_StartSound(NULL, (M_OnMobileMenu()) ? MOBILEMENU_SOUND_NAV : sfx_menu1);
+				S_StartSound(NULL, sfx_menu1);
 				routine(0);
 			}
 			return true;
@@ -4796,7 +4833,7 @@ boolean M_Responder(event_t *ev)
 			if (routine && ((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_ARROWS
 				|| (currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR))
 			{
-				S_StartSound(NULL, (M_OnMobileMenu()) ? MOBILEMENU_SOUND_NAV : sfx_menu1);
+				S_StartSound(NULL, sfx_menu1);
 				routine(1);
 			}
 			return true;
@@ -4902,7 +4939,7 @@ void M_Drawer(void)
 	if (menuactive)
 	{
 		// now that's more readable with a faded background (yeah like Quake...)
-		if (!wipe && (curfadevalue || (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK)) && !M_OnMobileMenu())
+		if (!wipe && (curfadevalue || (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK)))
 			V_DrawFadeScreen(0xFF00, (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK) ? 16 : curfadevalue);
 
 		if (currentMenu->drawroutine)
@@ -4959,10 +4996,10 @@ void M_DrawGameVersion(void)
 	if (wide)
 	{
 #ifdef DEVELOP
-		top = 20 * vid.dupy;
+		top = 4 * vid.dupy;
 		bottom = top + 9*vid.dupy;
 #else
-		bottom = 20 * vid.dupy;
+		bottom = 4 * vid.dupy;
 #endif
 	}
 	else
@@ -5127,14 +5164,16 @@ void M_StartControlPanel(void)
 
 	CON_ToggleOff(); // move away console
 
-	// Lactozilla
+#ifdef TOUCHMENUS
 	M_SetupMobileMenu(currentMenu);
 	mobileMenuState.usedKeyboard = false;
 	mobileMenuState.scroll = mobileMenuState.fingerSlide = 0;
+#endif
 
 #ifdef TOUCHINPUTS
 	// update touch screen navigation
 	M_TSNav_Update();
+	M_TSNav_ShowAll();
 
 	// If the keyboard is still open, for some reason
 	if (I_KeyboardOnScreen())
@@ -5143,8 +5182,6 @@ void M_StartControlPanel(void)
 
 	if (M_IsMobileMenu(currentMenu)) // Run a wipe
 	{
-		M_MobileMenuWipe();
-		M_ChangeMenuMusic(MOBILEMENU_MUSIC_MAIN, true);
 		MobileMenuState_SetSwitchState(MENUSTATE_ANIM_ENTER);
 		MobileMenuState_SetAnimationTime(MobileMenuState_GetAnimationTime(MENUSTATE_ANIM_ENTER));
 	}
@@ -5164,13 +5201,7 @@ void M_ClearMenus(boolean callexitmenufunc)
 	// Save the config file. I'm sick of crashing the game later and losing all my changes!
 	COM_BufAddText(va("saveconfig \"%s\" -silent\n", configfile));
 
-	if (M_IsMobileMenu(currentMenu)) // Run a wipe
-	{
-		M_MobileMenuWipe();
-		if (gamestate == GS_TITLESCREEN)
-			M_ChangeMenuMusic("_title", false);
-	}
-	else if (currentMenu == &MessageDef) // Oh sod off!
+	if (currentMenu == &MessageDef) // Oh sod off!
 		currentMenu = &MainDef; // Not like it matters
 
 	menuactive = false;
@@ -5230,6 +5261,8 @@ void M_SetupNextMenu(menu_t *menudef)
 			return; // we can't quit this menu (also used to set parameter from the menu)
 	}
 
+	hidetitlemap = false;
+
 	M_SetupMobileMenu(menudef);
 	M_HandleMenuPresState(menudef);
 
@@ -5238,12 +5271,6 @@ void M_SetupNextMenu(menu_t *menudef)
 	if (I_KeyboardOnScreen())
 		I_CloseScreenKeyboard();
 #endif
-
-	// Run a wipe when exiting a mobile menu
-	if (!M_IsMobileMenu(menudef) && M_IsMobileMenu(currentMenu)
-	&& (wipegamestate == gamestate) // If not going to wipe already (Mode Attack menus)
-	&& currentMenu != &MessageDef)
-		M_MobileMenuWipe();
 
 	currentMenu = menudef;
 
@@ -5293,8 +5320,6 @@ void M_SetupPrevMenu(menu_t *menudef)
 	if (!M_IsMobileMenu(lastMenu) && M_IsMobileMenu(currentMenu)
 	&& lastMenu != &MessageDef)
 	{
-		M_MobileMenuWipe();
-		M_ChangeMenuMusic(MOBILEMENU_MUSIC_MAIN, true);
 		MobileMenuState_SetSwitchState(MENUSTATE_ANIM_ENTER);
 		MobileMenuState_SetAnimationTime(MobileMenuState_GetAnimationTime(MENUSTATE_ANIM_ENTER));
 	}
@@ -5306,7 +5331,7 @@ void M_NavigationAdvance(menu_t *menudef)
 	if (M_OnMobileMenu())
 	{
 		MobileMenuState_SetNextMenu(menudef);
-		S_StartSound(NULL, MOBILEMENU_SOUND_ACCEPT);
+		S_StartSound(NULL, sfx_menu1);
 	}
 	else
 		M_SetupNextMenu(menudef);
@@ -5320,8 +5345,6 @@ void M_NavigationReturn(menu_t *menudef)
 			MobileMenuState_SetPrevMenu(menudef);
 		else
 			M_ClearMenus(true);
-
-		S_StartSound(NULL, MOBILEMENU_SOUND_RETURN);
 	}
 	else
 		M_GoBack(0);
@@ -5330,10 +5353,7 @@ void M_NavigationReturn(menu_t *menudef)
 static void M_EscapeMenu(void)
 {
 	if (M_OnMobileMenu())
-	{
 		MobileMenuState_SetPrevMenu(NULL);
-		S_StartSound(NULL, MOBILEMENU_SOUND_RETURN);
-	}
 	else
 		M_GoBack(0);
 }
@@ -5362,30 +5382,14 @@ static void M_UpdateMobileMenuState(void)
 			st->fingerSlide = 0;
 	}
 
+#ifdef MOBILEMENU_ANIMATIONS
 	if (st->selection.switching)
 	{
 		st->selection.time[0]--;
 		if (!st->selection.time[0])
-		{
-			if (st->selection.switching == MENUSTATE_ANIM_EXIT)
-			{
-				MobileMenuState_SetSwitchState(MENUSTATE_ANIM_ENTER);
-				MobileMenuState_SetAnimationTime(MobileMenuState_GetAnimationTime(MENUSTATE_ANIM_ENTER));
-
-				if (st->selection.callMenu)
-					(*st->selection.callMenu)();
-				else if (st->selection.nextMenu)
-					M_SetupNextMenu(st->selection.nextMenu);
-				else
-					M_GoBack(0);
-			}
-			else
-				st->selection.switching = 0;
-
-			st->selection.nextMenu = NULL;
-			st->selection.callMenu = NULL;
-		}
+			MobileMenuState_Change();
 	}
+#endif
 }
 
 //
@@ -5975,62 +5979,6 @@ static void M_DrawGenericMenu(void)
 	}
 }
 
-static INT32 M_GetMobileMenuBackgroundOffset(menu_t *menudef, INT32 scroll)
-{
-	mobileMenuState_t *st = &mobileMenuState;
-	INT32 height, offset;
-
-	menu_t *nextMenu = st->selection.nextMenu;
-	if (nextMenu == NULL)
-		nextMenu = menudef->prevMenu;
-
-	height = M_GetMobileMenuScrollHeight(menudef);
-	offset = (height - scroll);
-
-	if ((scroll < 1)
-		&& (st->selection.switching == MENUSTATE_ANIM_EXIT)
-		&& (st->selection.callMenu == NULL)
-		&& nextMenu && M_IsMobileMenu(nextMenu))
-	{
-		INT32 heightNext = M_GetMobileMenuScrollHeight(nextMenu);
-
-		INT32 t2 = st->selection.time[1] - 4;
-		INT32 t1 = t2 - st->selection.time[0];
-		fixed_t eased = FRACUNIT;
-
-		if (t1 > 0)
-		{
-			t1 = min((t1 * t1), t2);
-			eased -= FixedDiv(t1<<FRACBITS, t2<<FRACBITS);
-		}
-
-		offset = FixedMul((FRACUNIT - eased), heightNext) + FixedMul(eased, offset);
-	}
-
-	return offset;
-}
-
-static void M_DrawMobileMenuBackground(menu_t *menudef, INT32 scroll, boolean doscroll)
-{
-	INT32 offset = M_GetMobileMenuBackgroundOffset(menudef, scroll);
-	INT32 bottom = 0;
-
-	// draw solid blue
-	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 159);
-
-	// draw mountains
-	if (doscroll)
-		bottom = offset + 32;
-
-	M_DrawMountains("MENUBG", 159, 158, bottom);
-}
-
-static void M_DrawMobileMenuForeground(menu_t *menudef, INT32 scroll, boolean doscroll, boolean frontlayer, boolean backlayer)
-{
-	INT32 offset = M_GetMobileMenuBackgroundOffset(menudef, scroll);
-	M_DrawNightsAttackBackground(doscroll ? -scroll : 0, doscroll ? offset : 0, frontlayer, backlayer, false, true);
-}
-
 static void M_DrawMobileMenuDef(menu_t *menudef)
 {
 	mobileMenuState_t *st = &mobileMenuState;
@@ -6042,20 +5990,17 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 
 	M_DrawMenuTitle(); // draw title (or big pic)
 
-	// draw background
-	M_DrawMobileMenuBackground(menudef, scroll, true);
-	M_DrawMobileMenuForeground(menudef, scroll, true, false, true); // draw foreground back layer
-
 	for (i = 0; i < menudef->numitems; i++)
 	{
 		UINT16 status = menudef->menuitems[i].status & IT_DISPLAY;
 		const char *str;
 		INT32 w, h;
 		UINT32 flags, stringflags;
-		patch_t *patch;
 
 		// animation
 		x = menudef->x;
+
+#ifdef MOBILEMENU_ANIMATIONS
 		if (st->selection.switching)
 		{
 			INT32 eased = 0;
@@ -6077,23 +6022,7 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 
 			x -= (eased * eased * eased); // cubic
 		}
-
-		if (st->usedKeyboard)
-		{
-			INT32 xs = 0;
-
-			if (!st->selection.switching)
-				xs = st->changedItemOn * (MOBILEMENU_CONST_OPTHORZSHIFT / MOBILEMENU_CONST_OPTANIMSPEED);
-
-			if (i == itemOn)
-			{
-				x += MOBILEMENU_CONST_OPTHORZSHIFT;
-				if (xs)
-					x -= xs;
-			}
-			else if (i == lastItemOn && xs)
-				x += xs;
-		}
+#endif
 
 		switch (status)
 		{
@@ -6133,7 +6062,7 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 				flags = (V_SNAPTOLEFT| V_SNAPTOTOP);
 				stringflags = (V_ALLOWLOWERCASE | flags);
 
-				M_MenuStringSize(str, stringflags, MOBILEMENU_FONT_DEFAULT, FRACUNIT, &w, &h);
+				M_MenuStringSize(str, stringflags, &w, &h);
 
 				if (status == IT_GOBACK)
 				{
@@ -6151,19 +6080,11 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 				else if (status == IT_STRING2)
 					y += 10;
 
-				patch = W_CachePatchName(MOBILEMENU_PATCH_TRIANGLE, PU_PATCH);
-
-				V_DrawFill(0, y, x, h, flags|31);
-				V_DrawFill(x, y, w, h, flags|31);
-
-				// >
-				V_DrawStretchyFixedPatch(
-					(x+w)<<FRACBITS, y<<FRACBITS,
-					FRACUNIT, FixedDiv(h<<FRACBITS, SHORT(patch->height)<<FRACBITS),
-					flags, patch, NULL);
+				if (st->usedKeyboard && i == itemOn)
+					stringflags |= V_YELLOWMAP;
 
 				// Draw the text
-				M_DrawMenuString(x<<FRACBITS, y<<FRACBITS, stringflags, MOBILEMENU_FONT_DEFAULT, FRACUNIT, str, 0);
+				M_DrawMenuString(x<<FRACBITS, y<<FRACBITS, stringflags, str);
 
 				// Cvar specific handling
 				switch (menudef->menuitems[i].status & IT_TYPE)
@@ -6206,9 +6127,6 @@ static void M_DrawMobileMenuDef(menu_t *menudef)
 				break;
 		}
 	}
-
-	// draw foreground front layer
-	M_DrawMobileMenuForeground(menudef, scroll, true, true, false);
 
 	// Increment timer.
 	ntsatkdrawtimer++;
@@ -7646,6 +7564,7 @@ static void M_DrawNightsAttackBackground(
 
 // NiGHTS Attack floating Super Sonic.
 static patch_t *ntssupersonic[2];
+
 static void M_DrawNightsAttackSuperSonic(void)
 {
 	const UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, SKINCOLOR_YELLOW, GTC_CACHE);
@@ -10765,15 +10684,14 @@ static void M_SaveSelectTicker(void)
 	dx = FixedInt(FixedRound(fx->slide[0]));
 
 	if (dx < -threshold)
-	{
 		M_HandleLoadSave(KEY_RIGHTARROW);
-		fx->slide[0] &= 0xFFFF;
-	}
 	else if (dx > threshold)
-	{
 		M_HandleLoadSave(KEY_LEFTARROW);
-		fx->slide[0] &= 0xFFFF;
-	}
+	else
+		return;
+
+	fx->slide[0] &= 0xFFFF;
+	fx->finger.sliding = true;
 }
 
 static void M_HandleLoadSave(INT32 choice)
@@ -10924,10 +10842,10 @@ static void M_CharacterSelectTicker(void)
 		charsel_scroll = 0; // just be exact now.
 	charsel_timer++;
 
-	if (charsel_dimmed && abs(fx->slide[1]) < FRACUNIT)
-		charsel_dimmed = false;
+	if (charsel_changing && abs(fx->slide[1]) < FRACUNIT)
+		charsel_changing = false;
 
-	if (!charsel_dimmed)
+	if (!charsel_changing)
 	{
 		// Use the opposite of the character's skincolor
 		charsel_color = description[char_on].oppositecolor;
@@ -10956,9 +10874,9 @@ static void M_CharacterSelectTicker(void)
 
 	if (changed)
 	{
-		//M_ResetMenuTouchFX(&charselectfx);
+		fx->finger.sliding = true;
 		if (abs(fx->slide[1] >> FRACBITS) >= threshold - (threshold>>1))
-			charsel_dimmed = true;
+			charsel_changing = true;
 	}
 }
 
@@ -11264,11 +11182,6 @@ static void M_DrawSetupChoosePlayerMenu(void)
 	V_DrawMappedPatch(0, -y, V_SNAPTOTOP, charfg, colormap);
 	V_DrawMappedPatch(0, -y+fgheight, V_SNAPTOTOP, charfg, colormap);
 	V_DrawFill(fgwidth, 0, vid.width, vid.height, V_SNAPTOTOP|ramp[10]);
-
-#if 0
-	if (charsel_dimmed)
-		V_DrawFadeScreen(0xFF00, 16);
-#endif
 
 	// Character pictures
 	M_GetCharacterSelectPosition(0, &x, &y);
@@ -11996,6 +11909,9 @@ static void M_LoadModeAttackMenu(UINT8 mode)
 	{
 		SP_NightsAttackDef.prevMenu = &MainDef;
 		levellistmode = LLM_NIGHTSATTACK; // Don't be dependent on cv_newgametype
+
+		ntssupersonic[0] = W_CachePatchName("NTSSONC1", PU_PATCH);
+		ntssupersonic[1] = W_CachePatchName("NTSSONC2", PU_PATCH);
 	}
 	else
 	{
@@ -12052,8 +11968,8 @@ static void M_TimeAttack(INT32 choice)
 
 	if (M_OnMobileMenu())
 	{
-		M_NavigationAdvance(NULL);
 		MobileMenuState_SetCallMenu(M_ModeAttackTime);
+		M_NavigationAdvance(NULL);
 	}
 	else
 		M_ModeAttackTime();
@@ -12249,8 +12165,8 @@ static void M_NightsAttack(INT32 choice)
 
 	if (M_OnMobileMenu())
 	{
-		M_NavigationAdvance(NULL);
 		MobileMenuState_SetCallMenu(M_ModeAttackNights);
+		M_NavigationAdvance(NULL);
 	}
 	else
 		M_ModeAttackNights();

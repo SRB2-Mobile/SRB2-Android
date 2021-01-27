@@ -392,24 +392,14 @@ void M_ClearMenus(boolean callexitmenufunc);
 void M_NavigationAdvance(menu_t *menudef);
 void M_NavigationReturn(menu_t *menudef);
 
-void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, INT32 type, fixed_t scale, const char *string, INT32 color);
-void M_MenuStringSize(const char *string, INT32 option, INT32 type, fixed_t scale, INT32 *strwidth, INT32 *strheight);
+void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, const char *string);
+void M_MenuStringSize(const char *string, INT32 option, INT32 *strwidth, INT32 *strheight);
 
 boolean M_OnMobileMenu(void);
 boolean M_IsMobileMenu(menu_t *menudef);
 void M_SetupMobileMenu(menu_t *menu);
 void M_CheckMobileMenuHeight(void);
 void M_MobileMenuWipe(void);
-
-#define MOBILEMENU_FONT_DEFAULT MENU_TYPEFACE_BAHNSCRIFT_SEMIBOLD_22
-
-#define MOBILEMENU_PATCH_TRIANGLE "MENUTRI1"
-
-#define MOBILEMENU_MUSIC_MAIN "_recat"
-
-#define MOBILEMENU_SOUND_NAV    sfx_ncchip
-#define MOBILEMENU_SOUND_ACCEPT sfx_s1a1
-#define MOBILEMENU_SOUND_RETURN sfx_ngskid
 
 #define MOBILEMENU_CONST_OPTHORZSHIFT 12
 #define MOBILEMENU_CONST_OPTANIMSPEED 2

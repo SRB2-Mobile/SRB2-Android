@@ -57,8 +57,6 @@ enum
 
 #define HU_CROSSHAIRS 3 // maximum of 9 - see HU_Init();
 
-extern UINT8 *menu_fontcolormaps;
-
 extern char *shiftxform; // english translation shift table
 extern char english_shiftxform[];
 

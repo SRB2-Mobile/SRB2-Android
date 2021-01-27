@@ -337,7 +337,7 @@ static void D_Display(void)
 				else if (F_TryColormapFade(31))
 					wipetypepost = -1; // Don't run the fade below this one
 				F_WipeEndScreen();
-				F_RunWipe(wipetypepre, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
+				F_RunWipe(wipetypepre, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN));
 			}
 
 			F_WipeStartScreen();
@@ -588,7 +588,7 @@ static void D_Display(void)
 				wipestyleflags &= ~WSF_FADEOUT;
 			}
 
-			F_RunWipe(wipetypepost, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN || M_OnMobileMenu()));
+			F_RunWipe(wipetypepost, !(gamestate == GS_TIMEATTACK || gamestate == GS_TITLESCREEN));
 		}
 
 		// reset counters so timedemo doesn't count the wipe duration

@@ -2845,18 +2845,10 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				}
 			}
 
-			// long press
-			if (finger->longpressaction && touchmotion)
-			{
-				finger->longpressaction = NULL;
-				finger->longpress = 0;
-			}
-			else if (!foundbutton && (!touchmotion))
+			if (!foundbutton && (!touchmotion))
 			{
 				if (CheckNavigation(x, y))
 					return false;
-
-				finger->longpressaction = HandleLongPress;
 				return true;
 			}
 
@@ -2866,12 +2858,6 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			break;
 		case ev_touchup:
 			// Let go of this finger.
-			if (finger->longpressaction)
-			{
-				finger->longpressaction = NULL;
-				finger->longpress = 0;
-			}
-
 			gc = finger->u.gamecontrol;
 
 			if (gc > gc_null)
