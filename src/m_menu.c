@@ -248,7 +248,7 @@ typedef struct
 static void M_ResetMenuTouchFX(menutouchfx_t *fx);
 static void M_RunSlideFX(INT32 slidefx[2]);
 
-#define SLIDEFXSPEED 0xCCCC // was 0x92C8
+#define SLIDEFXSPEED 0xCCCC
 #define SLIDEFXMIN   0x100
 
 enum
@@ -263,7 +263,6 @@ enum
 	MENUSTATE_NAV_PREV = 2,
 };
 
-static void MobileMenuState_SetMenu(menu_t *menudef);
 static void MobileMenuState_SetNextMenu(menu_t *menudef);
 static void MobileMenuState_SetPrevMenu(menu_t *menudef);
 static void MobileMenuState_SetCallMenu(void *routine);
@@ -487,7 +486,7 @@ static void M_CacheLoadGameData(void);
 static tic_t charsel_timer = 0;
 static fixed_t charsel_scroll = 0;
 static UINT16 charsel_color = 0;
-static boolean charsel_dimmed = false;
+static boolean charsel_changing = false;
 
 static menutouchfx_t charselectfx;
 
@@ -500,8 +499,6 @@ static boolean M_CharacterSelectPrev(void);
 
 static void M_GetCharacterSelectPrevNext(INT32 i, INT32 *prev, INT32 *next);
 static void M_GetCharacterSelectPosition(INT32 i, INT32 *x, INT32 *y);
-
-static void M_CacheCharacterSelect(void);
 
 // ====================================================================================================================
 
@@ -3553,20 +3550,23 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 {
 	INT32 fx = event->x;
 	INT32 fy = event->y;
+	INT32 dx = event->dx;
+	INT32 dy = event->dy;
 
 	// TODO: Maybe, split those into their own functions
 	// (I will do it if I need to add another menu here)
 	if (currentMenu == &SP_LoadDef)
 	{
 		menutouchfx_t *ssfx = &saveselectfx;
-		INT32 i;
+		INT32 i, threshold = (vid.width / 8);
 
 		ssfx->finger.down = (event->type != ev_touchup);
 
 		if (event->type == ev_touchmotion)
 		{
-			ssfx->finger.sliding = true;
-			ssfx->slide[1] = (event->dx << FRACBITS);
+			if (abs(dx) > threshold)
+				ssfx->finger.sliding = true;
+			ssfx->slide[1] = (dx << FRACBITS);
 			finger->type.menu = true;
 			finger->extra.selection = 0;
 			return true;
@@ -3631,15 +3631,16 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 	{
 		menutouchfx_t *ssfx = &charselectfx;
 		INT32 prev = 0, next = 0;
-		INT32 ix, iy, i;
+		INT32 ix, iy, i, threshold = (vid.height / 16);
 		fixed_t x, y, w, h;
 
 		ssfx->finger.down = (event->type != ev_touchup);
 
 		if (event->type == ev_touchmotion)
 		{
-			ssfx->finger.sliding = true;
-			ssfx->slide[1] = (event->dy << FRACBITS);
+			if (abs(dy) > threshold)
+				ssfx->finger.sliding = true;
+			ssfx->slide[1] = (dy << FRACBITS);
 			finger->extra.selection = 0;
 			finger->type.menu = true;
 			return true;
@@ -3910,9 +3911,15 @@ static void Command_Manual_f(void)
 {
 	if (modeattacking)
 		return;
+
 	M_StartControlPanel();
 	currentMenu = &MISC_HelpDef;
 	M_ClearItemOn();
+
+#ifdef TOUCHINPUTS
+	M_TSNav_Update();
+	M_TSNav_HideAll();
+#endif
 }
 
 void M_ResetMenuTouchFX(menutouchfx_t *fx)
@@ -3993,7 +4000,7 @@ void M_SetupMobileMenu(menu_t *menudef)
 		st->scroll = st->fingerSlide = 0;
 }
 
-void MobileMenuState_SetMenu(menu_t *menudef)
+static void MobileMenuState_SetMenu(menu_t *menudef)
 {
 	mobileMenuState_t *st = &mobileMenuState;
 	st->selection.itemOn = itemOn;
@@ -4043,7 +4050,7 @@ tic_t MobileMenuState_GetAnimationTime(INT32 type)
 			return (TICRATE / 4);
 	}
 
-	return 0; // Compiler be like
+	return 0;
 }
 
 //
@@ -4327,8 +4334,10 @@ boolean M_Responder(event_t *ev)
 	if (CON_Ready())
 		return false;
 
+#ifdef MOBILEMENU_ANIMATIONS
 	if (M_OnMobileMenu() && mobileMenuState.selection.switching)
 		return false;
+#endif
 
 	routine = currentMenu->menuitems[itemOn].itemaction;
 
@@ -5127,14 +5136,16 @@ void M_StartControlPanel(void)
 
 	CON_ToggleOff(); // move away console
 
-	// Lactozilla
+#ifdef TOUCHMENUS
 	M_SetupMobileMenu(currentMenu);
 	mobileMenuState.usedKeyboard = false;
 	mobileMenuState.scroll = mobileMenuState.fingerSlide = 0;
+#endif
 
 #ifdef TOUCHINPUTS
 	// update touch screen navigation
 	M_TSNav_Update();
+	M_TSNav_ShowAll();
 
 	// If the keyboard is still open, for some reason
 	if (I_KeyboardOnScreen())
@@ -7646,6 +7657,7 @@ static void M_DrawNightsAttackBackground(
 
 // NiGHTS Attack floating Super Sonic.
 static patch_t *ntssupersonic[2];
+
 static void M_DrawNightsAttackSuperSonic(void)
 {
 	const UINT8 *colormap = R_GetTranslationColormap(TC_DEFAULT, SKINCOLOR_YELLOW, GTC_CACHE);
@@ -10765,15 +10777,14 @@ static void M_SaveSelectTicker(void)
 	dx = FixedInt(FixedRound(fx->slide[0]));
 
 	if (dx < -threshold)
-	{
 		M_HandleLoadSave(KEY_RIGHTARROW);
-		fx->slide[0] &= 0xFFFF;
-	}
 	else if (dx > threshold)
-	{
 		M_HandleLoadSave(KEY_LEFTARROW);
-		fx->slide[0] &= 0xFFFF;
-	}
+	else
+		return;
+
+	fx->slide[0] &= 0xFFFF;
+	fx->finger.sliding = true;
 }
 
 static void M_HandleLoadSave(INT32 choice)
@@ -10924,10 +10935,10 @@ static void M_CharacterSelectTicker(void)
 		charsel_scroll = 0; // just be exact now.
 	charsel_timer++;
 
-	if (charsel_dimmed && abs(fx->slide[1]) < FRACUNIT)
-		charsel_dimmed = false;
+	if (charsel_changing && abs(fx->slide[1]) < FRACUNIT)
+		charsel_changing = false;
 
-	if (!charsel_dimmed)
+	if (!charsel_changing)
 	{
 		// Use the opposite of the character's skincolor
 		charsel_color = description[char_on].oppositecolor;
@@ -10956,9 +10967,9 @@ static void M_CharacterSelectTicker(void)
 
 	if (changed)
 	{
-		//M_ResetMenuTouchFX(&charselectfx);
+		fx->finger.sliding = true;
 		if (abs(fx->slide[1] >> FRACBITS) >= threshold - (threshold>>1))
-			charsel_dimmed = true;
+			charsel_changing = true;
 	}
 }
 
@@ -11264,11 +11275,6 @@ static void M_DrawSetupChoosePlayerMenu(void)
 	V_DrawMappedPatch(0, -y, V_SNAPTOTOP, charfg, colormap);
 	V_DrawMappedPatch(0, -y+fgheight, V_SNAPTOTOP, charfg, colormap);
 	V_DrawFill(fgwidth, 0, vid.width, vid.height, V_SNAPTOTOP|ramp[10]);
-
-#if 0
-	if (charsel_dimmed)
-		V_DrawFadeScreen(0xFF00, 16);
-#endif
 
 	// Character pictures
 	M_GetCharacterSelectPosition(0, &x, &y);
@@ -11996,6 +12002,9 @@ static void M_LoadModeAttackMenu(UINT8 mode)
 	{
 		SP_NightsAttackDef.prevMenu = &MainDef;
 		levellistmode = LLM_NIGHTSATTACK; // Don't be dependent on cv_newgametype
+
+		ntssupersonic[0] = W_CachePatchName("NTSSONC1", PU_PATCH);
+		ntssupersonic[1] = W_CachePatchName("NTSSONC2", PU_PATCH);
 	}
 	else
 	{
