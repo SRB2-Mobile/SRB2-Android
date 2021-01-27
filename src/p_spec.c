@@ -1240,7 +1240,7 @@ static boolean PolyFlag(line_t *line)
 	polyflagdata_t pfd;
 
 	pfd.polyObjNum = Tag_FGet(&line->tags);
-	pfd.speed = P_AproxDistance(line->dx, line->dy) >> FRACBITS;
+	pfd.speed = FixedHypot(line->dx, line->dy) >> FRACBITS;
 	pfd.angle = R_PointToAngle2(line->v1->x, line->v1->y, line->v2->x, line->v2->y) >> ANGLETOFINESHIFT;
 	pfd.momx = sides[line->sidenum[0]].textureoffset >> FRACBITS;
 
@@ -1567,7 +1567,7 @@ static boolean P_CheckNightsTriggerLine(line_t *triggerline, mobj_t *actor)
 boolean P_RunTriggerLinedef(line_t *triggerline, mobj_t *actor, sector_t *caller)
 {
 	sector_t *ctlsector;
-	fixed_t dist = P_AproxDistance(triggerline->dx, triggerline->dy)>>FRACBITS;
+	fixed_t dist = FixedHypot(triggerline->dx, triggerline->dy)>>FRACBITS;
 	size_t i, linecnt, sectori;
 	INT16 specialtype = triggerline->special;
 
@@ -2629,7 +2629,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					sectors[secnum].lightlevel = line->backsector->lightlevel;
 
 					flick = P_SpawnAdjustableFireFlicker(line->frontsector, &sectors[secnum],
-						P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+						FixedHypot(line->dx, line->dy)>>FRACBITS);
 
 					// Make sure the starting light level is in range.
 					if (reallightlevel < flick->minlight)
@@ -2644,7 +2644,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					// Use front sector for min, target sector for max,
 					// the same way linetype 61 does it.
 					P_SpawnAdjustableFireFlicker(line->frontsector, &sectors[secnum],
-						P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+						FixedHypot(line->dx, line->dy)>>FRACBITS);
 				}
 			}
 			break;
@@ -2663,7 +2663,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					sectors[secnum].lightlevel = line->backsector->lightlevel;
 
 					glow = P_SpawnAdjustableGlowingLight(line->frontsector, &sectors[secnum],
-						P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+						FixedHypot(line->dx, line->dy)>>FRACBITS);
 
 					// Make sure the starting light level is in range.
 					if (reallightlevel < glow->minlight)
@@ -2678,7 +2678,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					// Use front sector for min, target sector for max,
 					// the same way linetype 602 does it.
 					P_SpawnAdjustableGlowingLight(line->frontsector, &sectors[secnum],
-						P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+						FixedHypot(line->dx, line->dy)>>FRACBITS);
 				}
 			}
 			break;
@@ -2760,7 +2760,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 					((line->sidenum[1] != 0xFFFF && !(sides[line->sidenum[0]].rowoffset>>FRACBITS)) ?
 						max(min(sides[line->sidenum[1]].rowoffset>>FRACBITS, 255), 0)
 						: max(min(sides[line->sidenum[0]].rowoffset>>FRACBITS, 255), 0))
-					: abs(P_AproxDistance(line->dx, line->dy))>>FRACBITS,
+					: abs(FixedHypot(line->dx, line->dy))>>FRACBITS,
 				(line->flags & ML_EFFECT4),
 				(line->flags & ML_EFFECT5));
 			break;
@@ -2795,7 +2795,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 				else
 				{
 					P_SetTarget(&mo->player->awayviewmobj, altview);
-					mo->player->awayviewtics = P_AproxDistance(line->dx, line->dy)>>FRACBITS;
+					mo->player->awayviewtics = FixedHypot(line->dx, line->dy)>>FRACBITS;
 				}
 
 
@@ -2840,7 +2840,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 
 		case 425: // Calls P_SetMobjState on calling mobj
 			if (mo && !mo->player)
-				P_SetMobjState(mo, sides[line->sidenum[0]].toptexture); //P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+				P_SetMobjState(mo, sides[line->sidenum[0]].toptexture); //FixedHypot(line->dx, line->dy)>>FRACBITS);
 			break;
 
 		case 426: // Moves the mobj to its sector's soundorg and on the floor, and stops it
@@ -3026,7 +3026,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		case 438: // Set player scale
 			if (mo)
 			{
-				mo->destscale = FixedDiv(P_AproxDistance(line->dx, line->dy), 100<<FRACBITS);
+				mo->destscale = FixedDiv(FixedHypot(line->dx, line->dy), 100<<FRACBITS);
 				if (mo->destscale < FRACUNIT/100)
 					mo->destscale = FRACUNIT/100;
 				if (mo->player && bot)
@@ -3144,7 +3144,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		{
 			quake.intensity = sides[line->sidenum[0]].textureoffset;
 			quake.radius = sides[line->sidenum[0]].rowoffset;
-			quake.time = P_AproxDistance(line->dx, line->dy)>>FRACBITS;
+			quake.time = FixedHypot(line->dx, line->dy)>>FRACBITS;
 
 			quake.epicenter = NULL; /// \todo
 
@@ -3407,7 +3407,7 @@ static void P_ProcessLineSpecial(line_t *line, mobj_t *mo, sector_t *callsec)
 		case 452: // Set FOF alpha
 		{
 			INT16 destvalue = line->sidenum[1] != 0xffff ?
-				(INT16)(sides[line->sidenum[1]].textureoffset>>FRACBITS) : (INT16)(P_AproxDistance(line->dx, line->dy)>>FRACBITS);
+				(INT16)(sides[line->sidenum[1]].textureoffset>>FRACBITS) : (INT16)(FixedHypot(line->dx, line->dy)>>FRACBITS);
 			INT16 sectag = (INT16)(sides[line->sidenum[0]].textureoffset>>FRACBITS);
 			INT16 foftag = (INT16)(sides[line->sidenum[0]].rowoffset>>FRACBITS);
 			sector_t *sec; // Sector that the FOF is visible in
@@ -4304,7 +4304,7 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 			if (leveltime % (TICRATE/2) == 0 && player->rings > 0)
 			{
 				player->rings--;
-				S_StartSound(player->mo, sfx_itemup);
+				S_StartSound(player->mo, sfx_antiri);
 			}
 			break;
 		case 11: // Special Stage Damage
@@ -4420,15 +4420,19 @@ void P_ProcessSpecialSector(player_t *player, sector_t *sector, sector_t *rovers
 			// clear the special so you can't push the button twice.
 			sector->special = 0;
 
+			// Initialize my junk
+			junk.tags.tags = NULL;
+			junk.tags.count = 0;
+
 			// Move the button down
-			Tag_FSet(&junk.tags, 680);
+			Tag_FSet(&junk.tags, LE_CAPSULE0);
 			EV_DoElevator(&junk, elevateDown, false);
 
 			// Open the top FOF
-			Tag_FSet(&junk.tags, 681);
+			Tag_FSet(&junk.tags, LE_CAPSULE1);
 			EV_DoFloor(&junk, raiseFloorToNearestFast);
 			// Open the bottom FOF
-			Tag_FSet(&junk.tags, 682);
+			Tag_FSet(&junk.tags, LE_CAPSULE2);
 			EV_DoCeiling(&junk, lowerToLowestFast);
 
 			// Mark all players with the time to exit thingy!
@@ -4503,7 +4507,7 @@ DoneSection2:
 
 				P_InstaThrust(player->mo, player->mo->angle, linespeed);
 
-				if ((lines[i].flags & ML_EFFECT5) && (player->charability2 == CA2_SPINDASH)) // Roll!
+				if (lines[i].flags & ML_EFFECT5) // Roll!
 				{
 					if (!(player->pflags & PF_SPINNING))
 						player->pflags |= PF_SPINNING;
@@ -4600,7 +4604,7 @@ DoneSection2:
 
 					HU_SetCEchoFlags(V_AUTOFADEOUT|V_ALLOWLOWERCASE);
 					HU_SetCEchoDuration(5);
-					HU_DoCEcho(va(M_GetText("%s%s%s\\CAPTURED THE %sBLUE FLAG%s.\\\\\\\\"), "\x85", player_names[player-players], "\x80", "\x84", "\x80"));
+					HU_DoCEcho(va(M_GetText("\205%s\200\\CAPTURED THE \204BLUE FLAG\200.\\\\\\\\"), player_names[player-players]));
 
 					if (splitscreen || players[consoleplayer].ctfteam == 1)
 						S_StartSound(NULL, sfx_flgcap);
@@ -4633,7 +4637,7 @@ DoneSection2:
 
 					HU_SetCEchoFlags(V_AUTOFADEOUT|V_ALLOWLOWERCASE);
 					HU_SetCEchoDuration(5);
-					HU_DoCEcho(va(M_GetText("%s%s%s\\CAPTURED THE %sRED FLAG%s.\\\\\\\\"), "\x84", player_names[player-players], "\x80", "\x85", "\x80"));
+					HU_DoCEcho(va(M_GetText("\204%s\200\\CAPTURED THE \205RED FLAG\200.\\\\\\\\"), player_names[player-players]));
 
 					if (splitscreen || players[consoleplayer].ctfteam == 2)
 						S_StartSound(NULL, sfx_flgcap);
@@ -4669,7 +4673,7 @@ DoneSection2:
 			break;
 
 		case 7: // Make player spin
-			if (!(player->pflags & PF_SPINNING) && P_IsObjectOnGround(player->mo) && (player->charability2 == CA2_SPINDASH))
+			if (!(player->pflags & PF_SPINNING))
 			{
 				player->pflags |= PF_SPINNING;
 				P_SetPlayerMobjState(player->mo, S_PLAY_ROLL);
@@ -4823,6 +4827,8 @@ DoneSection2:
 
 					if (player->laps >= (UINT8)cv_numlaps.value)
 						CONS_Printf(M_GetText("%s has finished the race.\n"), player_names[player-players]);
+					else if (player->laps == (UINT8)cv_numlaps.value-1)
+						CONS_Printf(M_GetText("%s started the \205final lap\200!\n"), player_names[player-players]);
 					else
 						CONS_Printf(M_GetText("%s started lap %u\n"), player_names[player-players], (UINT32)player->laps+1);
 
@@ -4991,8 +4997,8 @@ DoneSection2:
 				}
 				else
 				{
-					if (P_AproxDistance(P_AproxDistance(player->mo->x-resultlow.x, player->mo->y-resultlow.y),
-							player->mo->z-resultlow.z) < P_AproxDistance(P_AproxDistance(player->mo->x-resulthigh.x,
+					if (FixedHypot(FixedHypot(player->mo->x-resultlow.x, player->mo->y-resultlow.y),
+							player->mo->z-resultlow.z) < FixedHypot(FixedHypot(player->mo->x-resulthigh.x,
 								player->mo->y-resulthigh.y), player->mo->z-resulthigh.z))
 					{
 						// Line between Mid and Low is closer
@@ -6310,7 +6316,7 @@ void P_SpawnSpecials(boolean fromnetsave)
 				break;
 
 			case 52: // Continuously Falling sector
-				EV_DoContinuousFall(lines[i].frontsector, lines[i].backsector, P_AproxDistance(lines[i].dx, lines[i].dy), (lines[i].flags & ML_NOCLIMB));
+				EV_DoContinuousFall(lines[i].frontsector, lines[i].backsector, FixedHypot(lines[i].dx, lines[i].dy), (lines[i].flags & ML_NOCLIMB));
 				break;
 
 			case 53: // New super cool and awesome moving floor and ceiling type
@@ -6382,15 +6388,15 @@ void P_SpawnSpecials(boolean fromnetsave)
 
 			case 66: // Displace floor by front sector
 				TAG_ITER_SECTORS(0, tag, s)
-					P_AddPlaneDisplaceThinker(pd_floor, P_AproxDistance(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
+					P_AddPlaneDisplaceThinker(pd_floor, FixedHypot(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
 				break;
 			case 67: // Displace ceiling by front sector
 				TAG_ITER_SECTORS(0, tag, s)
-					P_AddPlaneDisplaceThinker(pd_ceiling, P_AproxDistance(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
+					P_AddPlaneDisplaceThinker(pd_ceiling, FixedHypot(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
 				break;
 			case 68: // Displace both floor AND ceiling by front sector
 				TAG_ITER_SECTORS(0, tag, s)
-					P_AddPlaneDisplaceThinker(pd_both, P_AproxDistance(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
+					P_AddPlaneDisplaceThinker(pd_both, FixedHypot(lines[i].dx, lines[i].dy)>>8, sides[lines[i].sidenum[0]].sector-sectors, s, !!(lines[i].flags & ML_NOCLIMB));
 				break;
 
 			case 100: // FOF (solid, opaque, shadows)
@@ -6584,18 +6590,18 @@ void P_SpawnSpecials(boolean fromnetsave)
 			case 150: // Air bobbing platform
 			case 151: // Adjustable air bobbing platform
 			{
-				fixed_t dist = (lines[i].special == 150) ? 16*FRACUNIT : P_AproxDistance(lines[i].dx, lines[i].dy);
+				fixed_t dist = (lines[i].special == 150) ? 16*FRACUNIT : FixedHypot(lines[i].dx, lines[i].dy);
 				P_AddFakeFloorsByLine(i, FF_EXISTS|FF_SOLID|FF_RENDERALL|FF_CUTLEVEL, secthinkers);
 				P_AddAirbob(lines[i].frontsector, tag, dist, false, !!(lines[i].flags & ML_NOCLIMB), false);
 				break;
 			}
 			case 152: // Adjustable air bobbing platform in reverse
 				P_AddFakeFloorsByLine(i, FF_EXISTS|FF_SOLID|FF_RENDERALL|FF_CUTLEVEL, secthinkers);
-				P_AddAirbob(lines[i].frontsector, tag, P_AproxDistance(lines[i].dx, lines[i].dy), true, !!(lines[i].flags & ML_NOCLIMB), false);
+				P_AddAirbob(lines[i].frontsector, tag, FixedHypot(lines[i].dx, lines[i].dy), true, !!(lines[i].flags & ML_NOCLIMB), false);
 				break;
 			case 153: // Dynamic Sinking Platform
 				P_AddFakeFloorsByLine(i, FF_EXISTS|FF_SOLID|FF_RENDERALL|FF_CUTLEVEL, secthinkers);
-				P_AddAirbob(lines[i].frontsector, tag, P_AproxDistance(lines[i].dx, lines[i].dy), false, !!(lines[i].flags & ML_NOCLIMB), true);
+				P_AddAirbob(lines[i].frontsector, tag, FixedHypot(lines[i].dx, lines[i].dy), false, !!(lines[i].flags & ML_NOCLIMB), true);
 				break;
 
 			case 160: // Float/bob platform
@@ -6674,7 +6680,7 @@ void P_SpawnSpecials(boolean fromnetsave)
 			case 194: // Rising Platform 'Platform' - You can jump up through it
 			case 195: // Rising Platform Translucent "platform"
 			{
-				fixed_t speed = FixedDiv(P_AproxDistance(lines[i].dx, lines[i].dy), 4*FRACUNIT);
+				fixed_t speed = FixedDiv(FixedHypot(lines[i].dx, lines[i].dy), 4*FRACUNIT);
 				fixed_t ceilingtop = P_FindHighestCeilingSurrounding(lines[i].frontsector);
 				fixed_t ceilingbottom = P_FindLowestCeilingSurrounding(lines[i].frontsector);
 
@@ -6999,14 +7005,14 @@ void P_SpawnSpecials(boolean fromnetsave)
 				sec = sides[*lines[i].sidenum].sector - sectors;
 				TAG_ITER_SECTORS(0, tag, s)
 					P_SpawnAdjustableGlowingLight(&sectors[sec], &sectors[s],
-						P_AproxDistance(lines[i].dx, lines[i].dy)>>FRACBITS);
+						FixedHypot(lines[i].dx, lines[i].dy)>>FRACBITS);
 				break;
 
 			case 603: // Adjustable flickering light
 				sec = sides[*lines[i].sidenum].sector - sectors;
 				TAG_ITER_SECTORS(0, tag, s)
 					P_SpawnAdjustableFireFlicker(&sectors[sec], &sectors[s],
-						P_AproxDistance(lines[i].dx, lines[i].dy)>>FRACBITS);
+						FixedHypot(lines[i].dx, lines[i].dy)>>FRACBITS);
 				break;
 
 			case 604: // Adjustable Blinking Light (unsynchronized)
@@ -8412,9 +8418,9 @@ static void Add_Pusher(pushertype_e type, fixed_t x_mag, fixed_t y_mag, mobj_t *
 	// "The right triangle of the square of the length of the hypotenuse is equal to the sum of the squares of the lengths of the other two sides."
 	// "Bah! Stupid brains! Don't you know anything besides the Pythagorean Theorem?" - Earthworm Jim
 	if (type == p_downcurrent || type == p_upcurrent || type == p_upwind || type == p_downwind)
-		p->magnitude = P_AproxDistance(p->x_mag,p->y_mag)<<(FRACBITS-PUSH_FACTOR);
+		p->magnitude = FixedHypot(p->x_mag,p->y_mag)<<(FRACBITS-PUSH_FACTOR);
 	else
-		p->magnitude = P_AproxDistance(p->x_mag,p->y_mag);
+		p->magnitude = FixedHypot(p->x_mag,p->y_mag);
 	if (source) // point source exist?
 	{
 		// where force goes to zero
@@ -8465,14 +8471,14 @@ static inline boolean PIT_PushThing(mobj_t *thing)
 
 		// don't fade wrt Z if health & 2 (mapthing has multi flag)
 		if (tmpusher->source->health & 2)
-			dist = P_AproxDistance(thing->x - sx,thing->y - sy);
+			dist = FixedHypot(thing->x - sx,thing->y - sy);
 		else
 		{
 			// Make sure the Z is in range
 			if (thing->z < sz - tmpusher->radius || thing->z > sz + tmpusher->radius)
 				return false;
 
-			dist = P_AproxDistance(P_AproxDistance(thing->x - sx, thing->y - sy),
+			dist = FixedHypot(FixedHypot(thing->x - sx, thing->y - sy),
 				thing->z - sz);
 		}
 
@@ -8807,7 +8813,7 @@ void T_Pusher(pusher_t *p)
 
 			// Tumbleweeds bounce a bit...
 			if (thing->type == MT_LITTLETUMBLEWEED || thing->type == MT_BIGTUMBLEWEED)
-				thing->momz += P_AproxDistance(xspeed<<(FRACBITS-PUSH_FACTOR), yspeed<<(FRACBITS-PUSH_FACTOR)) >> 2;
+				thing->momz += FixedHypot(xspeed<<(FRACBITS-PUSH_FACTOR), yspeed<<(FRACBITS-PUSH_FACTOR)) >> 2;
 		}
 
 		if (moved)

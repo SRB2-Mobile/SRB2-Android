@@ -13,6 +13,9 @@ set(SRB2_CORE_SOURCES
 	d_netcmd.c
 	d_netfil.c
 	dehacked.c
+	deh_soc.c
+	deh_lua.c
+	deh_tables.c
 	f_finale.c
 	f_wipe.c
 	filesrch.c
@@ -67,6 +70,9 @@ set(SRB2_CORE_HEADERS
 	d_think.h
 	d_ticcmd.h
 	dehacked.h
+	deh_soc.h
+	deh_lua.h
+	deh_tables.h
 	doomdata.h
 	doomdef.h
 	doomstat.h
@@ -272,6 +278,7 @@ set(SRB2_LUA_SOURCES
 	lua_hudlib.c
 	lua_infolib.c
 	lua_maplib.c
+	lua_taglib.c
 	lua_mathlib.c
 	lua_mobjlib.c
 	lua_playerlib.c

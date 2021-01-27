@@ -750,13 +750,15 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	{
 		UpdateTexture(pTexInfo);
 		pTexInfo->nextmipmap = NULL;
+
+		// insertion at the tail
 		if (gl_cachetail)
-		{ // insertion at the tail
+		{
 			gl_cachetail->nextmipmap = pTexInfo;
 			gl_cachetail = pTexInfo;
 		}
 		else // initialization of the linked list
-			gl_cachetail = gl_cachehead =  pTexInfo;
+			gl_cachetail = gl_cachehead = pTexInfo;
 	}
 }
 
