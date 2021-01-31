@@ -1099,6 +1099,12 @@ D_ConvertVersionNumbers (void)
 #endif
 }
 
+static void InitTimer(void)
+{
+	CONS_Printf("I_StartupTimer()...\n");
+	I_StartupTimer();
+}
+
 //
 // D_SRB2Main
 //
@@ -1125,6 +1131,10 @@ void D_SRB2Main(void)
 	"Sonic the Hedgehog and related characters are trademarks of SEGA.\n"
 	"We do not claim ownership of SEGA's intellectual property used\n"
 	"in this program.\n\n");
+
+#if defined(__ANDROID__)
+	InitTimer();
+#endif
 
 #ifdef SPLASH_SCREEN
 	I_SplashScreen();
@@ -1242,8 +1252,9 @@ void D_SRB2Main(void)
 	//---------------------------------------------------- READY TIME
 	// we need to check for dedicated before initialization of some subsystems
 
-	CONS_Printf("I_StartupTimer()...\n");
-	I_StartupTimer();
+#if !defined(__ANDROID__)
+	InitTimer();
+#endif
 
 	// Make backups of some SOCcable tables.
 	P_BackupTables();
