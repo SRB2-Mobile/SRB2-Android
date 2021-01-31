@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.provider.Settings;
 import android.net.Uri;
-import android.widget.Toast;
 
 public class SRB2Game extends SDLActivity {
 	public static boolean checkPermission(String permission) {
@@ -23,9 +22,5 @@ public class SRB2Game extends SDLActivity {
 		Uri uri = Uri.fromParts("package", mSingleton.getPackageName(), null);
 		intent.setData(uri);
 		mSingleton.startActivity(intent);
-	}
-
-	public static void displayToast(String text) {
-		// Stubbed. This has to be called from the UI thread.
 	}
 }

@@ -52,6 +52,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Hashtable;
 import java.util.Locale;
@@ -606,6 +607,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     static final int COMMAND_TEXTEDIT_HIDE = 3;
     static final int COMMAND_CHANGE_SURFACEVIEW_FORMAT = 4;
     static final int COMMAND_SET_KEEP_SCREEN_ON = 5;
+    static final int COMMAND_SHOW_TOAST = 6;
 
     protected static final int COMMAND_USER = 0x8000;
 
@@ -726,6 +728,16 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
                 holder.setFormat(pf);
 
+                break;
+            }
+            case COMMAND_SHOW_TOAST:
+            {
+                if (context instanceof Activity) {
+                    Toast toast = Toast.makeText((Activity)context, (String)msg.obj, Toast.LENGTH_SHORT);
+                    toast.show();
+                } else {
+                    Log.e(TAG, "error handling message, getContext() returned no Activity");
+                }
                 break;
             }
             default:
@@ -1243,6 +1255,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 nativeAddTouch(device.getId(), device.getName());
             }
         }
+    }
+
+    /**
+     * Displays a toast.
+     */
+    public static void displayToast(String text) {
+        mSingleton.sendCommand(COMMAND_SHOW_TOAST, text.toString());
     }
 
     // Messagebox
