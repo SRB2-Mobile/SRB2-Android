@@ -1403,24 +1403,13 @@ void I_FinishUpdate(void)
 
 	if (rendermode == render_soft && screens[0])
 	{
-		SDL_Rect rect;
-
-		rect.x = 0;
-		rect.y = 0;
-		rect.w = vid.width;
-		rect.h = vid.height;
-
 		if (!bufSurface) //Double-Check
 		{
 			Impl_VideoSetupSDLBuffer();
 		}
 		if (bufSurface)
 		{
-			SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
-			// Fury -- there's no way around UpdateTexture, the GL backend uses it anyway
-			SDL_LockSurface(vidSurface);
-			SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
-			SDL_UnlockSurface(vidSurface);
+			VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
 		}
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -1625,44 +1614,6 @@ void VID_PrepareModeList(void)
 #endif
 }
 
-static SDL_bool Impl_CreateContext(void)
-{
-	// Renderer-specific stuff
-#ifdef HWRENDER
-	if ((rendermode == render_opengl)
-	&& (vid.glstate != VID_GL_LIBRARY_ERROR))
-	{
-		if (!sdlglcontext)
-			sdlglcontext = SDL_GL_CreateContext(window);
-		if (sdlglcontext == NULL)
-		{
-			SDL_DestroyWindow(window);
-			I_Error("Failed to create a GL context: %s\n", SDL_GetError());
-		}
-		SDL_GL_MakeCurrent(window, sdlglcontext);
-	}
-	else
-#endif
-	if (rendermode == render_soft)
-	{
-		int flags = 0; // Use this to set SDL_RENDERER_* flags now
-		if (usesdl2soft)
-			flags |= SDL_RENDERER_SOFTWARE;
-		else if (cv_vidwait.value)
-			flags |= SDL_RENDERER_PRESENTVSYNC;
-
-		if (!renderer)
-			renderer = SDL_CreateRenderer(window, -1, flags);
-		if (renderer == NULL)
-		{
-			CONS_Printf(M_GetText("Couldn't create rendering context: %s\n"), SDL_GetError());
-			return SDL_FALSE;
-		}
-		SDL_RenderSetLogicalSize(renderer, BASEVIDWIDTH, BASEVIDHEIGHT);
-	}
-	return SDL_TRUE;
-}
-
 void VID_DisplayGLError(void)
 {
 #ifdef HWRENDER
@@ -1697,21 +1648,21 @@ void VID_CheckGLLoaded(rendermode_t oldrender)
 #endif
 }
 
-boolean VID_CheckRenderer(void)
+INT32 VID_CheckRenderer(void)
 {
-	boolean rendererchanged = false;
+	INT32 rendererchanged = 0;
 	boolean contextcreated = false;
 #ifdef HWRENDER
 	rendermode_t oldrenderer = rendermode;
 #endif
 
 	if (dedicated)
-		return false;
+		return 0;
 
 	if (setrenderneeded)
 	{
 		rendermode = setrenderneeded;
-		rendererchanged = true;
+		rendererchanged = 1;
 
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
@@ -1737,10 +1688,7 @@ boolean VID_CheckRenderer(void)
 
 					// Destroy the current window rendering context, if that also exists.
 					if (renderer)
-					{
-						SDL_DestroyRenderer(renderer);
-						renderer = NULL;
-					}
+						VID_DestroyContext();
 
 					// Create a new window.
 					Impl_CreateWindow(USE_FULLSCREEN);
@@ -1753,13 +1701,13 @@ boolean VID_CheckRenderer(void)
 			else if (vid.glstate == VID_GL_LIBRARY_ERROR)
 			{
 				renderswitcherror = render_opengl;
-				rendererchanged = false;
+				rendererchanged = 0;
 			}
 		}
 #endif
 
 		if (!contextcreated)
-			Impl_CreateContext();
+			VID_CreateContext();
 
 		setrenderneeded = 0;
 	}
@@ -1856,6 +1804,87 @@ INT32 VID_SetMode(INT32 modeNum)
 	return SDL_TRUE;
 }
 
+INT32 VID_CreateContext(void)
+{
+	// Renderer-specific stuff
+#ifdef HWRENDER
+	if ((rendermode == render_opengl)
+	&& (vid.glstate != VID_GL_LIBRARY_ERROR))
+	{
+		if (!sdlglcontext)
+			sdlglcontext = SDL_GL_CreateContext(window);
+		if (sdlglcontext == NULL)
+		{
+			SDL_DestroyWindow(window);
+			I_Error("Failed to create a GL context: %s\n", SDL_GetError());
+		}
+		SDL_GL_MakeCurrent(window, sdlglcontext);
+	}
+	else
+#endif
+	if (rendermode == render_soft)
+	{
+		int flags = 0; // Use this to set SDL_RENDERER_* flags now
+		if (usesdl2soft)
+			flags |= SDL_RENDERER_SOFTWARE;
+		else if (cv_vidwait.value)
+			flags |= SDL_RENDERER_PRESENTVSYNC;
+
+		if (!renderer)
+			renderer = SDL_CreateRenderer(window, -1, flags);
+		if (renderer == NULL)
+		{
+			CONS_Printf(M_GetText("Couldn't create rendering context: %s\n"), SDL_GetError());
+			return 0;
+		}
+		SDL_RenderSetLogicalSize(renderer, BASEVIDWIDTH, BASEVIDHEIGHT);
+	}
+	return 1;
+}
+
+INT32 VID_DestroyContext(void)
+{
+	if (!renderer)
+		return 0;
+
+	SDL_DestroyRenderer(renderer);
+	renderer = NULL;
+
+	return 1;
+}
+
+void VID_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h)
+{
+	SDL_Rect rect;
+
+	rect.x = x;
+	rect.y = y;
+	rect.w = w;
+	rect.h = h;
+
+	SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
+	// Fury -- there's no way around UpdateTexture, the GL backend uses it anyway
+	SDL_LockSurface(vidSurface);
+	SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
+	SDL_UnlockSurface(vidSurface);
+}
+
+void VID_ClearTexture(void)
+{
+	if (renderer)
+		SDL_RenderClear(renderer);
+}
+
+void VID_PresentTexture(void)
+{
+	if (renderer)
+	{
+		if (texture)
+			SDL_RenderCopy(renderer, texture, NULL, NULL);
+		SDL_RenderPresent(renderer);
+	}
+}
+
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 {
 	int flags = 0;
@@ -1883,7 +1912,6 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	window = SDL_CreateWindow("SRB2 "VERSIONSTRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			realwidth, realheight, flags);
 
-
 	if (window == NULL)
 	{
 		CONS_Printf(M_GetText("Couldn't create window: %s\n"), SDL_GetError());
@@ -1892,7 +1920,10 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 
 	Impl_SetWindowIcon();
 
-	return Impl_CreateContext();
+	if (!VID_CreateContext())
+		return SDL_FALSE;
+
+	return SDL_TRUE;
 }
 
 /*
@@ -2103,9 +2134,8 @@ void I_StartupGraphics(void)
 		if (rendermode == render_opengl)
 		{
 			SDL_DestroyWindow(window);
-			SDL_DestroyRenderer(renderer);
+			VID_DestroyContext();
 			window = NULL;
-			renderer = NULL;
 		}
 #endif
 	}
@@ -2353,17 +2383,14 @@ static UINT32 *LoadSplashScreenImage(const UINT8 *source, size_t source_size, UI
 }
 #endif // SPLASH_SCREEN_SUPPORTED
 
-void I_SplashScreen(void)
+INT32 VID_LoadSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
 	struct SDL_RWops *file;
 	Sint64 filesize;
 	void *filedata;
 	UINT32 swidth, sheight;
-	SDL_Rect rect;
-	tic_t delay;
-
-	CONS_Printf("Displaying splash screen\n");
+	UINT32 delay;
 #endif
 
 	Impl_InitVideoSubSystem();
@@ -2374,26 +2401,26 @@ void I_SplashScreen(void)
 	if (!file) // not found?
 	{
 		CONS_Alert(CONS_ERROR, "splash screen image not found\n");
-		return;
+		return 0;
 	}
 
 	filesize = SDL_RWsize(file);
 	if (filesize < 0) // wut?
 	{
 		CONS_Alert(CONS_ERROR, "error getting the file size of the splash screen image\n");
-		return;
+		return 0;
 	}
 	else if (filesize == 0)
 	{
 		CONS_Alert(CONS_ERROR, "the splash screen image is empty\n");
-		return;
+		return 0;
 	}
 
 	filedata = malloc((size_t)filesize);
 	if (!filedata) // somehow couldn't malloc
 	{
 		CONS_Alert(CONS_ERROR, "could not find free memory for the splash screen image\n");
-		return;
+		return 0;
 	}
 
 	SDL_RWread(file, filedata, 1, filesize);
@@ -2405,7 +2432,7 @@ void I_SplashScreen(void)
 	if (splash_screen_image == NULL)
 	{
 		CONS_Alert(CONS_ERROR, "failed to read the splash screen image");
-		return;
+		return 0;
 	}
 
 	// create the window
@@ -2423,30 +2450,27 @@ void I_SplashScreen(void)
 	if (!bufSurface)
 	{
 		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
-		return;
+		return 0;
 	}
 
-	// display the splash screen image
 	splash_screen = true;
 
-	rect.x = 0;
-	rect.y = 0;
-	rect.w = swidth;
-	rect.h = sheight;
+	return 1;
+#endif
+}
 
-	SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
-	SDL_LockSurface(vidSurface);
-	SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
-	SDL_UnlockSurface(vidSurface);
+void VID_BlitSplashScreen(void)
+{
+#ifdef SPLASH_SCREEN_SUPPORTED
+	VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
+#endif
+}
 
-	// display for a single second
-	delay = I_GetTime() + NEWTICRATE;
-	while (I_GetTime() < delay)
-	{
-		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		SDL_RenderPresent(renderer);
-	}
+void VID_PresentSplashScreen(void)
+{
+#ifdef SPLASH_SCREEN_SUPPORTED
+	VID_ClearTexture();
+	VID_PresentTexture();
 #endif
 }
 
@@ -2480,10 +2504,7 @@ void I_ReportProgress(int progress)
 
 	if (rendermode == render_soft || splash_screen)
 	{
-		SDL_BlitSurface(bufSurface, NULL, vidSurface, &base);
-		SDL_LockSurface(vidSurface);
-		SDL_UpdateTexture(texture, &base, vidSurface->pixels, vidSurface->pitch);
-		SDL_UnlockSurface(vidSurface);
+		VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 	}
 

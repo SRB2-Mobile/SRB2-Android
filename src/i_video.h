@@ -52,10 +52,6 @@ void I_StartupGraphics(void);
 */
 void I_ShutdownGraphics(void);
 
-/**	\brief display splash screen
-*/
-void I_SplashScreen(void);
-
 /**	\brief	The I_SetPalette function
 
 	\param	palette	Takes full 8 bit values
@@ -77,14 +73,12 @@ INT32 VID_NumModes(void);
 */
 INT32 VID_GetModeForSize(INT32 w, INT32 h);
 
-
 /**	\brief	The VID_SetMode function
 
 	Set the video mode right now,
 	the video mode change is delayed until the start of the next refresh
 	by setting the setmodeneeded to a value >0
 	setup a video mode, this is to be called from the menu
-
 
 	\param	modenum	video mode to set to
 
@@ -96,10 +90,32 @@ INT32 VID_SetMode(INT32 modenum);
 */
 void VID_GetNativeResolution(INT32 *width, INT32 *height);
 
-/**	\brief Checks the render state
-	\return	true if the renderer changed
+/**	\brief Creates a rendering context
+	\return	1 if the context was changed, 0 if it was not
 */
-boolean VID_CheckRenderer(void);
+INT32 VID_CreateContext(void);
+
+/**	\brief Destroys the rendering context
+	\return	1 if the context was destroyed, 0 if it was not
+*/
+INT32 VID_DestroyContext(void);
+
+/**	\brief Checks the render state
+	\return	1 if the renderer changed, 0 if it did not
+*/
+INT32 VID_CheckRenderer(void);
+
+/**	\brief Blits a region of the current framebuffer surface into the texture (does not present it.)
+*/
+void VID_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h);
+
+/**	\brief Clears the current texture.
+*/
+void VID_ClearTexture(void);
+
+/**	\brief Copies the current texture into the context and presents it.
+*/
+void VID_PresentTexture(void);
 
 /**	\brief Load OpenGL mode
 */
@@ -112,6 +128,19 @@ void VID_CheckGLLoaded(rendermode_t oldrender);
 /**	\brief Displays an error if OpenGL failed to load
 */
 void VID_DisplayGLError(void);
+
+/**	\brief Loads the splash screen
+	\return	1 if the splash screen was successfully loaded, 0 if it was not
+*/
+INT32 VID_LoadSplashScreen(void);
+
+/**	\brief Blits the splash screen (does not present it.)
+*/
+void VID_BlitSplashScreen(void);
+
+/**	\brief Presents the splash screen.
+*/
+void VID_PresentSplashScreen(void);
 
 /**	\brief	The VID_GetModeName function
 

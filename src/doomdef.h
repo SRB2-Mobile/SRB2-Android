@@ -121,6 +121,10 @@ extern FILE *logstream;
 extern char logfilename[1024];
 #endif
 
+#if defined(LOGMESSAGES) && (defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined(__ANDROID__)
+#define LOGSYMLINK
+#endif
+
 /* A mod name to further distinguish versions. */
 #define SRB2APPLICATION "SRB2"
 
@@ -426,7 +430,8 @@ enum {
 
 // Name of local directory for config files and savegames
 #if defined(__ANDROID__)
-#define DEFAULTDIR // no user home in Android, interferes with the application storage path
+#define SHAREDSTORAGEFOLDER "Sonic Robo Blast 2"
+#define DEFAULTDIR // Don't define a default directory
 #elif (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
 #define DEFAULTDIR ".srb2"
 #else

@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 // Copyright (C) 1997-2020 by Sam "Slouken" Lantinga.
 //
 // This program is free software distributed under the
@@ -50,7 +50,15 @@ extern JNI_DeviceInfoReference_t JNI_DeviceInfoReference[JNIDeviceInfo_Size + 1]
 extern char **JNI_ABIList;
 extern int JNI_ABICount;
 
+extern const char *JNI_SharedStorage;
+
+char *JNI_GetStorageDirectory(void);
 char *JNI_ExternalStoragePath(void);
+
 char *JNI_GetDeviceInfo(const char *info);
+
+boolean JNI_CheckPermission(const char *permission);
+void JNI_DisplayToast(const char *text);
+void JNI_OpenAppSettings(void);
 
 #endif

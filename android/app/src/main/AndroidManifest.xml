@@ -29,16 +29,15 @@
         android:name="android.hardware.type.pc"
         android:required="false" />
 
-    <!-- Allow reading the external storage -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <!-- Allow writing to external storage -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Allow storage access -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> <!-- Write implies read -->
+
     <!-- Allow access to Bluetooth devices -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <!-- Allow access to the vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Lactozilla: Network access -->
+    <!-- Network access -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 

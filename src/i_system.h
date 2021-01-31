@@ -258,6 +258,10 @@ void I_ShutdownSystem(void);
 */
 void I_SetupSignalHandler(void);
 
+/**	\brief Starts logging.
+*/
+void I_InitLogging(void);
+
 /**	\brief	The I_GetDiskFreeSpace function
 
 	\param	freespace	a INT64 pointer to hold the free space amount
@@ -328,10 +332,15 @@ const char *I_InitialLocateWad(void);
 */
 const char *I_SystemLocateWad(void);
 
-/**	\brief Location of the application's storage (Android)
-		\return path to the external storage
+/**	\brief Location of the application's storage.
+		\return path to app-specific files
 */
-const char *I_StorageLocation(void);
+const char *I_AppStorageLocation(void);
+
+/**	\brief Location that is considered the home.
+		\return path to shareable media files
+*/
+const char *I_SharedStorageLocation(void);
 
 /**	\brief First Joystick's events
 */
@@ -352,6 +361,21 @@ void I_UpdateMouseGrab(void);
 char *I_GetEnv(const char *name);
 
 INT32 I_PutEnv(char *variable);
+
+/**	\brief Checks if the app has been granted a specific permission.
+		\return 1 if the permission was granted, 0 if not.
+*/
+INT32 I_CheckSystemPermission(char *permission);
+
+/**	\brief Asks the system for a specific permission.
+		\return 1 if the permission was granted, 0 if not.
+*/
+INT32 I_RequestSystemPermission(char *permission);
+
+/**	\brief Opens the app's settings.
+		\return 1 if it succeeded, 0 if not.
+*/
+INT32 I_OpenAppSettings(void);
 
 /** \brief Put data in system clipboard
 */
