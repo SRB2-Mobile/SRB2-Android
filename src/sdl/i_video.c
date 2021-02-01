@@ -2268,13 +2268,9 @@ void VID_StartupOpenGL(void)
 //
 
 #if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
-	// zlib defines and png.h include
-	#include "../r_picformats.h"
-	#define SPLASH_SCREEN_SUPPORTED
-
-	// The lack of this define disables the splash screen.
-	#ifndef PNG_READ_SUPPORTED
-	#undef SPLASH_SCREEN_SUPPORTED
+	#include "../r_picformats.h" // zlib defines and png.h include
+	#ifdef PNG_READ_SUPPORTED
+		#define SPLASH_SCREEN_SUPPORTED
 	#endif
 #endif
 
@@ -2456,21 +2452,27 @@ INT32 VID_LoadSplashScreen(void)
 	splash_screen = true;
 
 	return 1;
+#else // SPLASH_SCREEN_SUPPORTED
+	return 0;
 #endif
 }
 
 void VID_BlitSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
-	VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
+	if (splash_screen)
+		VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
 #endif
 }
 
 void VID_PresentSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
-	VID_ClearTexture();
-	VID_PresentTexture();
+	if (splash_screen)
+	{
+		VID_ClearTexture();
+		VID_PresentTexture();
+	}
 #endif
 }
 

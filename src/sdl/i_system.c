@@ -3243,20 +3243,24 @@ UINT32 I_GetFreeMem(UINT32 *total)
 #endif
 }
 
-INT32 I_CheckSystemPermission(char *permission)
+INT32 I_CheckSystemPermission(const char *permission)
 {
 #if defined(__ANDROID__)
 	if (JNI_CheckPermission(permission))
 		return 1;
+#else
+	(void)permission;
 #endif
 	return 0;
 }
 
-INT32 I_RequestSystemPermission(char *permission)
+INT32 I_RequestSystemPermission(const char *permission)
 {
 #if defined(__ANDROID__)
 	if (SDL_AndroidRequestPermission(permission))
 		return 1;
+#else
+	(void)permission;
 #endif
 	return 0;
 }

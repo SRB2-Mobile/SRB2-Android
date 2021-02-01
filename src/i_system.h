@@ -365,12 +365,12 @@ INT32 I_PutEnv(char *variable);
 /**	\brief Checks if the app has been granted a specific permission.
 		\return 1 if the permission was granted, 0 if not.
 */
-INT32 I_CheckSystemPermission(char *permission);
+INT32 I_CheckSystemPermission(const char *permission);
 
 /**	\brief Asks the system for a specific permission.
 		\return 1 if the permission was granted, 0 if not.
 */
-INT32 I_RequestSystemPermission(char *permission);
+INT32 I_RequestSystemPermission(const char *permission);
 
 /**	\brief Opens the app's settings.
 		\return 1 if it succeeded, 0 if not.
