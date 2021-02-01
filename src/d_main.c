@@ -1126,10 +1126,6 @@ void D_SRB2Main(void)
 	"We do not claim ownership of SEGA's intellectual property used\n"
 	"in this program.\n\n");
 
-#ifdef SPLASH_SCREEN
-	I_SplashScreen();
-#endif
-
 	// keep error messages until the final flush(stderr)
 #if !defined(NOTERMIOS)
 	if (setvbuf(stderr, NULL, _IOFBF, 1000))
@@ -1176,10 +1172,7 @@ void D_SRB2Main(void)
 	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
 	strcpy(liveeventbackup, "live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
 
-#if defined(__ANDROID__)
-	// Lactozilla: Create the home directory
-	I_mkdir(srb2home, 0755);
-#else
+#if !defined(__ANDROID__)
 	D_SetupHome();
 #endif
 
@@ -1601,14 +1594,14 @@ const char *D_Home(void)
 {
 	const char *userhome = NULL;
 
-#if defined(__ANDROID__)
-	if (I_StorageLocation())
-		return I_StorageLocation();
-#endif
-
 	if (M_CheckParm("-home") && M_IsNextParm())
 		userhome = M_GetNextParm();
 	else
+#if defined(__ANDROID__)
+	if (I_SharedStorageLocation())
+		userhome = I_SharedStorageLocation();
+	else
+#endif
 	{
 #if !((defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)) && !defined (__APPLE__)
 		if (FIL_FileOK(CONFIGFILENAME))

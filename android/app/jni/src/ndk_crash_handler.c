@@ -89,7 +89,7 @@ void NDKCrashHandler_ReportSignal(const char *sigmsg)
 	INT32 i;
 
 	// open errorlog.txt
-	errorlog = fopen(va("%s/errorlog.txt", I_StorageLocation()), "wt+");
+	errorlog = fopen(va("%s/errorlog.txt", I_SharedStorageLocation()), "wt+");
 	NDKCrashHandler_PrintToLog("Application killed by signal: %s\n\n", sigmsg);
 
 	NDKCrashHandler_PrintToLog("Device info:\n", sigmsg);

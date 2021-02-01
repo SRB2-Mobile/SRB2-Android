@@ -59,6 +59,8 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #include <conio.h>
 #endif
 
+#include "time.h" // For log timestamps
+
 #ifdef _MSC_VER
 #pragma warning(disable : 4214 4244)
 #endif
@@ -2475,7 +2477,105 @@ void I_RemoveExitFunc(void (*func)())
 	}
 }
 
-#if !(defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON))
+#ifdef LOGMESSAGES
+void I_InitLogging(void)
+{
+	const char *logdir = NULL;
+	time_t my_time;
+	struct tm * timeinfo;
+	const char *format;
+	const char *reldir;
+	int left;
+	boolean fileabs;
+#ifdef LOGSYMLINK
+	const char *link;
+#endif
+
+	logdir = D_Home();
+
+	my_time = time(NULL);
+	timeinfo = localtime(&my_time);
+
+	if (M_CheckParm("-logfile") && M_IsNextParm())
+	{
+		format = M_GetNextParm();
+		fileabs = M_IsPathAbsolute(format);
+	}
+	else
+	{
+		format = "log-%Y-%m-%d_%H-%M-%S.txt";
+		fileabs = false;
+	}
+
+	if (fileabs)
+	{
+		strftime(logfilename, sizeof logfilename, format, timeinfo);
+	}
+	else
+	{
+		if (M_CheckParm("-logdir") && M_IsNextParm())
+			reldir = M_GetNextParm();
+		else
+			reldir = "logs";
+
+		if (M_IsPathAbsolute(reldir))
+		{
+			left = snprintf(logfilename, sizeof logfilename,
+					"%s"PATHSEP, reldir);
+		}
+		else
+#if defined(__ANDROID__)
+		if (logdir)
+		{
+			left = snprintf(logfilename, sizeof logfilename,
+					"%s"PATHSEP "%s"PATHSEP, logdir, reldir);
+		}
+		else
+#elif defined(DEFAULTDIR)
+		if (logdir)
+		{
+			left = snprintf(logfilename, sizeof logfilename,
+					"%s"PATHSEP DEFAULTDIR PATHSEP"%s"PATHSEP, logdir, reldir);
+		}
+		else
+#endif
+		{
+			left = snprintf(logfilename, sizeof logfilename,
+					"."PATHSEP"%s"PATHSEP, reldir);
+		}
+
+		strftime(&logfilename[left], sizeof logfilename - left,
+				format, timeinfo);
+	}
+
+	M_MkdirEachUntil(logfilename,
+			M_PathParts(logdir) - 1,
+			M_PathParts(logfilename) - 1, 0755);
+
+#ifdef LOGSYMLINK
+	logstream = fopen(logfilename, "w");
+#ifdef DEFAULTDIR
+	if (logdir)
+		link = va("%s/"DEFAULTDIR"/latest-log.txt", logdir);
+	else
+#endif/*DEFAULTDIR*/
+		link = "latest-log.txt";
+	unlink(link);
+	if (symlink(logfilename, link) == -1)
+	{
+		I_OutputMsg("Error symlinking latest-log.txt: %s\n", strerror(errno));
+	}
+#elif defined(__ANDROID__)
+	logstream = fopen(va("%s/latest-log.txt", I_SharedStorageLocation()), "wt+");
+#else/*LOGSYMLINK*/
+	logstream = fopen("latest-log.txt", "wt+");
+#endif
+}
+#else
+void I_InitLogging(void) {}
+#endif
+
+#ifndef LOGSYMLINK
 static void Shittycopyerror(const char *name)
 {
 	I_OutputMsg(
@@ -2539,14 +2639,13 @@ void I_ShutdownSystem(void)
 	if (logstream)
 	{
 		I_OutputMsg("I_ShutdownSystem(): end of logstream.\n");
-#if !(defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON))
+#ifndef LOGSYMLINK
 		Shittylogcopy();
 #endif
 		fclose(logstream);
 		logstream = NULL;
 	}
 #endif
-
 }
 
 void I_GetDiskFreeSpace(INT64 *freespace)
@@ -2787,11 +2886,23 @@ static const char *locateWad(void)
 			return returnWadPath;
 	}
 
-	// Access the main storage location
-	if (I_StorageLocation())
+	// Access the shared storage location
+	WadPath = I_SharedStorageLocation();
+	if (WadPath)
 	{
-		I_OutputMsg("%s", I_StorageLocation());
-		return I_StorageLocation();
+		I_OutputMsg("Shared storage: %s", WadPath);
+		strcpy(returnWadPath, WadPath);
+		if (isWadPathOk(returnWadPath))
+			return returnWadPath;
+	}
+
+	// Access the app-specific storage location
+	// This will always return the path, even if isWadPathOk would fail.
+	WadPath = I_AppStorageLocation();
+	if (WadPath)
+	{
+		I_OutputMsg("App-specific storage: %s", WadPath);
+		return WadPath;
 	}
 #endif
 
@@ -2948,10 +3059,33 @@ const char *I_SystemLocateWad(void)
 		return ".";
 }
 
-const char *I_StorageLocation(void)
+const char *I_AppStorageLocation(void)
 {
 #if defined(__ANDROID__)
 	return SDL_AndroidGetExternalStoragePath();
+#else
+	return NULL;
+#endif
+}
+
+const char *I_SharedStorageLocation(void)
+{
+#if defined(__ANDROID__)
+	static char *sharedStorage = NULL;
+
+	if (sharedStorage == NULL)
+	{
+		char *dir = JNI_GetStorageDirectory();
+		if (dir)
+		{
+			char *gamePath = SHAREDSTORAGEFOLDER;
+			size_t size = strlen(dir) + strlen(PATHSEP) + strlen(gamePath) + 1;
+			sharedStorage = malloc(size);
+			snprintf(sharedStorage, size, "%s" PATHSEP "%s", dir, gamePath);
+		}
+	}
+
+	return sharedStorage;
 #else
 	return NULL;
 #endif
@@ -3107,6 +3241,36 @@ UINT32 I_GetFreeMem(UINT32 *total)
 		*total = 48<<20;
 	return 48<<20;
 #endif
+}
+
+INT32 I_CheckSystemPermission(const char *permission)
+{
+#if defined(__ANDROID__)
+	if (JNI_CheckPermission(permission))
+		return 1;
+#else
+	(void)permission;
+#endif
+	return 0;
+}
+
+INT32 I_RequestSystemPermission(const char *permission)
+{
+#if defined(__ANDROID__)
+	if (SDL_AndroidRequestPermission(permission))
+		return 1;
+#else
+	(void)permission;
+#endif
+	return 0;
+}
+
+INT32 I_OpenAppSettings(void)
+{
+#if defined(__ANDROID__)
+	JNI_OpenAppSettings();
+#endif
+	return 1;
 }
 
 const CPUInfoFlags *I_CPUInfo(void)

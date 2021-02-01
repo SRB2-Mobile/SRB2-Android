@@ -36,6 +36,9 @@ LOCAL_SRC_FILES := $(JNIDIR)/jni_android.c \
 			$(OBJDIR)/d_netfil.c           \
 			$(OBJDIR)/d_netcmd.c           \
 			$(OBJDIR)/dehacked.c           \
+			$(OBJDIR)/deh_soc.c            \
+			$(OBJDIR)/deh_lua.c            \
+			$(OBJDIR)/deh_tables.c         \
 			$(OBJDIR)/z_zone.c             \
 			$(OBJDIR)/f_finale.c           \
 			$(OBJDIR)/f_wipe.c             \
@@ -126,6 +129,7 @@ LOCAL_SRC_FILES += $(OBJDIR)/lua_script.c \
 	$(OBJDIR)/lua_skinlib.c \
 	$(OBJDIR)/lua_thinkerlib.c \
 	$(OBJDIR)/lua_maplib.c \
+	$(OBJDIR)/lua_taglib.c \
 	$(OBJDIR)/lua_blockmaplib.c \
 	$(OBJDIR)/lua_hudlib.c \
 	$(LUA_SOURCES)/lapi.c \

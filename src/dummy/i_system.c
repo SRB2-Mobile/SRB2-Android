@@ -158,7 +158,12 @@ const char *I_InitialLocateWad(void)
 	return NULL;
 }
 
-const char *I_StorageLocation(void)
+const char *I_AppStorageLocation(void)
+{
+	return NULL;
+}
+
+const char *I_SharedStorageLocation(void)
 {
 	return NULL;
 }

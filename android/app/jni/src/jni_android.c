@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 // Copyright (C) 1997-2020 by Sam "Slouken" Lantinga.
 //
 // This program is free software distributed under the
@@ -14,9 +14,9 @@
 #include "SDL.h"
 
 static JavaVM *jvm = NULL;
-static JNIEnv *jni_env = NULL;
-static jobject activity_object;
-static jclass activity_class;
+static JNIEnv *jniEnv = NULL;
+
+static jclass activityClass;
 
 char *JNI_DeviceInfo[JNIDeviceInfo_Size];
 
@@ -34,17 +34,20 @@ int JNI_ABICount = 0;
 
 void JNI_Startup(void)
 {
-	CONS_Printf("JNI_Startup()...\n");
+	CONS_Printf("%s()...\n", __FUNCTION__);
 	JNI_SetupActivity();
 	JNI_SetupDeviceInfo();
 }
 
 void JNI_SetupActivity(void)
 {
-	jni_env = (JNIEnv *)SDL_AndroidGetJNIEnv();
-	(*jni_env)->GetJavaVM(jni_env, &jvm);
-	activity_object = (jobject)SDL_AndroidGetActivity();
-	activity_class = (*jni_env)->GetObjectClass(jni_env, activity_object);
+	jobject activityObject;
+
+	jniEnv = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	(*jniEnv)->GetJavaVM(jniEnv, &jvm);
+
+	activityObject = (jobject)SDL_AndroidGetActivity();
+	activityClass = (*jniEnv)->GetObjectClass(jniEnv, activityObject);
 }
 
 void JNI_SetupDeviceInfo(void)
@@ -52,6 +55,7 @@ void JNI_SetupDeviceInfo(void)
 	INT32 i;
 
 	CONS_Printf("Device info:\n");
+
 	for (i = 0; JNI_DeviceInfoReference[i].info; i++)
 	{
 		JNI_DeviceInfoReference_t *ref = &JNI_DeviceInfoReference[i];
@@ -81,11 +85,11 @@ static JNIEnv *JNI_GetEnv(void)
 	JNIEnv *env;
 	int status = (*jvm)->AttachCurrentThread(jvm, &env, NULL);
 	if (status < 0)
-		return jni_env;
+		return jniEnv;
 	return env;
 }
 
-#define JNI_CONTEXT(returnarg) \
+#define JNI_ENV(returnarg) \
 { \
 	env = JNI_GetEnv(); \
 	if (!LocalReferenceHolder_Init(&refs, env)) \
@@ -93,12 +97,16 @@ static JNIEnv *JNI_GetEnv(void)
 		LocalReferenceHolder_Cleanup(&refs); \
 		return returnarg; \
 	} \
-	method = (*env)->GetStaticMethodID(env, activity_class, \
-			"getContext", "()Landroid/content/Context;"); \
-	context = (*env)->CallStaticObjectMethod(env, activity_class, method); \
 }
 
-// Lactozilla: I looked at (read: copypasted) SDL2's SDL_android.c for reference.
+#define JNI_CONTEXT \
+{ \
+	method = (*env)->GetStaticMethodID(env, activityClass, \
+			"getContext", "()Landroid/content/Context;"); \
+	context = (*env)->CallStaticObjectMethod(env, activityClass, method); \
+}
+
+// Lactozilla: I looked at SDL2's SDL_android.c for reference.
 // https://hg.libsdl.org/SDL/file/tip/src/core/android/SDL_android.c
 
 static int s_active = 0;
@@ -120,7 +128,7 @@ static int LocalReferenceHolder_Init(struct LocalReferenceHolder *refholder, JNI
 {
 	const int capacity = 16;
 	if ((*env)->PushLocalFrame(env, capacity) < 0) {
-		I_Error("Failed to allocate enough JVM local references");
+		I_Error("%s: Failed to allocate enough JVM local references", __FUNCTION__);
 		return 0;
 	}
 	++s_active;
@@ -145,12 +153,68 @@ static int LocalReferenceHolder_IsActive(void)
 #define LOCALREF struct LocalReferenceHolder refs = LocalReferenceHolder_Setup(__FUNCTION__);
 #define CLEANREF LocalReferenceHolder_Cleanup(&refs);
 
-// Get the secondary external storage path
+const char *JNI_SharedStorage = NULL;
+
+// Implementation of getExternalStorageDirectory.
+char *JNI_GetStorageDirectory(void)
+{
+	static char *storageDir = NULL;
+
+	if (!storageDir)
+	{
+		LOCALREF
+		JNIEnv *env;
+		jmethodID method;
+		jclass envClass;
+		jobject fileObject;
+		jstring pathString;
+		const char *path;
+
+		JNI_ENV(NULL);
+
+		envClass = (*env)->FindClass(env, "android/os/Environment");
+		if (!envClass)
+		{
+			CLEANREF
+			return NULL;
+		}
+
+		method = (*env)->GetStaticMethodID(env, envClass, "getExternalStorageDirectory", "()Ljava/io/File;");
+		if (!method)
+		{
+			CLEANREF
+			return NULL;
+		}
+
+		// fileObject = environment.getExternalStorageDirectory();
+		fileObject = (*env)->CallStaticObjectMethod(env, envClass, method);
+		if (!fileObject)
+		{
+			CLEANREF
+			return NULL;
+		}
+
+		// pathString = fileObject.getAbsolutePath();
+		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject), "getAbsolutePath", "()Ljava/lang/String;");
+		pathString = (jstring)(*env)->CallObjectMethod(env, fileObject, method);
+
+		path = (*env)->GetStringUTFChars(env, pathString, NULL);
+		storageDir = malloc(strlen(path) + 1);
+		strcpy(storageDir, path);
+		(*env)->ReleaseStringUTFChars(env, pathString, path);
+
+		CLEANREF
+	}
+
+	return storageDir;
+}
+
+// Get the secondary external storage path (usually, the SD card)
 char *JNI_ExternalStoragePath(void)
 {
-	static char *s_AndroidExternalFilesPath = NULL;
+	static char *extPath = NULL;
 
-	if (!s_AndroidExternalFilesPath)
+	if (!extPath)
 	{
 		LOCALREF
 		JNIEnv *env;
@@ -162,11 +226,17 @@ char *JNI_ExternalStoragePath(void)
 		jstring pathString;
 		const char *path;
 
-		JNI_CONTEXT(NULL);
+		JNI_ENV(NULL);
+		JNI_CONTEXT;
 
-		// fileObj = context.getExternalFilesDirs();
-		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, context),
-				"getExternalFilesDirs", "(Ljava/lang/String;)[Ljava/io/File;");
+		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, context), "getExternalFilesDirs", "(Ljava/lang/String;)[Ljava/io/File;");
+		if (!method)
+		{
+			CLEANREF
+			return NULL;
+		}
+
+		// fileObject = context.getExternalFilesDirs();
 		fileObject = (*env)->CallObjectMethod(env, context, method, NULL);
 		if (!fileObject)
 		{
@@ -174,10 +244,7 @@ char *JNI_ExternalStoragePath(void)
 			return NULL;
 		}
 
-		// cast to array
-		pathArray = (jobjectArray)fileObject;
-
-		// first path string isn't external storage so that's not what I want
+		pathArray = (jobjectArray)fileObject; // Cast to array.
 		arraySize = (jsize)(*env)->GetArrayLength(env, pathArray);
 		if (arraySize < 2)
 		{
@@ -185,7 +252,7 @@ char *JNI_ExternalStoragePath(void)
 			return NULL;
 		}
 
-		// get second file object
+		// Get second file object.
 		fileObject = (jobject)(*env)->GetObjectArrayElement(env, pathArray, 1);
 		if (fileObject == NULL)
 		{
@@ -193,20 +260,19 @@ char *JNI_ExternalStoragePath(void)
 			return NULL;
 		}
 
-		// path = fileObject.getAbsolutePath();
-		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject),
-				"getAbsolutePath", "()Ljava/lang/String;");
+		// pathString = fileObject.getAbsolutePath();
+		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject), "getAbsolutePath", "()Ljava/lang/String;");
 		pathString = (jstring)(*env)->CallObjectMethod(env, fileObject, method);
 
 		path = (*env)->GetStringUTFChars(env, pathString, NULL);
-		s_AndroidExternalFilesPath = malloc(strlen(path) + 1);
-		strcpy(s_AndroidExternalFilesPath, path);
+		extPath = malloc(strlen(path) + 1);
+		strcpy(extPath, path);
 		(*env)->ReleaseStringUTFChars(env, pathString, path);
 
 		CLEANREF
 	}
 
-	return s_AndroidExternalFilesPath;
+	return extPath;
 }
 
 // Get device info
@@ -215,8 +281,6 @@ char *JNI_GetDeviceInfo(const char *info)
 {
 	LOCALREF
 	JNIEnv *env;
-	jmethodID method;
-	jobject context;
 
 	jclass build;
 	jfieldID id;
@@ -224,7 +288,7 @@ char *JNI_GetDeviceInfo(const char *info)
 	const char *deviceInfo_ref = NULL;
 	char *deviceInfo = NULL;
 
-	JNI_CONTEXT(NULL);
+	JNI_ENV(NULL);
 
 	build = (*env)->FindClass(env, "android/os/Build");
 	id = (*env)->GetStaticFieldID(env, build, info, "Ljava/lang/String;");
@@ -255,7 +319,8 @@ void JNI_SetupABIList(void)
 	const char *ABI;
 	int i;
 
-	JNI_CONTEXT();
+	JNI_ENV();
+	JNI_CONTEXT;
 
 	build = (*env)->FindClass(env, "android/os/Build");
 	id = (*env)->GetStaticFieldID(env, build, "SUPPORTED_ABIS", "[Ljava/lang/String;");
@@ -279,4 +344,29 @@ void JNI_SetupABIList(void)
 	}
 
 	CLEANREF
+}
+
+boolean JNI_CheckPermission(const char *permission)
+{
+	JNIEnv *env = JNI_GetEnv();
+	jstring permissionString = (*env)->NewStringUTF(env, permission);
+	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "checkPermission", "(Ljava/lang/String;)Z");
+	jboolean granted = (*env)->CallStaticBooleanMethod(env, activityClass, method, permissionString);
+	return (granted != JNI_FALSE);
+}
+
+void JNI_DisplayToast(const char *text)
+{
+	JNIEnv *env = JNI_GetEnv();
+	jstring toastText = (*env)->NewStringUTF(env, text);
+	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "displayToast", "(Ljava/lang/String;)V");
+	(*env)->CallStaticVoidMethod(env, activityClass, method, toastText);
+	CONS_Printf("%s\n", text);
+}
+
+void JNI_OpenAppSettings(void)
+{
+	JNIEnv *env = JNI_GetEnv();
+	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "appSettingsIntent", "()V");
+	(*env)->CallStaticVoidMethod(env, activityClass, method);
 }

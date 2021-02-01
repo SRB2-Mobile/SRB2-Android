@@ -109,7 +109,7 @@
 	GLSL_DOOM_LIGHT_EQUATION \
 	"void main(void) {\n" \
 		GLSL_WATER_DISTORT \
-		"vec4 Texel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n" \
+		"vec4 WaterTexel = texture2D(tex, vec2(gl_TexCoord[0].s - sdistort, gl_TexCoord[0].t - cdistort));\n" \
 		GLSL_WATER_MIX \
 		"gl_FragColor = FinalColor;\n" \
 	"}\0"
