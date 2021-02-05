@@ -93,6 +93,9 @@ static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NU
 consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL);
 consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL);
 
+static CV_PossibleValue_t touchnavmethod_cons_t[] = {{0, "Default"}, {1, "Selection only"}, {2, "Screen regions"}, {0, NULL}};
+consvar_t cv_touchnavmethod = CVAR_INIT ("touch_navmethod", "Default", CV_SAVE, touchnavmethod_cons_t, NULL);
+
 // Touch layout options
 #define TOUCHLAYOUTCVAR(name, default, func) CVAR_INIT (name, default, (CV_CALL | CV_NOINIT), CV_YesNo, func);
 
@@ -178,6 +181,7 @@ void TS_RegisterVariables(void)
 	CV_RegisterVar(&cv_touchjoydeadzone);
 
 	// Main options
+	CV_RegisterVar(&cv_touchnavmethod);
 	CV_RegisterVar(&cv_touchcamera);
 	CV_RegisterVar(&cv_touchpreset);
 	CV_RegisterVar(&cv_touchlayout);
@@ -1414,15 +1418,11 @@ void TS_PositionNavigation(void)
 
 void TS_DefineButtons(void)
 {
-	static touchconfigstatus_t status, navstatus;
+	static touchconfigstatus_t status;
 	size_t size = sizeof(touchconfigstatus_t);
 
 	if (!TS_Ready())
 		return;
-
-	//
-	// Touch controls
-	//
 
 	if (TS_IsPresetActive())
 	{
@@ -1467,9 +1467,16 @@ void TS_DefineButtons(void)
 		}
 	}
 
-	//
-	// Touch navigation
-	//
+	TS_DefineNavigationButtons();
+}
+
+void TS_DefineNavigationButtons(void)
+{
+	static touchconfigstatus_t navstatus;
+	size_t size = sizeof(touchconfigstatus_t);
+
+	if (!TS_Ready())
+		return;
 
 	navstatus.vidwidth = vid.width;
 	navstatus.vidheight = vid.height;

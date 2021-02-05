@@ -2019,11 +2019,7 @@ boolean G_Responder(event_t *ev)
 		if (((ev->type == ev_keydown && ev->key != 301) || finger)
 		&& !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
 		{
-			if (finger && (!menuactive))
-				F_TitleFingerResponder(ev);
-			else
-				M_StartControlPanel();
-
+			M_StartControlPanel();
 			return true;
 		}
 

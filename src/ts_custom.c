@@ -1907,16 +1907,16 @@ static void GetSubmenuListItems(size_t *t, size_t *i, size_t *b, size_t *height,
 	else
 	{
 		size_t q = *height;
-		*height = (TOUCHCUST_SUBMENU_DISPLAYITEMS * *height)/touchcust_submenu_listsize; // height of scroll bar
+		*height = (TOUCHCUST_SUBMENU_DISPLAYITEMS * (*height))/touchcust_submenu_listsize; // height of scroll bar
 		if (sel <= TOUCHCUST_SUBMENU_SCROLLITEMS) // all the way up
 		{
 			*t = 0; // first item
-			*b = TOUCHCUST_SUBMENU_DISPLAYITEMS - 1; //9th item
+			*b = TOUCHCUST_SUBMENU_DISPLAYITEMS - 1; // 7th item
 			*i = 0; // scrollbar at top position
 		}
 		else if (sel >= touchcust_submenu_listsize - (TOUCHCUST_SUBMENU_SCROLLITEMS + 1)) // all the way down
 		{
-			*t = touchcust_submenu_listsize - TOUCHCUST_SUBMENU_DISPLAYITEMS; // # 9th last
+			*t = touchcust_submenu_listsize - TOUCHCUST_SUBMENU_DISPLAYITEMS; // # 7th last
 			*b = touchcust_submenu_listsize - 1; // last item
 			*i = q-(*height); // scrollbar at bottom position
 		}
@@ -2608,23 +2608,6 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 
 	// Returns true if any item was added to the list.
 	return (touchcust_submenu_listsize > 0);
-}
-
-//
-// Handles finger long press
-//
-static boolean HandleLongPress(void *f)
-{
-	touchfinger_t *finger = (touchfinger_t *)f;
-
-	if (finger->longpress >= (TICRATE/2))
-	{
-		if (!SetupNewButtonSubmenu(finger))
-			CloseSubmenu();
-		return true;
-	}
-
-	return false;
 }
 
 static boolean CheckNavigation(INT32 x, INT32 y)

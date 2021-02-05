@@ -25,7 +25,7 @@ extern boolean ts_ready;
 boolean TS_Ready(void);
 
 // Finger structure
-#define NUMTOUCHFINGERS 20
+#define NUMTOUCHFINGERS 10
 
 typedef boolean (*longpressaction_t) (void *finger);
 
@@ -44,7 +44,6 @@ typedef struct
 	float lastfx, lastfy;
 	INT32 lastdx, lastdy;
 
-	INT32 action;
 	boolean extrahandling, navinput;
 	boolean scrolling, ignoremotion;
 
@@ -58,6 +57,7 @@ typedef struct
 	union {
 		INT32 selection;
 		INT32 snake;
+		INT32 arr[3];
 	} extra;
 
 	// What kind of finger is this?
@@ -66,7 +66,11 @@ typedef struct
 		INT32 mouse;
 		INT32 joystick;
 	} type;
+
+	// Generic pointer for anything.
+	void *pointer;
 } touchfinger_t;
+
 extern touchfinger_t touchfingers[NUMTOUCHFINGERS];
 
 // Touch screen button structure
@@ -156,10 +160,10 @@ typedef struct
 	boolean canviewpointswitch; // G_CanViewpointSwitch()
 	boolean cantalk; // netgame && !CHAT_MUTE
 	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
-	boolean promptblockcontrols; // promptblockcontrols
+	boolean promptblockcontrols;
 	boolean canreturn; // M_TSNav_CanShowBack
 	boolean canconfirm; // M_TSNav_CanShowConfirm
-	boolean canopenconsole; // !(modeattacking || metalrecording) && M_TSNav_CanShowConsole
+	boolean canopenconsole; // (!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole()
 	boolean customizingcontrols; // TS_IsCustomizingControls
 	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
 } touchconfigstatus_t;
@@ -175,6 +179,7 @@ extern consvar_t cv_touchlayout;
 extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
 extern consvar_t cv_touchguiscale;
+extern consvar_t cv_touchnavmethod;
 
 // Touch layout options
 extern consvar_t cv_touchlayoutusegrid;
@@ -196,7 +201,9 @@ void TS_HandleFingerEvent(event_t *ev);
 
 void TS_GetSettings(void);
 void TS_UpdateControls(void);
+
 void TS_DefineButtons(void);
+void TS_DefineNavigationButtons(void);
 
 void TS_PositionButtons(void);
 void TS_PositionNavigation(void);

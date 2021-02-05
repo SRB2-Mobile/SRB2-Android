@@ -147,8 +147,13 @@ typedef enum
 
 typedef enum
 {
-	MENUSTYLE_DEFAULT = 0,
-	MENUSTYLE_MOBILE,
+	MENUSTYLE_DEFAULT   = 0,
+	MENUSTYLE_SCROLL    = 1,
+	MENUSTYLE_CENTER    = 2,
+	MENUSTYLE_PLATTER   = 3,
+	MENUSTYLE_PLAYSTYLE = 4,
+
+	MENUSTYLE_MOBILE    = 0x100,
 } menustyle_t;
 
 typedef struct
@@ -382,6 +387,7 @@ typedef struct menu_s
 	INT16          x, y;               // x, y of menu
 	INT16          lastOn;             // last item user was on in menu
 	boolean      (*quitroutine)(void); // called before quit a menu return true if we can
+	void         (*routine)(void);     // runs every frame
 } menu_t;
 
 void M_SetupNextMenu(menu_t *menudef);
@@ -392,14 +398,12 @@ void M_ClearMenus(boolean callexitmenufunc);
 void M_NavigationAdvance(menu_t *menudef);
 void M_NavigationReturn(menu_t *menudef);
 
-void M_DrawMenuString(fixed_t x, fixed_t y, INT32 option, const char *string);
-void M_MenuStringSize(const char *string, INT32 option, INT32 *strwidth, INT32 *strheight);
-
 boolean M_OnMobileMenu(void);
 boolean M_IsMobileMenu(menu_t *menudef);
-void M_SetupMobileMenu(menu_t *menu);
+
+#ifdef TOUCHMENUS
 void M_CheckMobileMenuHeight(void);
-void M_MobileMenuWipe(void);
+#endif
 
 #define MOBILEMENU_CONST_OPTHORZSHIFT 12
 #define MOBILEMENU_CONST_OPTANIMSPEED 2
@@ -571,12 +575,12 @@ void M_FreePlayerSetupColors(void);
 	M_DrawGenericMenu,\
 	x, y,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
 #define DEFAULTSCROLLMENUSTYLE(id, header, source, prev, x, y)\
 {\
-	id,0,\
+	id,MENUSTYLE_SCROLL,\
 	header,\
 	sizeof(source)/sizeof(menuitem_t),\
 	prev,\
@@ -584,7 +588,7 @@ void M_FreePlayerSetupColors(void);
 	M_DrawGenericScrollMenu,\
 	x, y,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
 #define PAUSEMENUSTYLE(source, x, y)\
@@ -597,13 +601,12 @@ void M_FreePlayerSetupColors(void);
 	M_DrawPauseMenu,\
 	x, y,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
-#ifndef TOUCHMENUS
 #define CENTERMENUSTYLE(id, header, source, prev, y)\
 {\
-	id,0,\
+	id,MENUSTYLE_CENTER,\
 	header,\
 	sizeof(source)/sizeof(menuitem_t),\
 	prev,\
@@ -611,9 +614,8 @@ void M_FreePlayerSetupColors(void);
 	M_DrawCenteredMenu,\
 	BASEVIDWIDTH/2, y,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
-#endif
 
 #define MOBILEMENUSTYLE(id, header, source, prev, x, y)\
 {\
@@ -625,12 +627,12 @@ void M_FreePlayerSetupColors(void);
 	M_DrawMobileMenu,\
 	x, y,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
 #define MAPPLATTERMENUSTYLE(id, header, source)\
 {\
-	id,0,\
+	id,MENUSTYLE_PLATTER,\
 	header,\
 	sizeof (source)/sizeof (menuitem_t),\
 	&MainDef,\
@@ -638,7 +640,7 @@ void M_FreePlayerSetupColors(void);
 	M_DrawLevelPlatterMenu,\
 	0,0,\
 	0,\
-	NULL\
+	NULL,M_LevelPlatterTicker\
 }
 
 #define CONTROLMENUSTYLE(id, source, prev)\
@@ -651,7 +653,7 @@ void M_FreePlayerSetupColors(void);
 	M_DrawControl,\
 	24, 40,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
 #define IMAGEDEF(source)\
@@ -664,7 +666,7 @@ void M_FreePlayerSetupColors(void);
 	M_DrawImageDef,\
 	0, 0,\
 	0,\
-	NULL\
+	NULL,NULL\
 }
 
 #endif //__X_MENU__

@@ -361,7 +361,6 @@ void JNI_DisplayToast(const char *text)
 	jstring toastText = (*env)->NewStringUTF(env, text);
 	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "displayToast", "(Ljava/lang/String;)V");
 	(*env)->CallStaticVoidMethod(env, activityClass, method, toastText);
-	CONS_Printf("%s\n", text);
 }
 
 void JNI_OpenAppSettings(void)

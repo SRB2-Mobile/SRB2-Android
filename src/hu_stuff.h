@@ -141,6 +141,10 @@ void HU_DrawEmeralds(INT32 x, INT32 y, INT32 pemeralds);
 
 INT32 HU_CreateTeamScoresTbl(playersort_t *tab, UINT32 dmtotals[]);
 
+#ifdef TOUCHINPUTS
+void HU_DrawTapAnywhere(tic_t tics, INT32 flags);
+#endif
+
 // CECHO interface.
 void HU_ClearCEcho(void);
 void HU_SetCEchoDuration(INT32 seconds);

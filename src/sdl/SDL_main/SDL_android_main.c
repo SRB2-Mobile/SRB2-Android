@@ -14,6 +14,12 @@
 
 #include <jni_android.h>
 
+static void DisplayToast(const char *message)
+{
+	JNI_DisplayToast(message);
+	I_OutputMsg("%s\n", message);
+}
+
 #ifdef SPLASH_SCREEN
 static INT32 displayingSplash = 0;
 
@@ -80,7 +86,7 @@ static void StorageGrantedPermission(void)
 {
 	if (JNI_SharedStorage)
 	{
-		JNI_DisplayToast("Storage permission granted");
+		DisplayToast("Storage permission granted");
 		I_mkdir(JNI_SharedStorage, 0755);
 	}
 }
@@ -180,10 +186,10 @@ int main(int argc, char* argv[])
 
 		// Check storage permissions.
 		if (!StorageCheckPermission())
-			JNI_DisplayToast("Storage permission was not granted\n");
+			DisplayToast("Storage permission was not granted");
 	}
 	else
-		JNI_DisplayToast("There is no shared storage");
+		DisplayToast("NOTICE: There is no shared storage");
 
 #ifdef LOGMESSAGES
 	if (logging)
@@ -191,7 +197,7 @@ int main(int argc, char* argv[])
 #endif
 
 	// Begin the normal game setup and loop.
-	JNI_DisplayToast("Setting up SRB2...");
+	CONS_Printf("Setting up SRB2...\n");
 	D_SRB2Main();
 
 	CONS_Printf("Entering main game loop...\n");

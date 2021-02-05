@@ -170,6 +170,7 @@ static char returnWadPath[256];
 //Alam_GBC: SDL
 
 #include "../doomdef.h"
+#include "../doomstat.h"
 #include "../m_misc.h"
 #include "../i_video.h"
 #include "../i_sound.h"
@@ -1563,10 +1564,7 @@ void I_InitTouchScreen(void)
 	}
 }
 
-void I_TouchScreenAvailable(void)
-{
-	// FIXME: unused
-}
+void I_TouchScreenAvailable(void) {}
 #endif
 
 static void I_ShutdownInput(void)

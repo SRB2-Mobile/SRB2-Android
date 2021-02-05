@@ -33,6 +33,10 @@
 #include <unistd.h>
 #endif
 
+#if defined(__ANDROID__)
+#include <jni_android.h>
+#endif
+
 #define ZWAD
 
 #ifdef ZWAD
@@ -159,7 +163,9 @@ static char *startupunpack[MAX_WADFILES];
 static UINT16 numstartupunpack = 0;
 static UINT16 startupfiles = 0;
 
-// Unpacks a file into user storage.
+static void W_UnpackAlert(alerttype_t level, const char *fmt, ...);
+
+// Unpacks a file into internal storage.
 boolean W_UnpackFile(const char *filename, void *handle)
 {
 	FILE *f;
@@ -177,13 +183,13 @@ boolean W_UnpackFile(const char *filename, void *handle)
 
 	if (filename == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "W_UnpackFile: cannot unpack without a filename\n");
+		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: cannot unpack without a filename\n");
 		return false;
 	}
 
 	if (handle == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "W_UnpackFile: cannot unpack %s without a handle\n", filename);
+		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: cannot unpack %s without a handle\n", filename);
 		return false;
 	}
 
@@ -194,14 +200,14 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	I_GetDiskFreeSpace(&storagespace);
 	if ((INT64)fullsize > storagespace)
 	{
-		CONS_Alert(CONS_ERROR, "W_UnpackFile: not enough available storage\n");
+		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: not enough available storage\n");
 		return false;
 	}
 
 	f = fopen(filename, "w+b");
 	if (!f)
 	{
-		CONS_Alert(CONS_ERROR, "W_UnpackFile: could not open file for unpacking\n");
+		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: could not open file for unpacking\n");
 		return false;
 	}
 
@@ -317,14 +323,14 @@ void W_UnpackBaseFiles(void)
 			else
 			{
 				// Couldn't open the unpacked file, load from APK
-				CONS_Alert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", filename);
+				W_UnpackAlert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", filename);
 				handle = apkhandle;
 			}
 		}
 		else
 		{
 			// Couldn't unpack, load from APK
-			CONS_Alert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", filename);
+			W_UnpackAlert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", filename);
 			handle = apkhandle;
 		}
 
@@ -422,6 +428,25 @@ boolean W_CheckUnpacking(char **filenames, UINT16 filecount)
 
 	// Startup files can be unpacked
 	return true;
+}
+
+static void W_UnpackAlert(alerttype_t level, const char *fmt, ...)
+{
+	va_list argptr;
+	static char *alert = NULL;
+
+	if (alert == NULL)
+		alert = malloc(8192);
+
+	va_start(argptr, fmt);
+	M_vsnprintf(alert, 8192, fmt, argptr);
+	va_end(argptr);
+
+#if defined(__ANDROID__)
+	JNI_DisplayToast(alert);
+#endif
+
+	CONS_Alert(level, "%s", alert);
 }
 
 //

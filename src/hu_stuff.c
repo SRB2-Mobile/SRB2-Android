@@ -2150,6 +2150,20 @@ void HU_Drawer(void)
 	if (demoplayback && hu_showscores)
 		HU_DrawDemoInfo();
 
+#ifdef TOUCHINPUTS
+	if (touchscreenexists
+	&& (demoplayback && !modeattacking)
+	&& !CON_Ready()
+	&& !(maptol & TOL_NIGHTS))
+	{
+		INT32 endwait = TICRATE;
+		INT32 cardtime = ((INT32)lt_ticker - (lt_endtime - endwait));
+		INT32 tics = (INT32)leveltime - cardtime;
+		if (!G_IsTitleCardAvailable() || tics > 0)
+			HU_DrawTapAnywhere((tic_t)tics-1, V_SNAPTOBOTTOM);
+	}
+#endif
+
 	if (!Playing()
 	 || gamestate == GS_INTERMISSION || gamestate == GS_CUTSCENE
 	 || gamestate == GS_CREDITS      || gamestate == GS_EVALUATION
@@ -3221,6 +3235,19 @@ static void HU_DrawNetplayCoopOverlay(void)
 	}
 }
 
+
+#ifdef TOUCHINPUTS
+void HU_DrawTapAnywhere(tic_t tics, INT32 flags)
+{
+	if (!(tics/20 & 1))
+	{
+		const char *string = M_GetText("Tap anywhere");
+		INT32 x = (BASEVIDWIDTH - V_StringWidth(string, flags))>>1;
+		INT32 y = BASEVIDHEIGHT - 24;
+		V_DrawString(x, y, V_YELLOWMAP | flags, string);
+	}
+}
+#endif
 
 // Interface to CECHO settings for the outside world, avoiding the
 // expense (and security problems) of going via the console buffer.

@@ -84,7 +84,7 @@ static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height
 consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
 consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "3", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
 consvar_t cv_nativeresauto = NATIVERESCVAR_CALL("nativeresauto", "On", CV_OnOff, SCR_NativeResAutoChanged);
-consvar_t cv_nativeresfov = NATIVERESCVAR("nativeresfov", "On", CV_OnOff);
+consvar_t cv_nativeresfov = NATIVERESCVAR_CALL("nativeresfov", "On", CV_OnOff, R_SetViewSize);
 consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Height", nativerescompare_cons_t);
 
 #undef NATIVERESCVAR
@@ -108,6 +108,8 @@ consvar_t cv_fullscreen = CVAR_INIT ("fullscreen", "Yes", CV_SAVE|CV_CALL, CV_Ye
 // =========================================================================
 //                           SCREEN VARIABLES
 // =========================================================================
+
+static boolean scr_startupmodeset = false;
 
 INT32 scr_bpp; // current video mode bytes per pixel
 UINT8 *scr_borderpatch; // flat used to fill the reduced view borders set at ST_Init()
@@ -253,8 +255,10 @@ void SCR_SetMode(void)
 
 	V_SetPalette(0);
 
+#ifdef TOUCHMENUS
 	if (M_OnMobileMenu())
 		M_CheckMobileMenuHeight();
+#endif
 
 	SCR_SetDrawFuncs();
 
@@ -376,6 +380,8 @@ void SCR_CheckDefaultMode(void)
 {
 	INT32 scr_forcex, scr_forcey; // resolution asked from the cmd-line
 
+	scr_startupmodeset = true;
+
 	if (dedicated)
 		return;
 
@@ -391,22 +397,15 @@ void SCR_CheckDefaultMode(void)
 #ifdef NATIVESCREENRES
 	if (cv_nativeres.value)
 	{
-		VID_GetNativeResolution(&scr_nativewidth, &scr_nativeheight);
-
-		if (M_CheckParm("-nativewidth") && M_IsNextParm())
-			scr_nativewidth = atoi(M_GetNextParm());
-
-		if (M_CheckParm("-nativeheight") && M_IsNextParm())
-			scr_nativeheight = atoi(M_GetNextParm());
+		SCR_GetNativeResolution(&scr_nativewidth, &scr_nativeheight);
 
 		if (scr_nativewidth || scr_nativeheight)
-		{
 			SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider());
-			if (!cv_nativeresauto.value)
-				SCR_ResetNativeResDivider(); // Reset to default if the native width or height changed
-		}
 
-		scr_resdiv = SCR_GetNativeResDivider(scr_nativewidth, scr_nativeheight);
+		if (cv_nativeresauto.value)
+			scr_resdiv = SCR_GetNativeResDivider(scr_nativewidth, scr_nativeheight);
+		else
+			scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
 	}
 #endif
 
@@ -521,6 +520,12 @@ void SCR_GetNativeResolution(INT32 *width, INT32 *height)
 
 	VID_GetNativeResolution(&w, &h);
 
+	if (M_CheckParm("-nativewidth") && M_IsNextParm())
+		w = atoi(M_GetNextParm());
+
+	if (M_CheckParm("-nativeheight") && M_IsNextParm())
+		h = atoi(M_GetNextParm());
+
 	if (width)
 	{
 		if (scr_nativewidth)
@@ -545,14 +550,18 @@ void SCR_ResetNativeResDivider(void)
 
 	scr_resdiv = resdiv;
 
-	sprintf(f, "%.6f", resdiv);
+	snprintf(f, sizeof(f), "%.6f", resdiv);
 	CV_StealthSet(&cv_nativeresdiv, cv_nativeresdiv.defaultvalue);
 }
 
 static void SCR_ToggleNativeRes(void)
 {
+	INT32 mode = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
+	if (mode == -1)
+		mode = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT);
+
+	setmodeneeded = mode + 1;
 	scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
-	setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
 }
 
 static void SCR_NativeResDivChanged(void)
@@ -564,6 +573,9 @@ static void SCR_NativeResDivChanged(void)
 
 static void SCR_NativeResAutoChanged(void)
 {
+	if (!scr_startupmodeset)
+		return;
+
 	if (cv_nativeresauto.value)
 	{
 		INT32 w = 0, h = 0;

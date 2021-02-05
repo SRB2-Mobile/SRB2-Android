@@ -233,9 +233,6 @@ void SCR_SetDefaultMode(void);
 // Set the mode number based on the resolution saved in the config
 void SCR_SetModeFromConfig(void);
 
-// Set the mode number which is saved in the config
-void SCR_SetDefaultMode(void);
-
 FUNCMATH boolean SCR_IsAspectCorrect(INT32 width, INT32 height);
 
 // move out to main code for consistency
