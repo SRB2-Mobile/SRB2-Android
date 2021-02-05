@@ -165,6 +165,8 @@ static UINT16 startupfiles = 0;
 
 static void W_UnpackAlert(alerttype_t level, const char *fmt, ...);
 
+#define UnpackError(err) CONS_Alert(CONS_ERROR, err, __FUNCTION__, filename)
+
 // Unpacks a file into internal storage.
 boolean W_UnpackFile(const char *filename, void *handle)
 {
@@ -183,13 +185,13 @@ boolean W_UnpackFile(const char *filename, void *handle)
 
 	if (filename == NULL)
 	{
-		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: cannot unpack without a filename\n");
+		CONS_Alert(CONS_ERROR, "%s: cannot unpack without a filename\n", __FUNCTION__);
 		return false;
 	}
 
 	if (handle == NULL)
 	{
-		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: cannot unpack %s without a handle\n", filename);
+		UnpackError("%s: cannot unpack %s without a handle\n");
 		return false;
 	}
 
@@ -200,14 +202,14 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	I_GetDiskFreeSpace(&storagespace);
 	if ((INT64)fullsize > storagespace)
 	{
-		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: not enough available storage\n");
+		UnpackError("%s: Not enough available storage for caching %s. Loading will be slower.\n");
 		return false;
 	}
 
 	f = fopen(filename, "w+b");
 	if (!f)
 	{
-		W_UnpackAlert(CONS_ERROR, "W_UnpackFile: could not open file for unpacking\n");
+		UnpackError("%s: Could not open %s for caching. Loading will be slower.\n");
 		return false;
 	}
 
@@ -323,14 +325,14 @@ void W_UnpackBaseFiles(void)
 			else
 			{
 				// Couldn't open the unpacked file, load from APK
-				W_UnpackAlert(CONS_WARNING, "Couldn't open unpacked %s, loading directly from package\n", filename);
+				W_UnpackAlert(CONS_WARNING, "Could not open cached %s. Loading will be slower.", filename);
 				handle = apkhandle;
 			}
 		}
 		else
 		{
 			// Couldn't unpack, load from APK
-			W_UnpackAlert(CONS_WARNING, "Couldn't unpack file %s, loading directly from package\n", filename);
+			W_UnpackAlert(CONS_WARNING, "Could not cache file %s. Loading will be slower.", filename);
 			handle = apkhandle;
 		}
 
@@ -446,7 +448,7 @@ static void W_UnpackAlert(alerttype_t level, const char *fmt, ...)
 	JNI_DisplayToast(alert);
 #endif
 
-	CONS_Alert(level, "%s", alert);
+	CONS_Alert(level, "%s\n", alert);
 }
 
 //
@@ -1174,7 +1176,6 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 #ifndef NOMD5
 	size_t i;
 #endif
-	size_t packetsize;
 	UINT8 md5sum[16];
 	int important;
 
@@ -1217,7 +1218,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 
 	if (important == -1)
 	{
-		fclose(handle);
+		File_Close(handle);
 		return INT16_MAX;
 	}
 
@@ -1226,7 +1227,7 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 	// see PutFileNeeded in d_netfil.c
 	if ((important = !important))
 	{
-		packetsize = packetsizetally + nameonlylength(filename) + 22;
+		size_t packetsize = packetsizetally + nameonlylength(filename) + 22;
 
 		if (packetsize > MAXFILENEEDED*sizeof(UINT8))
 		{
@@ -2246,6 +2247,20 @@ void *W_CachePatchLongName(const char *name, INT32 tag)
 		return W_CachePatchNum(W_GetNumForLongName("MISSING"), tag);
 	return W_CachePatchNum(num, tag);
 }
+
+#if defined(__ANDROID__)
+static boolean W_IsAndroidPK3(const char *filename)
+{
+	char androidpk3[MAX_WADPATH];
+
+	strncpy(androidpk3, filename, MAX_WADPATH);
+	androidpk3[MAX_WADPATH - 1] = '\0';
+	nameonly(androidpk3);
+
+	return (!strcmp(androidpk3, ANDROID_PK3_FILENAME));
+}
+#endif
+
 #ifndef NOMD5
 #define MD5_LEN 16
 
@@ -2652,7 +2667,20 @@ int W_VerifyNMUSlumps(const char *filename, fhandletype_t type, boolean exit_on_
 		{NULL, 0},
 	};
 
-	int status = W_VerifyFile(filename, NMUSlist, type, false);
+	int status = 1;
+
+#if defined(__ANDROID__)
+	if (W_IsAndroidPK3(filename))
+	{
+		void *handle = W_OpenWadFile(&filename, type, false);
+		if (handle == NULL)
+			status = -1;
+		else
+			File_Close(handle);
+	}
+	else
+#endif
+		status = W_VerifyFile(filename, NMUSlist, type, false);
 
 	if (status == -1)
 		W_InitFileError(filename, exit_on_error);

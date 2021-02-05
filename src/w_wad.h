@@ -99,8 +99,16 @@ virtlump_t* vres_Find(const virtres_t*, const char*);
 // =========================================================================
 
 #define MAX_WADPATH 512
-#define MAX_WADFILES 48 // maximum of wad files used at the same time
+
+// maximum of wad files used at the same time
 // (there is a max of simultaneous open files anyway, and this should be plenty)
+#define MAXRESOURCES 48
+
+#if defined(__ANDROID__)
+#define MAX_WADFILES (MAXRESOURCES+1) // One more
+#else
+#define MAX_WADFILES MAXRESOURCES
+#endif
 
 #define lumpcache_t void *
 

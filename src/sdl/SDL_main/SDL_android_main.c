@@ -42,39 +42,13 @@ static void ShowSplashScreen(void)
 
 #define REQUEST_STORAGE_PERMISSION
 
-#define REQUEST_MESSAGE_TITLE "Storage access request"
-#define REQUEST_MESSAGE_TEXT "Sonic Robo Blast 2 needs permission to store game data."
+#define REQUEST_MESSAGE_TITLE "Permission required"
+#define REQUEST_MESSAGE_TEXT "Sonic Robo Blast 2 needs storage permission.\nYour settings and game progress will not be saved if you decline."
 
-#ifdef REQUEST_STORAGE_PERMISSION
 static void PolitelyRequestPermission(void)
 {
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, REQUEST_MESSAGE_TITLE, REQUEST_MESSAGE_TEXT, NULL);
 }
-#else
-static boolean PolitelyOpenAppSettings(void)
-{
-	int id = 0;
-
-	const SDL_MessageBoxButtonData buttons[] = {
-		{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Open app settings"},
-		{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Ignore"},
-	};
-
-	const SDL_MessageBoxData mbox = {
-		SDL_MESSAGEBOX_INFORMATION, NULL,
-		REQUEST_MESSAGE_TITLE, REQUEST_MESSAGE_TEXT,
-		2, buttons, NULL
-	};
-
-	if (SDL_ShowMessageBox(&mbox, &id) < 0)
-		return false; // Couldn't show the message box
-
-	if (id <= 0)
-		return false; // Didn't open the app settings
-
-	return (I_OpenAppSettings() > 0);
-}
-#endif
 
 static boolean StorageInit(void)
 {
@@ -98,52 +72,22 @@ static boolean StorageCheckPermission(void)
 	if (JNI_SharedStorage == NULL)
 		return false;
 
+	// Permission was already granted.
 	if (I_CheckSystemPermission(permission))
-		return true; // Permission was already granted.
+	{
+		JNI_StoragePermission = true;
+		return true;
+	}
 
-#ifdef REQUEST_STORAGE_PERMISSION
 	PolitelyRequestPermission();
+
+	// Permission granted -- create the directory.
 	if (I_RequestSystemPermission(permission))
 	{
-		// Permission granted -- create the directory.
 		StorageGrantedPermission();
+		JNI_StoragePermission = true;
 		return true;
 	}
-#else
-	if (PolitelyOpenAppSettings())
-	{
-		boolean waiting = true;
-
-		// Wait for the app to resume
-		while (waiting)
-		{
-			SDL_Event evt;
-
-			while (SDL_PollEvent(&evt))
-			{
-				if (evt.type == SDL_WINDOWEVENT && evt.window.event == SDL_WINDOWEVENT_RESTORED)
-					waiting = false;
-			}
-		}
-
-		// Destroy the current context, and create a new one.
-		VID_DestroyContext();
-		VID_CreateContext();
-
-#ifdef SPLASH_SCREEN
-		if (displayingSplash)
-		{
-			// Blit the splash screen, then present it.
-			VID_BlitSplashScreen();
-			VID_PresentSplashScreen();
-		}
-#endif
-
-		// Permission granted -- create the directory.
-		StorageGrantedPermission();
-		return true;
-	}
-#endif // REQUEST_STORAGE_PERMISSION
 
 	return false;
 }

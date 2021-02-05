@@ -154,6 +154,7 @@ static int LocalReferenceHolder_IsActive(void)
 #define CLEANREF LocalReferenceHolder_Cleanup(&refs);
 
 const char *JNI_SharedStorage = NULL;
+boolean JNI_StoragePermission = false;
 
 // Implementation of getExternalStorageDirectory.
 char *JNI_GetStorageDirectory(void)

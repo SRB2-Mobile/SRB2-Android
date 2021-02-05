@@ -51,6 +51,7 @@ extern char **JNI_ABIList;
 extern int JNI_ABICount;
 
 extern const char *JNI_SharedStorage;
+extern boolean JNI_StoragePermission;
 
 char *JNI_GetStorageDirectory(void);
 char *JNI_ExternalStoragePath(void);
