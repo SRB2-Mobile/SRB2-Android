@@ -56,7 +56,6 @@ typedef struct
 	// Alternate selections that don't interfere with the above.
 	union {
 		INT32 selection;
-		INT32 snake;
 		INT32 arr[3];
 	} extra;
 
@@ -235,6 +234,9 @@ void TS_UpdateFingers(INT32 realtics);
 
 // Finger event received
 void TS_PostFingerEvent(event_t *event);
+
+// Clears touch fingers
+void TS_ClearFingers(void);
 
 // Gets a key from a finger event
 INT32 TS_MapFingerEventToKey(event_t *event);

@@ -921,9 +921,7 @@ void G_ResetInputs(void)
 	memset(gamekeydown, 0x00, sizeof(gamekeydown));
 
 #ifdef TOUCHINPUTS
-	memset(touchfingers, 0x00, sizeof(touchfingers));
-	memset(touchcontroldown, 0x00, sizeof(touchcontroldown));
-
+	TS_ClearFingers();
 	touchxmove = touchymove = touchpressure = 0.0f;
 #endif
 

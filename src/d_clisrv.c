@@ -606,10 +606,6 @@ typedef struct snake_s
 
 static snake_t *snake = NULL;
 
-#ifdef TOUCHINPUTS
-static void Snake_HandleFingerEvent(touchfinger_t *finger, event_t *event);
-#endif
-
 static void Snake_Initialise(void)
 {
 	if (!snake)
@@ -633,10 +629,6 @@ static void Snake_Initialise(void)
 	snake->appley = M_RandomKey(SNAKE_NUM_BLOCKS_Y);
 
 	snake->bonustype = SNAKE_BONUS_NONE;
-
-#ifdef TOUCHINPUTS
-	touch_fingerhandler = Snake_HandleFingerEvent;
-#endif
 }
 
 static void Snake_Remove(void)
@@ -646,10 +638,6 @@ static void Snake_Remove(void)
 		free(snake);
 		snake = NULL;
 	}
-
-#ifdef TOUCHINPUTS
-	touch_fingerhandler = NULL;
-#endif
 }
 
 static UINT8 Snake_GetOppositeDir(UINT8 dir)
@@ -941,52 +929,6 @@ static void Snake_Handle(void)
 	}
 }
 
-#ifdef TOUCHINPUTS
-static void Snake_HandleFingerEvent(touchfinger_t *finger, event_t *event)
-{
-	INT32 x = finger->x / vid.dupx;
-	INT32 y = finger->y / vid.dupy;
-
-	INT32 scrsides = (BASEVIDWIDTH / 3);
-	INT32 snakex = (SNAKE_LEFT_X + SNAKE_BORDER_SIZE + snake->snakex[0] * SNAKE_BLOCK_SIZE + SNAKE_BLOCK_SIZE / 2);
-	INT32 snakey = (SNAKE_TOP_Y  + SNAKE_BORDER_SIZE + snake->snakey[0] * SNAKE_BLOCK_SIZE + SNAKE_BLOCK_SIZE / 2);
-
-	switch (event->type)
-	{
-		case ev_touchdown:
-			// Restart the game
-			if (snake->gameover)
-				finger->extra.snake = KEY_ENTER;
-			// Handle horizontal input
-			else if (x < scrsides || x >= (BASEVIDWIDTH - scrsides))
-			{
-				if (x >= snakex)
-					finger->extra.snake = KEY_RIGHTARROW;
-				else
-					finger->extra.snake = KEY_LEFTARROW;
-			}
-			else
-			{
-				// Handle vertical input
-				if (y >= snakey)
-					finger->extra.snake = KEY_DOWNARROW;
-				else
-					finger->extra.snake = KEY_UPARROW;
-			}
-
-			gamekeydown[finger->extra.snake] = 1;
-			break;
-
-		case ev_touchup:
-			gamekeydown[finger->extra.snake] = 0;
-			break;
-
-		default:
-			break;
-	}
-}
-#endif
-
 static void Snake_Draw(void)
 {
 	INT16 i;
@@ -1100,6 +1042,7 @@ static void Snake_Draw(void)
 //
 static inline void CL_DrawConnectionStatus(void)
 {
+	const char *abortstring = NULL;
 	INT32 ccstime = I_GetTime();
 
 	// Draw background fade
@@ -1108,7 +1051,15 @@ static inline void CL_DrawConnectionStatus(void)
 
 	// Draw the bottom box.
 	M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-16-8, 32, 1);
-	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-16-16, V_YELLOWMAP, "Press ESC to abort");
+
+#ifdef TOUCHINPUTS
+	if (touchscreenexists)
+		abortstring = "Tap 'Back' to abort";
+	else
+#endif
+		abortstring = "Press ESC to abort";
+
+	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-16-16, V_YELLOWMAP, abortstring);
 
 	if (cl_mode != CL_DOWNLOADFILES)
 	{
@@ -1166,7 +1117,8 @@ static inline void CL_DrawConnectionStatus(void)
 			fileneeded_t *file = &fileneeded[lastfilenum];
 			char *filename = file->filename;
 
-			Snake_Draw();
+			if (snake)
+				Snake_Draw();
 
 			Net_GetNetStat();
 			dldlength = (INT32)((file->currentsize/(double)file->totalsize) * 256);
@@ -2014,7 +1966,8 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				{
 					cl_mode = CL_DOWNLOADFILES;
 #ifndef NONET
-					Snake_Initialise();
+					if (!touchscreenexists)
+						Snake_Initialise();
 #endif
 				}
 			}
@@ -2131,11 +2084,18 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 	{
 		I_OsPolling();
 
+#ifdef TOUCHINPUTS
+		TS_UpdateFingers(1);
+#endif
+
 		for (; eventtail != eventhead; eventtail = (eventtail+1) & (MAXEVENTS-1))
 		{
-			G_MapEventsToControls(&events[eventtail]);
+			event_t *ev = &events[eventtail];
+
+			G_MapEventsToControls(ev);
+
 #ifdef TOUCHINPUTS
-			if (touchscreenexists && TS_MapFingerEventToKey(&events[eventtail]) == KEY_ESCAPE)
+			if (touchscreenexists && ev->type == ev_touchdown && TS_MapFingerEventToKey(ev) == KEY_ESCAPE)
 				exit = true;
 #endif
 		}
@@ -2154,10 +2114,12 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 			Snake_Remove();
 #endif
 
+			memset(gamekeydown, 0, NUMKEYS);
+
 			D_QuitNetGame();
 			CL_Reset();
 			D_StartTitle();
-			memset(gamekeydown, 0, NUMKEYS);
+
 			return false;
 		}
 #ifndef NONET
@@ -2177,7 +2139,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 #ifndef NONET
 		if (client && cl_mode != CL_CONNECTED && cl_mode != CL_ABORTED)
 		{
-			if (cl_mode != CL_DOWNLOADFILES && cl_mode != CL_DOWNLOADSAVEGAME)
+			if (!snake || (snake && cl_mode != CL_DOWNLOADFILES && cl_mode != CL_DOWNLOADSAVEGAME))
 			{
 				F_MenuPresTicker(true); // title sky
 				F_TitleScreenTicker(true);
@@ -2199,6 +2161,15 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		I_Sleep();
 
 	return true;
+}
+
+static void CL_QuitConnectionScreen(void)
+{
+#ifdef TOUCHINPUTS
+	M_TSNav_ShowAll();
+	TS_ClearFingers();
+	TS_PositionNavigation();
+#endif
 }
 
 /** Use adaptive send using net_bandwidth and stat.sendbytes
@@ -2263,8 +2234,11 @@ static void CL_ConnectToServer(void)
 #endif
 
 #ifdef TOUCHINPUTS
+	TS_DefineNavigationButtons();
+
 	for (i = 0; i < NUMKEYS; i++)
 		touchnavigation[i].hidden = true;
+
 	touchnavigation[KEY_ESCAPE].hidden = false;
 #endif
 
@@ -2276,7 +2250,10 @@ static void CL_ConnectToServer(void)
 #else
 		if (!CL_ServerConnectionTicker((char*)NULL, &oldtic, (tic_t *)NULL))
 #endif
+		{
+			CL_QuitConnectionScreen();
 			return;
+		}
 
 		if (server)
 		{
@@ -2290,9 +2267,7 @@ static void CL_ConnectToServer(void)
 
 	DEBFILE(va("Synchronisation Finished\n"));
 
-#ifdef TOUCHINPUTS
-	TS_PositionNavigation();
-#endif
+	CL_QuitConnectionScreen();
 
 	displayplayer = consoleplayer;
 }

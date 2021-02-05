@@ -3626,8 +3626,7 @@ void M_TSNav_ShowAllExceptConsole(void)
 
 void M_TSNav_Update(void)
 {
-	memset(touchfingers, 0x00, sizeof(touchfingers)); // clear all fingers
-	memset(touchcontroldown, 0x00, sizeof(touchcontroldown)); // clear all controls
+	TS_ClearFingers();
 	TS_DefineNavigationButtons();
 }
 
@@ -4693,7 +4692,7 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 	{
 		if (ev->type == ev_touchdown)
 		{
-			if (M_TSNav_RoutineIsMessage())
+			if (M_TSNav_OnMessage())
 				finger->type.menu = true;
 			else
 			{
@@ -4756,7 +4755,7 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 			return true;
 	}
 
-	if (!finger->navinput && !M_TSNav_RoutineIsMessage())
+	if (!finger->navinput && !M_TSNav_OnMessage())
 	{
 		finger->extrahandling = M_TSNav_HandleMenu(finger, ev);
 		if (finger->extrahandling)
@@ -4772,7 +4771,7 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 		finger->type.menu = true;
 		finger->extra.selection = -1;
 
-		if (M_TSNav_RoutineIsMessage())
+		if (M_TSNav_OnMessage())
 			return false;
 
 		// Tap on items.
@@ -4892,7 +4891,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 			INT32 selection = finger->extra.selection;
 			touchconfig_t *btn = &touchnavigation[key];
 
-			if (M_TSNav_RoutineIsMessage())
+			if (M_TSNav_OnMessage())
 				(*ch) = KEY_ENTER;
 			else if (selection != -1)
 			{
@@ -8497,47 +8496,7 @@ void M_StartMessage(const char *string, void *routine,
 
 void M_StartYNQuestion(const char *message, void *routine)
 {
-//#ifdef TOUCHINPUTS
-#if 0
-	if (touchscreenexists && !netgame)
-	{
-		void (*select)(char choice) = routine;
-		char *msg = malloc(strlen(message)+1);
-		size_t r = 0, w = 0;
-		INT32 answer;
-
-		// Get rid of color codes
-		// (Or characters that aren't in the ASCII standard, for that matter,
-		// which there are quite a few of in SRB2 before the space character)
-		while (r < strlen(message))
-		{
-			unsigned int c = (unsigned int)(message[r]);
-			r++;
-
-			if (c >= 0x80)
-				continue;
-
-			if (c >= 0x16 && c <= 0x1F)
-				continue;
-
-			msg[w] = (char)c;
-			w++;
-		}
-
-		// Terminate it
-		msg[w] = '\0';
-
-		answer = I_AskQuestion(msg); // thread-blocking
-		free(msg);
-
-		if (answer)
-			select('y');
-		else
-			select('n');
-	}
-	else
-#endif
-		M_StartMessage(va("%s\n\n(%s)\n", message, M_GetUserActionString(CONFIRM_MESSAGE)), routine, MM_YESNO);
+	M_StartMessage(va("%s\n\n(%s)\n", message, M_GetUserActionString(CONFIRM_MESSAGE)), routine, MM_YESNO);
 }
 
 #define MAXMSGLINELEN 256

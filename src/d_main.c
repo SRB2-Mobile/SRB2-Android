@@ -880,6 +880,7 @@ void D_StartTitle(void)
 	F_StartTitleScreen();
 
 	currentMenu = &MainDef; // reset the current menu ID
+
 #ifdef TOUCHINPUTS
 	TS_PositionNavigation();
 #endif

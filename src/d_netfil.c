@@ -442,6 +442,17 @@ INT32 CL_CheckFiles(void)
 	{
 		CONS_Debug(DBG_NETPLAY, "searching for '%s' ", fileneeded[i].filename);
 
+		nameonly(strcpy(wadfilename, fileneeded[i].filename));
+
+#ifdef USE_ANDROID_PK3
+		if (!strcmp(wadfilename, ANDROID_PK3_FILENAME))
+		{
+			CONS_Debug(DBG_NETPLAY, "Android resource, already loaded\n");
+			fileneeded[i].status = FS_OPEN;
+			continue;
+		}
+#endif
+
 		// Check in already loaded files
 		for (j = 1; wadfiles[j]; j++)
 		{

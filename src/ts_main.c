@@ -609,6 +609,12 @@ void TS_PostFingerEvent(event_t *event)
 		finger->down = false;
 }
 
+void TS_ClearFingers(void)
+{
+	memset(touchfingers, 0x00, sizeof(touchfingers));
+	memset(touchcontroldown, 0x00, sizeof(touchcontroldown));
+}
+
 void TS_GetSettings(void)
 {
 	if (!TS_Ready())
@@ -798,8 +804,13 @@ void TS_NormalizeButton(touchconfig_t *button)
 void TS_NormalizeConfig(touchconfig_t *config, int configsize)
 {
 	INT32 i;
+
 	for (i = 0; i < configsize; i++)
-		TS_NormalizeButton(&config[i]);
+	{
+		touchconfig_t *button = &config[i];
+		if (button->x || button->y)
+			TS_NormalizeButton(button);
+	}
 }
 
 void TS_DenormalizeCoords(fixed_t *x, fixed_t *y)
