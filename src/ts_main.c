@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -23,7 +23,7 @@
 #include "console.h" // CON_Toggle
 
 #include "st_stuff.h"
-#include "hu_stuff.h" // chat (:LMFAOOO1:)
+#include "hu_stuff.h"
 
 #include "s_sound.h" // S_StartSound
 
@@ -87,11 +87,11 @@ consvar_t cv_touchlayout = CVAR_INIT ("touch_layout", "None", TOUCHCVARFLAGS, NU
 consvar_t cv_touchcamera = CVAR_INIT ("touch_camera", "On", TOUCHCVARFLAGS, CV_OnOff, TS_UpdateControls);
 
 static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchguiscale = CVAR_INIT ("touch_guiscale", "0.75", CV_FLOAT | TOUCHCVARFLAGS, touchguiscale_cons_t, TS_UpdateControls);
+consvar_t cv_touchguiscale = CVAR_INIT ("touch_guiscale", "0.75", CV_FLOAT | TOUCHCVARFLAGS | CV_SLIDER_SAFE, touchguiscale_cons_t, TS_UpdateControls);
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
-consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE, touchtrans_cons_t, NULL);
-consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE, touchtrans_cons_t, NULL);
+consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE | CV_SLIDER_SAFE, touchtrans_cons_t, NULL);
+consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE | CV_SLIDER_SAFE, touchtrans_cons_t, NULL);
 
 static CV_PossibleValue_t touchnavmethod_cons_t[] = {{0, "Default"}, {1, "Selection only"}, {2, "Screen regions"}, {0, NULL}};
 consvar_t cv_touchnavmethod = CVAR_INIT ("touch_navmethod", "Default", CV_SAVE, touchnavmethod_cons_t, NULL);
@@ -144,7 +144,7 @@ consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "
 // Touch screen sensitivity
 #define MAXTOUCHSENSITIVITY 100 // sensitivity steps
 static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
-consvar_t cv_touchsens = CVAR_INIT ("touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL);
+consvar_t cv_touchhorzsens = CVAR_INIT ("touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL);
 consvar_t cv_touchvertsens = CVAR_INIT ("touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL);
 
 #define TOUCHJOYCVARFLAGS (CV_FLOAT | CV_SAVE)
@@ -174,7 +174,7 @@ void TS_RegisterVariables(void)
 	CV_RegisterVar(&cv_touchguiscale);
 
 	// Sensitivity settings
-	CV_RegisterVar(&cv_touchsens);
+	CV_RegisterVar(&cv_touchhorzsens);
 	CV_RegisterVar(&cv_touchvertsens);
 	CV_RegisterVar(&cv_touchjoyvertsens);
 	CV_RegisterVar(&cv_touchjoyhorzsens);
@@ -281,7 +281,10 @@ static void HandleNonPlayerControlButton(INT32 gc)
 {
 	// Handle menu button
 	if (gc == gc_systemmenu)
+	{
 		M_StartControlPanel();
+		inputmethod = INPUTMETHOD_TOUCH;
+	}
 	// Handle console button
 	else if (gc == gc_console)
 		CON_Toggle();
@@ -404,6 +407,7 @@ void TS_HandleFingerEvent(event_t *ev)
 				{
 					finger->u.gamecontrol = i;
 					touchcontroldown[i] = 1;
+					controlmethod = INPUTMETHOD_TOUCH;
 					foundbutton = true;
 					break;
 				}
@@ -419,6 +423,7 @@ void TS_HandleFingerEvent(event_t *ev)
 					{
 						finger->type.joystick = FINGERMOTION_JOYSTICK;
 						finger->u.gamecontrol = -1;
+						controlmethod = INPUTMETHOD_TOUCH;
 						foundbutton = true;
 						break;
 					}
@@ -445,6 +450,7 @@ void TS_HandleFingerEvent(event_t *ev)
 					finger->ignoremotion = true;
 					finger->u.gamecontrol = gc;
 					touchcontroldown[gc] = 1;
+					controlmethod = INPUTMETHOD_TOUCH;
 					foundbutton = true;
 				}
 			}
@@ -452,20 +458,20 @@ void TS_HandleFingerEvent(event_t *ev)
 			// The finger is moving either the joystick or the camera.
 			if (!foundbutton)
 			{
-				INT32 dx = ev->dx;
-				INT32 dy = ev->dy;
+				INT32 dx = finger->dx;
+				INT32 dy = finger->dy;
 
 				if (touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
-					INT32 movex = (INT32)(dx*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
-					INT32 movey = (INT32)(dy*((cv_touchsens.value*cv_touchsens.value)/110.0f + 0.1f));
+					INT32 movex = (INT32)(dx*((cv_touchhorzsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
+					INT32 movey = (INT32)(dy*((cv_touchhorzsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
 
 					// Joystick
 					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
 					{
 						float fx, fy;
-						float xsens = FIXED_TO_FLOAT(cv_touchjoyhorzsens.value);
-						float ysens = FIXED_TO_FLOAT(cv_touchjoyvertsens.value);
+						float xsens = FixedToFloat(cv_touchjoyhorzsens.value);
+						float ysens = FixedToFloat(cv_touchjoyvertsens.value);
 						INT32 padx = touch_joystick_x, pady = touch_joystick_y;
 						INT32 padw = touch_joystick_w, padh = touch_joystick_h;
 
@@ -475,25 +481,28 @@ void TS_HandleFingerEvent(event_t *ev)
 						padh *= vid.dupy;
 						TS_CenterCoords(&padx, &pady);
 
-						fx = FIXED_TO_FLOAT((x * FRACUNIT) - (padx + (padw / 2)));
-						fy = FIXED_TO_FLOAT((y * FRACUNIT) - (pady + (padh / 2)));
+						fx = FixedToFloat((x * FRACUNIT) - (padx + (padw / 2)));
+						fy = FixedToFloat((y * FRACUNIT) - (pady + (padh / 2)));
 
-						touchxmove = (fx * xsens) / (FIXED_TO_FLOAT(touch_joystick_w) * (float)vid.dupx);
-						touchymove = (fy * ysens) / (FIXED_TO_FLOAT(touch_joystick_h) * (float)vid.dupy);
-						touchpressure = ev->pressure;
+						touchxmove = (fx * xsens) / (FixedToFloat(touch_joystick_w) * (float)vid.dupx);
+						touchymove = (fy * ysens) / (FixedToFloat(touch_joystick_h) * (float)vid.dupy);
+						touchpressure = finger->pressure;
+						controlmethod = INPUTMETHOD_TOUCH;
 					}
 					// Mouse
 					else if (finger->type.mouse == FINGERMOTION_MOUSE && (touch_camera && movecamera))
 					{
 						mousex = movex;
 						mousey = movey;
-						mlooky = (INT32)(dy*((cv_touchvertsens.value*cv_touchsens.value)/110.0f + 0.1f));
+						mlooky = (INT32)(dy*((cv_touchvertsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
+						controlmethod = INPUTMETHOD_TOUCH;
 					}
 				}
 				else if (touch_camera && movecamera)
 				{
 					finger->type.mouse = FINGERMOTION_MOUSE;
 					finger->u.gamecontrol = gc_null;
+					controlmethod = INPUTMETHOD_TOUCH;
 				}
 			}
 			break;
@@ -556,13 +565,6 @@ void TS_UpdateFingers(INT32 realtics)
 	{
 		touchfinger_t *finger = &touchfingers[i];
 
-		finger->lastx = finger->x;
-		finger->lasty = finger->y;
-		finger->lastfx = finger->fx;
-		finger->lastfy = finger->fy;
-		finger->lastdx = finger->dx;
-		finger->lastdy = finger->dy;
-
 		// Run finger long press action
 		if (finger->longpressaction)
 		{
@@ -576,7 +578,7 @@ void TS_UpdateFingers(INT32 realtics)
 			}
 		}
 		// Mode Attack retry
-		else if (finger->down && finger->u.gamecontrol == gc_pause && G_InGameInput())
+		else if (modeattacking && finger->down && finger->u.gamecontrol == gc_pause && G_InGameInput())
 		{
 			if (pausedelay < 0)
 				finger->longpress = 0;
@@ -591,21 +593,23 @@ void TS_UpdateFingers(INT32 realtics)
 	}
 }
 
-void TS_PostFingerEvent(event_t *event)
+void TS_OnTouchEvent(INT32 id, evtype_t type, touchevent_t *event)
 {
-	touchfinger_t *finger = &touchfingers[event->key];
+	touchfinger_t *finger = &touchfingers[id];
 
 	finger->x = event->x;
 	finger->y = event->y;
-	finger->fx = event->fx;
-	finger->fy = event->fy;
 	finger->dx = event->dx;
 	finger->dy = event->dy;
+	finger->fx = event->fx;
+	finger->fy = event->fy;
+	finger->fdx = event->fdx;
+	finger->fdy = event->fdy;
 	finger->pressure = event->pressure;
 
-	if (event->type == ev_touchdown)
+	if (type == ev_touchdown)
 		finger->down = true;
-	else if (event->type == ev_touchup)
+	else if (type == ev_touchup)
 		finger->down = false;
 }
 
@@ -613,6 +617,7 @@ void TS_ClearFingers(void)
 {
 	memset(touchfingers, 0x00, sizeof(touchfingers));
 	memset(touchcontroldown, 0x00, sizeof(touchcontroldown));
+	touchxmove = touchymove = touchpressure = 0.0f;
 }
 
 void TS_GetSettings(void)
@@ -1469,6 +1474,7 @@ void TS_DefineButtons(void)
 	{
 		status.vidwidth = vid.width;
 		status.vidheight = vid.height;
+		status.preset = touch_preset;
 		status.promptblockcontrols = promptblockcontrols;
 
 		if (memcmp(&status, &touchcontrolstatus, size))

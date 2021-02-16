@@ -918,20 +918,50 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 	if (event.type != ev_console) D_PostEvent(&event);
 }
 
-// Lactozilla: Android touch inputs
 #ifdef TOUCHINPUTS
+static void Impl_GetDrawableSize(int *w, int *h)
+{
+	*w = realwidth;
+	*h = realheight;
+}
+
+static float Impl_GetDPI(void)
+{
+	return 1.0f;
+}
+
+static void Impl_DenormalizeTouchCoords(float *x, float *y)
+{
+	int w, h;
+	int pw, ph;
+	float scale;
+
+	SDL_GetWindowSize(window, &w, &h);
+	Impl_GetDrawableSize(&pw, &ph);
+
+	// Transform to window coordinates
+	*x = (*x) * ((float)pw / (float)w);
+	*y = (*y) * ((float)ph / (float)h);
+
+	// Divide by DPI
+	scale = Impl_GetDPI();
+	*x = (*x) / scale;
+	*y = (*y) / scale;
+
+	// Multiply by window size
+	SDL_GetWindowSize(window, &w, &h);
+	*x = (*x) * (float)w;
+	*y = (*y) * (float)h;
+}
+
 static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 {
 	event_t event;
-	INT32 finger = (INT32)evt.fingerId;
+	touchevent_t finger;
+	INT32 id = (INT32)(evt.fingerId);
+	float x, y, dx, dy;
 
-	float screenx = evt.x * vid.width;
-	float screeny = evt.y * vid.height;
-
-	INT32 deltax = evt.dx * vid.width;
-	INT32 deltay = -evt.dy * vid.height;
-
-	if (finger >= NUMTOUCHFINGERS)
+	if (id >= NUMTOUCHFINGERS)
 		return;
 
 	switch (evt.type)
@@ -950,33 +980,45 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 			return;
 	}
 
-	event.key = finger;
-	event.pressure = evt.pressure;
+	finger.fx = evt.x;
+	finger.fy = evt.y;
+	finger.fdx = (float)(evt.dx);
+	finger.fdy = (float)(-evt.dy);
 
-	event.x = (INT32)screenx;
-	event.y = (INT32)screeny;
-	event.fx = screenx;
-	event.fy = screeny;
+	Impl_DenormalizeTouchCoords(&finger.fx, &finger.fy);
+	x = roundf(finger.fx);
+	y = roundf(finger.fy);
 
-	// calculate finger delta
-	{
-		int wwidth, wheight;
-		SDL_GetWindowSize(window, &wwidth, &wheight);
-		event.dx = (INT32)lround(deltax * ((float)wwidth / (float)realwidth));
-		event.dy = (INT32)lround(deltay * ((float)wheight / (float)realheight));
-	}
+	Impl_DenormalizeTouchCoords(&finger.fdx, &finger.fdy);
+	dx = roundf(finger.fdx);
+	dy = roundf(finger.fdy);
+
+	finger.x = (INT32)x;
+	finger.y = (INT32)y;
+	finger.dx = (INT32)dx;
+	finger.dy = (INT32)dy;
+	finger.pressure = evt.pressure;
+
+	// Acknowledges the current finger's state.
+	TS_OnTouchEvent(id, event.type, &finger);
+
+	// Push an event into the responder queue.
+	// The key (finger id) will be used to retrieve the touch event's information.
+	event.key = id;
+	event.x = finger.x;
+	event.y = finger.y;
 
 	D_PostEvent(&event);
-	TS_PostFingerEvent(&event);
 
-	if (!touchscreenexists)
+	// A touch screen is now recognized as present in the device.
+	if (!touchscreenavailable)
 	{
+		touchscreenavailable = true;
 		I_TouchScreenAvailable();
-		touchscreenexists = true;
 	}
 }
 
-// Lactozilla: Android text input
+// On-screen keyboard text input
 static char *textinputbuffer = NULL;
 static size_t textbufferlength = 0;
 static void (*textinputcallback)(char *, size_t);
@@ -1397,7 +1439,7 @@ void I_FinishUpdate(void)
 		SCR_DisplayLocalPing();
 
 #ifdef TOUCHINPUTS
-	if (touchscreenexists && cv_showfingers.value)
+	if (touchscreenavailable && cv_showfingers.value)
 		SCR_DisplayFingers();
 #endif
 

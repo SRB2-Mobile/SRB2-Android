@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -31,10 +31,10 @@
 #define SCALEBUTTONFIXED(touch, notonmenu) \
 	if (touch->modifying) \
 	{ \
-		x = FLOAT_TO_FIXED(touch->supposed.x); \
-		y = FLOAT_TO_FIXED(touch->supposed.y); \
-		w = touch->supposed.w; \
-		h = touch->supposed.h; \
+		x = FloatToFixed(touch->supposed.x); \
+		y = FloatToFixed(touch->supposed.y); \
+		w = FloatToFixed(touch->supposed.w); \
+		h = FloatToFixed(touch->supposed.h); \
 		TS_CenterCoords(&x, &y); \
 	} \
 	else \
@@ -107,7 +107,6 @@ void TS_DrawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 	xscale = FixedMul(FixedDiv(padw, SHORT(backing->width)*FRACUNIT), scale);
 	yscale = FixedMul(FixedDiv(padh, SHORT(backing->height)*FRACUNIT), scale);
 
-	// draw backing
 	V_DrawStretchyFixedPatch(
 		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(backing->width) * vid.dupx) / 2) * xscale)),
 		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(backing->height) * vid.dupy) / 2) * yscale)),
@@ -145,7 +144,6 @@ static void TS_DrawDPadButton(
 
 void TS_DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing)
 {
-	// any spare macromancer to help me reduce all of those lines?
 	INT32 x, y, w, h;
 	fixed_t dupx = vid.dupx * FRACUNIT;
 	fixed_t dupy = vid.dupy * FRACUNIT;
@@ -245,7 +243,7 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	patch_t *cursor = W_CachePatchLongName("JOY_CURSOR", PU_PATCH);
 	fixed_t dupx = vid.dupx*FRACUNIT;
 	fixed_t dupy = vid.dupy*FRACUNIT;
-	fixed_t pressure = max(FRACUNIT/2, FRACUNIT - FLOAT_TO_FIXED(touchpressure));
+	fixed_t pressure = max(FRACUNIT/2, FRACUNIT - FloatToFixed(touchpressure));
 
 	// scale coords
 	fixed_t x = FixedMul(dpadx, dupx);
@@ -253,7 +251,7 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	fixed_t w = FixedMul(dpadw, dupx);
 	fixed_t h = FixedMul(dpadh, dupy);
 
-	float xmove, ymove;
+	float xmove = 0.0f, ymove = 0.0f;
 	fixed_t stickx, sticky;
 	joystickvector2_t *joy = &movejoystickvectors[0];
 
@@ -280,27 +278,24 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	TS_CenterCoords(&x, &y);
 
 	// set stick position
-	xmove = touchxmove;
 	if (joy->xaxis)
-		xmove += ((float)joy->xaxis / JOYAXISRANGE);
-
-	ymove = touchymove;
+		xmove = ((float)joy->xaxis / JOYAXISRANGE);
 	if (joy->yaxis)
-		ymove += ((float)joy->yaxis / JOYAXISRANGE);
+		ymove = ((float)joy->yaxis / JOYAXISRANGE);
 
-	stickx = max(-xextend, min(FixedMul(FLOAT_TO_FIXED(xmove), xextend), xextend));
-	sticky = max(-yextend, min(FixedMul(FLOAT_TO_FIXED(ymove), yextend), yextend));
+	stickx = max(-xextend, min(FixedMul(FloatToFixed(xmove), xextend), xextend));
+	sticky = max(-yextend, min(FixedMul(FloatToFixed(ymove), yextend), yextend));
 
 	// O backing
 	TS_DrawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
 
-	// hole
+	// Hole
 	V_DrawStretchyFixedPatch(
 		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * (basexscale / 4))),
 		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * (baseyscale / 4))),
 		(basexscale / 4), (baseyscale / 4), flags, cursor, NULL);
 
-	// stick
+	// Stick
 	V_DrawStretchyFixedPatch(
 		((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(cursor->width) * vid.dupx) / 2) * xscale)) + (stickx * vid.dupx),
 		((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(cursor->height) * vid.dupy) / 2) * yscale)) + (sticky * vid.dupy),
@@ -388,20 +383,24 @@ static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 	}
 }
 
+static INT32 GetInputAccent(void)
+{
+	if (stplyr && stplyr->skincolor)
+		return skincolors[stplyr->skincolor].ramp[4];
+	return TS_BUTTONDOWNCOLOR;
+}
+
 void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alphalevel)
 {
 	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = (stplyr && stplyr->skincolor ? skincolors[stplyr->skincolor].ramp[4] : 0);
+	const INT32 accent = GetInputAccent();
 
 	INT32 i;
 	INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
 	INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
 
 	if (!alphalevel)
-		return;
-
-	if (!touchscreenexists)
 		return;
 
 	// Draw movement control
@@ -414,10 +413,9 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 			TS_DrawJoystick(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags);
 	}
 
-#define DEFAULTKEYCOL 16 // Because of macro expansion, this define needs to be up here.
 #define drawbutton(gctype, str, keycol) TS_DrawTouchGameInputButton(config, gctype, str, keycol, accent, alphalevel, flags)
-#define drawbtn(gctype) drawbutton(gctype, NULL, DEFAULTKEYCOL)
-#define drawbtnname(gctype, str) drawbutton(gctype, str, DEFAULTKEYCOL)
+#define drawbtn(gctype) drawbutton(gctype, NULL, TS_BUTTONUPCOLOR)
+#define drawbtnname(gctype, str) drawbutton(gctype, str, TS_BUTTONUPCOLOR)
 #define drawcolbtn(gctype, col) drawbutton(gctype, NULL, col)
 
 	if (drawgamecontrols)
@@ -452,7 +450,6 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 #undef drawbtnname
 #undef drawbtn
 #undef drawbutton
-#undef DEFAULTKEYCOL
 }
 
 //
@@ -466,17 +463,14 @@ void TS_DrawMenuNavigation(void)
 	const INT32 alphalevel = cv_touchmenutrans.value;
 	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = skincolors[cv_playercolor.value].ramp[4];
+	const INT32 accent = TS_BUTTONDOWNCOLOR;
 	const INT32 shadow = vid.dupy;
 	touchconfig_t *control;
 	INT32 col, offs;
 	INT32 x, y, w, h;
 	patch_t *font;
 
-	if (!alphalevel)
-		return;
-
-	if (!touchscreenexists)
+	if (!touchscreenavailable || inputmethod != INPUTMETHOD_TOUCH || !alphalevel)
 		return;
 
 #define drawbtn(keyname) \

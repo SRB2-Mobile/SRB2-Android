@@ -1053,8 +1053,8 @@ static inline void CL_DrawConnectionStatus(void)
 	M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-16-8, 32, 1);
 
 #ifdef TOUCHINPUTS
-	if (touchscreenexists)
-		abortstring = "Tap 'Back' to abort";
+	if (inputmethod == INPUTMETHOD_TOUCH)
+		abortstring = "Tap Back to abort";
 	else
 #endif
 		abortstring = "Press ESC to abort";
@@ -1966,7 +1966,7 @@ static boolean CL_ServerConnectionSearchTicker(tic_t *asksent)
 				{
 					cl_mode = CL_DOWNLOADFILES;
 #ifndef NONET
-					if (!touchscreenexists)
+					if (inputmethod != INPUTMETHOD_TOUCH)
 						Snake_Initialise();
 #endif
 				}
@@ -2095,8 +2095,21 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 			G_MapEventsToControls(ev);
 
 #ifdef TOUCHINPUTS
-			if (touchscreenexists && ev->type == ev_touchdown && TS_MapFingerEventToKey(ev) == KEY_ESCAPE)
-				exit = true;
+			if (touchscreenavailable)
+			{
+				boolean fingerdown = (ev->type == ev_touchdown);
+
+				if (fingerdown || ev->type == ev_touchup || ev->type == ev_touchmotion)
+				{
+					inputmethod = INPUTMETHOD_TOUCH;
+
+					if (fingerdown && TS_MapFingerEventToKey(ev) == KEY_ESCAPE)
+						exit = true;
+				}
+				else if (ev->type == ev_keydown)
+					G_DetectInputMethod(ev->key);
+			}
+
 #endif
 		}
 
@@ -2234,11 +2247,14 @@ static void CL_ConnectToServer(void)
 #endif
 
 #ifdef TOUCHINPUTS
+	// Close the on-screen keyboard, if it's still open
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+
 	TS_DefineNavigationButtons();
 
 	for (i = 0; i < NUMKEYS; i++)
 		touchnavigation[i].hidden = true;
-
 	touchnavigation[KEY_ESCAPE].hidden = false;
 #endif
 

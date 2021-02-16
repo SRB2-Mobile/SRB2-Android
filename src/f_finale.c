@@ -1063,6 +1063,8 @@ boolean F_IntroResponder(event_t *event)
 
 		if (key != 27 && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
 			return false;
+
+		G_DetectInputMethod(event->key);
 	}
 	else if (event->type != ev_touchdown)
 		return false;
@@ -1441,6 +1443,8 @@ boolean F_CreditResponder(event_t *event)
 
 		if (key != KEY_ESCAPE && key != KEY_ENTER && key != KEY_SPACE && key != KEY_BACKSPACE)
 			return false;
+
+		G_DetectControlMethod(event->key);
 	}
 	else if (event->type != ev_touchdown)
 		return false;
@@ -3388,7 +3392,7 @@ void F_TitleScreenDrawer(void)
 			}
 
 #ifdef TOUCHINPUTS
-			if (touchscreenexists && !(menuactive || CON_Ready()))
+			if (touchscreenavailable && !(menuactive || CON_Ready()))
 			{
 				INT32 time = finalecount - 45;
 				if (time >= 0)
@@ -3856,6 +3860,8 @@ boolean F_ContinueResponder(event_t *event)
 			default:
 				return false;
 		}
+
+		G_DetectControlMethod(key);
 	}
 
 	keypressed = true;

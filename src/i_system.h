@@ -202,10 +202,6 @@ boolean I_KeyboardOnScreen(void);
 void I_CloseScreenKeyboard(void);
 #endif
 
-/**	\brief bring up message box
-*/
-INT32 I_AskQuestion(const char *message);
-
 #ifndef NOMUMBLE
 #include "p_mobj.h" // mobj_t
 #include "s_sound.h" // listener_t

@@ -28,34 +28,88 @@
 #define JOYHATS      4  // 4 hats
 #define JOYAXISSET   4  // 4 Sets of 2 axises
 
+// Current input method
+typedef enum
+{
+	INPUTMETHOD_NONE,
+	INPUTMETHOD_KEYBOARD,
+	INPUTMETHOD_MOUSE,
+	INPUTMETHOD_JOYSTICK,
+	INPUTMETHOD_TOUCH
+} inputmethod_e;
+
+extern INT32 inputmethod, controlmethod;
+
 //
-// mouse and joystick buttons are handled as 'virtual' keys
+// Mouse and joystick buttons are handled as 'virtual' keys
 //
+
+#define NUMJOYHATS (JOYHATS*4)
+
 typedef enum
 {
 	KEY_MOUSE1 = NUMKEYS,
 	KEY_JOY1 = KEY_MOUSE1 + MOUSEBUTTONS,
 	KEY_HAT1 = KEY_JOY1 + JOYBUTTONS,
 
-	KEY_DBLMOUSE1 =KEY_HAT1 + JOYHATS*4, // double clicks
+	KEY_DBLMOUSE1 = KEY_HAT1 + NUMJOYHATS, // double clicks
 	KEY_DBLJOY1 = KEY_DBLMOUSE1 + MOUSEBUTTONS,
 	KEY_DBLHAT1 = KEY_DBLJOY1 + JOYBUTTONS,
 
-	KEY_2MOUSE1 = KEY_DBLHAT1 + JOYHATS*4,
+	KEY_2MOUSE1 = KEY_DBLHAT1 + NUMJOYHATS,
 	KEY_2JOY1 = KEY_2MOUSE1 + MOUSEBUTTONS,
 	KEY_2HAT1 = KEY_2JOY1 + JOYBUTTONS,
 
-	KEY_DBL2MOUSE1 = KEY_2HAT1 + JOYHATS*4,
+	KEY_DBL2MOUSE1 = KEY_2HAT1 + NUMJOYHATS,
 	KEY_DBL2JOY1 = KEY_DBL2MOUSE1 + MOUSEBUTTONS,
 	KEY_DBL2HAT1 = KEY_DBL2JOY1 + JOYBUTTONS,
 
-	KEY_MOUSEWHEELUP = KEY_DBL2HAT1 + JOYHATS*4,
+	KEY_MOUSEWHEELUP = KEY_DBL2HAT1 + NUMJOYHATS,
 	KEY_MOUSEWHEELDOWN = KEY_MOUSEWHEELUP + 1,
 	KEY_2MOUSEWHEELUP = KEY_MOUSEWHEELDOWN + 1,
 	KEY_2MOUSEWHEELDOWN = KEY_2MOUSEWHEELUP + 1,
 
 	NUMINPUTS = KEY_2MOUSEWHEELDOWN + 1,
 } key_input_e;
+
+// Macros for checking if a virtual key is a mouse key or wheel.
+#define G_KeyIsMouse1(key) ((key) >= KEY_MOUSE1 && (key) < KEY_MOUSE1 + MOUSEBUTTONS)
+#define G_KeyIsMouse2(key) ((key) >= KEY_2MOUSE1 && (key) < KEY_2MOUSE1 + MOUSEBUTTONS)
+#define G_KeyIsAnyMouse(key) (G_KeyIsMouse1(key) || G_KeyIsMouse2(key))
+
+#define G_KeyIsMouseDoubleClick1(key) ((key) >= KEY_DBLMOUSE1 && (key) < KEY_DBLMOUSE1 + MOUSEBUTTONS)
+#define G_KeyIsMouseDoubleClick2(key) ((key) >= KEY_DBL2MOUSE1 && (key) < KEY_DBL2MOUSE1 + MOUSEBUTTONS)
+#define G_KeyIsAnyMouseDoubleClick(key) (G_KeyIsMouseDoubleClick1(key) || G_KeyIsMouseDoubleClick2(key))
+
+#define G_KeyIsMouseWheel1(key) ((key) == KEY_MOUSEWHEELUP || (key) == KEY_MOUSEWHEELDOWN)
+#define G_KeyIsMouseWheel2(key) ((key) == KEY_2MOUSEWHEELUP || (key) == KEY_2MOUSEWHEELDOWN)
+#define G_KeyIsAnyMouseWheel(key) (G_KeyIsMouseWheel1(key) || G_KeyIsMouseWheel2(key))
+
+#define G_KeyIsMouse(key) (G_KeyIsAnyMouse(key) || G_KeyIsAnyMouseDoubleClick(key) || G_KeyIsAnyMouseWheel(key))
+#define G_KeyIsPlayer1Mouse(key) (G_KeyIsMouse1(key) || G_KeyIsMouseDoubleClick1(key) || G_KeyIsMouseWheel1(key))
+#define G_KeyIsPlayer2Mouse(key) (G_KeyIsMouse2(key) || G_KeyIsMouseDoubleClick2(key) || G_KeyIsMouseWheel2(key))
+
+// Macros for checking if a virtual key is a joystick button or hat.
+#define G_KeyIsJoystick1(key) ((key) >= KEY_JOY1 && (key) < KEY_JOY1 + JOYBUTTONS)
+#define G_KeyIsJoystick2(key) ((key) >= KEY_2JOY1 && (key) < KEY_2JOY1 + JOYBUTTONS)
+#define G_KeyIsAnyJoystickButton(key) (G_KeyIsJoystick1(key) || G_KeyIsJoystick2(key))
+
+#define G_KeyIsJoystickHat1(key) ((key) >= KEY_HAT1 && (key) < KEY_HAT1 + NUMJOYHATS)
+#define G_KeyIsJoystickHat2(key) ((key) >= KEY_2HAT1 && (key) < KEY_2HAT1 + NUMJOYHATS)
+#define G_KeyIsAnyJoystickHat(key) (G_KeyIsJoystickHat1(key) || G_KeyIsJoystickHat2(key))
+
+#define G_KeyIsJoystick(key) (G_KeyIsAnyJoystickButton(key) || G_KeyIsAnyJoystickHat(key))
+#define G_KeyIsPlayer1Joystick(key) (G_KeyIsJoystick1(key) || G_KeyIsJoystickHat1(key))
+#define G_KeyIsPlayer2Joystick(key) (G_KeyIsJoystick2(key) || G_KeyIsJoystickHat2(key))
+
+// Check if a given key is a virtual key.
+#define G_KeyIsVirtual(key) (G_KeyIsMouse(key) || G_KeyIsJoystick(key))
+
+// Checks if a given virtual key is for the first player.
+#define G_VirtualKeyIsPlayer1(key) (G_KeyIsVirtual(key) && (G_KeyIsPlayer1Mouse(key) || G_KeyIsPlayer1Joystick(key)))
+
+// Checks if a given virtual key is for the second player.
+#define G_VirtualKeyIsPlayer2(key) (G_KeyIsVirtual(key) && (G_KeyIsPlayer2Mouse(key) || G_KeyIsPlayer2Joystick(key)))
 
 typedef enum
 {
@@ -159,6 +213,10 @@ extern joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
 extern UINT8 gamekeydown[NUMINPUTS];
 
 boolean G_InGameInput(void);
+INT32 G_InputMethodFromKey(INT32 key);
+
+void G_DetectInputMethod(INT32 key); // UI
+void G_DetectControlMethod(INT32 key); // Game
 
 void G_ResetInputs(void);
 void G_ResetJoysticks(void);
@@ -176,9 +234,12 @@ extern INT32 gamecontrolbis[num_gamecontrols][2]; // secondary splitscreen playe
 extern INT32 gamecontroldefault[num_gamecontrolschemes][num_gamecontrols][2]; // default control storage, use 0 (gcs_custom) for memory retention
 extern INT32 gamecontrolbisdefault[num_gamecontrolschemes][num_gamecontrols][2];
 
+// Game control names
+extern const char *gamecontrolname[num_gamecontrols];
+
 // Is there a touch screen in the device?
 // (Moved from ts_main.h)
-extern boolean touchscreenexists;
+extern boolean touchscreenavailable;
 
 #ifdef TOUCHINPUTS
 extern UINT8 touchcontroldown[num_gamecontrols];
@@ -197,7 +258,7 @@ extern UINT8 touchcontroldown[num_gamecontrols];
 #endif
 
 // Player 2 input
-#define PLAYER2INPUTDOWN(gc) GAMECONTROLDOWN(gamecontrolbis, gc)
+#define PLAYER2INPUTDOWN(gc) GC2KEYDOWN(gc)
 
 // Check inputs for the specified player
 #define PLAYERINPUTDOWN(p, gc) ((p) == 2 ? PLAYER2INPUTDOWN(gc) : PLAYER1INPUTDOWN(gc))
@@ -228,6 +289,9 @@ extern const INT32 gcl_jump_spin[num_gcl_jump_spin];
 // remaps the input event to a game control.
 void G_MapEventsToControls(event_t *ev);
 
+// returns true if a key is assigned to a game control
+boolean G_KeyAssignedToControl(INT32 key);
+
 // returns the name of a key
 const char *G_KeynumToString(INT32 keynum);
 INT32 G_KeyStringtoNum(const char *keystr);
@@ -235,10 +299,9 @@ INT32 G_KeyStringtoNum(const char *keystr);
 // detach any keys associated to the given game control
 void G_ClearControlKeys(INT32 (*setupcontrols)[2], INT32 control);
 void G_ClearAllControlKeys(void);
+
 void Command_Setcontrol_f(void);
 void Command_Setcontrol2_f(void);
-
-const char *gamecontrolname[num_gamecontrols];
 
 void G_DefineDefaultControls(void);
 

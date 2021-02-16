@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -168,8 +168,8 @@ typedef enum
 	num_touchcust_options
 } touchcust_option_e;
 
-#define MINBTNWIDTH 8*FRACUNIT
-#define MINBTNHEIGHT 8*FRACUNIT
+#define MINBTNWIDTH 8.0f
+#define MINBTNHEIGHT 8.0f
 
 #define TOUCHGRIDSIZE      16
 #define TOUCHSMALLGRIDSIZE (TOUCHGRIDSIZE / 2)

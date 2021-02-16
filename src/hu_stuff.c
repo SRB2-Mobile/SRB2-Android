@@ -2151,8 +2151,8 @@ void HU_Drawer(void)
 		HU_DrawDemoInfo();
 
 #ifdef TOUCHINPUTS
-	if (touchscreenexists
-	&& (demoplayback && !modeattacking)
+	if (touchscreenavailable
+	&& (demoplayback && titledemo)
 	&& !CON_Ready()
 	&& !(maptol & TOL_NIGHTS))
 	{

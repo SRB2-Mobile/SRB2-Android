@@ -703,7 +703,6 @@ void CON_ToggleOff(void)
 
 	I_UpdateMouseGrab();
 
-
 #if (defined(__ANDROID__) && defined(TOUCHINPUTS))
 	if (I_KeyboardOnScreen())
 		I_CloseScreenKeyboard();
@@ -744,8 +743,8 @@ void CON_Ticker(void)
 	con_tick &= 7;
 
 #if (defined(__ANDROID__) && defined(TOUCHINPUTS))
-	// Lactozilla: Close the console, if the screen keyboard is not visible
-	if (consoleready && (!I_KeyboardOnScreen()))
+	// Close the console, if the screen keyboard is not visible
+	if (con_destlines > 0 && (!I_KeyboardOnScreen()))
 		consoletoggle = true;
 #endif
 
@@ -793,8 +792,7 @@ void CON_Ticker(void)
 	if (con_destlines >= minheight)
 	{
 #if (defined(__ANDROID__) && defined(TOUCHINPUTS))
-		// Lactozilla: Raise the screen keyboard
-		if (!I_KeyboardOnScreen())
+		if (!(consoleready && I_KeyboardOnScreen())) // Raise the screen keyboard
 		{
 			I_RaiseScreenKeyboard(NULL, 0);
 			I_ScreenKeyboardCallback(CON_ScreenKeyboardInput);

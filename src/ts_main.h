@@ -1,13 +1,13 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime "Lactozilla" Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 /// \file  ts_main.h
-/// \brief Touch controls
+/// \brief Touch screen
 
 #ifndef __TS_MAIN_H__
 #define __TS_MAIN_H__
@@ -34,18 +34,15 @@ typedef struct
 	INT32 x, y;
 	INT32 dx, dy;
 	float fx, fy;
+	float fdx, fdy;
 	float pressure;
 	boolean down;
 
 	tic_t longpress;
 	longpressaction_t longpressaction;
 
-	INT32 lastx, lasty;
-	float lastfx, lastfy;
-	INT32 lastdx, lastdy;
-
 	boolean extrahandling, navinput;
-	boolean scrolling, ignoremotion;
+	boolean ignoremotion;
 
 	// A finger has either a game control or a key input down.
 	union {
@@ -53,11 +50,10 @@ typedef struct
 		INT32 keyinput;
 	} u;
 
-	// Alternate selections that don't interfere with the above.
-	union {
-		INT32 selection;
-		INT32 arr[3];
-	} extra;
+	INT32 selection;
+	INT32 int_arr[2];
+	float float_arr[2];
+	void *pointer; // Generic pointer for anything.
 
 	// What kind of finger is this?
 	union {
@@ -65,9 +61,6 @@ typedef struct
 		INT32 mouse;
 		INT32 joystick;
 	} type;
-
-	// Generic pointer for anything.
-	void *pointer;
 } touchfinger_t;
 
 extern touchfinger_t touchfingers[NUMTOUCHFINGERS];
@@ -185,7 +178,7 @@ extern consvar_t cv_touchlayoutusegrid;
 extern consvar_t cv_touchlayoutwidescreen;
 
 // Touch screen sensitivity
-extern consvar_t cv_touchsens, cv_touchvertsens;
+extern consvar_t cv_touchhorzsens, cv_touchvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 extern consvar_t cv_touchjoydeadzone;
 
@@ -232,8 +225,8 @@ boolean TS_IsPresetActive(void);
 // Updates touch fingers
 void TS_UpdateFingers(INT32 realtics);
 
-// Finger event received
-void TS_PostFingerEvent(event_t *event);
+// Touch event received
+void TS_OnTouchEvent(INT32 id, evtype_t type, touchevent_t *event);
 
 // Clears touch fingers
 void TS_ClearFingers(void);

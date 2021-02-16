@@ -1719,11 +1719,7 @@ char *va(const char *format, ...)
 	static char string[1024];
 
 	va_start(argptr, format);
-#if defined(__ANDROID__)
-	Android_vsnprintf(string, 1024, format, argptr);
-#else
-	vsprintf(string, format, argptr);
-#endif
+	M_vsnprintf(string, 1024, format, argptr);
 	va_end(argptr);
 
 	return string;

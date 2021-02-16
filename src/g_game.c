@@ -303,11 +303,11 @@ consvar_t cv_chattime = CVAR_INIT ("chattime", "8", CV_SAVE, chattime_cons_t, NU
 
 // chatwidth
 static CV_PossibleValue_t chatwidth_cons_t[] = {{64, "MIN"}, {300, "MAX"}, {0, NULL}};
-consvar_t cv_chatwidth = CVAR_INIT ("chatwidth", "150", CV_SAVE, chatwidth_cons_t, NULL);
+consvar_t cv_chatwidth = CVAR_INIT ("chatwidth", "150", CV_SAVE|CV_SLIDER_SAFE, chatwidth_cons_t, NULL);
 
 // chatheight
 static CV_PossibleValue_t chatheight_cons_t[] = {{6, "MIN"}, {22, "MAX"}, {0, NULL}};
-consvar_t cv_chatheight= CVAR_INIT ("chatheight", "8", CV_SAVE, chatheight_cons_t, NULL);
+consvar_t cv_chatheight= CVAR_INIT ("chatheight", "8", CV_SAVE|CV_SLIDER_SAFE, chatheight_cons_t, NULL);
 
 // chat notifications (do you want to hear beeps? I'd understand if you didn't.)
 consvar_t cv_chatnotifications= CVAR_INIT ("chatnotifications", "On", CV_SAVE, CV_OnOff, NULL);
@@ -358,26 +358,31 @@ consvar_t cv_autobrake2 = CVAR_INIT ("autobrake2", "On", CV_SAVE|CV_CALL, CV_OnO
 
 // hi here's some new controls
 CV_PossibleValue_t zerotoone_cons_t[] = {{0, "MIN"}, {FRACUNIT, "MAX"}, {0, NULL}};
+
+#define CAMCVARFLAGS (CV_FLOAT|CV_SAVE|CV_SLIDER_SAFE)
+
 consvar_t cv_cam_shiftfacing[2] = {
-	CVAR_INIT ("cam_shiftfacingchar", "0.33", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
-	CVAR_INIT ("cam2_shiftfacingchar", "0.33", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam_shiftfacingchar", "0.33", CAMCVARFLAGS, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam2_shiftfacingchar", "0.33", CAMCVARFLAGS, zerotoone_cons_t, NULL),
 };
 consvar_t cv_cam_turnfacing[2] = {
-	CVAR_INIT ("cam_turnfacingchar", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
-	CVAR_INIT ("cam2_turnfacingchar", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam_turnfacingchar", "0.25", CAMCVARFLAGS, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam2_turnfacingchar", "0.25", CAMCVARFLAGS, zerotoone_cons_t, NULL),
 };
 consvar_t cv_cam_turnfacingability[2] = {
-	CVAR_INIT ("cam_turnfacingability", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
-	CVAR_INIT ("cam2_turnfacingability", "0.125", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam_turnfacingability", "0.125", CAMCVARFLAGS, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam2_turnfacingability", "0.125", CAMCVARFLAGS, zerotoone_cons_t, NULL),
 };
 consvar_t cv_cam_turnfacingspindash[2] = {
-	CVAR_INIT ("cam_turnfacingspindash", "0.5", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
-	CVAR_INIT ("cam2_turnfacingspindash", "0.5", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam_turnfacingspindash", "0.5", CAMCVARFLAGS, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam2_turnfacingspindash", "0.5", CAMCVARFLAGS, zerotoone_cons_t, NULL),
 };
 consvar_t cv_cam_turnfacinginput[2] = {
-	CVAR_INIT ("cam_turnfacinginput", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
-	CVAR_INIT ("cam2_turnfacinginput", "0.25", CV_FLOAT|CV_SAVE, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam_turnfacinginput", "0.25", CAMCVARFLAGS, zerotoone_cons_t, NULL),
+	CVAR_INIT ("cam2_turnfacinginput", "0.25", CAMCVARFLAGS, zerotoone_cons_t, NULL),
 };
+
+#undef CAMCVARFLAGS
 
 static CV_PossibleValue_t centertoggle_cons_t[] = {{0, "Hold"}, {1, "Toggle"}, {2, "Sticky Hold"}, {0, NULL}};
 consvar_t cv_cam_centertoggle[2] = {
@@ -983,7 +988,6 @@ static INT32 Joy2Axis(axis_input_e axissel)
 	return retaxis;
 }
 
-
 #define PlayerJoyAxis(p, ax) ((p) == 1 ? JoyAxis(ax) : Joy2Axis(ax))
 
 // Get the gamepad style from a player
@@ -1091,7 +1095,7 @@ INT16 ticcmd_oldangleturn[2];
 boolean ticcmd_centerviewdown[2]; // For simple controls, lock the camera behind the player
 mobj_t *ticcmd_ztargetfocus[2]; // Locking onto an object?
 
-boolean G_CanBuildTiccmd(player_t *player)
+static boolean G_CanBuildTiccmd(player_t *player)
 {
 	// why build a ticcmd if we're paused?
 	// Or, for that matter, if we're being reborn.
@@ -1105,9 +1109,12 @@ boolean G_CanBuildTiccmd(player_t *player)
 
 void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 {
+	INT32 tspeed, forward, side;
+	INT32 axis, strafeaxis, moveaxis, turnaxis, lookaxis;
+	INT32 i;
+
 	boolean forcestrafe = false;
 	boolean forcefullinput = false;
-	INT32 tspeed, forward, side, axis, strafeaxis, moveaxis, turnaxis, lookaxis, i;
 
 	joystickvector2_t *movejoystickvector, *lookjoystickvector;
 
@@ -1498,7 +1505,6 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	}
 	else
 		resetdown[forplayer] = false;
-
 
 	// jump button
 	axis = PlayerJoyAxis(ssplayer, AXISJUMP);
@@ -2014,11 +2020,19 @@ boolean G_Responder(event_t *ev)
 	if (gameaction == ga_nothing && !singledemo &&
 		((demoplayback && !modeattacking && !titledemo) || gamestate == GS_TITLESCREEN))
 	{
+		INT32 key = ev->key;
 		boolean finger = (ev->type == ev_touchdown || ev->type == ev_touchup);
 
-		if (((ev->type == ev_keydown && ev->key != 301) || finger)
+		if (((ev->type == ev_keydown && key != 301 && !G_KeyIsAnyMouseWheel(key)) || finger)
 		&& !(gamestate == GS_TITLESCREEN && finalecount < TICRATE))
 		{
+#ifdef TOUCHINPUTS
+			if (finger)
+				inputmethod = INPUTMETHOD_TOUCH;
+			else
+#endif
+				G_DetectInputMethod(key);
+
 			M_StartControlPanel();
 			return true;
 		}
@@ -2097,7 +2111,10 @@ boolean G_Responder(event_t *ev)
 		&& (ev->key == KEY_F12 || ev->key == gamecontrol[gc_viewpoint][0] || ev->key == gamecontrol[gc_viewpoint][1]))
 	{
 		if (G_DoViewpointSwitch())
+		{
+			G_DetectControlMethod(ev->key);
 			return true;
+		}
 	}
 
 	// update keys current state
@@ -2111,11 +2128,15 @@ boolean G_Responder(event_t *ev)
 				|| ev->key == KEY_PAUSE)
 			{
 				if (G_HandlePauseKey(ev->key == KEY_PAUSE))
+				{
+					G_DetectControlMethod(ev->key);
 					return true;
+				}
 			}
 			if (ev->key == gamecontrol[gc_camtoggle][0]
 				|| ev->key == gamecontrol[gc_camtoggle][1])
 			{
+				G_DetectControlMethod(ev->key);
 				G_ToggleChaseCam();
 			}
 			if (ev->key == gamecontrolbis[gc_camtoggle][0]
@@ -2136,7 +2157,6 @@ boolean G_Responder(event_t *ev)
 
 		case ev_joystick2:
 			return true; // eat events
-
 
 		default:
 			break;

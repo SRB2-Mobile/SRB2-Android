@@ -767,6 +767,11 @@ boolean preparefilemenu(boolean samedepth)
 						ext |= EXT_LOADED;
 					}
 				}
+				else if (ext == EXT_CFG)
+				{
+					if (!strncmp(dent->d_name, "layout", 6))
+						ext |= EXT_LOADED;
+				}
 				else if (ext == EXT_TXT)
 				{
 					if (!strncmp(dent->d_name, "log-", 4) || !strcmp(dent->d_name, "errorlog.txt"))

@@ -21,7 +21,7 @@
 #include "i_threads.h"
 #include "mserv.h"
 #include "m_menu.h"
-#include "ts_main.h" // touchscreenexists
+#include "ts_main.h" // touchscreenavailable
 #include "z_zone.h"
 
 #ifdef MASTERSERVER
@@ -112,7 +112,7 @@ static void WarnGUI (void)
 #endif
 
 #ifdef TOUCHINPUTS
-	if (touchscreenexists)
+	if (inputmethod == INPUTMETHOD_TOUCH)
 	{
 		M_StartMessage(M_GetText("There was a problem connecting to\nthe Master Server\n\nCheck the console for details,\nor tap anywhere.\n"), NULL, MM_NOTHING);
 		M_TSNav_SetConsoleVisible(true);

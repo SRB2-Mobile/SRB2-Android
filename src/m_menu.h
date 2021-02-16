@@ -148,10 +148,12 @@ typedef enum
 typedef enum
 {
 	MENUSTYLE_DEFAULT   = 0,
-	MENUSTYLE_SCROLL    = 1,
-	MENUSTYLE_CENTER    = 2,
-	MENUSTYLE_PLATTER   = 3,
-	MENUSTYLE_PLAYSTYLE = 4,
+	MENUSTYLE_SCROLL,
+	MENUSTYLE_CENTER,
+	MENUSTYLE_PLATTER,
+	MENUSTYLE_PLAYSTYLE,
+	MENUSTYLE_VIDEOMODES,
+	MENUSTYLE_ADDONS,
 
 	MENUSTYLE_MOBILE    = 0x100,
 } menustyle_t;
@@ -336,13 +338,18 @@ enum
 	PRESS_ESC_MESSAGE,
 	PRESS_A_KEY_MESSAGE,
 	PRESS_A_KEY_MESSAGE_ALT,
+	NUMUSERACTIONS
 };
+
+#define UserAction_IsAnyKey(key) ((key) == PRESS_A_KEY_MESSAGE || (key) == PRESS_A_KEY_MESSAGE_ALT)
 
 typedef struct
 {
 	INT32 action;
-	const char *kb_string;
-	const char *ts_string;
+	const char *key_string;
+	const char *joy_string;
+	const char *touch_string;
+	const char *mouse_string;
 } useractionstring_t;
 
 #define MAXSTRINGLENGTH 32
@@ -425,6 +432,7 @@ void M_TSNav_ShowAll(void);
 void M_TSNav_HideAll(void);
 void M_TSNav_ShowAllExceptConsole(void);
 
+boolean M_IsOnTouchOptions(void);
 boolean M_IsCustomizingTouchControls(void);
 #endif
 
@@ -492,6 +500,7 @@ extern gtdesc_t gametypedesc[NUMGAMETYPES];
 // mode descriptions for video mode menu
 typedef struct
 {
+	INT32 width, height; // width and height
 	INT32 modenum; // video mode number in the vidmodes list
 	const char *desc;  // XXXxYYY
 	UINT8 goodratio; // aspect correct if 1

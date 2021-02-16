@@ -34,6 +34,9 @@
 #include "ts_custom.h"
 #endif
 
+INT32 inputmethod = INPUTMETHOD_NONE;
+INT32 controlmethod = INPUTMETHOD_NONE;
+
 #define MAXMOUSESENSITIVITY 100 // sensitivity steps
 
 static CV_PossibleValue_t mousesens_cons_t[] = {{1, "MIN"}, {MAXMOUSESENSITIVITY, "MAX"}, {0, NULL}};
@@ -59,7 +62,7 @@ UINT8 gamekeydown[NUMINPUTS];
 
 // Is there a touch screen in the device?
 // (This variable exists even without TOUCHINPUTS)
-boolean touchscreenexists = false;
+boolean touchscreenavailable = false;
 
 // two key codes (or virtual key) per game control
 INT32 gamecontrol[num_gamecontrols][2];
@@ -121,6 +124,37 @@ static dclick_t joy2dclicks[JOYBUTTONS + JOYHATS*4];
 // protos
 static UINT8 G_CheckDoubleClick(UINT8 state, dclick_t *dt);
 
+boolean G_InGameInput(void)
+{
+	return (!(menuactive || CON_Ready() || chat_on));
+}
+
+// Detects the input method from a key, which might be virtual.
+INT32 G_InputMethodFromKey(INT32 key)
+{
+	if (G_KeyIsMouse(key))
+		return INPUTMETHOD_MOUSE;
+	else if (G_KeyIsJoystick(key))
+		return INPUTMETHOD_JOYSTICK;
+	else
+		return INPUTMETHOD_KEYBOARD;
+}
+
+void G_DetectInputMethod(INT32 key)
+{
+	if (key > KEY_NULL)
+	{
+		if (!G_KeyIsAnyMouseWheel(key)) // Mouse wheel doesn't do anything in menus
+			inputmethod = G_InputMethodFromKey(key);
+	}
+}
+
+void G_DetectControlMethod(INT32 key)
+{
+	if (key > KEY_NULL)
+		controlmethod = G_InputMethodFromKey(key);
+}
+
 //
 // Remaps the inputs to game controls.
 //
@@ -137,7 +171,11 @@ void G_MapEventsToControls(event_t *ev)
 	{
 		case ev_keydown:
 			if (ev->key < NUMINPUTS)
+			{
 				gamekeydown[ev->key] = 1;
+				if (G_KeyAssignedToControl(ev->key)) // Unnecessary?
+					controlmethod = G_InputMethodFromKey(ev->key);
+			}
 #ifdef PARANOIA
 			else
 			{
@@ -226,6 +264,20 @@ void G_MapEventsToControls(event_t *ev)
 		flag = G_CheckDoubleClick(gamekeydown[KEY_2JOY1+i], &joy2dclicks[i]);
 		gamekeydown[KEY_DBL2JOY1+i] = flag;
 	}
+}
+
+// returns true if a key is assigned to a game control
+boolean G_KeyAssignedToControl(INT32 key)
+{
+	INT32 i = gc_null;
+
+	for (; i < num_gamecontrols; i++)
+	{
+		if (gamecontrol[i][0] == key || gamecontrol[i][1] == key)
+			return true;
+	}
+
+	return false;
 }
 
 //
@@ -920,13 +972,12 @@ void G_ResetInputs(void)
 {
 	memset(gamekeydown, 0x00, sizeof(gamekeydown));
 
-#ifdef TOUCHINPUTS
-	TS_ClearFingers();
-	touchxmove = touchymove = touchpressure = 0.0f;
-#endif
-
 	G_ResetJoysticks();
 	G_ResetMice();
+
+#ifdef TOUCHINPUTS
+	TS_ClearFingers();
+#endif
 }
 
 // clear joystick axes / accelerometer position
@@ -945,11 +996,6 @@ void G_ResetMice(void)
 {
 	mousex = mousey = 0;
 	mouse2x = mouse2y = 0;
-}
-
-boolean G_InGameInput(void)
-{
-	return (!(menuactive || CON_Ready() || chat_on));
 }
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen)

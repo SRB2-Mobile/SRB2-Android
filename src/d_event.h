@@ -38,13 +38,19 @@ typedef struct
 	evtype_t type;
 	INT32 key; // keyboard key, mouse button, joystick button, finger id
 	INT32 x, y;
-
-#ifdef TOUCHINPUTS
-	float fx, fy;
-	INT32 dx, dy;
-	float pressure;
-#endif
 } event_t;
+
+// Touch event structure (event processing doesn't need to know about it.)
+#ifdef TOUCHINPUTS
+typedef struct
+{
+	INT32 x, y;
+	INT32 dx, dy;
+	float fx, fy;
+	float fdx, fdy;
+	float pressure;
+} touchevent_t;
+#endif
 
 //
 // GLOBAL VARIABLES

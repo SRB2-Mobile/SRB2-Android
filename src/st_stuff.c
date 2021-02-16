@@ -2659,9 +2659,9 @@ static void ST_overlayDrawer(void)
 	boolean stagetitle = false;
 
 #ifdef TOUCHINPUTS
-	// Draw touch screen inputs.
-	// Movement controls, jump and spin, etc.
-	boolean drawtouchcontrols = touch_useinputs;
+	boolean drawtouchbuttons; // Draw touch screen buttons.
+	boolean drawtouchcontrols = touch_useinputs; // Movement controls, jump and spin, etc.
+	INT32 touchalphalevel;
 #endif
 
 	// Check for a valid level title
@@ -2821,13 +2821,24 @@ static void ST_overlayDrawer(void)
 	demoinputdrawn = false;
 
 #ifdef TOUCHINPUTS
-	if (G_InGameInput() && touchscreenexists && !demoplayback)
-		TS_DrawControls(touchcontrols, drawtouchcontrols && (stplyr == &players[consoleplayer]), min(cv_touchtrans.value, st_translucency));
+	if (M_IsOnTouchOptions())
+	{
+		drawtouchbuttons = true;
+		touchalphalevel = cv_touchtrans.value;
+	}
+	else
+	{
+		drawtouchbuttons = (G_InGameInput() && touchscreenavailable && controlmethod == INPUTMETHOD_TOUCH);
+		touchalphalevel = min(cv_touchtrans.value, st_translucency);
+	}
+
+	if (drawtouchbuttons && !demoplayback)
+		TS_DrawControls(touchcontrols, drawtouchcontrols && (stplyr == &players[consoleplayer]), touchalphalevel);
 	else
 #endif
 	if (modeattacking && !(demoplayback && hu_showscores)
 #ifdef TOUCHINPUTS
-	&& (!(touchscreenexists && !G_InGameInput()))
+	&& !drawtouchbuttons
 #endif
 	)
 		ST_drawInput();
