@@ -120,7 +120,13 @@ UINT8 graphics_started = 0; // Is used in console.c and screen.c
 // To disable fullscreen at startup; is set in VID_PrepareModeList
 boolean allow_fullscreen = false;
 static SDL_bool disable_fullscreen = SDL_FALSE;
+
+#if defined(__ANDROID__)
+#define USE_FULLSCREEN SDL_TRUE
+#else
 #define USE_FULLSCREEN (disable_fullscreen||!allow_fullscreen)?0:cv_fullscreen.value
+#endif
+
 static SDL_bool disable_mouse = SDL_FALSE;
 #define USE_MOUSEINPUT (!disable_mouse && cv_usemouse.value && havefocus)
 #define MOUSE_MENU false //(!disable_mouse && cv_usemouse.value && menuactive && !USE_FULLSCREEN)
@@ -147,9 +153,9 @@ static       SDL_bool    mousegrabok = SDL_TRUE;
 static       SDL_bool    wrapmouseok = SDL_FALSE;
 #define HalfWarpMouse(x,y) if (wrapmouseok) SDL_WarpMouseInWindow(window, (Uint16)(x/2),(Uint16)(y/2))
 static       SDL_bool    videoblitok = SDL_FALSE;
-static       SDL_bool    exposevideo = SDL_FALSE;
 static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
+static       SDL_bool    appOnBackground = SDL_FALSE;
 
 static boolean splash_screen = false;
 static UINT32 *splash_screen_image = NULL;
@@ -190,21 +196,43 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
 //static void Impl_SetWindowName(const char *title);
 static void Impl_SetWindowIcon(void);
 
-static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool reposition)
+static void Impl_VideoSetupSoftwareSurface(INT32 width, INT32 height)
 {
-	static SDL_bool wasfullscreen = SDL_FALSE;
-	Uint32 rmask;
-	Uint32 gmask;
-	Uint32 bmask;
-	Uint32 amask;
 	int bpp = 16;
 	int sw_texture_format = SDL_PIXELFORMAT_ABGR8888;
 
-#if defined(__ANDROID__)
-	int fullscreen_type = SDL_WINDOW_FULLSCREEN;
-#else
-	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
+#if !defined(__ANDROID__)
+	if (!usesdl2soft)
+	{
+		sw_texture_format = SDL_PIXELFORMAT_RGB565;
+	}
+	else
 #endif
+	{
+		bpp = 32;
+		sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
+	}
+
+	if (texture == NULL)
+		texture = SDL_CreateTexture(renderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
+
+	// Set up SW surface
+	if (vidSurface == NULL)
+	{
+		Uint32 rmask;
+		Uint32 gmask;
+		Uint32 bmask;
+		Uint32 amask;
+
+		SDL_PixelFormatEnumToMasks(sw_texture_format, &bpp, &rmask, &gmask, &bmask, &amask);
+		vidSurface = SDL_CreateRGBSurface(0, width, height, bpp, rmask, gmask, bmask, amask);
+	}
+}
+
+static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool reposition)
+{
+	static SDL_bool wasfullscreen = SDL_FALSE;
+	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
 
 	realwidth = vid.width;
 	realheight = vid.height;
@@ -260,34 +288,40 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 		if (texture != NULL)
 		{
 			SDL_DestroyTexture(texture);
+			texture = NULL;
 		}
 
-		if (!usesdl2soft)
-		{
-			sw_texture_format = SDL_PIXELFORMAT_RGB565;
-		}
-		else
-		{
-			bpp = 32;
-			sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
-		}
-
-		texture = SDL_CreateTexture(renderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
-
-		// Set up SW surface
 		if (vidSurface != NULL)
 		{
 			SDL_FreeSurface(vidSurface);
+			vidSurface = NULL;
 		}
 		if (vid.buffer)
 		{
 			free(vid.buffer);
 			vid.buffer = NULL;
 		}
-		SDL_PixelFormatEnumToMasks(sw_texture_format, &bpp, &rmask, &gmask, &bmask, &amask);
-		vidSurface = SDL_CreateRGBSurface(0, width, height, bpp, rmask, gmask, bmask, amask);
+
+		Impl_VideoSetupSoftwareSurface(width, height);
 	}
 }
+
+#if defined(__ANDROID__)
+static void Impl_AppEnteredForeground(void)
+{
+	VID_DestroyContext();
+	VID_CreateContext();
+
+	SDL_DestroyTexture(texture);
+	texture = NULL;
+
+	if (rendermode == render_soft)
+	{
+		Impl_VideoSetupSoftwareSurface(vid.width, vid.height);
+		SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
+	}
+}
+#endif
 
 static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 {
@@ -601,6 +635,24 @@ static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
 	return raxis;
 }
 
+static void Impl_Unfocused(boolean unfocused)
+{
+	window_notinfocus = unfocused;
+	CON_FocusChanged();
+
+	if (window_notinfocus)
+	{
+		if (! cv_playmusicifunfocused.value)
+			S_PauseAudio();
+		if (! cv_playsoundsifunfocused.value)
+			S_StopSounds();
+
+		memset(gamekeydown, 0, NUMKEYS); // TODO this is a scary memset
+	}
+	else if (!paused)
+		S_ResumeAudio();
+}
+
 static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 {
 	static SDL_bool firsttimeonmouse = SDL_TRUE;
@@ -630,15 +682,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	if (mousefocus && kbfocus)
 	{
 		// Tell game we got focus back, resume music if necessary
-		window_notinfocus = false;
-		if (!paused)
-			S_ResumeAudio(); //resume it
+		Impl_Unfocused(false);
 
-		if (!firsttimeonmouse)
-		{
-			if (cv_usemouse.value) I_StartupMouse();
-		}
-		//else firsttimeonmouse = SDL_FALSE;
+		if (!firsttimeonmouse && cv_usemouse.value)
+			I_StartupMouse();
 
 		if (USE_MOUSEINPUT && !IgnoreMouse())
 			SDLdoGrabMouse();
@@ -646,24 +693,14 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	else if (!mousefocus && !kbfocus)
 	{
 		// Tell game we lost focus, pause music
-		window_notinfocus = true;
-		if (! cv_playmusicifunfocused.value)
-			S_PauseAudio();
-		if (! cv_playsoundsifunfocused.value)
-			S_StopSounds();
+		Impl_Unfocused(true);
 
 		if (!disable_mouse)
-		{
 			SDLforceUngrabMouse();
-		}
-		memset(gamekeydown, 0, NUMKEYS); // TODO this is a scary memset
 
 		if (MOUSE_MENU)
-		{
 			SDLdoUngrabMouse();
-		}
 	}
-
 }
 
 static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
@@ -1080,6 +1117,17 @@ void I_GetEvent(void)
 			case SDL_WINDOWEVENT:
 				Impl_HandleWindowEvent(evt.window);
 				break;
+#if defined(__ANDROID__)
+			case SDL_APP_WILLENTERBACKGROUND:
+				appOnBackground = SDL_TRUE;
+				Impl_Unfocused(true);
+				break;
+			case SDL_APP_WILLENTERFOREGROUND:
+				appOnBackground = SDL_FALSE;
+				Impl_AppEnteredForeground();
+				Impl_Unfocused(false);
+				break;
+#endif
 			case SDL_KEYUP:
 			case SDL_KEYDOWN:
 				Impl_HandleKeyboardEvent(evt.key, evt.type);
@@ -1364,24 +1412,7 @@ void I_OsPolling(void)
 //
 void I_UpdateNoBlit(void)
 {
-	if (rendermode == render_none)
-		return;
-	if (exposevideo)
-	{
-#ifdef HWRENDER
-		if (rendermode == render_opengl)
-		{
-			OglSdlFinishUpdate(cv_vidwait.value);
-		}
-		else
-#endif
-		if (rendermode == render_soft)
-		{
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-			SDL_RenderPresent(renderer);
-		}
-	}
-	exposevideo = SDL_FALSE;
+
 }
 
 // I_SkipFrame
@@ -1439,9 +1470,12 @@ void I_FinishUpdate(void)
 		SCR_DisplayLocalPing();
 
 #ifdef TOUCHINPUTS
-	if (touchscreenavailable && cv_showfingers.value)
+	if (touchscreenavailable && cv_showfingers.value && !(takescreenshot && !cv_touchscreenshots.value))
 		SCR_DisplayFingers();
 #endif
+
+	if (appOnBackground == SDL_TRUE)
+		return;
 
 	if (rendermode == render_soft && screens[0])
 	{
@@ -1463,7 +1497,6 @@ void I_FinishUpdate(void)
 		OglSdlFinishUpdate(cv_vidwait.value);
 	}
 #endif
-	exposevideo = SDL_FALSE;
 }
 
 //
@@ -1785,9 +1818,7 @@ void VID_GetNativeResolution(INT32 *width, INT32 *height)
 
 	for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
 	{
-		int nodisplay = SDL_GetCurrentDisplayMode(i, &resolution);
-
-		if (!nodisplay)
+		if (!SDL_GetCurrentDisplayMode(i, &resolution))
 		{
 			if (width)
 				*width = (INT32)(resolution.w);
@@ -1825,7 +1856,6 @@ INT32 VID_SetMode(INT32 modeNum)
 		else if (vid.height < BASEVIDHEIGHT)
 			vid.height = BASEVIDHEIGHT;
 
-		// Most likely will not exist
 		vid.modenum = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value);
 	}
 	else

@@ -1373,8 +1373,8 @@ static menuitem_t OP_P1ControlsMenu[] =
 
 	// Accelerometer settings
 #if defined(__ANDROID__)
-	{IT_STRING | IT_CVAR, NULL,                "Use accelerometer", &cv_useaccelerometer, 120},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. scale", &cv_accelscale, 130},
+	{IT_STRING | IT_CVAR, NULL,                "Use accelerometer", &cv_useaccelerometer, 110},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. scale", &cv_accelscale, 120},
 #endif
 };
 
@@ -1517,49 +1517,58 @@ static menuitem_t OP_Mouse2OptionsMenu[] =
 static menuitem_t OP_TouchOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Gameplay", NULL, 0},
-	{IT_STRING | IT_CVAR,    NULL, "Movement Style",      &cv_touchstyle,       6},
-	{IT_STRING | IT_CVAR,    NULL, "Camera Movement",     &cv_touchcamera,      11},
-	{IT_STRING | IT_SUBMENU, NULL, "Touch Controls...",   &OP_TouchControlsDef, 16},
+	{IT_STRING | IT_SUBMENU, NULL, "Touch Controls...",      &OP_TouchControlsDef, 6},
+	{IT_STRING | IT_CVAR,    NULL, "Camera Movement",        &cv_touchcamera,      11},
 
-	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 26},
-	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  31},
+	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look",    &cv_alwaysfreelook,   21},
+	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look",    &cv_chasefreelook,    26},
 
-	{IT_HEADER, NULL, "Menu navigation", NULL, 40},
-	{IT_STRING | IT_CVAR, NULL, "Method",                 &cv_touchnavmethod, 46},
+	{IT_HEADER, NULL, "Menu Navigation", NULL, 35},
+	{IT_STRING | IT_CVAR, NULL, "Method",                    &cv_touchnavmethod,   41},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Transparency",              &cv_touchmenutrans,   46},
 
-	{IT_HEADER, NULL, "Translucency", NULL, 55},
+	{IT_HEADER, NULL, "Sensitivity", NULL, 55},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Input translucency",     &cv_touchtrans,     61},
+	                      NULL, "Camera Horz. Sensitivity",  &cv_touchcamhorzsens, 61},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Menu translucency",      &cv_touchmenutrans, 66},
-
-	{IT_HEADER, NULL, "Sensitivity", NULL, 75},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Horz. Sensitivity",   &cv_touchhorzsens,    81},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "Touch Vert. Sensitivity",   &cv_touchvertsens,    86},
+	                      NULL, "Camera Vert. Sensitivity",  &cv_touchcamvertsens, 66},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 91},
+	                      NULL, "Joy. Horz. Sensitivity",    &cv_touchjoyhorzsens, 71},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 96},
+	                      NULL, "Joy. Vert. Sensitivity",    &cv_touchjoyvertsens, 76},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Joy. Deadzone",             &cv_touchjoydeadzone, 101},
+	                      NULL, "Joy. Deadzone",             &cv_touchjoydeadzone, 81},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 90},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Screen Corner Offset",      &cv_touchcorners,     96},
+	{IT_STRING | IT_CVAR, NULL, "Show Input In Screenshots", &cv_touchscreenshots, 101},
 };
 
 static menuitem_t OP_TouchControlsMenu[] =
 {
-	{IT_STRING | IT_CVAR, NULL, "Show Controls",        &cv_touchinputs,           10},
-	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           20},
+	{IT_HEADER, NULL, "General", NULL, 0},
+	{IT_STRING | IT_CVAR, NULL, "Show Controls",        &cv_touchinputs,           6},
+	{IT_STRING | IT_CVAR, NULL, "Movement Style",       &cv_touchstyle,            11},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
+	                      NULL, "Transparency",         &cv_touchtrans,            16},
+
+	{IT_HEADER, NULL, "Preset", NULL, 25},
+	{IT_STRING | IT_CVAR, NULL, "Use Preset",           &cv_touchpreset,           31},
 	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Preset Scale",         &cv_touchguiscale,         30},
+	                      NULL, "Size",                 &cv_touchpresetscale,      36},
+	{IT_STRING | IT_CVAR,
+	                      NULL, "Scale Meta Buttons",   &cv_touchscalemeta,        41},
 
-	{IT_STRING | IT_CALL, NULL, "Customize...",         M_CustomizeTouchControls,  50},
-	{IT_STRING | IT_CALL, NULL, "Manage Layouts...",    M_LoadTouchControlLayout,  60},
+	{IT_HEADER, NULL, "Customization", NULL, 50},
+	{IT_STRING | IT_CALL, NULL, "Customize...",         M_CustomizeTouchControls,  56},
+	{IT_STRING | IT_CALL, NULL, "Manage Layouts...",    M_LoadTouchControlLayout,  61},
+	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 66},
 
-	{IT_STRING | IT_CVAR, NULL, "Use Grid Limits",      &cv_touchlayoutusegrid,    80},
-	{IT_STRING | IT_CVAR, NULL, "Widescreen",           &cv_touchlayoutwidescreen, 90},
-
-	{IT_STRING | IT_CALL, NULL, "Reset Current Layout", M_ClearTouchControlLayout, 110},
+	{IT_HEADER, NULL, "Custom Layout Options", NULL, 75},
+	{IT_STRING | IT_CVAR, NULL, "Use Grid Limits",      &cv_touchlayoutusegrid,    81},
+	{IT_STRING | IT_CVAR, NULL, "Don't Scale To GUI",   &cv_touchlayoutwidescreen, 86},
 };
 
 static menuitem_t OP_TouchCustomizationMenu[] =
@@ -2474,13 +2483,12 @@ menu_t OP_TouchOptionsDef = DEFAULTSCROLLMENUSTYLE(
 	"M_CONTRO", OP_TouchOptionsMenu, &OP_P1ControlsDef, 30, 30);
 
 menu_t OP_TouchControlsDef = {
-	MTREE4(MN_OP_MAIN, MN_OP_P1CONTROLS, MN_OP_TOUCHSCREEN, MN_OP_TOUCHCONTROLS), 0,
-	"M_CONTRO",
+	MTREE4(MN_OP_MAIN, MN_OP_P1CONTROLS, MN_OP_TOUCHSCREEN, MN_OP_TOUCHCONTROLS), MENUSTYLE_SCROLL, NULL,
 	sizeof (OP_TouchControlsMenu)/sizeof (menuitem_t),
 	&OP_TouchOptionsDef,
 	OP_TouchControlsMenu,
 	M_DrawTouchControlsMenu,
-	35, 40,
+	35, 30,
 	0,
 	NULL, NULL
 };
@@ -3661,6 +3669,11 @@ static boolean M_TSNav_RoutineIsMessage(void)
 	return (action == M_StopMessage || action == M_ConnectMenu);
 }
 
+boolean M_TSNav_OnMainMenu(void)
+{
+	return (currentMenu == &MainDef);
+}
+
 boolean M_TSNav_OnMessage(void)
 {
 	return (currentMenu == &MessageDef && M_TSNav_RoutineIsMessage());
@@ -3704,6 +3717,7 @@ void M_TSNav_ShowAllExceptConsole(void)
 void M_TSNav_Update(void)
 {
 	TS_ClearFingers();
+	TS_NavigationFingersUp();
 	TS_DefineNavigationButtons();
 }
 
@@ -4941,7 +4955,7 @@ static void M_FingerSliderSetCVar(touchfinger_t *finger)
 	}
 }
 
-static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
+static boolean M_HandleFingerDownEvent(event_t *ev)
 {
 	INT32 x = ev->x;
 	INT32 y = ev->y;
@@ -4983,22 +4997,20 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 	// Check for any buttons first
 	if (ev->type != ev_touchmotion) // Ignore motion events
 	{
-		INT32 touchkey = TS_MapFingerEventToKey(ev);
+		INT32 selection = -1;
+		INT32 touchkey = TS_MapFingerEventToKey(ev, &selection);
 
 		if (touchkey != KEY_NULL)
 		{
+			touchnavbutton_t *btn = &touchnavigation[selection];
+
 			finger->type.menu = true;
 			finger->navinput = true;
+			finger->u.keyinput = touchkey;
+			finger->selection = selection;
 
-			touchnavigation[touchkey].down = true;
-
-			if (TS_IsCustomizingControls())
-				(*ch) = touchkey; // Quit instantly
-			else if (!M_OnMobileMenu() || currentMenu == &MessageDef)
-			{
-				finger->u.keyinput = touchkey;
-				finger->selection = -1;
-			}
+			btn->down = true;
+			btn->tics = 0;
 
 			return false;
 		}
@@ -5008,17 +5020,20 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 	// The finger didn't tap any button.
 	//
 
-	if (TS_IsCustomizingControls())
+	if (!finger->navinput)
 	{
-		if (TS_HandleCustomization(x, y, finger, ev))
-			return true;
-	}
+		if (TS_IsCustomizingControls())
+		{
+			if (TS_HandleCustomization(x, y, finger, ev))
+				return true;
+		}
 
-	if (!finger->navinput && !M_TSNav_OnMessage())
-	{
-		finger->extrahandling = M_TSNav_HandleMenu(finger, ev);
-		if (finger->extrahandling)
-			return false;
+		if (!M_TSNav_OnMessage())
+		{
+			finger->extrahandling = M_TSNav_HandleMenu(finger, ev);
+			if (finger->extrahandling)
+				return false;
+		}
 	}
 
 	if (ev->type == ev_touchdown)
@@ -5096,6 +5111,9 @@ static boolean M_HandleFingerDownEvent(event_t *ev, INT32 *ch)
 				else
 					finger->u.keyinput = KEY_UPARROW;
 			}
+
+			finger->navinput = true;
+			finger->selection = -1;
 		}
 	}
 	// Slider motion.
@@ -5137,11 +5155,10 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 	INT32 y = ev->y;
 	INT32 key, selection;
 	touchfinger_t *finger = &touchfingers[ev->key];
-	touchconfig_t *btn = NULL;
 	consvar_t *cv;
 	boolean onMessage;
 
-	if (TS_IsCustomizingControls())
+	if (!finger->navinput && TS_IsCustomizingControls())
 	{
 		TS_HandleCustomization(x, y, finger, ev);
 		return true;
@@ -5179,7 +5196,6 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 	// General finger up handling
 	key = finger->u.keyinput;
 	selection = finger->selection;
-	btn = &touchnavigation[key];
 
 	cv = finger->pointer;
 	onMessage = M_TSNav_OnMessage();
@@ -5194,6 +5210,36 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 
 	if (onMessage) // A message menu always returns an enter key.
 		(*ch) = KEY_ENTER;
+	else if (finger->navinput)
+	{
+		switch (key)
+		{
+			case KEY_UPARROW:
+			case KEY_DOWNARROW:
+			case KEY_LEFTARROW:
+			case KEY_RIGHTARROW:
+				if (cv_touchnavmethod.value == 2)
+					(*ch) = key;
+				break;
+			default:
+				if (selection >= 0)
+				{
+					touchnavbutton_t *btn = &touchnavigation[selection];
+
+					if (TS_FingerTouchesNavigationButton(x, y, btn))
+					{
+						// The keyboard has to be kept raised when Enter is hit.
+						if (I_KeyboardOnScreen() && key != KEY_ENTER)
+							I_CloseScreenKeyboard();
+						else
+							(*ch) = key;
+					}
+
+					btn->down = false;
+				}
+				break;
+		}
+	}
 	else if (selection != -1)
 	{
 		INT32 slkey = -1;
@@ -5202,6 +5248,9 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 
 		if (selection == M_IsTouchingMenuSelection(x, y, &slkey, &cv))
 		{
+			if (I_KeyboardOnScreen())
+				I_CloseScreenKeyboard();
+
 			switch (currentMenu->menustyle)
 			{
 				case MENUSTYLE_PLAYSTYLE:
@@ -5240,26 +5289,8 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 				(*ch) = slkey;
 		}
 	}
-	else
-	{
-		switch (key)
-		{
-			case KEY_UPARROW:
-			case KEY_DOWNARROW:
-			case KEY_LEFTARROW:
-			case KEY_RIGHTARROW:
-				if (cv_touchnavmethod.value == 2)
-					(*ch) = key;
-				break;
-			default:
-				if (!btn->hidden && TS_FingerTouchesNavigationButton(x, y, btn))
-					(*ch) = key;
-				break;
-		}
-
-		if (key > 0)
-			touchnavigation[key].down = false;
-	}
+	else if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
 
 done:
 	finger->type.menu = false;
@@ -5273,7 +5304,7 @@ done:
 static boolean M_HandleTouchEvent(event_t *ev, INT32 *ch)
 {
 	if (ev->type == ev_touchdown || ev->type == ev_touchmotion)
-		return M_HandleFingerDownEvent(ev, ch);
+		return M_HandleFingerDownEvent(ev);
 	else if (ev->type == ev_touchup)
 		return M_HandleFingerUpEvent(ev, ch);
 
@@ -5285,6 +5316,16 @@ static boolean M_HandleTouchEvent(event_t *ev, INT32 *ch)
 boolean M_MouseNeeded(void)
 {
 	return (currentMenu == &MessageDef && currentMenu->prevMenu == &OP_ChangeControlsDef);
+}
+
+static void M_DetectInputMethod(INT32 key)
+{
+#ifdef TOUCHINPUTS
+	if (menuactive && I_KeyboardOnScreen())
+		return;
+#endif
+
+	G_DetectInputMethod(key);
 }
 
 //
@@ -5363,7 +5404,7 @@ boolean M_Responder(event_t *ev)
 					break;
 			}
 
-			G_DetectInputMethod(ev->key);
+			M_DetectInputMethod(ev->key);
 		}
 		else if (ev->type == ev_joystick && ev->key == 0 && joywait < I_GetTime())
 		{
@@ -5445,8 +5486,10 @@ boolean M_Responder(event_t *ev)
 				inputmethod = INPUTMETHOD_MOUSE;
 		}
 #ifdef TOUCHINPUTS
-		else if (ev->type == ev_touchdown || ev->type == ev_touchmotion || ev->type == ev_touchup)
+		else if (G_EventIsTouch(ev->type))
 		{
+			if (CON_Ready())
+				return false;
 			inputmethod = INPUTMETHOD_TOUCH;
 			if (M_HandleTouchEvent(ev, &ch))
 				return true;
@@ -5454,7 +5497,7 @@ boolean M_Responder(event_t *ev)
 #endif
 		else if (ev->type == ev_keyup)
 		{
-			G_DetectInputMethod(ev->key);
+			M_DetectInputMethod(ev->key);
 			keydown = 0;
 		}
 	}
@@ -5470,8 +5513,10 @@ boolean M_Responder(event_t *ev)
 	if (!menuactive)
 	{
 		noFurtherInput = true;
+
 		lastinputmethod = inputmethod;
-		G_DetectInputMethod(ev->key);
+		M_DetectInputMethod(ev->key);
+
 		switch (ch)
 		{
 			case KEY_F1: // Help key
@@ -5742,6 +5787,11 @@ void M_Drawer(void)
 
 	if (menuactive)
 	{
+#ifdef TOUCHINPUTS
+		if (gamestate != GS_LEVEL && M_IsOnTouchOptions())
+			TS_DrawControls(touchcontrols, touch_useinputs, cv_touchtrans.value);
+#endif
+
 		// now that's more readable with a faded background (yeah like Quake...)
 		if (!wipe && (curfadevalue || (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK)))
 			V_DrawFadeScreen(0xFF00, (gamestate != GS_TITLESCREEN && gamestate != GS_TIMEATTACK) ? 16 : curfadevalue);
@@ -5755,7 +5805,7 @@ void M_Drawer(void)
 
 #ifdef TOUCHINPUTS
 		if (!M_OnMobileMenu() || currentMenu == &MessageDef)
-			TS_DrawMenuNavigation();
+			TS_DrawNavigation();
 #endif
 	}
 
@@ -5977,8 +6027,6 @@ void M_StartControlPanel(void)
 	CON_ToggleOff(); // move away console
 
 #ifdef TOUCHINPUTS
-	TS_ClearFingers();
-
 	// Update touch screen navigation
 	M_TSNav_ShowAllExceptConsole();
 	M_TSNav_Update();
@@ -11973,7 +12021,7 @@ TSNAVHANDLER(SaveSelect)
 {
 	INT32 fx = event->x;
 	INT32 fy = event->y;
-	fixed_t dx = FloatToFixed(finger->fdx);
+	fixed_t dx = FloatToFixed(finger->fdx * 1.5f);
 
 	menutouchfx_t *slfx = &saveselectfx;
 	INT32 i, threshold = (vid.width / 8);
@@ -12236,7 +12284,7 @@ TSNAVHANDLER(CharacterSelect)
 {
 	INT32 fx = event->x;
 	INT32 fy = event->y;
-	fixed_t dy = FloatToFixed(finger->fdy);
+	fixed_t dy = FloatToFixed(finger->fdy * 1.5f);
 
 	menutouchfx_t *slfx = &charselectfx;
 	INT32 prev = 0, next = 0;
@@ -14914,6 +14962,11 @@ static void M_ConnectIP(INT32 choice)
 {
 	(void)choice;
 
+#ifdef TOUCHINPUTS
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+#endif
+
 	if (*setupm_ip == 0)
 	{
 		M_StartMessage("You must specify an IP address.\n", NULL, MM_NOTHING);
@@ -16044,7 +16097,7 @@ static boolean M_TouchPresetActiveMessage(void)
 {
 	if (TS_IsPresetActive())
 	{
-		M_ShowAnyKeyMessage("Disable the control preset\nto access this menu.\n\n");
+		M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
 		return true;
 	}
 
@@ -16422,22 +16475,33 @@ static void M_CameraOptionsTicker(void)
 #ifdef TOUCHINPUTS
 static void M_DrawTouchControlsMenu(void)
 {
-	INT32 x;
+	INT32 x, y;
 	INT32 flags = V_ALLOWLOWERCASE;
-	const char *string;
+	const char *string, *layout = NULL;
 
 	if ((usertouchlayoutnum != UNSAVEDTOUCHLAYOUT) && (!TS_IsPresetActive()))
 	{
-		char *name = TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), 16);
-		string = va(M_GetText("\x82""Current layout: \x80""%s"), name);
+		layout = TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), 28);
+		string = M_GetText("\x82""Current layout:");
+		y = 25;
 	}
 	else
+	{
 		string = M_GetText("\x86""No layout selected");
+		y = 20;
+	}
 
 	x = (BASEVIDWIDTH - V_StringWidth(string, flags)) >> 1;
-	V_DrawString(x, 30, flags, string);
+	y = (currentMenu->y - y);
+	V_DrawString(x, y, flags, string);
 
-	M_DrawGenericMenu();
+	if (layout)
+	{
+		x = (BASEVIDWIDTH - V_StringWidth(layout, flags)) >> 1;
+		V_DrawString(x, y + 10, flags, layout);
+	}
+
+	M_DrawGenericScrollMenu();
 }
 #endif
 

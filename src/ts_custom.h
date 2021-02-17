@@ -90,13 +90,25 @@ void TS_LoadLayoutFromCVar(void); // called at cvar change
 
 char *TS_GetShortLayoutName(touchlayout_t *layout, size_t maxlen);
 
+//
+// TOUCH CONTROLS CUSTOMIZATION
+//
+
+#define TSC_SNAPMOVE
+#define TSC_SNAPTOSMALLGRID
+
+#define TSC_MESSAGE_DISABLECONTROLPRESET "You cannot change this option\nif you have a preset selected.\n\n"
+
 boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t *event);
 boolean TS_HandleKeyEvent(INT32 key, event_t *event);
 
 void TS_UpdateCustomization(void);
 void TS_DrawCustomization(void);
 
-#define MTOUCH_SNAPTOSMALLGRID
+fixed_t TS_RoundSnapXCoord(fixed_t x);
+fixed_t TS_RoundSnapYCoord(fixed_t y);
+fixed_t TS_RoundSnapWCoord(fixed_t w);
+fixed_t TS_RoundSnapHCoord(fixed_t h);
 
 typedef enum
 {
@@ -168,8 +180,8 @@ typedef enum
 	num_touchcust_options
 } touchcust_option_e;
 
-#define MINBTNWIDTH 8.0f
-#define MINBTNHEIGHT 8.0f
+#define MINBTNWIDTH 16.0f
+#define MINBTNHEIGHT 16.0f
 
 #define TOUCHGRIDSIZE      16
 #define TOUCHSMALLGRIDSIZE (TOUCHGRIDSIZE / 2)

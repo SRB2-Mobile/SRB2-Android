@@ -2830,6 +2830,9 @@ static void ST_overlayDrawer(void)
 	{
 		drawtouchbuttons = (G_InGameInput() && touchscreenavailable && controlmethod == INPUTMETHOD_TOUCH);
 		touchalphalevel = min(cv_touchtrans.value, st_translucency);
+
+		if (takescreenshot && !cv_touchscreenshots.value)
+			drawtouchbuttons = false;
 	}
 
 	if (drawtouchbuttons && !demoplayback)

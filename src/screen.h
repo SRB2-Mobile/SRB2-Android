@@ -64,7 +64,11 @@ typedef struct viddef_s
 	INT32/*fixed_t*/ fdupx, fdupy; // same as dupx, dupy, but exact value when aspect ratio isn't 320/200
 	INT32 bpp; // BYTES per pixel: 1 = 256color, 2 = highcolor
 
-	INT32 baseratio; // Used to get the correct value for lighting walls
+	// Sky scaling
+	struct {
+		INT32 dup;
+		INT32 fdup;
+	} sky;
 
 	// for Win32 version
 	DNWH WndParent; // handle of the application's window

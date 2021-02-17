@@ -66,4 +66,7 @@ boolean CON_Ready(void);
 // Toggle the console
 void CON_Toggle(void);
 
+// Application focus changed
+void CON_FocusChanged(void);
+
 void CON_LogMessage(const char *msg);

@@ -977,6 +977,7 @@ void G_ResetInputs(void)
 
 #ifdef TOUCHINPUTS
 	TS_ClearFingers();
+	TS_NavigationFingersUp();
 #endif
 }
 

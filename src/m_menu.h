@@ -422,6 +422,7 @@ boolean M_TSNav_CanShowBack(void);
 boolean M_TSNav_CanShowConfirm(void);
 boolean M_TSNav_CanShowConsole(void);
 
+boolean M_TSNav_OnMainMenu(void);
 boolean M_TSNav_OnMessage(void);
 
 void M_TSNav_SetBackVisible(boolean set);

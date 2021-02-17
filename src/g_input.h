@@ -111,6 +111,9 @@ typedef enum
 // Checks if a given virtual key is for the second player.
 #define G_VirtualKeyIsPlayer2(key) (G_KeyIsVirtual(key) && (G_KeyIsPlayer2Mouse(key) || G_KeyIsPlayer2Joystick(key)))
 
+// Checks if a given event type is a touch screen event.
+#define G_EventIsTouch(ev) ((ev) == ev_touchdown || (ev) == ev_touchmotion || (ev) == ev_touchup)
+
 typedef enum
 {
 	gc_null = 0, // a key/button mapped to gc_null has no effect

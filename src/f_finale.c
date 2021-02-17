@@ -3392,7 +3392,7 @@ void F_TitleScreenDrawer(void)
 			}
 
 #ifdef TOUCHINPUTS
-			if (touchscreenavailable && !(menuactive || CON_Ready()))
+			if (touchscreenavailable && (gamestate == GS_TITLESCREEN) && !(menuactive || CON_Ready()))
 			{
 				INT32 time = finalecount - 45;
 				if (time >= 0)

@@ -74,7 +74,7 @@ static void SCR_ToggleNativeRes(void);
 static void SCR_NativeResDivChanged(void);
 static void SCR_NativeResAutoChanged(void);
 
-static CV_PossibleValue_t nativeresdiv_cons_t[] = {{FRACUNIT, "MIN"}, {10 * FRACUNIT, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t nativeresdiv_cons_t[] = {{FRACUNIT, "MIN"}, {20 * FRACUNIT, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height"}, {0, NULL}};
 
 #define NATIVERESCVAR_FLAGS(name, default, possiblevalue, func, flags) CVAR_INIT (name, default, (CV_CALL | CV_SAVE | CV_NOINIT | flags), possiblevalue, func)
@@ -82,7 +82,7 @@ static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height
 #define NATIVERESCVAR(name, default, possiblevalue) NATIVERESCVAR_CALL(name, default, possiblevalue, SCR_ToggleNativeRes)
 
 consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
-consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "3", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
+consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "1", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
 consvar_t cv_nativeresauto = NATIVERESCVAR_CALL("nativeresauto", "On", CV_OnOff, SCR_NativeResAutoChanged);
 consvar_t cv_nativeresfov = NATIVERESCVAR_CALL("nativeresfov", "On", CV_OnOff, R_SetViewSize);
 consvar_t cv_nativerescompare = NATIVERESCVAR("nativerescompare", "Height", nativerescompare_cons_t);
@@ -514,8 +514,6 @@ boolean SCR_IsAspectCorrect(INT32 width, INT32 height)
 #ifdef NATIVESCREENRES
 void SCR_GetNativeResolution(INT32 *width, INT32 *height)
 {
-	// Lactozilla: Different from VID_GetNativeResolution in that
-	// it might return overriden native resolutions
 	INT32 w = 0, h = 0;
 
 	VID_GetNativeResolution(&w, &h);
@@ -586,7 +584,7 @@ static void SCR_NativeResAutoChanged(void)
 		scr_resdiv = SCR_GetNativeResDivider(w, h);
 
 		// Stealth change current resolution divider variable
-		sprintf(f, "%.6f", scr_resdiv);
+		snprintf(f, sizeof(f), "%.6f", scr_resdiv);
 		CV_StealthSet(&cv_nativeresdiv, f);
 	}
 	else
@@ -597,6 +595,17 @@ static void SCR_NativeResAutoChanged(void)
 }
 
 #define RESDIVFACTOR (1.0f / 16.0f)
+
+static INT32 SCR_CalcDup(INT32 width, INT32 height)
+{
+	INT32 dupx = max(1, width / BASEVIDWIDTH);
+	INT32 dupy = max(1, height / BASEVIDHEIGHT);
+
+	if (!cv_nativerescompare.value)
+		return (dupx >= dupy ? dupx : dupy);
+	else
+		return (dupx < dupy ? dupx : dupy);
+}
 
 float SCR_GetNativeResDivider(INT32 width, INT32 height)
 {
@@ -609,18 +618,28 @@ float SCR_GetNativeResDivider(INT32 width, INT32 height)
 
 		while (true)
 		{
+			INT32 iw, ih;
+			INT32 dup, corner;
+
 			wsize = (w / div);
 			hsize = (h / div);
 
-			if (wsize <= (w / 3) || hsize <= (h / 3))
+			iw = (INT32)wsize;
+			ih = (INT32)hsize;
+
+			dup = SCR_CalcDup(iw, ih);
+			corner = (iw - (BASEVIDWIDTH * dup)) / 2;
+
+			if (corner < iw / 5)
 				break;
 
-			div += 1.0f;
-			if (div > 10)
+			if (wsize <= BASEVIDWIDTH || hsize <= BASEVIDHEIGHT)
 				break;
+
+			div += 0.25f;
 		}
 
-		return div;
+		return min(div, FixedToFloat(nativeresdiv_cons_t[1].value));
 	}
 
 	return FixedToFloat(cv_nativeresdiv.value);

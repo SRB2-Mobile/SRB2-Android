@@ -7,10 +7,11 @@
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 /// \file  ts_draw.c
-/// \brief Touch screen rendering
+/// \brief Touch screen drawing
 
 #include "ts_main.h"
 #include "ts_draw.h"
+#include "ts_custom.h"
 
 #include "doomstat.h" // paused
 #include "d_netcmd.h" // cv_playercolor
@@ -28,13 +29,13 @@
 
 #ifdef TOUCHINPUTS
 
-#define SCALEBUTTONFIXED(touch, notonmenu) \
+#define SCALEBUTTONFIXED(touch) \
 	if (touch->modifying) \
 	{ \
-		x = FloatToFixed(touch->supposed.x); \
-		y = FloatToFixed(touch->supposed.y); \
-		w = FloatToFixed(touch->supposed.w); \
-		h = FloatToFixed(touch->supposed.h); \
+		x = touch->supposed.fx; \
+		y = touch->supposed.fy; \
+		w = touch->supposed.fw; \
+		h = touch->supposed.fh; \
 		TS_CenterCoords(&x, &y); \
 	} \
 	else \
@@ -50,24 +51,25 @@
 			y = FixedMul(y, dupy); \
 			w = FixedMul(w, dupx); \
 			h = FixedMul(h, dupy); \
-			if (notonmenu) \
-				TS_CenterCoords(&x, &y); \
+			TS_CenterCoords(&x, &y); \
 		} \
 	}
 
 #define SCALEBUTTON(touch) \
-	SCALEBUTTONFIXED(touch, true) \
+	SCALEBUTTONFIXED(touch) \
 	x /= FRACUNIT; \
 	y /= FRACUNIT; \
 	w /= FRACUNIT; \
 	h /= FRACUNIT;
 
 #define SCALEMENUBUTTON(touch) \
-	SCALEBUTTONFIXED(touch, false) \
-	x /= FRACUNIT; \
-	y /= FRACUNIT; \
-	w /= FRACUNIT; \
-	h /= FRACUNIT;
+	x = touch->x; \
+	y = touch->y; \
+	TS_DenormalizeCoords(&x, &y); \
+	x = FixedMul(x, dupx); \
+	y = FixedMul(y, dupy); \
+	w = FixedMul(touch->w, dupx); \
+	h = FixedMul(touch->h, dupy);
 
 #define drawfill(dx, dy, dw, dh, dcol, dflags) \
 	if (alphalevel < 10) \
@@ -75,7 +77,7 @@
 	else \
 		V_DrawFill(dx, dy, dw, dh, dcol|dflags);
 
-void TS_DrawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags)
+static void DrawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t padh, fixed_t scale, UINT8 color, INT32 flags)
 {
 	fixed_t x, y, w, h;
 	fixed_t dupx = vid.dupx*FRACUNIT;
@@ -113,7 +115,7 @@ void TS_DrawJoystickBacking(fixed_t padx, fixed_t pady, fixed_t padw, fixed_t pa
 		xscale, yscale, flags, backing, colormap);
 }
 
-static void TS_DrawDPadButton(
+static void DrawDPadButton(
 	fixed_t x, fixed_t y, fixed_t w, fixed_t h,
 	INT32 shx, INT32 shy,
 	patch_t *patch, INT32 flags, boolean isdown,
@@ -142,7 +144,7 @@ static void TS_DrawDPadButton(
 	V_DrawStretchyFixedPatch(x, (isdown ? y+offs : y), w, h, flags, patch, (isdown ? colormap : NULL));
 }
 
-void TS_DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing)
+static void DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT32 accent, INT32 flags, touchconfig_t *config, boolean backing)
 {
 	INT32 x, y, w, h;
 	fixed_t dupx = vid.dupx * FRACUNIT;
@@ -194,51 +196,51 @@ void TS_DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, INT
 
 	// O backing
 	if (backing)
-		TS_DrawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
+		DrawJoystickBacking(dpadx, dpady, dpadw, dpadh, 3*FRACUNIT/2, 20, flags);
 
-	SCALEBUTTONFIXED(tup, true);
+	SCALEBUTTONFIXED(tup);
 	xscale = FixedDiv(tup->w, SHORT(up->width)*FRACUNIT);
 	yscale = FixedDiv(tup->h, SHORT(up->height)*FRACUNIT);
-	TS_DrawDPadButton(tup->x, tup->y, xscale, yscale, 0, 1, up, flags, moveup, colormap);
+	DrawDPadButton(tup->x, tup->y, xscale, yscale, 0, 1, up, flags, moveup, colormap);
 
-	SCALEBUTTONFIXED(tdown, true);
+	SCALEBUTTONFIXED(tdown);
 	xscale = FixedDiv(tdown->w, SHORT(down->width)*FRACUNIT);
 	yscale = FixedDiv(tdown->h, SHORT(down->height)*FRACUNIT);
-	TS_DrawDPadButton(tdown->x, tdown->y, xscale, yscale, 0, 1, down, flags, movedown, colormap);
+	DrawDPadButton(tdown->x, tdown->y, xscale, yscale, 0, 1, down, flags, movedown, colormap);
 
-	SCALEBUTTONFIXED(tleft, true);
+	SCALEBUTTONFIXED(tleft);
 	xscale = FixedDiv(tleft->w, SHORT(left->width)*FRACUNIT);
 	yscale = FixedDiv(tleft->h, SHORT(left->height)*FRACUNIT);
-	TS_DrawDPadButton(tleft->x, tleft->y, xscale, yscale, -1, 1, left, flags, moveleft, colormap);
+	DrawDPadButton(tleft->x, tleft->y, xscale, yscale, -1, 1, left, flags, moveleft, colormap);
 
-	SCALEBUTTONFIXED(tright, true);
+	SCALEBUTTONFIXED(tright);
 	xscale = FixedDiv(tright->w, SHORT(right->width)*FRACUNIT);
 	yscale = FixedDiv(tright->h, SHORT(right->height)*FRACUNIT);
-	TS_DrawDPadButton(tright->x, tright->y, xscale, yscale, 1, 1, right, flags, moveright, colormap);
+	DrawDPadButton(tright->x, tright->y, xscale, yscale, 1, 1, right, flags, moveright, colormap);
 
 	// diagonals
-	SCALEBUTTONFIXED(tul, true);
+	SCALEBUTTONFIXED(tul);
 	xscale = FixedDiv(tul->w, SHORT(ul->width)*FRACUNIT);
 	yscale = FixedDiv(tul->h, SHORT(ul->height)*FRACUNIT);
-	TS_DrawDPadButton(tul->x, tul->y, xscale, yscale, 1, 1, ul, flags, moveul, colormap);
+	DrawDPadButton(tul->x, tul->y, xscale, yscale, 1, 1, ul, flags, moveul, colormap);
 
-	SCALEBUTTONFIXED(tur, true);
+	SCALEBUTTONFIXED(tur);
 	xscale = FixedDiv(tur->w, SHORT(ur->width)*FRACUNIT);
 	yscale = FixedDiv(tur->h, SHORT(ur->height)*FRACUNIT);
-	TS_DrawDPadButton(tur->x, tur->y, xscale, yscale, -1, 1, ur, flags, moveur, colormap);
+	DrawDPadButton(tur->x, tur->y, xscale, yscale, -1, 1, ur, flags, moveur, colormap);
 
-	SCALEBUTTONFIXED(tdl, true);
+	SCALEBUTTONFIXED(tdl);
 	xscale = FixedDiv(tdl->w, SHORT(dl->width)*FRACUNIT);
 	yscale = FixedDiv(tdl->h, SHORT(dl->height)*FRACUNIT);
-	TS_DrawDPadButton(tdl->x, tdl->y, xscale, yscale, 1, 1, dl, flags, movedl, colormap);
+	DrawDPadButton(tdl->x, tdl->y, xscale, yscale, 1, 1, dl, flags, movedl, colormap);
 
-	SCALEBUTTONFIXED(tdr, true);
+	SCALEBUTTONFIXED(tdr);
 	xscale = FixedDiv(tdr->w, SHORT(dr->width)*FRACUNIT);
 	yscale = FixedDiv(tdr->h, SHORT(dr->height)*FRACUNIT);
-	TS_DrawDPadButton(tdr->x, tdr->y, xscale, yscale, -1, 1, dr, flags, movedr, colormap);
+	DrawDPadButton(tdr->x, tdr->y, xscale, yscale, -1, 1, dr, flags, movedr, colormap);
 }
 
-void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
+static void DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh, UINT8 color, INT32 flags)
 {
 	patch_t *cursor = W_CachePatchLongName("JOY_CURSOR", PU_PATCH);
 	fixed_t dupx = vid.dupx*FRACUNIT;
@@ -287,7 +289,7 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	sticky = max(-yextend, min(FixedMul(FloatToFixed(ymove), yextend), yextend));
 
 	// O backing
-	TS_DrawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
+	DrawJoystickBacking(dpadx, dpady, dpadw, dpadh, FRACUNIT, 20, flags);
 
 	// Hole
 	V_DrawStretchyFixedPatch(
@@ -306,10 +308,11 @@ void TS_DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 // Touch input in-game
 //
 
-static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, const char *str, INT32 keycol, const INT32 accent, INT32 alphalevel, INT32 flags)
+static void DrawInputButton(touchconfig_t *config, INT32 gctype, const char *str, INT32 keycol, const INT32 accent, INT32 alphalevel, INT32 flags)
 {
 	touchconfig_t *control = &config[gctype];
 	INT32 x, y, w, h;
+	INT32 ix, iy, ih, iw;
 	INT32 col, offs;
 	INT32 shadow = vid.dupy;
 	fixed_t dupx = vid.dupx * FRACUNIT;
@@ -319,6 +322,7 @@ static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 	{
 		fixed_t strx, stry;
 		fixed_t strwidth, strheight;
+		fixed_t strscale;
 		INT32 strflags = (flags | V_ALLOWLOWERCASE);
 		boolean drawthin = false;
 		const char *defaultkeystr = control->name;
@@ -328,7 +332,12 @@ static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 		if (!keystr)
 			return;
 
-		SCALEBUTTON(control);
+		SCALEBUTTONFIXED(control);
+
+		ix = FixedInt(x);
+		iy = FixedInt(y);
+		iw = FixedInt(w);
+		ih = FixedInt(h);
 
 		// Draw the button
 		if (touchcontroldown[gctype])
@@ -340,14 +349,12 @@ static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 		{
 			col = keycol;
 			offs = 0;
-			drawfill(x, y + h, w, shadow, 29, flags);
+			drawfill(ix, iy + ih, iw, shadow, 29, flags);
 		}
-		drawfill(x, y + offs, w, h, col, flags);
+
+		drawfill(ix, iy + offs, iw, ih, col, flags);
 
 		// Draw the button name
-		SCALEBUTTONFIXED(control, true);
-
-		// String width
 		strwidth = V_StringWidth(keystr, strflags) * FRACUNIT;
 		drawthin = ((strwidth + (2 * FRACUNIT)) >= w);
 
@@ -373,13 +380,29 @@ static void TS_DrawTouchGameInputButton(touchconfig_t *config, INT32 gctype, con
 		if (drawthin)
 			strheight -= FRACUNIT;
 
-		strx = (x + (w / 2)) - (strwidth / 2);
-		stry = ((y + (h / 2)) - ((strheight * vid.dupy) / 2) + (offs * FRACUNIT));
+#if 0
+		if (!control->dontscaletext && w > h)
+		{
+			fixed_t btw = (control->modifying) ? control->supposed.fw : control->w;
+			fixed_t stw = (drawthin) ? V_ThinStringWidth(keystr, strflags) : V_StringWidth(keystr, strflags);
+			stw *= FRACUNIT;
+			strscale = max(FRACUNIT, FixedDiv(btw, stw));
+		}
+		else
+#endif
+			strscale = FRACUNIT;
+
+		strx = (x + (w / 2));
+		strx -= (FixedMul(strwidth, strscale) / 2);
+
+		stry = (y + (h / 2));
+		stry -= (FixedMul(strheight, strscale * vid.dupy) / 2);
+		stry += (offs * FRACUNIT);
 
 		if (drawthin)
-			V_DrawThinStringAtFixed(strx, stry, strflags, keystr);
+			V_DrawScaledThinString(strx, stry, strscale, strflags, keystr);
 		else
-			V_DrawStringAtFixed(strx, stry, strflags, keystr);
+			V_DrawScaledString(strx, stry, strscale, strflags, keystr);
 	}
 }
 
@@ -396,9 +419,10 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = GetInputAccent();
 
+	const INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
+	const INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
+
 	INT32 i;
-	INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
-	INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
 
 	if (!alphalevel)
 		return;
@@ -408,12 +432,12 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	{
 		// Draw the d-pad
 		if (touch_movementstyle == tms_dpad)
-			TS_DrawDPad(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags, config, true);
+			DrawDPad(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags, config, true);
 		else // Draw the joystick
-			TS_DrawJoystick(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags);
+			DrawJoystick(touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h, accent, flags);
 	}
 
-#define drawbutton(gctype, str, keycol) TS_DrawTouchGameInputButton(config, gctype, str, keycol, accent, alphalevel, flags)
+#define drawbutton(gctype, str, keycol) DrawInputButton(config, gctype, str, keycol, accent, alphalevel, flags)
 #define drawbtn(gctype) drawbutton(gctype, NULL, TS_BUTTONUPCOLOR)
 #define drawbtnname(gctype, str) drawbutton(gctype, str, TS_BUTTONUPCOLOR)
 #define drawcolbtn(gctype, col) drawbutton(gctype, NULL, col)
@@ -456,53 +480,115 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 // Menu touch input
 //
 
-void TS_DrawMenuNavigation(void)
+static void DrawNavigationButton(INT32 nav)
 {
-	fixed_t dupx = vid.dupx*FRACUNIT;
-	fixed_t dupy = vid.dupy*FRACUNIT;
+	touchnavbutton_t *control = &touchnavigation[nav];
+
 	const INT32 alphalevel = cv_touchmenutrans.value;
 	const INT32 transflag = ((10-alphalevel)<<V_ALPHASHIFT);
 	const INT32 flags = (transflag | V_NOSCALESTART);
-	const INT32 accent = TS_BUTTONDOWNCOLOR;
 	const INT32 shadow = vid.dupy;
-	touchconfig_t *control;
-	INT32 col, offs;
-	INT32 x, y, w, h;
-	patch_t *font;
 
-	if (!touchscreenavailable || inputmethod != INPUTMETHOD_TOUCH || !alphalevel)
+	fixed_t cx, cy, xscale, yscale;
+	fixed_t dupx = vid.dupx*FRACUNIT;
+	fixed_t dupy = vid.dupy*FRACUNIT;
+
+	INT32 x, y, w, h;
+	INT32 col, offs;
+	patch_t *font;
+	char symb;
+
+	if (!control->defined)
 		return;
 
-#define drawbtn(keyname) \
-	control = &touchnavigation[keyname]; \
-	if (!control->hidden) \
-	{ \
-		char symb = control->name[0]; \
-		SCALEMENUBUTTON(control); \
-		if (control->down) \
-		{ \
-			col = accent; \
-			offs = shadow; \
-		} \
-		else \
-		{ \
-			col = control->color; \
-			offs = 0; \
-			if (alphalevel >= 10) \
-				V_DrawFill(x, y + h, w, shadow, 29|flags); \
-		} \
-		font = hu_font[toupper(symb) - HU_FONTSTART]; \
-		drawfill(x, y + offs, w, h, col, flags); \
-		V_DrawCharacter((x + (w / 2)) - ((SHORT(font->width)*vid.dupx) / 2), \
-						(y + (h / 2)) - ((SHORT(font->height)*vid.dupx) / 2) + offs, \
-						symb|flags, false); \
+	SCALEMENUBUTTON(control);
+
+	if (strlen(control->patch))
+	{
+		patch_t *patch = W_CachePatchName(control->patch, PU_PATCH);
+		fixed_t pressure = FRACUNIT;
+
+		if (control->tics)
+		{
+			float eased, time = (float)(control->tics) / TS_NAVTICS;
+
+			if (control->down)
+				eased = 1.0f - powf(1.0f - time, 4);
+			else
+				eased = (time * time * time * time);
+
+			pressure -= FixedMul(FRACUNIT / 4, FloatToFixed(eased));
+		}
+
+		xscale = FixedMul(FixedDiv(control->w, SHORT(patch->width)*FRACUNIT), pressure);
+		yscale = FixedMul(FixedDiv(control->h, SHORT(patch->height)*FRACUNIT), pressure);
+
+		V_DrawStretchyFixedPatch(
+			((x + FixedDiv(w, 2 * FRACUNIT)) - (((SHORT(patch->width) * vid.dupx) / 2) * xscale)),
+			((y + FixedDiv(h, 2 * FRACUNIT)) - (((SHORT(patch->height) * vid.dupy) / 2) * yscale)),
+			xscale, yscale, flags, patch, NULL);
+		return;
 	}
 
-	drawbtn(KEY_ESCAPE); // left arrow
-	drawbtn(KEY_ENTER); // right arrow
-	drawbtn(KEY_CONSOLE);
+	x /= FRACUNIT;
+	y /= FRACUNIT;
+	w /= FRACUNIT;
+	h /= FRACUNIT;
 
-#undef drawbtn
+	if (control->down)
+	{
+		col = control->pressedcolor;
+		offs = shadow;
+	}
+	else
+	{
+		col = control->color;
+		offs = 0;
+		if (alphalevel >= 10)
+			V_DrawFill(x, y + h, w, shadow, 29|flags);
+	}
+
+	drawfill(x, y + offs, w, h, col, flags);
+
+	symb = control->name[0];
+	if (!symb)
+		return;
+
+	font = hu_font[toupper(symb) - HU_FONTSTART];
+	if (!font)
+		return;
+
+	if (!control->dontscaletext)
+	{
+		xscale = FixedDiv(control->w, 24 * FRACUNIT);
+		yscale = FixedDiv(control->h, 24 * FRACUNIT);
+	}
+	else
+		xscale = yscale = FRACUNIT;
+
+	cx = (x + (w / 2)) * FRACUNIT;
+	cx -= (font->width * vid.dupx * xscale) / 2;
+	if (symb == '\x1C')
+		x += 2*xscale;
+
+	cy = (y + (h / 2)) * FRACUNIT;
+	cy -= (font->height * vid.dupy * yscale) / 2;
+	cy += (offs * FRACUNIT);
+
+	V_DrawStretchyFixedPatch(cx, cy, xscale, yscale, flags, font, NULL);
+}
+
+void TS_DrawNavigation(void)
+{
+	if (!touchscreenavailable || inputmethod != INPUTMETHOD_TOUCH || !cv_touchmenutrans.value)
+		return;
+
+	if (takescreenshot && !cv_touchscreenshots.value)
+		return;
+
+	DrawNavigationButton(TOUCHNAV_BACK);
+	DrawNavigationButton(TOUCHNAV_CONFIRM);
+	DrawNavigationButton(TOUCHNAV_CONSOLE);
 }
 
 #undef drawfill

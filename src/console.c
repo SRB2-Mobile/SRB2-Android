@@ -963,6 +963,13 @@ boolean CON_Responder(event_t *ev)
 	// let go keyup events, don't eat them
 	if (ev->type != ev_keydown && ev->type != ev_console)
 	{
+#ifdef TOUCHINPUTS
+		if (consoleready && ev->type == ev_touchup)
+		{
+			consoletoggle = true;
+			return true;
+		}
+#endif
 		if (ev->key == gamecontrol[gc_console][0] || ev->key == gamecontrol[gc_console][1])
 			consdown = false;
 		return false;
@@ -1368,6 +1375,14 @@ boolean CON_Responder(event_t *ev)
 	CON_InputAddChar(key);
 
 	return true;
+}
+
+void CON_FocusChanged(void)
+{
+#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+	if (con_destlines > 0)
+		CON_ToggleOff();
+#endif
 }
 
 // Insert a new line in the console text buffer

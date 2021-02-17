@@ -1046,8 +1046,7 @@ static inline void CL_DrawConnectionStatus(void)
 	INT32 ccstime = I_GetTime();
 
 	// Draw background fade
-	if (!menuactive) // menu already draws its own fade
-		V_DrawFadeScreen(0xFF00, 16); // force default
+	V_DrawFadeScreen(0xFF00, 16); // force default
 
 	// Draw the bottom box.
 	M_DrawTextBox(BASEVIDWIDTH/2-128-8, BASEVIDHEIGHT-16-8, 32, 1);
@@ -1057,6 +1056,9 @@ static inline void CL_DrawConnectionStatus(void)
 		abortstring = "Tap Back to abort";
 	else
 #endif
+	if (inputmethod == INPUTMETHOD_JOYSTICK)
+		abortstring = va("Push %s to abort", G_KeynumToString(KEY_JOY1+1));
+	else
 		abortstring = "Press ESC to abort";
 
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT-16-16, V_YELLOWMAP, abortstring);
@@ -1156,8 +1158,7 @@ static inline void CL_DrawConnectionStatus(void)
 	}
 
 #ifdef TOUCHINPUTS
-	// Draw touch input
-	TS_DrawMenuNavigation();
+	TS_DrawNavigation();
 #endif
 }
 #endif
@@ -2085,29 +2086,52 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 		I_OsPolling();
 
 #ifdef TOUCHINPUTS
-		TS_UpdateFingers(1);
+		TS_UpdateNavigation(1);
 #endif
 
 		for (; eventtail != eventhead; eventtail = (eventtail+1) & (MAXEVENTS-1))
 		{
 			event_t *ev = &events[eventtail];
 
-			G_MapEventsToControls(ev);
+#ifdef TOUCHINPUTS
+			if (G_EventIsTouch(ev->type))
+				inputmethod = INPUTMETHOD_TOUCH;
+			else
+#endif
+				G_MapEventsToControls(ev);
 
 #ifdef TOUCHINPUTS
 			if (touchscreenavailable)
 			{
-				boolean fingerdown = (ev->type == ev_touchdown);
+				touchfinger_t *finger = &touchfingers[ev->key];
+				INT32 selection = -1;
 
-				if (fingerdown || ev->type == ev_touchup || ev->type == ev_touchmotion)
+				if (ev->type == ev_touchdown)
 				{
-					inputmethod = INPUTMETHOD_TOUCH;
-
-					if (fingerdown && TS_MapFingerEventToKey(ev) == KEY_ESCAPE)
-						exit = true;
+					finger->u.keyinput = TS_MapFingerEventToKey(ev, &selection);
+					finger->selection = selection;
+					if (selection >= 0)
+						touchnavigation[selection].down = 1;
 				}
-				else if (ev->type == ev_keydown)
-					G_DetectInputMethod(ev->key);
+				else if (ev->type == ev_touchup)
+				{
+					selection = finger->selection;
+
+					if (selection >= 0)
+					{
+						touchnavbutton_t *btn = &touchnavigation[selection];
+
+						if (finger->u.keyinput == KEY_ESCAPE && TS_FingerTouchesNavigationButton(ev->x, ev->y, btn))
+						{
+							exit = true;
+							finger->selection = -1;
+						}
+
+						btn->down = 0;
+					}
+
+					finger->u.keyinput = KEY_NULL;
+				}
 			}
 
 #endif
@@ -2181,6 +2205,7 @@ static void CL_QuitConnectionScreen(void)
 #ifdef TOUCHINPUTS
 	M_TSNav_ShowAll();
 	TS_ClearFingers();
+	TS_ClearNavigation();
 	TS_PositionNavigation();
 #endif
 }
@@ -2252,10 +2277,9 @@ static void CL_ConnectToServer(void)
 		I_CloseScreenKeyboard();
 
 	TS_DefineNavigationButtons();
+	TS_HideNavigationButtons();
 
-	for (i = 0; i < NUMKEYS; i++)
-		touchnavigation[i].hidden = true;
-	touchnavigation[KEY_ESCAPE].hidden = false;
+	touchnavigation[TOUCHNAV_BACK].defined = true;
 #endif
 
 	do
@@ -4825,6 +4849,7 @@ static void Local_Maketic(INT32 realtics)
 
 #ifdef TOUCHINPUTS
 	TS_UpdateFingers(realtics);
+	TS_UpdateNavigation(realtics);
 #endif
 
 	localcmds.angleturn |= TICCMD_RECEIVED;

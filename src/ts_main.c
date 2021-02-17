@@ -14,6 +14,7 @@
 #include "doomdef.h"
 
 #include "ts_main.h"
+#include "ts_draw.h"
 #include "ts_custom.h"
 
 #include "g_game.h" // players[MAXPLAYERS], promptactive, promptblockcontrols
@@ -41,18 +42,21 @@ float touchxmove, touchymove, touchpressure;
 touchfinger_t touchfingers[NUMTOUCHFINGERS];
 UINT8 touchcontroldown[num_gamecontrols];
 
-// Screen buttons
+// Control buttons
 touchconfig_t touchcontrols[num_gamecontrols];
-touchconfig_t touchnavigation[NUMKEYS];
 touchconfig_t *usertouchcontrols = NULL;
+
+// Navigation buttons
+touchnavbutton_t touchnavigation[NUMTOUCHNAV];
 
 // Touch screen config. status
 touchconfigstatus_t touchcontrolstatus;
-touchconfigstatus_t touchnavigationstatus;
+touchnavstatus_t touchnavigationstatus;
 
 // Input variables
 INT32 touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h;
-fixed_t touch_gui_scale;
+fixed_t touch_preset_scale;
+boolean touch_scale_meta;
 
 // Is the touch screen available for game inputs?
 boolean touch_useinputs = true;
@@ -65,8 +69,9 @@ void (*touch_fingerhandler)(touchfinger_t *, event_t *) = NULL;
 touchmovementstyle_e touch_movementstyle;
 touchpreset_e touch_preset;
 boolean touch_camera;
+INT32 touch_corners;
 
-// Console variables for the touch screen
+// Options for the touch screen
 static CV_PossibleValue_t touchstyle_cons_t[] = {
 	{tms_joystick, "Joystick"},
 	{tms_dpad, "D-Pad"},
@@ -81,13 +86,17 @@ static CV_PossibleValue_t touchpreset_cons_t[] = {
 #define TOUCHCVARFLAGS (CV_SAVE | CV_CALL | CV_NOINIT)
 
 consvar_t cv_touchinputs = CVAR_INIT ("touch_inputs", "On", TOUCHCVARFLAGS, CV_YesNo, TS_UpdateControls);
-consvar_t cv_touchstyle  = CVAR_INIT ("touch_movementstyle", "Joystick", TOUCHCVARFLAGS, touchstyle_cons_t, TS_UpdateControls);
+consvar_t cv_touchstyle = CVAR_INIT ("touch_movementstyle", "Joystick", TOUCHCVARFLAGS, touchstyle_cons_t, TS_UpdateControls);
 consvar_t cv_touchpreset = CVAR_INIT ("touch_preset", "Default", TOUCHCVARFLAGS, touchpreset_cons_t, TS_PresetChanged);
 consvar_t cv_touchlayout = CVAR_INIT ("touch_layout", "None", TOUCHCVARFLAGS, NULL, TS_LoadLayoutFromCVar);
 consvar_t cv_touchcamera = CVAR_INIT ("touch_camera", "On", TOUCHCVARFLAGS, CV_OnOff, TS_UpdateControls);
 
-static CV_PossibleValue_t touchguiscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
-consvar_t cv_touchguiscale = CVAR_INIT ("touch_guiscale", "0.75", CV_FLOAT | TOUCHCVARFLAGS | CV_SLIDER_SAFE, touchguiscale_cons_t, TS_UpdateControls);
+static CV_PossibleValue_t touchpresetscale_cons_t[] = {{FRACUNIT/2, "MIN"}, {3 * FRACUNIT, "MAX"}, {0, NULL}};
+consvar_t cv_touchpresetscale = CVAR_INIT ("touch_guiscale", "0.75", CV_FLOAT | TOUCHCVARFLAGS | CV_SLIDER_SAFE, touchpresetscale_cons_t, TS_UpdateControls);
+consvar_t cv_touchscalemeta = CVAR_INIT ("touch_scalemeta", "Yes", TOUCHCVARFLAGS, CV_YesNo, TS_UpdateControls);
+
+static CV_PossibleValue_t touchcorners_cons_t[] = {{0, "MIN"}, {64, "MAX"}, {0, NULL}};
+consvar_t cv_touchcorners = CVAR_INIT ("touch_corners", "8", TOUCHCVARFLAGS | CV_SLIDER_SAFE, touchcorners_cons_t, TS_UpdateControls);
 
 static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NULL}};
 consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE | CV_SLIDER_SAFE, touchtrans_cons_t, NULL);
@@ -95,6 +104,9 @@ consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE | CV_S
 
 static CV_PossibleValue_t touchnavmethod_cons_t[] = {{0, "Default"}, {1, "Selection only"}, {2, "Screen regions"}, {0, NULL}};
 consvar_t cv_touchnavmethod = CVAR_INIT ("touch_navmethod", "Default", CV_SAVE, touchnavmethod_cons_t, NULL);
+
+// Miscellaneous options
+consvar_t cv_touchscreenshots = CVAR_INIT ("touch_screenshotinputs", "No", CV_SAVE, CV_YesNo, NULL);
 
 // Touch layout options
 #define TOUCHLAYOUTCVAR(name, default, func) CVAR_INIT (name, default, (CV_CALL | CV_NOINIT), CV_YesNo, func);
@@ -107,10 +119,15 @@ static void ClearLayoutAndKeepSettings(void)
 
 static void UseGrid_OnChange(void)
 {
-	if (usertouchlayout->widescreen)
+	if (TS_IsPresetActive() || usertouchlayout->widescreen)
 	{
 		CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
-		M_ShowESCMessage("You cannot change this option\nif the layout is widescreen.\n\n");
+
+		if (TS_IsPresetActive())
+			M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
+		else
+			M_ShowESCMessage("You cannot change this option\nif the layout isn't GUI-scaled.\n\n");
+
 		return;
 	}
 
@@ -120,6 +137,13 @@ static void UseGrid_OnChange(void)
 
 static void WideScreen_OnChangeResponse(INT32 ch)
 {
+	if (TS_IsPresetActive())
+	{
+		CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
+		M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
+		return;
+	}
+
 	if (ch != 'y' && ch != KEY_ENTER)
 	{
 		CV_StealthSetValue(&cv_touchlayoutwidescreen, usertouchlayout->widescreen);
@@ -142,10 +166,9 @@ consvar_t cv_touchlayoutusegrid = TOUCHLAYOUTCVAR("touch_layoutusegrid", "Yes", 
 consvar_t cv_touchlayoutwidescreen = TOUCHLAYOUTCVAR("touch_layoutwidescreen", "Yes", WideScreen_OnChange);
 
 // Touch screen sensitivity
-#define MAXTOUCHSENSITIVITY 100 // sensitivity steps
-static CV_PossibleValue_t touchsens_cons_t[] = {{1, "MIN"}, {MAXTOUCHSENSITIVITY, "MAX"}, {0, NULL}};
-consvar_t cv_touchhorzsens = CVAR_INIT ("touch_sens", "40", CV_SAVE, touchsens_cons_t, NULL);
-consvar_t cv_touchvertsens = CVAR_INIT ("touch_vertsens", "45", CV_SAVE, touchsens_cons_t, NULL);
+static CV_PossibleValue_t touchcamsens_cons_t[] = {{1, "MIN"}, {100, "MAX"}, {0, NULL}};
+consvar_t cv_touchcamhorzsens = CVAR_INIT ("touch_sens", "40", CV_SAVE, touchcamsens_cons_t, NULL);
+consvar_t cv_touchcamvertsens = CVAR_INIT ("touch_vertsens", "45", CV_SAVE, touchcamsens_cons_t, NULL);
 
 #define TOUCHJOYCVARFLAGS (CV_FLOAT | CV_SAVE)
 
@@ -163,6 +186,7 @@ void TS_RegisterVariables(void)
 {
 	// Display settings
 	CV_RegisterVar(&cv_showfingers);
+	CV_RegisterVar(&cv_touchscreenshots);
 	CV_RegisterVar(&cv_touchmenutrans);
 	CV_RegisterVar(&cv_touchtrans);
 
@@ -171,17 +195,19 @@ void TS_RegisterVariables(void)
 	CV_RegisterVar(&cv_touchlayoutwidescreen);
 
 	// Preset settings
-	CV_RegisterVar(&cv_touchguiscale);
+	CV_RegisterVar(&cv_touchscalemeta);
+	CV_RegisterVar(&cv_touchpresetscale);
 
 	// Sensitivity settings
-	CV_RegisterVar(&cv_touchhorzsens);
-	CV_RegisterVar(&cv_touchvertsens);
+	CV_RegisterVar(&cv_touchcamhorzsens);
+	CV_RegisterVar(&cv_touchcamvertsens);
 	CV_RegisterVar(&cv_touchjoyvertsens);
 	CV_RegisterVar(&cv_touchjoyhorzsens);
 	CV_RegisterVar(&cv_touchjoydeadzone);
 
 	// Main options
 	CV_RegisterVar(&cv_touchnavmethod);
+	CV_RegisterVar(&cv_touchcorners);
 	CV_RegisterVar(&cv_touchcamera);
 	CV_RegisterVar(&cv_touchpreset);
 	CV_RegisterVar(&cv_touchlayout);
@@ -228,23 +254,29 @@ void TS_ScaleCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, 
 	*y = FixedMul((*y), ys) / FRACUNIT;
 }
 
-static boolean IsFingerTouchingButton(INT32 x, INT32 y, touchconfig_t *btn, boolean center)
+static boolean IsFingerTouchingButton(INT32 x, INT32 y, touchconfig_t *btn)
 {
 	INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
 	TS_ScaleCoords(&tx, &ty, &tw, &th, true, (!btn->dontscale));
-	if (center && (!btn->dontscale))
+	if (!btn->dontscale)
 		TS_CenterIntegerCoords(&tx, &ty);
 	return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
 }
 
 boolean TS_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn)
 {
-	return IsFingerTouchingButton(x, y, btn, true);
+	return IsFingerTouchingButton(x, y, btn);
 }
 
-boolean TS_FingerTouchesNavigationButton(INT32 x, INT32 y, touchconfig_t *btn)
+boolean TS_FingerTouchesNavigationButton(INT32 x, INT32 y, touchnavbutton_t *btn)
 {
-	return IsFingerTouchingButton(x, y, btn, false);
+	if (btn->defined)
+	{
+		INT32 tx = btn->x, ty = btn->y, tw = btn->w, th = btn->h;
+		TS_ScaleCoords(&tx, &ty, &tw, &th, true, true);
+		return (x >= tx && x <= tx + tw && y >= ty && y <= ty + th);
+	}
+	return false;
 }
 
 boolean TS_FingerTouchesJoystickArea(INT32 x, INT32 y)
@@ -463,8 +495,8 @@ void TS_HandleFingerEvent(event_t *ev)
 
 				if (touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
-					INT32 movex = (INT32)(dx*((cv_touchhorzsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
-					INT32 movey = (INT32)(dy*((cv_touchhorzsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
+					INT32 movex = (INT32)(dx*((cv_touchcamhorzsens.value*cv_touchcamhorzsens.value)/110.0f + 0.1f));
+					INT32 movey = (INT32)(dy*((cv_touchcamhorzsens.value*cv_touchcamhorzsens.value)/110.0f + 0.1f));
 
 					// Joystick
 					if (finger->type.joystick == FINGERMOTION_JOYSTICK)
@@ -494,7 +526,7 @@ void TS_HandleFingerEvent(event_t *ev)
 					{
 						mousex = movex;
 						mousey = movey;
-						mlooky = (INT32)(dy*((cv_touchvertsens.value*cv_touchhorzsens.value)/110.0f + 0.1f));
+						mlooky = (INT32)(dy*((cv_touchcamvertsens.value*cv_touchcamhorzsens.value)/110.0f + 0.1f));
 						controlmethod = INPUTMETHOD_TOUCH;
 					}
 				}
@@ -533,7 +565,7 @@ void TS_HandleFingerEvent(event_t *ev)
 	}
 }
 
-INT32 TS_MapFingerEventToKey(event_t *event)
+INT32 TS_MapFingerEventToKey(event_t *event, INT32 *nav)
 {
 	INT32 i;
 
@@ -541,17 +573,21 @@ INT32 TS_MapFingerEventToKey(event_t *event)
 	if (event->type == ev_touchmotion) // Ignore motion events
 		return KEY_NULL;
 
-	for (i = 0; i < NUMKEYS; i++)
+	for (i = 0; i < NUMTOUCHNAV; i++)
 	{
-		touchconfig_t *btn = &touchnavigation[i];
+		touchnavbutton_t *btn = &touchnavigation[i];
 
-		// Ignore hidden buttons
-		if (btn->hidden)
+		// Ignore buttons that aren't defined
+		if (!btn->defined)
 			continue;
 
 		// Check if your finger touches this button.
 		if (TS_FingerTouchesNavigationButton(event->x, event->y, btn))
-			return i;
+		{
+			if (nav)
+				(*nav) = i;
+			return btn->key;
+		}
 	}
 
 	return KEY_NULL;
@@ -593,6 +629,31 @@ void TS_UpdateFingers(INT32 realtics)
 	}
 }
 
+void TS_UpdateNavigation(INT32 realtics)
+{
+	INT32 i, tics;
+
+	for (i = 0; i < NUMTOUCHNAV; i++)
+	{
+		touchnavbutton_t *btn = &touchnavigation[i];
+
+		// Ignore buttons that aren't defined
+		if (!btn->defined)
+			continue;
+
+		if (btn->down)
+		{
+			tics = btn->tics + realtics;
+			btn->tics = min(tics, TS_NAVTICS);
+		}
+		else if (btn->tics)
+		{
+			tics = btn->tics - realtics;
+			btn->tics = max(0, tics);
+		}
+	}
+}
+
 void TS_OnTouchEvent(INT32 id, evtype_t type, touchevent_t *event)
 {
 	touchfinger_t *finger = &touchfingers[id];
@@ -620,6 +681,30 @@ void TS_ClearFingers(void)
 	touchxmove = touchymove = touchpressure = 0.0f;
 }
 
+void TS_ClearNavigation(void)
+{
+	INT32 i;
+
+	TS_NavigationFingersUp();
+
+	for (i = 0; i < NUMTOUCHNAV; i++)
+	{
+		touchnavbutton_t *button = &touchnavigation[i];
+		button->tics = 0;
+	}
+}
+
+void TS_NavigationFingersUp(void)
+{
+	INT32 i;
+
+	for (i = 0; i < NUMTOUCHNAV; i++)
+	{
+		touchnavbutton_t *button = &touchnavigation[i];
+		button->down = false;
+	}
+}
+
 void TS_GetSettings(void)
 {
 	if (!TS_Ready())
@@ -629,10 +714,10 @@ void TS_GetSettings(void)
 	touch_movementstyle = cv_touchstyle.value;
 	touch_camera = (cv_usemouse.value ? false : (!!cv_touchcamera.value));
 	touch_preset = cv_touchpreset.value;
-	touch_gui_scale = cv_touchguiscale.value;
+	touch_corners = cv_touchcorners.value;
+	touch_preset_scale = cv_touchpresetscale.value;
+	touch_scale_meta = cv_touchscalemeta.value;
 }
-
-#define SCALECOORD(coord) FixedMul(coord, scale)
 
 void TS_UpdateControls(void)
 {
@@ -642,7 +727,7 @@ void TS_UpdateControls(void)
 
 fixed_t TS_GetDefaultScale(void)
 {
-	return (fixed_t)(atof(cv_touchguiscale.defaultvalue) * FRACUNIT);
+	return (fixed_t)(atof(cv_touchpresetscale.defaultvalue) * FRACUNIT);
 }
 
 void TS_GetJoystick(fixed_t *x, fixed_t *y, fixed_t *w, fixed_t *h, boolean tiny)
@@ -747,6 +832,8 @@ void TS_DPadPreset(touchconfig_t *controls, fixed_t xscale, fixed_t yscale, fixe
 	controls[gc_dpaddr].y = controls[gc_backward].y - diagyoffs;
 }
 
+#define SCALECOORD(coord) FixedMul(coord, scale)
+
 static void ScaleDPadBase(touchmovementstyle_e tms, touchconfigstatus_t *status, boolean tiny, fixed_t dx, fixed_t dy, fixed_t dw, fixed_t dh, fixed_t scale, fixed_t offs, fixed_t bottomalign)
 {
 	touch_joystick_w = SCALECOORD(dw);
@@ -815,6 +902,21 @@ void TS_NormalizeConfig(touchconfig_t *config, int configsize)
 		touchconfig_t *button = &config[i];
 		if (button->x || button->y)
 			TS_NormalizeButton(button);
+	}
+}
+
+static void TS_NormalizeNavigation(void)
+{
+	INT32 i;
+
+	for (i = 0; i < NUMTOUCHNAV; i++)
+	{
+		touchnavbutton_t *button = &touchnavigation[i];
+		if (button->defined)
+		{
+			button->x = FixedDiv(button->x, BASEVIDWIDTH * FRACUNIT);
+			button->y = FixedDiv(button->y, BASEVIDHEIGHT * FRACUNIT);
+		}
 	}
 }
 
@@ -994,12 +1096,12 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 
 	if (widescreen)
 	{
-		rightcorner = ((vid.width / vid.dupx) * FRACUNIT);
+		rightcorner = (((vid.width / vid.dupx) - status->corners) * FRACUNIT);
 		bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
 	}
 	else
 	{
-		rightcorner = BASEVIDWIDTH * FRACUNIT;
+		rightcorner = (BASEVIDWIDTH - status->corners) * FRACUNIT;
 		bottomcorner = BASEVIDHEIGHT * FRACUNIT;
 	}
 
@@ -1013,6 +1115,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 		bottomalign = ((vid.height - (BASEVIDHEIGHT * vid.dupy)) / vid.dupy) * FRACUNIT;
 
 	TS_GetJoystick(&dx, &dy, &dw, &dh, tiny);
+	dx += (status->corners * FRACUNIT);
 
 	// D-Pad
 	ScaleDPadBase(tms, status, tiny, dx, dy, dw, dh, scale, offs, bottomalign);
@@ -1110,6 +1213,9 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	//
 	// Non-control buttons
 	//
+
+	if (!status->scalemeta)
+		scale = TS_GetDefaultScale();
 
 	offs = SCALECOORD(8 * FRACUNIT);
 
@@ -1234,6 +1340,8 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	}
 }
 
+#undef SCALECOORD
+
 static void BuildWeaponButtons(touchconfigstatus_t *status)
 {
 	INT32 i, wep, dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
@@ -1297,7 +1405,7 @@ void TS_PositionButtons(void)
 	if (TS_IsPresetActive())
 	{
 		memset(touchcontrols, 0x00, sizeof(touchconfig_t) * num_gamecontrols);
-		TS_BuildPreset(touchcontrols, status, touch_movementstyle, touch_gui_scale, (touch_preset == touchpreset_tiny), true);
+		TS_BuildPreset(touchcontrols, status, touch_movementstyle, touch_preset_scale, (touch_preset == touchpreset_tiny), true);
 	}
 
 	// Weapon select slots
@@ -1357,79 +1465,118 @@ void TS_PresetChanged(void)
 		TS_DefineButtons();
 }
 
-#undef SCALECOORD
-
 void TS_PositionNavigation(void)
 {
-	INT32 i;
-	touchconfigstatus_t *status = &touchnavigationstatus;
-	touchconfig_t *nav = touchnavigation;
-	INT32 corneroffset = 4 * FRACUNIT;
+	touchnavstatus_t *status = &touchnavigationstatus;
+	touchnavbutton_t *nav = touchnavigation;
+	fixed_t hcorner = 12, vcorner;
+	INT32 size = 0;
+	fixed_t basebtnsize = 24 * FRACUNIT;
+	fixed_t btnsize = basebtnsize;
 
-	touchconfig_t *back = &nav[KEY_ESCAPE];
-	touchconfig_t *confirm = &nav[KEY_ENTER];
-	touchconfig_t *con = &nav[KEY_CONSOLE];
+	touchnavbutton_t *back = &nav[TOUCHNAV_BACK];
+	touchnavbutton_t *confirm = &nav[TOUCHNAV_CONFIRM];
+	touchnavbutton_t *con = &nav[TOUCHNAV_CONSOLE];
 
-	// clear all
-	memset(touchnavigation, 0x00, sizeof(touchconfig_t) * NUMKEYS);
+	if (vid.width == BASEVIDWIDTH * vid.dupx)
+		hcorner = 4;
+	else
+	{
+		fixed_t dup = min(FixedDiv(vid.width * FRACUNIT, BASEVIDWIDTH * FRACUNIT), (vid.dupx - 1)<<FRACBITS);
+		size = ((vid.width - hcorner) - (BASEVIDWIDTH * vid.dupx)) / 8;
+		btnsize += max(FixedMul(size, dup), basebtnsize);
+	}
 
-	for (i = 0; i < NUMKEYS; i++)
-		nav[i].color = 16;
+	hcorner *= FRACUNIT;
+	vcorner = hcorner;
+
+	hcorner += (status->corners * FRACUNIT);
 
 	// Back
+	back->key = KEY_ESCAPE;
+	back->defined = true;
+	back->dontscaletext = (btnsize == basebtnsize);
+
 	if (!status->canreturn)
-		back->hidden = true;
+		back->defined = false;
 	else if (status->customizingcontrols)
 	{
+		back->name = "\x1C";
+		back->patch = "";
 		back->w = 16 * FRACUNIT;
 		back->h = 16 * FRACUNIT;
 		back->color = 35;
+		back->pressedcolor = back->color + 3;
+		back->dontscaletext = true;
 	}
 	else
 	{
-		back->x = corneroffset;
-		back->y = corneroffset;
-		back->w = 24 * FRACUNIT;
-		back->h = 24 * FRACUNIT;
-		back->h = 24 * FRACUNIT;
+		back->patch = "NAV_BACK";
+		back->x = hcorner;
+		back->y = vcorner;
+		back->w = back->h = btnsize;
 	}
 
-	back->name = "\x1C";
-
 	// Confirm
+	confirm->key = KEY_ENTER;
+	confirm->defined = true;
+	confirm->dontscaletext = (btnsize == basebtnsize);
+
 	if (status->layoutsubmenuopen || !status->canconfirm)
-		confirm->hidden = true;
+		confirm->defined = false;
 	else if (status->customizingcontrols)
 	{
+		confirm->name = "+";
+		confirm->patch = "";
 		confirm->w = 32 * FRACUNIT;
 		confirm->h = 16 * FRACUNIT;
 		confirm->x = (((vid.width / (vid.dupx * 2)) * FRACUNIT) - (confirm->w / 2));
 		confirm->color = 112;
-		confirm->name = "+";
+		confirm->pressedcolor = confirm->color + 3;
+		confirm->dontscaletext = true;
 	}
 	else
 	{
-		confirm->w = 24 * FRACUNIT;
-		confirm->h = 24 * FRACUNIT;
-		confirm->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w - corneroffset);
-		confirm->y = corneroffset;
-		confirm->name = "\x1D";
+		confirm->patch = "NAV_CONFIRM";
+		confirm->w = confirm->h = btnsize;
+		confirm->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w - hcorner);
+		confirm->y = vcorner;
 	}
 
 	// Console
-	if (!status->canopenconsole)
-		con->hidden = true;
-	else
+	con->key = KEY_CONSOLE;
+	con->defined = (status->canopenconsole);
+
+	if (con->defined)
 	{
-		con->x = corneroffset;
-		con->y = back->y + back->h + (8 * FRACUNIT);
-		con->w = 24 * FRACUNIT;
-		con->h = 24 * FRACUNIT;
-		con->name = "$";
+		con->patch = "NAV_CONSOLE";
+		con->x = hcorner;
+
+		if (back->defined)
+			con->y = back->y + back->h + (8 * FRACUNIT);
+		else
+			con->y = vcorner;
+
+		con->h = max(24 * FRACUNIT, btnsize / 2);
+
+		if (M_TSNav_OnMainMenu())
+			con->w = FixedMul(con->h, FixedDiv(32 * FRACUNIT, 24 * FRACUNIT));
+		else
+		{
+			con->patch = "NAV_CONSOLE_SHORT";
+			con->w = con->h;
+		}
 	}
 
 	// Normalize all buttons
-	TS_NormalizeConfig(nav, NUMKEYS);
+	TS_NormalizeNavigation();
+}
+
+void TS_HideNavigationButtons(void)
+{
+	INT32 i = 0;
+	for (; i < NUMTOUCHNAV; i++)
+		touchnavigation[i].defined = false;
 }
 
 void TS_DefineButtons(void)
@@ -1444,7 +1591,9 @@ void TS_DefineButtons(void)
 	{
 		status.vidwidth = vid.width;
 		status.vidheight = vid.height;
-		status.guiscale = touch_gui_scale;
+		status.presetscale = touch_preset_scale;
+		status.scalemeta = touch_scale_meta;
+		status.corners = touch_corners;
 
 		status.preset = touch_preset;
 		status.movementstyle = touch_movementstyle;
@@ -1489,14 +1638,16 @@ void TS_DefineButtons(void)
 
 void TS_DefineNavigationButtons(void)
 {
-	static touchconfigstatus_t navstatus;
-	size_t size = sizeof(touchconfigstatus_t);
+	static touchnavstatus_t navstatus;
+	size_t size = sizeof(touchnavstatus_t);
 
 	if (!TS_Ready())
 		return;
 
 	navstatus.vidwidth = vid.width;
 	navstatus.vidheight = vid.height;
+	navstatus.corners = cv_touchcorners.value;
+
 	navstatus.customizingcontrols = TS_IsCustomizingControls();
 	navstatus.layoutsubmenuopen = TS_IsCustomizationSubmenuOpen();
 	navstatus.canreturn = M_TSNav_CanShowBack();

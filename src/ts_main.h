@@ -71,25 +71,59 @@ typedef struct
 	fixed_t x, y; // coordinates (normalized)
 	fixed_t w, h; // dimensions
 	const char *name, *tinyname; // names
-	UINT8 color; // color
+	UINT8 color, pressedcolor; // colors
 
 	boolean down; // is down
 	boolean dpad; // d-pad button
 	boolean hidden; // doesn't exist
 	boolean dontscale; // isn't scaled
+	boolean dontscaletext; // text isn't scaled
 
 	// touch customization
 	boolean modifying;
 	struct {
 		float x, y; // coordinates (floating-point, not normalized)
-		fixed_t w, h; // dimensions
+		float w, h; // dimensions (floating-point)
+		fixed_t fx, fy; // coordinates (fixed-point, not normalized)
+		fixed_t fw, fh; // dimensions (fixed-point)
+		boolean snap; // snap to grid
 	} supposed;
 } touchconfig_t;
 
-// Screen buttons
-extern touchconfig_t touchcontrols[num_gamecontrols]; // Game inputs
-extern touchconfig_t touchnavigation[NUMKEYS]; // Menu inputs
+typedef struct
+{
+	INT32 key; // key that this button corresponds to
+	boolean defined; // is defined
+
+	fixed_t x, y; // coordinates (normalized)
+	fixed_t w, h; // dimensions
+
+	const char *name; // name
+	const char *patch; // patch
+	UINT8 color, pressedcolor; // colors
+
+	boolean down; // is down
+	tic_t tics; // time held down
+
+	boolean dontscaletext; // text isn't scaled
+} touchnavbutton_t;
+
+// Control buttons
+extern touchconfig_t touchcontrols[num_gamecontrols];
 extern touchconfig_t *usertouchcontrols;
+
+// Navigation buttons
+enum
+{
+	TOUCHNAV_BACK,
+	TOUCHNAV_CONFIRM,
+	TOUCHNAV_CONSOLE,
+	NUMTOUCHNAV
+};
+
+#define TS_NAVTICS 10
+
+extern touchnavbutton_t touchnavigation[NUMTOUCHNAV];
 
 // Button presets
 typedef enum
@@ -102,7 +136,8 @@ typedef enum
 
 // Input variables
 extern fixed_t touch_joystick_x, touch_joystick_y, touch_joystick_w, touch_joystick_h;
-extern fixed_t touch_gui_scale;
+extern fixed_t touch_preset_scale;
+extern boolean touch_scale_meta;
 
 // Touch movement style
 typedef enum
@@ -132,13 +167,16 @@ extern void (*touch_fingerhandler)(touchfinger_t *, event_t *);
 extern touchmovementstyle_e touch_movementstyle;
 extern touchpreset_e touch_preset;
 extern boolean touch_camera;
+extern INT32 touch_corners;
 
 // Touch config. status
 typedef struct
 {
 	INT32 vidwidth; // vid.width
 	INT32 vidheight; // vid.height
-	fixed_t guiscale; // touch_gui_scale
+	fixed_t presetscale; // touch_preset_scale
+	boolean scalemeta; // touch_scale_meta
+	INT32 corners; // touch_corners
 
 	touchpreset_e preset; // touch_preset
 	touchmovementstyle_e movementstyle; // touch_movementstyle
@@ -153,15 +191,24 @@ typedef struct
 	boolean cantalk; // netgame && !CHAT_MUTE
 	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
 	boolean promptblockcontrols;
+} touchconfigstatus_t;
+
+// Touch navigation status
+typedef struct
+{
+	INT32 vidwidth; // vid.width
+	INT32 vidheight; // vid.height
+	INT32 corners; // cv_touchcorners.value
+
 	boolean canreturn; // M_TSNav_CanShowBack
 	boolean canconfirm; // M_TSNav_CanShowConfirm
 	boolean canopenconsole; // (!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole()
 	boolean customizingcontrols; // TS_IsCustomizingControls
 	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
-} touchconfigstatus_t;
+} touchnavstatus_t;
 
 extern touchconfigstatus_t touchcontrolstatus;
-extern touchconfigstatus_t touchnavigationstatus;
+extern touchnavstatus_t touchnavigationstatus;
 
 // Console variables for the touch screen
 extern consvar_t cv_touchinputs;
@@ -170,7 +217,8 @@ extern consvar_t cv_touchpreset;
 extern consvar_t cv_touchlayout;
 extern consvar_t cv_touchcamera;
 extern consvar_t cv_touchtrans, cv_touchmenutrans;
-extern consvar_t cv_touchguiscale;
+extern consvar_t cv_touchpresetscale, cv_touchscalemeta;
+extern consvar_t cv_touchcorners;
 extern consvar_t cv_touchnavmethod;
 
 // Touch layout options
@@ -178,9 +226,12 @@ extern consvar_t cv_touchlayoutusegrid;
 extern consvar_t cv_touchlayoutwidescreen;
 
 // Touch screen sensitivity
-extern consvar_t cv_touchhorzsens, cv_touchvertsens;
+extern consvar_t cv_touchcamhorzsens, cv_touchcamvertsens;
 extern consvar_t cv_touchjoyhorzsens, cv_touchjoyvertsens;
 extern consvar_t cv_touchjoydeadzone;
+
+// Miscellaneous options
+extern consvar_t cv_touchscreenshots;
 
 // Screen joystick movement
 #define TOUCHJOYEXTENDX (touch_joystick_w / 2)
@@ -200,6 +251,8 @@ void TS_DefineNavigationButtons(void);
 void TS_PositionButtons(void);
 void TS_PositionNavigation(void);
 void TS_PositionExtraUserButtons(void);
+
+void TS_HideNavigationButtons(void);
 
 boolean TS_IsDPadButton(INT32 gc);
 void TS_MarkDPadButtons(touchconfig_t *controls);
@@ -225,20 +278,29 @@ boolean TS_IsPresetActive(void);
 // Updates touch fingers
 void TS_UpdateFingers(INT32 realtics);
 
+// Updates touch navigation
+void TS_UpdateNavigation(INT32 realtics);
+
 // Touch event received
 void TS_OnTouchEvent(INT32 id, evtype_t type, touchevent_t *event);
 
 // Clears touch fingers
 void TS_ClearFingers(void);
 
-// Gets a key from a finger event
-INT32 TS_MapFingerEventToKey(event_t *event);
+// Clears navigation buttons
+void TS_ClearNavigation(void);
+
+// Sets navigation buttons up
+void TS_NavigationFingersUp(void);
+
+// Remaps a finger event to a key
+INT32 TS_MapFingerEventToKey(event_t *event, INT32 *nav);
 
 // Checks if the finger (x, y) is touching the specified button (btn)
 boolean TS_FingerTouchesButton(INT32 x, INT32 y, touchconfig_t *btn);
 
 // Checks if the finger (x, y) is touching the specified navigation button (btn)
-boolean TS_FingerTouchesNavigationButton(INT32 x, INT32 y, touchconfig_t *btn);
+boolean TS_FingerTouchesNavigationButton(INT32 x, INT32 y, touchnavbutton_t *btn);
 
 // Checks if the finger is touching the joystick area.
 boolean TS_FingerTouchesJoystickArea(INT32 x, INT32 y);
