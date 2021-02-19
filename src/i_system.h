@@ -154,8 +154,6 @@ void I_JoyScale(void);
 */
 void I_JoyScale2(void);
 
-// Called by D_SRB2Main.
-
 /**	\brief to startup the first joystick
 */
 void I_InitJoystick(void);
@@ -163,6 +161,14 @@ void I_InitJoystick(void);
 /**	\brief to startup the second joystick
 */
 void I_InitJoystick2(void);
+
+/**	\brief to change the first player's joystick
+*/
+void I_ChangeJoystick(void);
+
+/**	\brief to change the second player's joystick
+*/
+void I_ChangeJoystick2(void);
 
 /**	\brief return the number of joystick on the system
 */
@@ -175,6 +181,30 @@ INT32 I_NumJoys(void);
 	\return	joystick name
 */
 const char *I_GetJoyName(INT32 joyindex);
+
+/**	\brief	The I_JoystickIsGamepad function
+
+	\param	joyindex	which joystick
+
+	\return	true if the joystick is a gamepad
+*/
+boolean I_JoystickIsGamepad(INT32 joyindex);
+
+/**	\brief	The I_JoystickIsTVRemote function
+
+	\param	joyindex	which joystick
+
+	\return	true if the joystick is a TV remote
+*/
+boolean I_JoystickIsTVRemote(INT32 joyindex);
+
+/**	\brief	The I_JoystickIsAccelerometer function
+
+	\param	joyindex	which joystick
+
+	\return	true if the joystick is an accelerometer
+*/
+boolean I_JoystickIsAccelerometer(INT32 joyindex);
 
 #ifdef TOUCHINPUTS
 /**	\brief to startup the touch screen

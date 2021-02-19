@@ -94,6 +94,15 @@
 #include "../ts_main.h"
 #endif
 
+#if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
+	#include "../r_picformats.h" // zlib defines and png.h include
+	#ifdef PNG_READ_SUPPORTED
+		#define SPLASH_SCREEN_SUPPORTED
+
+		static void SplashScreen_FreeImage(void);
+	#endif
+#endif
+
 // maximum number of windowed modes (see windowedModes[][])
 #define MAXWINMODES (18)
 
@@ -157,8 +166,11 @@ static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 static       SDL_bool    appOnBackground = SDL_FALSE;
 
-static boolean splash_screen = false;
-static UINT32 *splash_screen_image = NULL;
+static struct
+{
+	SDL_bool displaying;
+	UINT32 *image;
+} splashScreen;
 
 // SDL2 vars
 SDL_Window   *window;
@@ -581,60 +593,6 @@ static void VID_Command_Mode_f (void)
 	}
 }
 
-#if defined(__ANDROID__)
-static boolean IsJoystickAccelerometer(SDL_Joystick *joy)
-{
-	return (!strcmp(SDL_JoystickName(joy), "Android Accelerometer"));
-}
-
-static boolean CanUseAccelerometer(SDL_Joystick *joy)
-{
-	if (IsJoystickAccelerometer(joy))
-		return (cv_useaccelerometer.value && (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL)));
-	return true; // if not an accelerometer then return true
-}
-#endif
-
-static inline void SDLJoyRemap(event_t *event)
-{
-	(void)event;
-}
-
-static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
-{
-	// -32768 to 32767
-	INT32 raxis = axis/32;
-	JoyType_t *Joystick_p = (which == ev_joystick2) ? &Joystick2 : &Joystick;
-	SDLJoyInfo_t *JoyInfo_p = (which == ev_joystick2) ? &JoyInfo2 : &JoyInfo;
-
-	if (Joystick_p->bGamepadStyle)
-	{
-		// gamepad control type, on or off, live or die
-		if (raxis < -(JOYAXISRANGE/2))
-			raxis = -1;
-		else if (raxis > (JOYAXISRANGE/2))
-			raxis = 1;
-		else
-			raxis = 0;
-	}
-	else
-	{
-		raxis = JoyInfo_p->scale!=1?((raxis/JoyInfo_p->scale)*JoyInfo_p->scale):raxis;
-
-#if defined(__ANDROID__)
-		if (IsJoystickAccelerometer(JoyInfo_p->dev))
-			raxis *= cv_accelscale.value;
-#endif
-
-#ifdef SDL_JDEADZONE
-		if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
-			raxis = 0;
-#endif
-	}
-
-	return raxis;
-}
-
 static void Impl_Unfocused(boolean unfocused)
 {
 	window_notinfocus = unfocused;
@@ -842,52 +800,112 @@ static void Impl_HandleMouseWheelEvent(SDL_MouseWheelEvent evt)
 	}
 }
 
+static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
+{
+	// -32768 to 32767
+	INT32 raxis = axis/32;
+	JoyType_t *Joystick_p = (which == ev_joystick2) ? &Joystick2 : &Joystick;
+	SDLJoyInfo_t *JoyInfo_p = (which == ev_joystick2) ? &JoyInfo2 : &JoyInfo;
+
+	if (Joystick_p->bGamepadStyle)
+	{
+		// gamepad control type, on or off, live or die
+		if (raxis < -(JOYAXISRANGE/2))
+			raxis = -1;
+		else if (raxis > (JOYAXISRANGE/2))
+			raxis = 1;
+		else
+			raxis = 0;
+	}
+	else
+	{
+		raxis = JoyInfo_p->scale!=1?((raxis/JoyInfo_p->scale)*JoyInfo_p->scale):raxis;
+
+#ifdef SDL_JDEADZONE
+		if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
+			raxis = 0;
+#endif
+	}
+
+	return raxis;
+}
+
+static INT32 AccelerometerAxis(const INT32 axis)
+{
+#ifdef ACCELEROMETER
+	return (axis / 32) * cv_accelscale.value;
+#else
+	(void)axis;
+	return 0;
+#endif
+}
+
+static INT32 AccelerometerTilt(void)
+{
+#ifdef ACCELEROMETER
+	fixed_t tilt = cv_acceltilt.value;
+
+	tilt = FixedDiv(tilt, ACCELEROMETER_MAX_TILT_OFFSET);
+	tilt = FixedMul(tilt, 32768*FRACUNIT);
+
+	return FixedInt(tilt);
+#else
+	return 0;
+#endif
+}
+
 static void Impl_HandleJoystickAxisEvent(SDL_JoyAxisEvent evt)
 {
 	event_t event;
-	SDL_JoystickID joyid[2];
-
-	// Determine the Joystick IDs for each current open joystick
-	joyid[0] = SDL_JoystickInstanceID(JoyInfo.dev);
-	joyid[1] = SDL_JoystickInstanceID(JoyInfo2.dev);
 
 	evt.axis++;
-	event.key = event.x = event.y = INT32_MAX;
-
-	if (evt.which == joyid[0])
-	{
-		event.type = ev_joystick;
-#if defined(__ANDROID__)
-		if (!CanUseAccelerometer(JoyInfo.dev))
-			return;
-#endif
-	}
-	else if (evt.which == joyid[1])
-	{
-		event.type = ev_joystick2;
-#if defined(__ANDROID__)
-		if (!CanUseAccelerometer(JoyInfo2.dev))
-			return;
-#endif
-	}
-	else
-		return;
-
-	//axis
 	if (evt.axis > JOYAXISSET*2)
 		return;
-	//value
-	if (evt.axis%2)
+
+	event.key = event.x = event.y = INT32_MAX;
+
+	if (evt.which == SDL_JoystickInstanceID(AccelerometerDevice))
 	{
-		event.key = evt.axis / 2;
-		event.x = SDLJoyAxis(evt.value, event.type);
+		if (G_CanUseAccelerometer())
+			event.type = ev_accelerometer;
+		else
+			return;
+
+		if (evt.axis == 3) // Move forwards / backwards
+			event.y = AccelerometerAxis((INT32)(-evt.value) - AccelerometerTilt());
+		else if (evt.axis == 1) // Move sideways
+			event.x = AccelerometerAxis(evt.value);
+		else
+			return;
 	}
 	else
 	{
-		evt.axis--;
-		event.key = evt.axis / 2;
-		event.y = SDLJoyAxis(evt.value, event.type);
+		SDL_JoystickID joyid[2];
+
+		// Determine the Joystick IDs for each current open joystick
+		joyid[0] = SDL_JoystickInstanceID(JoyInfo.dev);
+		joyid[1] = SDL_JoystickInstanceID(JoyInfo2.dev);
+
+		if (evt.which == joyid[0])
+			event.type = ev_joystick;
+		else if (evt.which == joyid[1])
+			event.type = ev_joystick2;
+		else
+			return;
+
+		if (evt.axis%2)
+		{
+			event.key = evt.axis / 2;
+			event.x = SDLJoyAxis(evt.value, event.type);
+		}
+		else
+		{
+			evt.axis--;
+			event.key = evt.axis / 2;
+			event.y = SDLJoyAxis(evt.value, event.type);
+		}
 	}
+
 	D_PostEvent(&event);
 }
 
@@ -921,21 +939,58 @@ static void Impl_HandleJoystickHatEvent(SDL_JoyHatEvent evt)
 static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 {
 	event_t event;
-	SDL_JoystickID joyid[2];
 
-	// Determine the Joystick IDs for each current open joystick
-	joyid[0] = SDL_JoystickInstanceID(JoyInfo.dev);
-	joyid[1] = SDL_JoystickInstanceID(JoyInfo2.dev);
+	if (I_JoystickIsTVRemote(evt.which + 1))
+	{
+		switch (evt.button)
+		{
+			case SDL_CONTROLLER_BUTTON_DPAD_UP:
+				event.key = KEY_REMOTEUP;
+				break;
+			case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+				event.key = KEY_REMOTEDOWN;
+				break;
+			case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+				event.key = KEY_REMOTELEFT;
+				break;
+			case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+				event.key = KEY_REMOTERIGHT;
+				break;
+			case SDL_CONTROLLER_BUTTON_A:
+				event.key = KEY_REMOTECENTER;
+				break;
+			case SDL_CONTROLLER_BUTTON_BACK:
+				event.key = KEY_REMOTEBACK;
+				break;
+			default:
+				return;
+		}
+	}
+	else
+	{
+		SDL_JoystickID joyid[2];
 
-	if (evt.which == joyid[0])
-	{
-		event.key = KEY_JOY1;
+		// Determine the Joystick IDs for each current open joystick
+		joyid[0] = SDL_JoystickInstanceID(JoyInfo.dev);
+		joyid[1] = SDL_JoystickInstanceID(JoyInfo2.dev);
+
+		if (evt.which == joyid[0])
+		{
+			event.key = KEY_JOY1;
+		}
+		else if (evt.which == joyid[1])
+		{
+			event.key = KEY_2JOY1;
+		}
+		else return;
+
+		if (evt.button < JOYBUTTONS)
+		{
+			event.key += evt.button;
+		}
+		else return;
 	}
-	else if (evt.which == joyid[1])
-	{
-		event.key = KEY_2JOY1;
-	}
-	else return;
+
 	if (type == SDL_JOYBUTTONUP)
 	{
 		event.type = ev_keyup;
@@ -945,14 +1000,8 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 		event.type = ev_keydown;
 	}
 	else return;
-	if (evt.button < JOYBUTTONS)
-	{
-		event.key += evt.button;
-	}
-	else return;
 
-	SDLJoyRemap(&event);
-	if (event.type != ev_console) D_PostEvent(&event);
+	D_PostEvent(&event);
 }
 
 #ifdef TOUCHINPUTS
@@ -1173,9 +1222,26 @@ void I_GetEvent(void)
 				break;
 			case SDL_JOYDEVICEADDED:
 				{
-					SDL_Joystick *newjoy = SDL_JoystickOpen(evt.jdevice.which);
+					INT32 index = evt.jdevice.which;
+					SDL_Joystick *newjoy = SDL_JoystickOpen(index);
 
-					CONS_Debug(DBG_GAMELOGIC, "Joystick device index %d added\n", evt.jdevice.which + 1);
+					CONS_Debug(DBG_GAMELOGIC, "Joystick device index %d added\n", index + 1);
+
+					// Turns out I shouldn't care.
+					if (I_JoystickIsTVRemote(index + 1))
+					{
+						if (TVRemoteDevice)
+							SDL_JoystickClose(TVRemoteDevice);
+						TVRemoteDevice = newjoy;
+						break;
+					}
+					else if (I_JoystickIsAccelerometer(index + 1))
+					{
+						if (AccelerometerDevice)
+							SDL_JoystickClose(AccelerometerDevice);
+						AccelerometerDevice = newjoy;
+						break;
+					}
 
 					// Because SDL's device index is unstable, we're going to cheat here a bit:
 					// For the first joystick setting that is NOT active:
@@ -1186,7 +1252,7 @@ void I_GetEvent(void)
 					if (newjoy && (!JoyInfo.dev || !SDL_JoystickGetAttached(JoyInfo.dev))
 						&& JoyInfo2.dev != newjoy) // don't override a currently active device
 					{
-						cv_usejoystick.value = evt.jdevice.which + 1;
+						cv_usejoystick.value = index + 1;
 
 						if (JoyInfo2.dev)
 							cv_usejoystick2.value = I_GetJoystickDeviceIndex(JoyInfo2.dev) + 1;
@@ -1202,7 +1268,7 @@ void I_GetEvent(void)
 					else if (newjoy && (!JoyInfo2.dev || !SDL_JoystickGetAttached(JoyInfo2.dev))
 						&& JoyInfo.dev != newjoy) // don't override a currently active device
 					{
-						cv_usejoystick2.value = evt.jdevice.which + 1;
+						cv_usejoystick2.value = index + 1;
 
 						if (JoyInfo.dev)
 							cv_usejoystick.value = I_GetJoystickDeviceIndex(JoyInfo.dev) + 1;
@@ -1233,8 +1299,8 @@ void I_GetEvent(void)
 					// This is a little wasteful since cv_usejoystick already calls this, but
 					// we need to do this in case CV_SetValue did nothing because the string was already same.
 					// if the device is already active, this should do nothing, effectively.
-					I_InitJoystick();
-					I_InitJoystick2();
+					I_ChangeJoystick();
+					I_ChangeJoystick2();
 
 					CONS_Debug(DBG_GAMELOGIC, "Joystick1 device index: %d\n", JoyInfo.oldjoy);
 					CONS_Debug(DBG_GAMELOGIC, "Joystick2 device index: %d\n", JoyInfo2.oldjoy);
@@ -1248,6 +1314,15 @@ void I_GetEvent(void)
 				}
 				break;
 			case SDL_JOYDEVICEREMOVED:
+				// TV remotes can (and will) disconnect. Just close the device.
+				// Accelerometers will never disconnect. Unless I'm mistaken.
+				if (TVRemoteDevice && evt.jdevice.which == SDL_JoystickInstanceID(TVRemoteDevice))
+				{
+					SDL_JoystickClose(TVRemoteDevice);
+					TVRemoteDevice = NULL;
+					break;
+				}
+
 				if (JoyInfo.dev && !SDL_JoystickGetAttached(JoyInfo.dev))
 				{
 					CONS_Debug(DBG_GAMELOGIC, "Joystick1 removed, device index: %d\n", JoyInfo.oldjoy);
@@ -2134,21 +2209,19 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 
+#ifdef SPLASH_SCREEN_SUPPORTED
 	// free splash screen image data
-	if (splash_screen_image)
-	{
-		free(splash_screen_image);
-		splash_screen_image = NULL;
-	}
+	SplashScreen_FreeImage();
+#endif
 
-	// free old video surface
+	// free last video surface
 	if (vidSurface)
 	{
 		SDL_FreeSurface(vidSurface);
 		vidSurface = NULL;
 	}
 
-	// free old splash screen surface
+	// free last buffer surface
 	if (bufSurface)
 	{
 		SDL_FreeSurface(bufSurface);
@@ -2198,9 +2271,10 @@ void I_StartupGraphics(void)
 	borderlesswindow = M_CheckParm("-borderless");
 
 	// finish splash screen
-	if (splash_screen)
+	if (splashScreen.displaying == SDL_TRUE)
 	{
-		splash_screen = false;
+		splashScreen.displaying = SDL_FALSE;
+
 #if defined(HWRENDER) && !defined(__ANDROID__)
 		// Destroy the window and the renderer
 		if (rendermode == render_opengl)
@@ -2339,15 +2413,8 @@ void VID_StartupOpenGL(void)
 // Splash screen
 //
 
-#if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
-	#include "../r_picformats.h" // zlib defines and png.h include
-	#ifdef PNG_READ_SUPPORTED
-		#define SPLASH_SCREEN_SUPPORTED
-	#endif
-#endif
-
 #ifdef SPLASH_SCREEN_SUPPORTED
-static UINT32 *LoadSplashScreenImage(const UINT8 *source, size_t source_size, UINT32 *dest_w, UINT32 *dest_h)
+static UINT32 *SplashScreen_LoadImage(const UINT8 *source, size_t source_size, UINT32 *dest_w, UINT32 *dest_h)
 {
 	png_structp png_ptr;
 	png_infop png_info_ptr;
@@ -2449,6 +2516,15 @@ static UINT32 *LoadSplashScreenImage(const UINT8 *source, size_t source_size, UI
 	*dest_h = (UINT32)(height);
 	return dest_img;
 }
+
+static void SplashScreen_FreeImage(void)
+{
+	if (splashScreen.image)
+	{
+		free(splashScreen.image);
+		splashScreen.image = NULL;
+	}
+}
 #endif // SPLASH_SCREEN_SUPPORTED
 
 INT32 VID_LoadSplashScreen(void)
@@ -2494,10 +2570,10 @@ INT32 VID_LoadSplashScreen(void)
 	SDL_RWread(file, filedata, 1, filesize);
 	SDL_RWclose(file);
 
-	splash_screen_image = LoadSplashScreenImage((UINT8 *)filedata, (size_t)filesize, &swidth, &sheight);
+	splashScreen.image = SplashScreen_LoadImage((UINT8 *)filedata, (size_t)filesize, &swidth, &sheight);
 	free(filedata); // free the file data because it is not needed anymore
 
-	if (splash_screen_image == NULL)
+	if (splashScreen.image == NULL)
 	{
 		CONS_Alert(CONS_ERROR, "failed to read the splash screen image");
 		return 0;
@@ -2508,20 +2584,18 @@ INT32 VID_LoadSplashScreen(void)
 	vid.height = sheight;
 	rendermode = render_soft;
 
-	SDLSetMode(swidth, sheight, SDL_FALSE, SDL_TRUE);
-#if defined(__ANDROID__)
-	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-#endif
+	SDLSetMode(swidth, sheight, USE_FULLSCREEN, SDL_TRUE);
 
 	// create a surface from the image
-	bufSurface = SDL_CreateRGBSurfaceFrom(splash_screen_image, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+	bufSurface = SDL_CreateRGBSurfaceFrom(splashScreen.image, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 	if (!bufSurface)
 	{
 		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
+		SplashScreen_FreeImage();
 		return 0;
 	}
 
-	splash_screen = true;
+	splashScreen.displaying = SDL_TRUE;
 
 	return 1;
 #else // SPLASH_SCREEN_SUPPORTED
@@ -2532,7 +2606,7 @@ INT32 VID_LoadSplashScreen(void)
 void VID_BlitSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
-	if (splash_screen)
+	if (splashScreen.displaying == SDL_TRUE)
 		VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
 #endif
 }
@@ -2540,7 +2614,7 @@ void VID_BlitSplashScreen(void)
 void VID_PresentSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
-	if (splash_screen)
+	if (splashScreen.displaying == SDL_TRUE)
 	{
 		VID_ClearTexture();
 		VID_PresentTexture();
@@ -2576,7 +2650,7 @@ void I_ReportProgress(int progress)
 	base.w = vid.width;
 	base.h = vid.height;
 
-	if (rendermode == render_soft || splash_screen)
+	if (rendermode == render_soft || splashScreen.displaying == SDL_TRUE)
 	{
 		VID_BlitSurfaceRegion(0, 0, vid.width, vid.height);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);

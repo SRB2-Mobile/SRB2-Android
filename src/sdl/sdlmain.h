@@ -42,6 +42,8 @@ typedef struct SDLJoyInfo_s
 {
 	/// Joystick handle
 	SDL_Joystick *dev;
+	/// number of this joystick
+	int index;
 	/// number of old joystick
 	int oldjoy;
 	/// number of axies
@@ -66,9 +68,17 @@ extern SDLJoyInfo_t JoyInfo;
 #define SDL_JDEADZONE 153
 #undef SDL_JDEADZONE
 
-/**	\brief SDL inof about joystick 2
+/**	\brief SDL info about joystick 2
 */
 extern SDLJoyInfo_t JoyInfo2;
+
+/**	\brief TV remote joystick device
+*/
+extern SDL_Joystick *TVRemoteDevice;
+
+/**	\brief Accelerometer joystick device
+*/
+extern SDL_Joystick *AccelerometerDevice;
 
 // So we can call this from i_video event loop
 void I_ShutdownJoystick(void);

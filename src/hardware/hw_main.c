@@ -5577,6 +5577,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		FTransform dometransform;
 		const float fpov = HWR_GetFOV(player);
 		postimg_t *type;
+		angle_t viewrollangle = R_GetLocalViewRollAngle(player);
 
 		if (splitscreen && player == &players[secondarydisplayplayer])
 			type = &postimgtype2;
@@ -5600,9 +5601,9 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.scalez = 1;
 		dometransform.fovxangle = fpov; // Tails
 		dometransform.fovyangle = fpov; // Tails
-		if (player->viewrollangle != 0)
+		if (viewrollangle != 0)
 		{
-			fixed_t rol = AngleFixed(player->viewrollangle);
+			fixed_t rol = AngleFixed(viewrollangle);
 			dometransform.rollangle = FIXED_TO_FLOAT(rol);
 			dometransform.roll = true;
 		}
@@ -5841,6 +5842,7 @@ static void HWR_SetShaderState(void)
 void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 {
 	const float fpov = HWR_GetFOV(player);
+	angle_t viewrollangle = R_GetLocalViewRollAngle(player);
 	postimg_t *type;
 
 	if (splitscreen && player == &players[secondarydisplayplayer])
@@ -5911,9 +5913,9 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	atransform.fovxangle = fpov; // Tails
 	atransform.fovyangle = fpov; // Tails
-	if (player->viewrollangle != 0)
+	if (viewrollangle != 0)
 	{
-		fixed_t rol = AngleFixed(player->viewrollangle);
+		fixed_t rol = AngleFixed(viewrollangle);
 		atransform.rollangle = FIXED_TO_FLOAT(rol);
 		atransform.roll = true;
 	}
@@ -6034,6 +6036,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 {
 	const float fpov = HWR_GetFOV(player);
+	angle_t viewrollangle = R_GetLocalViewRollAngle(player);
 	postimg_t *type;
 
 	const boolean skybox = (skyboxmo[0] && cv_skybox.value); // True if there's a skybox object and skyboxes are on
@@ -6125,9 +6128,9 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 	atransform.fovxangle = fpov; // Tails
 	atransform.fovyangle = fpov; // Tails
-	if (player->viewrollangle != 0)
+	if (viewrollangle != 0)
 	{
-		fixed_t rol = AngleFixed(player->viewrollangle);
+		fixed_t rol = AngleFixed(viewrollangle);
 		atransform.rollangle = FIXED_TO_FLOAT(rol);
 		atransform.roll = true;
 	}

@@ -35,13 +35,24 @@ typedef enum
 	INPUTMETHOD_KEYBOARD,
 	INPUTMETHOD_MOUSE,
 	INPUTMETHOD_JOYSTICK,
-	INPUTMETHOD_TOUCH
+	INPUTMETHOD_TOUCH,
+	INPUTMETHOD_TVREMOTE
 } inputmethod_e;
 
 extern INT32 inputmethod, controlmethod;
 
+#if defined(__ANDROID__)
+#define ACCELEROMETER
+#define ACCELEROMETER_MAX_TILT_OFFSET (90*FRACUNIT)
+#define ANDROID_ACCELEROMETER_DEVICE "Android Accelerometer"
+#endif
+
+#if defined(__ANDROID__) && defined(TOUCHINPUTS)
+#define ONSCREENKEYBOARD
+#endif
+
 //
-// Mouse and joystick buttons are handled as 'virtual' keys
+// Mouse, joystick, and TV remote buttons are handled as 'virtual' keys
 //
 
 #define NUMJOYHATS (JOYHATS*4)
@@ -69,7 +80,14 @@ typedef enum
 	KEY_2MOUSEWHEELUP = KEY_MOUSEWHEELDOWN + 1,
 	KEY_2MOUSEWHEELDOWN = KEY_2MOUSEWHEELUP + 1,
 
-	NUMINPUTS = KEY_2MOUSEWHEELDOWN + 1,
+	KEY_REMOTEUP = KEY_2MOUSEWHEELDOWN + 1,
+	KEY_REMOTEDOWN,
+	KEY_REMOTELEFT,
+	KEY_REMOTERIGHT,
+	KEY_REMOTECENTER,
+	KEY_REMOTEBACK,
+
+	NUMINPUTS = KEY_REMOTEBACK + 1,
 } key_input_e;
 
 // Macros for checking if a virtual key is a mouse key or wheel.
@@ -102,8 +120,11 @@ typedef enum
 #define G_KeyIsPlayer1Joystick(key) (G_KeyIsJoystick1(key) || G_KeyIsJoystickHat1(key))
 #define G_KeyIsPlayer2Joystick(key) (G_KeyIsJoystick2(key) || G_KeyIsJoystickHat2(key))
 
+// Macro for checking if a virtual key is a TV remote key.
+#define G_KeyIsTVRemote(key) ((key) >= KEY_REMOTEUP && (key) <= KEY_REMOTEBACK)
+
 // Check if a given key is a virtual key.
-#define G_KeyIsVirtual(key) (G_KeyIsMouse(key) || G_KeyIsJoystick(key))
+#define G_KeyIsVirtual(key) (G_KeyIsMouse(key) || G_KeyIsJoystick(key) || G_KeyIsTVRemote(key))
 
 // Checks if a given virtual key is for the first player.
 #define G_VirtualKeyIsPlayer1(key) (G_KeyIsVirtual(key) && (G_KeyIsPlayer1Mouse(key) || G_KeyIsPlayer1Joystick(key)))
@@ -187,6 +208,10 @@ extern INT32 mouse2x, mouse2y, mlook2y;
 
 extern INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
 
+#ifdef ACCELEROMETER
+extern INT32 accelxmove, accelymove, acceltilt;
+#endif
+
 extern CV_PossibleValue_t zerotoone_cons_t[];
 
 typedef enum
@@ -210,7 +235,15 @@ typedef struct joystickvector2_s
 	INT32 xaxis;
 	INT32 yaxis;
 } joystickvector2_t;
-extern joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
+extern joystickvector2_t joystickmovevectors[2], joysticklookvectors[2];
+
+#ifdef TOUCHINPUTS
+extern joystickvector2_t touchmovevector;
+#endif
+
+#ifdef ACCELEROMETER
+extern joystickvector2_t accelmovevector;
+#endif
 
 // current state of the keys: true if pushed
 extern UINT8 gamekeydown[NUMINPUTS];
@@ -223,6 +256,7 @@ void G_DetectControlMethod(INT32 key); // Game
 
 void G_ResetInputs(void);
 void G_ResetJoysticks(void);
+void G_ResetAccelerometer(void);
 void G_ResetMice(void);
 
 boolean G_HandlePauseKey(boolean ispausebreak);
@@ -230,6 +264,8 @@ boolean G_CanRetryModeAttack(void);
 boolean G_DoViewpointSwitch(void);
 boolean G_ToggleChaseCam(void);
 boolean G_ToggleChaseCam2(void);
+
+boolean G_CanUseAccelerometer(void);
 
 // two key codes (or virtual key) per game control
 extern INT32 gamecontrol[num_gamecontrols][2];

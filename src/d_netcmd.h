@@ -16,6 +16,7 @@
 #define __D_NETCMD__
 
 #include "command.h"
+#include "g_input.h"
 
 // console vars
 extern consvar_t cv_playername;
@@ -35,9 +36,12 @@ extern consvar_t cv_seenames, cv_allowseenames;
 extern consvar_t cv_usemouse;
 extern consvar_t cv_usejoystick;
 extern consvar_t cv_usejoystick2;
-#if defined(__ANDROID__)
+
+#ifdef ACCELEROMETER
 extern consvar_t cv_useaccelerometer;
 extern consvar_t cv_accelscale;
+extern consvar_t cv_acceltilt;
+extern consvar_t cv_acceldeadzone;
 #endif
 
 #ifdef LJOYSTICK

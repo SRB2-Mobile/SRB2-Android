@@ -1056,8 +1056,8 @@ static inline void CL_DrawConnectionStatus(void)
 		abortstring = "Tap Back to abort";
 	else
 #endif
-	if (inputmethod == INPUTMETHOD_JOYSTICK)
-		abortstring = va("Push %s to abort", G_KeynumToString(KEY_JOY1+1));
+	if (inputmethod == INPUTMETHOD_JOYSTICK || inputmethod == INPUTMETHOD_TVREMOTE)
+		abortstring = va("Push %s to abort", G_KeynumToString((inputmethod == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : KEY_JOY1+1));
 	else
 		abortstring = "Press ESC to abort";
 
@@ -2137,7 +2137,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 #endif
 		}
 
-		if (gamekeydown[KEY_ESCAPE] || gamekeydown[KEY_JOY1+1])
+		if (gamekeydown[KEY_ESCAPE] || gamekeydown[KEY_JOY1+1] || gamekeydown[KEY_REMOTEBACK])
 			exit = true;
 
 		if (exit)
@@ -4842,7 +4842,7 @@ static void Local_Maketic(INT32 realtics)
 	                   // and G_MapEventsToControls
 	if (!dedicated) rendergametic = gametic;
 
-	// translate inputs (keyboard/mouse/joystick) into game controls
+	// translate inputs (keyboard/mouse/joystick/remote) into game controls
 	G_BuildTiccmd(&localcmds, realtics, 1);
 	if (splitscreen || botingame)
 		G_BuildTiccmd(&localcmds2, realtics, 2);

@@ -865,18 +865,6 @@ static INT32 JoyAxis(axis_input_e axissel)
 			return 0;
 	}
 
-#ifdef TOUCHINPUTS
-	if (TS_IsScreenJoystickUsed()) // Touch screen joystick
-	{
-		if (axissel == AXISMOVE)
-			return (INT32)(touchymove * JOYAXISRANGE);
-		else if (axissel == AXISSTRAFE)
-			return (INT32)(touchxmove * JOYAXISRANGE);
-		else
-			return 0;
-	}
-#endif
-
 	if (axisval < 0) //odd -axises
 	{
 		axisval = -axisval;
@@ -995,10 +983,6 @@ static INT32 G_GamepadStyleForPlayer(UINT8 splitnum)
 {
 	if (splitnum == 1)
 		return Joystick2.bGamepadStyle;
-#ifdef TOUCHINPUTS
-	else if (TS_IsScreenJoystickUsed())
-		return 0;
-#endif
 	else
 		return Joystick.bGamepadStyle;
 }
@@ -1030,12 +1014,36 @@ static fixed_t G_DeadZoneForPlayer(UINT8 splitnum)
 {
 	if (splitnum == 1)
 		return cv_deadzone2.value;
-#ifdef TOUCHINPUTS
-	else if (TS_IsScreenJoystickUsed())
-		return cv_touchjoydeadzone.value;
-#endif
 	else
 		return cv_deadzone.value;
+}
+
+static void G_HandleVectorDeadZone(joystickvector2_t *joystickvector, fixed_t deadZone)
+{
+	// Get the total magnitude of the 2 axes
+	INT32 magnitude = (joystickvector->xaxis * joystickvector->xaxis) + (joystickvector->yaxis * joystickvector->yaxis);
+	INT32 normalisedXAxis;
+	INT32 normalisedYAxis;
+	INT32 normalisedMagnitude;
+	double dMagnitude = sqrt((double)magnitude);
+	magnitude = (INT32)dMagnitude;
+
+	// Get the normalised xy values from the magnitude
+	normalisedXAxis = (joystickvector->xaxis * magnitude) / JOYAXISRANGE;
+	normalisedYAxis = (joystickvector->yaxis * magnitude) / JOYAXISRANGE;
+
+	// Apply the deadzone to the magnitude to give a correct value between 0 and JOYAXISRANGE
+	normalisedMagnitude = G_BasicDeadZoneCalculation(magnitude, deadZone);
+
+	// Apply the deadzone to the xy axes
+	joystickvector->xaxis = (normalisedXAxis * normalisedMagnitude) / JOYAXISRANGE;
+	joystickvector->yaxis = (normalisedYAxis * normalisedMagnitude) / JOYAXISRANGE;
+
+	// Cap the values so they don't go above the correct maximum
+	joystickvector->xaxis = min(joystickvector->xaxis, JOYAXISRANGE);
+	joystickvector->xaxis = max(joystickvector->xaxis, -JOYAXISRANGE);
+	joystickvector->yaxis = min(joystickvector->yaxis, JOYAXISRANGE);
+	joystickvector->yaxis = max(joystickvector->yaxis, -JOYAXISRANGE);
 }
 
 // Get the actual sensible radial value for a joystick axis when accounting for a deadzone
@@ -1046,32 +1054,7 @@ static void G_HandleAxisDeadZone(UINT8 splitnum, joystickvector2_t *joystickvect
 
 	// When gamepadstyle is "true" the values are just -1, 0, or 1. This is done in the interface code.
 	if (!gamepadStyle)
-	{
-		// Get the total magnitude of the 2 axes
-		INT32 magnitude = (joystickvector->xaxis * joystickvector->xaxis) + (joystickvector->yaxis * joystickvector->yaxis);
-		INT32 normalisedXAxis;
-		INT32 normalisedYAxis;
-		INT32 normalisedMagnitude;
-		double dMagnitude = sqrt((double)magnitude);
-		magnitude = (INT32)dMagnitude;
-
-		// Get the normalised xy values from the magnitude
-		normalisedXAxis = (joystickvector->xaxis * magnitude) / JOYAXISRANGE;
-		normalisedYAxis = (joystickvector->yaxis * magnitude) / JOYAXISRANGE;
-
-		// Apply the deadzone to the magnitude to give a correct value between 0 and JOYAXISRANGE
-		normalisedMagnitude = G_BasicDeadZoneCalculation(magnitude, deadZone);
-
-		// Apply the deadzone to the xy axes
-		joystickvector->xaxis = (normalisedXAxis * normalisedMagnitude) / JOYAXISRANGE;
-		joystickvector->yaxis = (normalisedYAxis * normalisedMagnitude) / JOYAXISRANGE;
-
-		// Cap the values so they don't go above the correct maximum
-		joystickvector->xaxis = min(joystickvector->xaxis, JOYAXISRANGE);
-		joystickvector->xaxis = max(joystickvector->xaxis, -JOYAXISRANGE);
-		joystickvector->yaxis = min(joystickvector->yaxis, JOYAXISRANGE);
-		joystickvector->yaxis = max(joystickvector->yaxis, -JOYAXISRANGE);
-	}
+		G_HandleVectorDeadZone(joystickvector, deadZone);
 }
 
 //
@@ -1089,7 +1072,15 @@ static fixed_t forwardmove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16};
 static fixed_t sidemove[2] = {25<<FRACBITS>>16, 50<<FRACBITS>>16}; // faster!
 static fixed_t angleturn[3] = {640, 1280, 320}; // + slow turn
 
-joystickvector2_t movejoystickvectors[2], lookjoystickvectors[2];
+joystickvector2_t joystickmovevectors[2], joysticklookvectors[2];
+
+#ifdef TOUCHINPUTS
+joystickvector2_t touchmovevector;
+#endif
+
+#ifdef ACCELEROMETER
+joystickvector2_t accelmovevector;
+#endif
 
 INT16 ticcmd_oldangleturn[2];
 boolean ticcmd_centerviewdown[2]; // For simple controls, lock the camera behind the player
@@ -1211,17 +1202,8 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	analogjoystickmove = usejoystick && !Joystick.bGamepadStyle;
 	gamepadjoystickmove = usejoystick && Joystick.bGamepadStyle;
 
-#ifdef TOUCHINPUTS
-	if (touch_movementstyle == tms_joystick)
-	{
-		usejoystick = 1;
-		analogjoystickmove = true;
-		gamepadjoystickmove = false;
-	}
-#endif
-
-	movejoystickvector = &movejoystickvectors[forplayer];
-	lookjoystickvector = &lookjoystickvectors[forplayer];
+	movejoystickvector = &joystickmovevectors[forplayer];
+	lookjoystickvector = &joysticklookvectors[forplayer];
 
 	thisjoyaiming = (chasecam && !player->spectator) ? chasefreelook : alwaysfreelook;
 
@@ -1331,6 +1313,37 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		side += ((movejoystickvector->xaxis * sidemove[1]) >> 10);
 	}
 
+#ifdef TOUCHINPUTS
+	// Yikes!
+	if (touch_useinputs)
+	{
+		touchmovevector.xaxis = min(JOYAXISRANGE, max(-JOYAXISRANGE, (INT32)(touchxmove * JOYAXISRANGE)));
+		touchmovevector.yaxis = min(JOYAXISRANGE, max(-JOYAXISRANGE, (INT32)(touchymove * JOYAXISRANGE)));
+
+		G_HandleVectorDeadZone(&touchmovevector, cv_touchjoydeadzone.value);
+
+		if (touchmovevector.xaxis != 0)
+			side += ((touchmovevector.xaxis * sidemove[1]) >> 10);
+	}
+	else
+		touchmovevector.xaxis = touchmovevector.yaxis = 0;
+#endif
+
+#ifdef ACCELEROMETER
+	if (cv_useaccelerometer.value && (accelxmove || accelymove))
+	{
+		accelmovevector.xaxis = min(JOYAXISRANGE, max(-JOYAXISRANGE, accelxmove));
+		accelmovevector.yaxis = min(JOYAXISRANGE, max(-JOYAXISRANGE, accelymove));
+
+		G_HandleVectorDeadZone(&accelmovevector, cv_acceldeadzone.value);
+
+		if (accelmovevector.xaxis != 0)
+			side += ((accelmovevector.xaxis * sidemove[1]) >> 10);
+	}
+	else
+		accelmovevector.xaxis = accelmovevector.yaxis = 0;
+#endif
+
 	// forward with key or button
 	if (movefkey || (gamepadjoystickmove && movejoystickvector->yaxis < 0)
 		|| ((player->powers[pw_carry] == CR_NIGHTSMODE)
@@ -1343,6 +1356,16 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 
 	if (analogjoystickmove && movejoystickvector->yaxis != 0)
 		forward -= ((movejoystickvector->yaxis * forwardmove[1]) >> 10); // ANALOG!
+
+#ifdef TOUCHINPUTS
+	if (touchmovevector.yaxis != 0)
+		forward -= ((touchmovevector.yaxis * forwardmove[1]) >> 10);
+#endif
+
+#ifdef ACCELEROMETER
+	if (accelmovevector.yaxis != 0)
+		forward -= ((accelmovevector.yaxis * forwardmove[1]) >> 10);
+#endif
 
 	// some people strafe left & right with mouse buttons
 	// those people are weird
@@ -2150,12 +2173,9 @@ boolean G_Responder(event_t *ev)
 			return false; // always let key up events filter down
 
 		case ev_mouse:
-			return true; // eat events
-
 		case ev_joystick:
-			return true; // eat events
-
 		case ev_joystick2:
+		case ev_accelerometer:
 			return true; // eat events
 
 		default:

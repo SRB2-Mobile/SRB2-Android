@@ -1315,6 +1315,11 @@ void D_SRB2Main(void)
 
 	D_RegisterServerCommands();
 	D_RegisterClientCommands(); // be sure that this is called before D_CheckNetGame
+
+	// Initialize joysticks
+	I_InitJoystick();
+	I_InitJoystick2();
+
 	R_RegisterEngineStuff();
 	S_RegisterSoundStuff();
 

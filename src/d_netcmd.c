@@ -243,11 +243,18 @@ INT32 cv_debug;
 consvar_t cv_usemouse = CVAR_INIT ("use_mouse", "On", CV_SAVE|CV_CALL,usemouse_cons_t, I_StartupMouse);
 consvar_t cv_usemouse2 = CVAR_INIT ("use_mouse2", "Off", CV_SAVE|CV_CALL,usemouse_cons_t, I_StartupMouse2);
 
-consvar_t cv_usejoystick = CVAR_INIT ("use_gamepad", "1", CV_SAVE|CV_CALL, usejoystick_cons_t, I_InitJoystick);
-consvar_t cv_usejoystick2 = CVAR_INIT ("use_gamepad2", "2", CV_SAVE|CV_CALL, usejoystick_cons_t, I_InitJoystick2);
+consvar_t cv_usejoystick = CVAR_INIT ("use_gamepad", "1", CV_SAVE|CV_CALL|CV_NOINIT, usejoystick_cons_t, I_ChangeJoystick);
+consvar_t cv_usejoystick2 = CVAR_INIT ("use_gamepad2", "2", CV_SAVE|CV_CALL|CV_NOINIT, usejoystick_cons_t, I_ChangeJoystick2);
 
-#if defined(__ANDROID__)
-consvar_t cv_useaccelerometer = CVAR_INIT ("use_accelerometer", "Off", CV_SAVE|CV_CALL, CV_OnOff, G_ResetJoysticks);
+#ifdef ACCELEROMETER
+consvar_t cv_useaccelerometer = CVAR_INIT ("use_accelerometer", "Off", CV_SAVE|CV_CALL, CV_OnOff, G_ResetAccelerometer);
+consvar_t cv_acceldeadzone = CVAR_INIT ("accelerometer_deadzone", "0.75", CV_FLOAT | CV_SAVE, zerotoone_cons_t, NULL);
+
+static CV_PossibleValue_t accelscale_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
+consvar_t cv_accelscale = CVAR_INIT ("accelerometer_scale", "4", CV_SAVE, accelscale_cons_t, NULL);
+
+static CV_PossibleValue_t acceltilt_cons_t[] = {{FRACUNIT, "MIN"}, {ACCELEROMETER_MAX_TILT_OFFSET, "MAX"}, {0, NULL}};
+consvar_t cv_acceltilt = CVAR_INIT ("accelerometer_tilt", "45", CV_FLOAT | CV_SAVE, acceltilt_cons_t, NULL);
 #endif
 
 #if (defined (LJOYSTICK) || defined (HAVE_SDL))
@@ -260,10 +267,6 @@ consvar_t cv_joyscale2 = CVAR_INIT ("padscale2", "1", CV_SAVE|CV_CALL, NULL, I_J
 #else
 consvar_t cv_joyscale = CVAR_INIT ("padscale", "1", CV_SAVE|CV_HIDEN, NULL, NULL); //Alam: Dummy for save
 consvar_t cv_joyscale2 = CVAR_INIT ("padscale2", "1", CV_SAVE|CV_HIDEN, NULL, NULL); //Alam: Dummy for save
-#endif
-#if defined(__ANDROID__)
-static CV_PossibleValue_t accelscale_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
-consvar_t cv_accelscale = CVAR_INIT ("accelerometer_scale", "8", CV_SAVE, accelscale_cons_t, NULL);
 #endif
 #if (defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON)
 consvar_t cv_mouse2port = CVAR_INIT ("mouse2port", "/dev/gpmdata", CV_SAVE, mouse2port_cons_t, NULL);
@@ -833,9 +836,6 @@ void D_RegisterClientCommands(void)
 
 	CV_RegisterVar(&cv_usejoystick);
 	CV_RegisterVar(&cv_usejoystick2);
-#if defined(__ANDROID__)
-	CV_RegisterVar(&cv_useaccelerometer);
-#endif
 
 #ifdef LJOYSTICK
 	CV_RegisterVar(&cv_joyport);
@@ -843,8 +843,12 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_joyscale);
 	CV_RegisterVar(&cv_joyscale2);
-#if defined(__ANDROID__)
+
+#ifdef ACCELEROMETER
+	CV_RegisterVar(&cv_useaccelerometer);
 	CV_RegisterVar(&cv_accelscale);
+	CV_RegisterVar(&cv_acceltilt);
+	CV_RegisterVar(&cv_acceldeadzone);
 #endif
 
 #ifdef TOUCHINPUTS

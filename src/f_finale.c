@@ -841,6 +841,9 @@ static void F_IntroDrawScene(void)
 		if (trans < 0)
 			trans = 0;
 
+		// TODO: Detect input method.
+		// Don't show anything if no input method was detected.
+		// Assume a keyboard in non-Android, and a TV remote in Android TV.
 #ifdef TOUCHINPUTS
 		skiptext = "\x82""Tap anywhere""\x86"" to skip...";
 #else
@@ -1036,24 +1039,30 @@ boolean F_IntroResponder(event_t *event)
 				break;
 			case KEY_JOY1:
 			case KEY_JOY1 + 2:
+			case KEY_REMOTECENTER:
 				key = KEY_ENTER;
 				break;
 			case KEY_JOY1 + 3:
 				key = 'n';
 				break;
 			case KEY_JOY1 + 1:
+			case KEY_REMOTEBACK:
 				key = KEY_BACKSPACE;
 				break;
 			case KEY_HAT1:
+			case KEY_REMOTEUP:
 				key = KEY_UPARROW;
 				break;
 			case KEY_HAT1 + 1:
+			case KEY_REMOTEDOWN:
 				key = KEY_DOWNARROW;
 				break;
 			case KEY_HAT1 + 2:
+			case KEY_REMOTELEFT:
 				key = KEY_LEFTARROW;
 				break;
 			case KEY_HAT1 + 3:
+			case KEY_REMOTERIGHT:
 				key = KEY_RIGHTARROW;
 				break;
 		}

@@ -255,7 +255,7 @@ static void DrawJoystick(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dp
 
 	float xmove = 0.0f, ymove = 0.0f;
 	fixed_t stickx, sticky;
-	joystickvector2_t *joy = &movejoystickvectors[0];
+	joystickvector2_t *joy = &touchmovevector;
 
 	fixed_t basexscale = FixedDiv(dpadw, SHORT(cursor->width)*FRACUNIT);
 	fixed_t baseyscale = FixedDiv(dpadh, SHORT(cursor->height)*FRACUNIT);

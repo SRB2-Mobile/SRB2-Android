@@ -211,18 +211,23 @@ boolean cht_Responder(event_t *ev)
 		{
 			case KEY_JOY1:
 			case KEY_JOY1 + 2:
+			case KEY_REMOTECENTER:
 				ch = KEY_ENTER;
 				break;
 			case KEY_HAT1:
+			case KEY_REMOTEUP:
 				ch = KEY_UPARROW;
 				break;
 			case KEY_HAT1 + 1:
+			case KEY_REMOTEDOWN:
 				ch = KEY_DOWNARROW;
 				break;
 			case KEY_HAT1 + 2:
+			case KEY_REMOTELEFT:
 				ch = KEY_LEFTARROW;
 				break;
 			case KEY_HAT1 + 3:
+			case KEY_REMOTERIGHT:
 				ch = KEY_RIGHTARROW;
 				break;
 			default:

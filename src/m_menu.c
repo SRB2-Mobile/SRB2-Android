@@ -157,7 +157,12 @@ typedef enum
 levellist_mode_t levellistmode = LLM_CREATESERVER;
 UINT8 maplistoption = 0;
 
-static char joystickInfo[MAX_JOYSTICKS+1][29];
+static struct
+{
+	char name[29];
+	INT32 index;
+} joystickInfo[MAX_JOYSTICKS+1];
+
 #ifndef NONET
 static UINT32 serverlistpage;
 #endif
@@ -229,6 +234,7 @@ static void M_StopMessage(INT32 choice);
 static boolean stopstopmessage = false;
 
 static void M_EscapeMenu(void);
+static void M_BreadcrumbEscape(void);
 
 #ifndef NONET
 static void M_HandleServerPage(INT32 choice);
@@ -387,6 +393,7 @@ static void M_ConfirmTeamChange(INT32 choice);
 static void M_SecretsMenu(INT32 choice);
 static void M_SetupChoosePlayer(INT32 choice);
 static UINT8 M_SetupChoosePlayerDirect(INT32 choice);
+static void M_ExitGameResponse(INT32 ch);
 static void M_QuitSRB2(INT32 choice);
 
 menu_t SP_MainDef, OP_MainDef;
@@ -794,7 +801,7 @@ typedef enum
 	secrets,
 	addons,
 	options,
-	quitgame
+	quitsrb2
 } main_e;
 
 static menuitem_t MISC_AddonsMenu[] =
@@ -1372,9 +1379,11 @@ static menuitem_t OP_P1ControlsMenu[] =
 	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup1PPlaystyleMenu, 90},
 
 	// Accelerometer settings
-#if defined(__ANDROID__)
+#ifdef ACCELEROMETER
 	{IT_STRING | IT_CVAR, NULL,                "Use accelerometer", &cv_useaccelerometer, 110},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. scale", &cv_accelscale, 120},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. scale",      &cv_accelscale, 120},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. tilt",       &cv_acceltilt, 130},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Accel. deadzone",   &cv_acceldeadzone, 140},
 #endif
 };
 
@@ -3559,19 +3568,23 @@ static useractionstring_t useractionstrings[NUMUSERACTIONS - 1] = {
 		"Press a key.\n", "Push any button.\n", "Tap anywhere.\n", "Click any button.\n"}
 };
 
-static const char *UserAction_ToButton(INT32 type)
+static const char *UserAction_ToButton(INT32 type, INT32 method)
 {
+	INT32 confirm = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTECENTER : KEY_JOY1;
+	INT32 back = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 3);
+	INT32 esc = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 1);
+
 	switch (type)
 	{
 		case PRESS_Y_MESSAGE:
 		case PRESS_Y_MESSAGE_L:
 		case CONFIRM_MESSAGE:
-			return G_KeynumToString(KEY_JOY1);
+			return G_KeynumToString(confirm);
 		case PRESS_N_MESSAGE:
 		case PRESS_N_MESSAGE_L:
-			return G_KeynumToString(KEY_JOY1 + 3);
+			return G_KeynumToString(back);
 		case PRESS_ESC_MESSAGE:
-			return G_KeynumToString(KEY_JOY1 + 1);
+			return G_KeynumToString(esc);
 	}
 
 	return "";
@@ -3594,8 +3607,9 @@ const char *M_GetUserActionString(INT32 type)
 				case INPUTMETHOD_MOUSE:
 					return M_GetText(string->mouse_string);
 				case INPUTMETHOD_JOYSTICK:
+				case INPUTMETHOD_TVREMOTE:
 					if (!UserAction_IsAnyKey(type))
-						return useractionva(M_GetText(string->joy_string), UserAction_ToButton(type));
+						return useractionva(M_GetText(string->joy_string), UserAction_ToButton(type, inputmethod));
 					else
 						return M_GetText(string->joy_string);
 			}
@@ -3662,6 +3676,25 @@ boolean M_TSNav_CanShowConsole(void)
 
 	return tsnav_showconsole;
 }
+
+// FIXME: Whenever the player presses the TV remote center button, it sends a button down event, and a button up event.
+// Now, it can be a bit too fast for the menu.
+// This can all happen before the on-screen keyboard could even be raised.
+// Whenever I did testing on an Android TV, the text input would be "confirmed"
+// at the same time I tried to open the on-screen keyboard.
+#if 0
+static boolean M_TSNav_RoutineIsTextField(void)
+{
+	void (*action)(INT32 choice);
+
+	if ((currentMenu->menuitems[itemOn].status & IT_TYPE) != IT_CALL)
+		return false;
+
+	action = MessageDef.menuitems[itemOn].itemaction;
+
+	return (action == M_HandleConnectIP || (action == M_HandleSetupMultiPlayer && itemOn == 0));
+}
+#endif
 
 static boolean M_TSNav_RoutineIsMessage(void)
 {
@@ -3827,8 +3860,8 @@ static boolean M_ChangeStringCvar(INT32 choice)
 			return true;
 #ifdef TOUCHINPUTS
 		case KEY_ENTER:
-			// Handle the on-screen keyboard
 			{
+				// Handle the on-screen keyboard
 				INT32 handled = M_HandleTouchScreenKeyboard(cv->zstring, MAXSTRINGLENGTH);
 				if (handled == -1) // closed
 					CV_Set(cv, cv->zstring);
@@ -5208,9 +5241,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 		selection = -1;
 	}
 
-	if (onMessage) // A message menu always returns an enter key.
-		(*ch) = KEY_ENTER;
-	else if (finger->navinput)
+	if (finger->navinput)
 	{
 		switch (key)
 		{
@@ -5218,7 +5249,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 			case KEY_DOWNARROW:
 			case KEY_LEFTARROW:
 			case KEY_RIGHTARROW:
-				if (cv_touchnavmethod.value == 2)
+				if (cv_touchnavmethod.value == 2 && !onMessage)
 					(*ch) = key;
 				break;
 			default:
@@ -5240,6 +5271,8 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 				break;
 		}
 	}
+	else if (onMessage) // A message menu always returns an Enter key.
+		(*ch) = KEY_ENTER;
 	else if (selection != -1)
 	{
 		INT32 slkey = -1;
@@ -5339,6 +5372,7 @@ boolean M_Responder(event_t *ev)
 	static INT32 pmousex = 0, pmousey = 0;
 	static INT32 lastx = 0, lasty = 0;
 	void (*routine)(INT32 choice); // for some casting problem
+	boolean breadcrumb = false;
 
 	if (dedicated || (demoplayback && titledemo)
 	|| gamestate == GS_INTRO || gamestate == GS_ENDING || gamestate == GS_CUTSCENE
@@ -5378,6 +5412,7 @@ boolean M_Responder(event_t *ev)
 			{
 				case KEY_MOUSE1:
 				case KEY_JOY1:
+				case KEY_REMOTECENTER:
 					ch = KEY_ENTER;
 					break;
 				case KEY_JOY1 + 3:
@@ -5385,21 +5420,27 @@ boolean M_Responder(event_t *ev)
 					break;
 				case KEY_MOUSE1 + 1:
 				case KEY_JOY1 + 1:
+				case KEY_REMOTEBACK:
+					breadcrumb = (ch == KEY_REMOTEBACK);
 					ch = KEY_ESCAPE;
 					break;
 				case KEY_JOY1 + 2:
 					ch = KEY_BACKSPACE;
 					break;
 				case KEY_HAT1:
+				case KEY_REMOTEUP:
 					ch = KEY_UPARROW;
 					break;
 				case KEY_HAT1 + 1:
+				case KEY_REMOTEDOWN:
 					ch = KEY_DOWNARROW;
 					break;
 				case KEY_HAT1 + 2:
+				case KEY_REMOTELEFT:
 					ch = KEY_LEFTARROW;
 					break;
 				case KEY_HAT1 + 3:
+				case KEY_REMOTERIGHT:
 					ch = KEY_RIGHTARROW;
 					break;
 			}
@@ -5495,6 +5536,8 @@ boolean M_Responder(event_t *ev)
 				return true;
 		}
 #endif
+		else if (ev->type == ev_accelerometer)
+			return false;
 		else if (ev->type == ev_keyup)
 		{
 			M_DetectInputMethod(ev->key);
@@ -5573,6 +5616,7 @@ boolean M_Responder(event_t *ev)
 			// Spymode on F12 handled in game logic
 
 			case KEY_ESCAPE: // Pop up menu
+			case KEY_REMOTEBACK:
 				if (chat_on)
 					HU_clearChatChars();
 				else
@@ -5629,7 +5673,7 @@ boolean M_Responder(event_t *ev)
 		{
 			// dirty hack: for customising controls, I want only buttons/keys, not moves
 			if (ev->type == ev_mouse || ev->type == ev_mouse2 || ev->type == ev_joystick
-				|| ev->type == ev_joystick2)
+				|| ev->type == ev_joystick2 || ev->type == ev_accelerometer)
 				return true;
 			if (routine)
 			{
@@ -5730,7 +5774,10 @@ boolean M_Responder(event_t *ev)
 			noFurtherInput = true;
 			currentMenu->lastOn = itemOn;
 
-			M_EscapeMenu();
+			if (breadcrumb)
+				M_BreadcrumbEscape();
+			else
+				M_EscapeMenu();
 
 			return true;
 
@@ -6235,6 +6282,28 @@ static void M_EscapeMenu(void)
 		M_GoBack(0);
 }
 
+static void M_BreadcrumbCheckQuit(INT32 setitemon, void (*func)(INT32), INT32 choice)
+{
+	if (itemOn == setitemon)
+		func(choice);
+	else
+		M_SetItemOn(setitemon);
+}
+
+static void M_BreadcrumbEscape(void)
+{
+	if (currentMenu == &MAPauseDef)
+		M_BreadcrumbCheckQuit(mapause_abort, M_ModeAttackEndGame, 0);
+	else if (currentMenu == &SPauseDef)
+		M_BreadcrumbCheckQuit(spause_quit, M_ExitGameResponse, KEY_ENTER);
+	else if (currentMenu == &MPauseDef)
+		M_BreadcrumbCheckQuit(mpause_quit, M_ExitGameResponse, KEY_ENTER);
+	else if (currentMenu == &MainDef)
+		M_BreadcrumbCheckQuit(quitsrb2, M_QuitResponse, KEY_ENTER);
+	else
+		M_EscapeMenu();
+}
+
 //
 // M_Ticker
 //
@@ -6576,26 +6645,6 @@ static void M_DrawStaticBox(fixed_t x, fixed_t y, INT32 flags, fixed_t w, fixed_
 
 	W_UnlockCachedPatch(patch);
 }
-
-//
-// Draw border for the savegame description
-//
-#if 0 // once used for joysticks and savegames, now no longer
-static void M_DrawSaveLoadBorder(INT32 x,INT32 y)
-{
-	INT32 i;
-
-	V_DrawScaledPatch (x-8,y+7,0,W_CachePatchName("M_LSLEFT",PU_PATCH));
-
-	for (i = 0;i < 24;i++)
-	{
-		V_DrawScaledPatch (x,y+7,0,W_CachePatchName("M_LSCNTR",PU_PATCH));
-		x += 8;
-	}
-
-	V_DrawScaledPatch (x,y+7,0,W_CachePatchName("M_LSRGHT",PU_PATCH));
-}
-#endif
 
 // horizontally centered text
 static void M_CentreText(INT32 y, const char *string)
@@ -15866,7 +15915,6 @@ static void M_DrawJoystick(void)
 	for (i = 0; i <= MAX_JOYSTICKS; i++) // See MAX_JOYSTICKS
 	{
 		M_DrawTextBox(OP_JoystickSetDef.x-8, OP_JoystickSetDef.y+LINEHEIGHT*i-12, 28, 1);
-		//M_DrawSaveLoadBorder(OP_JoystickSetDef.x+4, OP_JoystickSetDef.y+1+LINEHEIGHT*i);
 
 #ifdef JOYSTICK_HOTPLUG
 		if (atoi(cv_usejoystick2.string) > I_NumJoys())
@@ -15885,9 +15933,9 @@ static void M_DrawJoystick(void)
 
 		if ((setupcontrols_secondaryplayer && (i == compareval2))
 			|| (!setupcontrols_secondaryplayer && (i == compareval)))
-			V_DrawString(OP_JoystickSetDef.x, OP_JoystickSetDef.y+LINEHEIGHT*i-4,V_GREENMAP,joystickInfo[i]);
+			V_DrawString(OP_JoystickSetDef.x, OP_JoystickSetDef.y+LINEHEIGHT*i-4,V_GREENMAP,joystickInfo[i].name);
 		else
-			V_DrawString(OP_JoystickSetDef.x, OP_JoystickSetDef.y+LINEHEIGHT*i-4,0,joystickInfo[i]);
+			V_DrawString(OP_JoystickSetDef.x, OP_JoystickSetDef.y+LINEHEIGHT*i-4,0,joystickInfo[i].name);
 
 		if (i == itemOn)
 		{
@@ -15899,19 +15947,28 @@ static void M_DrawJoystick(void)
 
 void M_SetupJoystickMenu(INT32 choice)
 {
-	INT32 i = 0;
+	INT32 i = 0, j = 1;
 	const char *joyNA = "Unavailable";
 	INT32 n = I_NumJoys();
 	(void)choice;
 
-	strcpy(joystickInfo[i], "None");
+	strcpy(joystickInfo[i].name, "None");
+	joystickInfo[i].index = 0;
 
 	for (i = 1; i <= MAX_JOYSTICKS; i++)
 	{
+		// TV remotes are usually connected as joysticks.
+		// That's fine, but the player is not supposed to be able to select it.
+		// Accelerometers can also be connected as joysticks. The player does not have to select them.
+		if (!I_JoystickIsGamepad(j))
+			continue;
+
 		if (i <= n && (I_GetJoyName(i)) != NULL)
-			strncpy(joystickInfo[i], I_GetJoyName(i), 28);
+			strncpy(joystickInfo[j].name, I_GetJoyName(i), 28);
 		else
-			strcpy(joystickInfo[i], joyNA);
+			strcpy(joystickInfo[j].name, joyNA);
+
+		joystickInfo[j].index = j;
 
 #ifdef JOYSTICK_HOTPLUG
 		// We use cv_usejoystick.string as the USER-SET var
@@ -15927,6 +15984,8 @@ void M_SetupJoystickMenu(INT32 choice)
 		if (i == cv_usejoystick2.value)
 			CV_SetValue(&cv_usejoystick2, i);
 #endif
+
+		j++;
 	}
 
 	M_SetupNextMenu(&OP_JoystickSetDef);
@@ -15959,6 +16018,8 @@ static void M_AssignJoystick(INT32 choice)
 #ifdef JOYSTICK_HOTPLUG
 	INT32 oldchoice, oldstringchoice;
 	INT32 numjoys = I_NumJoys();
+
+	choice = joystickInfo[choice].index;
 
 	if (setupcontrols_secondaryplayer)
 	{
@@ -16020,9 +16081,9 @@ static void M_AssignJoystick(INT32 choice)
 	}
 #else
 	if (setupcontrols_secondaryplayer)
-		CV_SetValue(&cv_usejoystick2, choice);
+		CV_SetValue(&cv_usejoystick2, joystickInfo[choice].index);
 	else
-		CV_SetValue(&cv_usejoystick, choice);
+		CV_SetValue(&cv_usejoystick, joystickInfo[choice].index);
 #endif
 }
 
@@ -16299,6 +16360,7 @@ static void M_ChangecontrolResponse(event_t *ev)
 			case ev_mouse2:
 			case ev_joystick:
 			case ev_joystick2:
+			case ev_accelerometer:
 				ch = KEY_NULL;      // no key
 			break;
 
@@ -16680,10 +16742,19 @@ static void M_DrawVideoMode(void)
 				escstr = "or click right to return";
 				break;
 			case INPUTMETHOD_JOYSTICK:
+			case INPUTMETHOD_TVREMOTE:
 				enterstr = "Push %s again to keep this mode";
 				escstr = "or push %s to return";
-				enterkey = KEY_JOY1;
-				escapekey = KEY_JOY1 + 1;
+				if (inputmethod == INPUTMETHOD_TVREMOTE)
+				{
+					enterkey = KEY_REMOTECENTER;
+					escapekey = KEY_REMOTEBACK;
+				}
+				else
+				{
+					enterkey = KEY_JOY1;
+					escapekey = KEY_JOY1 + 1;
+				}
 				break;
 		}
 

@@ -57,6 +57,11 @@ INT32 mouse2x, mouse2y, mlook2y;
 // joystick values are repeated
 INT32 joyxmove[JOYAXISSET], joyymove[JOYAXISSET], joy2xmove[JOYAXISSET], joy2ymove[JOYAXISSET];
 
+// accelerometer
+#ifdef ACCELEROMETER
+INT32 accelxmove, accelymove, acceltilt;
+#endif
+
 // current state of the keys: true if pushed
 UINT8 gamekeydown[NUMINPUTS];
 
@@ -136,6 +141,8 @@ INT32 G_InputMethodFromKey(INT32 key)
 		return INPUTMETHOD_MOUSE;
 	else if (G_KeyIsJoystick(key))
 		return INPUTMETHOD_JOYSTICK;
+	else if (G_KeyIsTVRemote(key))
+		return INPUTMETHOD_TVREMOTE;
 	else
 		return INPUTMETHOD_KEYBOARD;
 }
@@ -226,6 +233,15 @@ void G_MapEventsToControls(event_t *ev)
 				break;
 			if (ev->x != INT32_MAX) joy2xmove[i] = ev->x;
 			if (ev->y != INT32_MAX) joy2ymove[i] = ev->y;
+			break;
+
+		case ev_accelerometer:
+#ifdef ACCELEROMETER
+			if (!G_InGameInput())
+				break;
+			if (ev->x != INT32_MAX) accelxmove = acceltilt = ev->x;
+			if (ev->y != INT32_MAX) accelymove = ev->y;
+#endif
 			break;
 
 		case ev_mouse2: // buttons are virtual keys
@@ -495,7 +511,7 @@ static keyname_t keynames[] =
 	{'`', "TILDE"},
 	{KEY_PAUSE, "PAUSE/BREAK"},
 
-	// virtual keys for mouse buttons and joystick buttons
+	// virtual keys for mouse buttons, joystick buttons, and TV remote buttons
 	{KEY_MOUSE1+0,"MOUSE1"},
 	{KEY_MOUSE1+1,"MOUSE2"},
 	{KEY_MOUSE1+2,"MOUSE3"},
@@ -742,6 +758,12 @@ static keyname_t keynames[] =
 	{KEY_DBL2HAT1+14, "DBLSEC_HATLEFT4"},
 	{KEY_DBL2HAT1+15, "DBLSEC_HATRIGHT4"},
 
+	{KEY_REMOTEUP, "TV REMOTE UP"},
+	{KEY_REMOTEDOWN, "TV REMOTE DOWN"},
+	{KEY_REMOTELEFT, "TV REMOTE LEFT"},
+	{KEY_REMOTERIGHT, "TV REMOTE RIGHT"},
+	{KEY_REMOTECENTER, "TV REMOTE CENTER"},
+	{KEY_REMOTEBACK, "TV REMOTE BACK"}
 };
 
 const char *gamecontrolname[num_gamecontrols] =
@@ -946,6 +968,15 @@ void G_DefineDefaultControls(void)
 		gamecontroldefault[i][gc_screenshot ][1] = KEY_HAT1+1; // D-Pad Down
 		gamecontroldefault[i][gc_systemmenu ][0] = KEY_JOY1+7; // Start
 
+#if defined(__ANDROID__)
+		// Basic TV remote controls
+		gamecontroldefault[i][gc_forward    ][1] = KEY_REMOTEUP;
+		gamecontroldefault[i][gc_backward   ][1] = KEY_REMOTEDOWN;
+		gamecontroldefault[i][gc_strafeleft ][1] = KEY_REMOTELEFT;
+		gamecontroldefault[i][gc_straferight][1] = KEY_REMOTERIGHT;
+		gamecontroldefault[i][gc_jump       ][1] = KEY_REMOTECENTER;
+#endif
+
 		// Second player controls only have joypad defaults
 		gamecontrolbisdefault[i][gc_weaponnext][0] = KEY_2JOY1+1; // B
 		gamecontrolbisdefault[i][gc_weaponprev][0] = KEY_2JOY1+2; // X
@@ -973,6 +1004,7 @@ void G_ResetInputs(void)
 	memset(gamekeydown, 0x00, sizeof(gamekeydown));
 
 	G_ResetJoysticks();
+	G_ResetAccelerometer();
 	G_ResetMice();
 
 #ifdef TOUCHINPUTS
@@ -981,10 +1013,11 @@ void G_ResetInputs(void)
 #endif
 }
 
-// clear joystick axes / accelerometer position
+// clear joystick axes
 void G_ResetJoysticks(void)
 {
 	INT32 i;
+
 	for (i = 0; i < JOYAXISSET; i++)
 	{
 		joyxmove[i] = joyymove[i] = 0;
@@ -992,11 +1025,29 @@ void G_ResetJoysticks(void)
 	}
 }
 
+// clear accelerometer position
+void G_ResetAccelerometer(void)
+{
+#ifdef ACCELEROMETER
+	accelxmove = accelymove = 0;
+#endif
+}
+
 // clear mice positions
 void G_ResetMice(void)
 {
 	mousex = mousey = 0;
 	mouse2x = mouse2y = 0;
+}
+
+// Returns true if the accelerometer can be used
+boolean G_CanUseAccelerometer(void)
+{
+#ifdef ACCELEROMETER
+	return (cv_useaccelerometer.value && (!(menuactive || paused || con_destlines || chat_on || gamestate != GS_LEVEL)));
+#else
+	return false;
+#endif
 }
 
 INT32 G_GetControlScheme(INT32 (*fromcontrols)[2], const INT32 *gclist, INT32 gclen)

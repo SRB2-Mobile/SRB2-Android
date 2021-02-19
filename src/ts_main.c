@@ -220,11 +220,6 @@ boolean TS_IsPresetActive(void)
 	return (touch_preset != touchpreset_none);
 }
 
-boolean TS_IsScreenJoystickUsed(void)
-{
-	return (fpclassify(touchxmove) == FP_NORMAL || fpclassify(touchymove) == FP_NORMAL);
-}
-
 void TS_ScaleCoords(INT32 *x, INT32 *y, INT32 *w, INT32 *h, boolean normalized, boolean screenscale)
 {
 	fixed_t xs = FRACUNIT;

@@ -864,7 +864,7 @@ static void Got_Saycmd(UINT8 **p, INT32 playernum)
 //
 static inline boolean HU_keyInChatString(char *s, char ch)
 {
-#if (!(defined(__ANDROID__) && defined(TOUCHINPUTS)))
+#ifndef ONSCREENKEYBOARD
 	size_t l;
 
 	if ((ch >= HU_FONTSTART && ch <= HU_FONTEND && hu_font[ch-HU_FONTSTART])
@@ -946,7 +946,7 @@ void HU_Ticker(void)
 	else
 		hu_showscores = false;
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	// Close the chat if the keyboard isn't visible
 	if (chat_on && (!I_KeyboardOnScreen()))
 		HU_CloseChat();
@@ -1092,7 +1092,7 @@ void HU_clearChatChars(void)
 	c_input = 0;
 
 	I_UpdateMouseGrab();
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	I_CloseScreenKeyboard();
 #endif
 }
@@ -1184,7 +1184,6 @@ boolean HU_Responder(event_t *ev)
 				c = shiftxform[c];
 		}
 
-#if (!(defined(__ANDROID__) && defined(TOUCHINPUTS)))
 		// pasting. pasting is cool. chat is a bit limited, though :(
 		if (((c == 'v' || c == 'V') && ctrldown) && !CHAT_MUTE)
 		{
@@ -1206,11 +1205,6 @@ boolean HU_Responder(event_t *ev)
 			{
 				memcpy(&w_chat[chatlen], paste, pastelen); // copy all of that.
 				c_input += pastelen;
-				/*size_t i = 0;
-				for (;i<pastelen;i++)
-				{
-					HU_queueChatChar(paste[i]); // queue it so that it's actually sent. (this chat write thing is REALLY messy.)
-				}*/
 				return true;
 			}
 			else	// otherwise, we need to shift everything and make space, etc etc
@@ -1229,8 +1223,8 @@ boolean HU_Responder(event_t *ev)
 				return true;
 			}
 		}
-#else
-		// Lactozilla: Force the cursor to always be at the end of the text
+
+#ifdef ONSCREENKEYBOARD
 		c_input = strlen(w_chat);
 #endif
 
@@ -1243,7 +1237,7 @@ boolean HU_Responder(event_t *ev)
 			HU_CloseChat();
 			chat_scrollmedown = true; // you hit enter, so you might wanna autoscroll to see what you just sent. :)
 		}
-		else if (c == KEY_ESCAPE
+		else if (c == KEY_ESCAPE || c == KEY_REMOTEBACK
 			|| ((c == gamecontrol[gc_talkkey][0] || c == gamecontrol[gc_talkkey][1]
 			|| c == gamecontrol[gc_teamkey][0] || c == gamecontrol[gc_teamkey][1])
 			&& c >= KEY_MOUSE1)) // If it's not a keyboard key, then the chat button is used as a toggle.
@@ -1296,7 +1290,7 @@ void HU_OpenChat(void)
 	teamtalk = G_GametypeHasTeams(); // Don't teamtalk if we don't have teams.
 	chat_scrollmedown = true;
 	typelines = 1;
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	I_RaiseScreenKeyboard(w_chat, HU_MAXMSGLEN);
 #endif
 #endif
@@ -1308,7 +1302,7 @@ void HU_CloseChat(void)
 	chat_on = false;
 	c_input = 0; // reset input cursor
 	I_UpdateMouseGrab();
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	I_CloseScreenKeyboard();
 #endif
 #endif

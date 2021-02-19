@@ -113,7 +113,7 @@ static void CON_DrawBackpic(void);
 static void CONS_hudlines_Change(void);
 static void CONS_backcolor_Change(void);
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 static void CON_ScreenKeyboardInput(char *text, size_t length);
 #endif
 
@@ -703,7 +703,7 @@ void CON_ToggleOff(void)
 
 	I_UpdateMouseGrab();
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	if (I_KeyboardOnScreen())
 		I_CloseScreenKeyboard();
 #endif
@@ -742,7 +742,7 @@ void CON_Ticker(void)
 	con_tick++;
 	con_tick &= 7;
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	// Close the console, if the screen keyboard is not visible
 	if (con_destlines > 0 && (!I_KeyboardOnScreen()))
 		consoletoggle = true;
@@ -759,7 +759,7 @@ void CON_Ticker(void)
 			con_destlines = 0;
 			CON_ClearHUD();
 			I_UpdateMouseGrab();
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 			if (I_KeyboardOnScreen())
 				I_CloseScreenKeyboard();
 #endif
@@ -767,7 +767,7 @@ void CON_Ticker(void)
 		else
 			CON_ChangeHeight();
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 		con_scrollup = 0;
 #endif
 	}
@@ -791,7 +791,7 @@ void CON_Ticker(void)
 	// check if console ready for prompt
 	if (con_destlines >= minheight)
 	{
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 		if (!(consoleready && I_KeyboardOnScreen())) // Raise the screen keyboard
 		{
 			I_RaiseScreenKeyboard(NULL, 0);
@@ -927,7 +927,7 @@ static void CON_InputDelChar(void)
 	Unlock_state();
 }
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 static void CON_ScreenKeyboardInput(char *text, size_t length)
 {
 	(void)length;
@@ -1335,7 +1335,7 @@ boolean CON_Responder(event_t *ev)
 		return true;
 	}
 
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	// Inputs handled elsewhere
 	if (I_KeyboardOnScreen())
 		return true;
@@ -1379,7 +1379,7 @@ boolean CON_Responder(event_t *ev)
 
 void CON_FocusChanged(void)
 {
-#if (defined(__ANDROID__) && defined(TOUCHINPUTS))
+#ifdef ONSCREENKEYBOARD
 	if (con_destlines > 0)
 		CON_ToggleOff();
 #endif

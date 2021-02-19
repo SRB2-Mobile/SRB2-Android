@@ -238,7 +238,6 @@ extern consvar_t cv_touchscreenshots;
 #define TOUCHJOYEXTENDY (touch_joystick_h / 2)
 
 extern float touchxmove, touchymove, touchpressure;
-boolean TS_IsScreenJoystickUsed(void);
 
 void TS_HandleFingerEvent(event_t *ev);
 
