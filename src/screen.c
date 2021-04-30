@@ -34,6 +34,11 @@
 #include "s_sound.h" // ditto
 #include "g_game.h" // ditto
 #include "p_local.h" // P_AutoPause()
+#ifdef HWRENDER
+#include "hardware/hw_main.h"
+#include "hardware/hw_light.h"
+#include "hardware/hw_model.h"
+#endif
 
 #ifdef TOUCHINPUTS
 #include "ts_main.h" // touchfingers, NUMTOUCHFINGERS
@@ -496,6 +501,10 @@ void SCR_ChangeRenderer(void)
 
 		return;
 	}
+
+	if (rendermode == render_opengl && (vid.glstate == VID_GL_LIBRARY_LOADED)) // Clear these out before switching to software
+		HWR_ClearAllTextures();
+
 #endif
 
 	// Set the new render mode

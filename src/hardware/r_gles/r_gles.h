@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime Ita Passos.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
 // Copyright (C) 1998-2020 by Sonic Team Junior.
 //

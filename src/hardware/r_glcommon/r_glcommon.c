@@ -1,6 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 1998-2020 by Sonic Team Junior.
+// Copyright (C) 1998-2021 by Sonic Team Junior.
+// Copyright (C) 2020-2021 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -51,8 +52,9 @@ GLint anisotropic_filter = 0;
 
 boolean model_lighting = false;
 
-FTextureInfo *gl_cachetail = NULL;
-FTextureInfo *gl_cachehead = NULL;
+// Linked list of all textures.
+FTextureInfo *TexCacheTail = NULL;
+FTextureInfo *TexCacheHead = NULL;
 
 GLuint      tex_downloaded  = 0;
 GLfloat     fov             = 90.0f;
@@ -305,11 +307,10 @@ static void SetBlendMode(FBITFIELD flags)
 		case PF_Additive & PF_Blending:
 		case PF_Subtractive & PF_Blending:
 		case PF_ReverseSubtract & PF_Blending:
+			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
+			break;
 		case PF_Environment & PF_Blending:
 			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-			break;
-		case PF_AdditiveSource & PF_Blending:
-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
 			break;
 		case PF_Multiplicative & PF_Blending:
 			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
@@ -349,7 +350,6 @@ static void SetBlendMode(FBITFIELD flags)
 			break;
 		case PF_Translucent & PF_Blending:
 		case PF_Additive & PF_Blending:
-		case PF_AdditiveSource & PF_Blending:
 		case PF_Subtractive & PF_Blending:
 		case PF_ReverseSubtract & PF_Blending:
 		case PF_Environment & PF_Blending:
@@ -720,15 +720,25 @@ void GLTexture_Flush(void)
 {
 	//GL_DBG_Printf ("GLTexture_Flush()\n");
 
-	while (gl_cachehead)
+	while (TexCacheHead)
 	{
-		if (gl_cachehead->downloaded)
-			pglDeleteTextures(1, (GLuint *)&gl_cachehead->downloaded);
-		gl_cachehead->downloaded = 0;
-		gl_cachehead = gl_cachehead->nextmipmap;
-	}
-	gl_cachetail = gl_cachehead = NULL; //Hurdler: well, gl_cachehead is already NULL
+		FTextureInfo *pTexInfo = TexCacheHead;
+		GLMipmap_t *texture = pTexInfo->texture;
 
+		if (pTexInfo->downloaded)
+		{
+			pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+			pTexInfo->downloaded = 0;
+		}
+
+		if (texture)
+			texture->downloaded = 0;
+
+		TexCacheHead = pTexInfo->next;
+		free(pTexInfo);
+	}
+
+	TexCacheTail = TexCacheHead = NULL; //Hurdler: well, TexCacheHead is already NULL
 	tex_downloaded = 0;
 }
 
@@ -795,7 +805,7 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head)
 
 		// Add it up!
 		res += head->height*head->width*bpp;
-		head = head->nextmipmap;
+		head = head->next;
 	}
 
 	return res;

@@ -1497,7 +1497,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 			newtarget = P_SpawnMobj(ticcmd_ztargetfocus[forplayer]->x, ticcmd_ztargetfocus[forplayer]->y, ticcmd_ztargetfocus[forplayer]->z, MT_LOCKON); // positioning, flip handled in P_SceneryThinker
 			P_SetTarget(&newtarget->target, ticcmd_ztargetfocus[forplayer]);
 
-			if (FixedHypot(
+			if (P_AproxDistance(
 				player->mo->x - ticcmd_ztargetfocus[forplayer]->x,
 				player->mo->y - ticcmd_ztargetfocus[forplayer]->y
 			) > 50*player->mo->scale)
@@ -1751,7 +1751,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	// At this point, cmd doesn't contain the final angle yet,
 	// So we need to temporarily transform it so Lua scripters
 	// don't need to handle it differently than in other hooks.
-	if (gamestate == GS_LEVEL)
+	if (addedtogame && gamestate == GS_LEVEL)
 	{
 		INT16 extra = ticcmd_oldangleturn[forplayer] - player->oldrelangleturn;
 		INT16 origangle = cmd->angleturn;
@@ -3561,6 +3561,7 @@ tolinfo_t TYPEOFLEVEL[NUMTOLNAMES] = {
 	{"MARIO",TOL_MARIO},
 	{"NIGHTS",TOL_NIGHTS},
 	{"OLDBRAK",TOL_ERZ3},
+	{"ERZ3",TOL_ERZ3},
 
 	{"XMAS",TOL_XMAS},
 	{"CHRISTMAS",TOL_XMAS},
@@ -4027,6 +4028,7 @@ static void G_DoCompleted(void)
 	{
 		G_SetGamestate(GS_INTERMISSION);
 		Y_StartIntermission();
+		Y_LoadIntermissionData();
 		G_UpdateVisited();
 		G_HandleSaveLevel();
 	}

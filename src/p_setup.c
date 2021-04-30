@@ -232,7 +232,7 @@ mobj_t *P_GetClosestWaypoint(UINT8 sequence, mobj_t *mo)
 		if (!mo2)
 			continue;
 
-		curdist = FixedHypot(FixedHypot(mo->x - mo2->x, mo->y - mo2->y), mo->z - mo2->z);
+		curdist = P_AproxDistance(P_AproxDistance(mo->x - mo2->x, mo->y - mo2->y), mo->z - mo2->z);
 
 		if (result && curdist > bestdist)
 			continue;
@@ -4135,7 +4135,7 @@ boolean P_LoadLevel(boolean fromnetsave, boolean reloadinggamestate)
 
 #ifdef HWRENDER
 	// Free GPU textures before freeing patches.
-	if (vid.glstate == VID_GL_LIBRARY_LOADED)
+	if (rendermode == render_opengl && (vid.glstate == VID_GL_LIBRARY_LOADED))
 		HWR_ClearAllTextures();
 #endif
 
@@ -4500,7 +4500,7 @@ boolean P_AddWadFile(const char *wadfilename)
 
 #ifdef HWRENDER
 	// Free GPU textures before freeing patches.
-	if (vid.glstate == VID_GL_LIBRARY_LOADED)
+	if (rendermode == render_opengl && (vid.glstate == VID_GL_LIBRARY_LOADED))
 		HWR_ClearAllTextures();
 #endif
 

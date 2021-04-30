@@ -776,7 +776,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			if (thing->flags & MF_SOLID)
 				S_StartSound(tmthing, thing->info->deathsound);
 			for (iter = thing->subsector->sector->thinglist; iter; iter = iter->snext)
-				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || FixedHypot(FixedHypot(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
+				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || P_AproxDistance(P_AproxDistance(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
 					P_KillMobj(iter, tmthing, tmthing, 0);
 		}
 		else
@@ -815,7 +815,7 @@ static boolean PIT_CheckThing(mobj_t *thing)
 			if (thing->flags & MF_SOLID)
 				S_StartSound(tmthing, thing->info->deathsound);
 			for (iter = thing->subsector->sector->thinglist; iter; iter = iter->snext)
-				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || FixedHypot(FixedHypot(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
+				if (iter->type == thing->type && iter->health > 0 && iter->flags & MF_SOLID && (iter == thing || P_AproxDistance(P_AproxDistance(thing->x - iter->x, thing->y - iter->y), thing->z - iter->z) < 56*thing->scale))//FixedMul(56*FRACUNIT, thing->scale))
 					P_KillMobj(iter, tmthing, tmthing, 0);
 			return true;
 		}
@@ -2723,7 +2723,10 @@ boolean P_TryMove(mobj_t *thing, fixed_t x, fixed_t y, boolean allowdropoff)
 			if (thing->type == MT_SKIM)
 				maxstep = 0;
 
-			if (tmceilingz - tmfloorz < thing->height)
+			if (tmceilingz - tmfloorz < thing->height
+				|| (thing->player
+					&& tmceilingz - tmfloorz < P_GetPlayerHeight(thing->player)
+					&& !P_PlayerCanEnterSpinGaps(thing->player)))
 			{
 				if (tmfloorthing)
 					tmhitthing = tmfloorthing;
@@ -3063,7 +3066,7 @@ static void P_HitCameraSlideLine(line_t *ld, camera_t *thiscam)
 	lineangle >>= ANGLETOFINESHIFT;
 	deltaangle >>= ANGLETOFINESHIFT;
 
-	movelen = FixedHypot(tmxmove, tmymove);
+	movelen = P_AproxDistance(tmxmove, tmymove);
 	newlen = FixedMul(movelen, FINECOSINE(deltaangle));
 
 	tmxmove = FixedMul(newlen, FINECOSINE(lineangle));
@@ -3149,7 +3152,7 @@ static void P_HitBounceLine(line_t *ld)
 	lineangle >>= ANGLETOFINESHIFT;
 	deltaangle >>= ANGLETOFINESHIFT;
 
-	movelen = FixedHypot(tmxmove, tmymove);
+	movelen = P_AproxDistance(tmxmove, tmymove);
 
 	tmxmove = FixedMul(movelen, FINECOSINE(deltaangle));
 	tmymove = FixedMul(movelen, FINESINE(deltaangle));
@@ -3330,6 +3333,11 @@ static boolean PTR_LineIsBlocking(line_t *li)
 
 	if (openbottom - slidemo->z > FixedMul(MAXSTEPMOVE, slidemo->scale))
 		return true; // too big a step up
+
+	if (slidemo->player
+		&& openrange < P_GetPlayerHeight(slidemo->player)
+		&& !P_PlayerCanEnterSpinGaps(slidemo->player))
+			return true; // nonspin character should not take this path
 
 	return false;
 }
@@ -4076,7 +4084,7 @@ static boolean PIT_RadiusAttack(mobj_t *thing)
 	dy = abs(thing->y - bombspot->y);
 	dz = abs(thing->z + (thing->height>>1) - bombspot->z);
 
-	dist = FixedHypot(FixedHypot(dx, dy), dz);
+	dist = P_AproxDistance(P_AproxDistance(dx, dy), dz);
 	dist -= thing->radius;
 
 	if (dist < 0)

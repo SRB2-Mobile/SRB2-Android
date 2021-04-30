@@ -190,7 +190,7 @@ fixed_t P_ReturnThrustY(mobj_t *mo, angle_t angle, fixed_t move)
 boolean P_AutoPause(void)
 {
 	// Don't pause even on menu-up or focus-lost in netgames or record attack
-	if (netgame || modeattacking || gamestate == GS_TITLESCREEN)
+	if (netgame || modeattacking || gamestate == GS_TITLESCREEN || (marathonmode && gamestate == GS_INTERMISSION))
 		return false;
 
 	return (menuactive || ( window_notinfocus && cv_pauseifunfocused.value ));
@@ -1018,7 +1018,7 @@ void P_DoPlayerPain(player_t *player, mobj_t *source, mobj_t *inflictor)
 			// to recover
 			if ((inflictor->flags2 & MF2_SCATTER) && source)
 			{
-				fixed_t dist = FixedHypot(FixedHypot(source->x-player->mo->x, source->y-player->mo->y), source->z-player->mo->z);
+				fixed_t dist = P_AproxDistance(P_AproxDistance(source->x-player->mo->x, source->y-player->mo->y), source->z-player->mo->z);
 
 				dist = FixedMul(128*FRACUNIT, inflictor->scale) - dist/4;
 
@@ -2701,7 +2701,7 @@ static void P_CheckBustableBlocks(player_t *player)
 
 			// Run a linedef executor??
 			if (rover->master->flags & ML_EFFECT5)
-				P_LinedefExecute((INT16)(FixedHypot(rover->master->dx, rover->master->dy)>>FRACBITS), player->mo, node->m_sector);
+				P_LinedefExecute((INT16)(P_AproxDistance(rover->master->dx, rover->master->dy)>>FRACBITS), player->mo, node->m_sector);
 
 			goto bustupdone;
 		}
@@ -2764,7 +2764,7 @@ static void P_CheckBouncySectors(player_t *player)
 			if (player->mo->z + player->mo->height < bottomheight)
 				continue;
 
-			bouncestrength = FixedHypot(rover->master->dx, rover->master->dy)/100;
+			bouncestrength = P_AproxDistance(rover->master->dx, rover->master->dy)/100;
 
 			if (oldz < P_GetFOFTopZ(player->mo, node->m_sector, rover, oldx, oldy, NULL)
 					&& oldz + player->mo->height > P_GetFOFBottomZ(player->mo, node->m_sector, rover, oldx, oldy, NULL))
@@ -4499,7 +4499,7 @@ void P_DoJump(player_t *player, boolean soundandstate)
 	if (twodlevel || (player->mo->flags2 & MF2_TWOD))
 		factor += player->jumpfactor / 10;
 
-	if (player->charflags & SF_MULTIABILITY && player->charability == CA_DOUBLEJUMP)
+	if (player->charflags & SF_MULTIABILITY && player->charability == CA_DOUBLEJUMP && (player->actionspd >> FRACBITS) != -1)
 		factor -= max(0, player->secondjump * player->jumpfactor / ((player->actionspd >> FRACBITS) + 1)); // Reduce the jump height each time
 
 	//if (maptol & TOL_NIGHTS)
@@ -4880,22 +4880,28 @@ void P_DoBubbleBounce(player_t *player)
 //
 void P_DoAbilityBounce(player_t *player, boolean changemomz)
 {
-	fixed_t prevmomz;
 	if (player->mo->state-states == S_PLAY_BOUNCE_LANDING)
 		return;
+
 	if (changemomz)
 	{
-		fixed_t minmomz;
-		prevmomz = player->mo->momz;
+		fixed_t prevmomz = player->mo->momz, minmomz;
+
 		if (P_MobjFlip(player->mo)*prevmomz < 0)
 			prevmomz = 0;
 		else if (player->mo->eflags & MFE_UNDERWATER)
 			prevmomz /= 2;
+
 		P_DoJump(player, false);
 		player->pflags &= ~(PF_STARTJUMP|PF_JUMPED);
 		minmomz = FixedMul(player->mo->momz, 3*FRACUNIT/2);
-		player->mo->momz = max(minmomz, (minmomz + prevmomz)/2);
+
+		if (player->mo->eflags & MFE_VERTICALFLIP) // Use "min" or "max" depending on if the player is flipped
+			player->mo->momz = min(minmomz, (minmomz + prevmomz)/2);
+		else
+			player->mo->momz = max(minmomz, (minmomz + prevmomz)/2);
 	}
+
 	S_StartSound(player->mo, sfx_boingf);
 	P_SetPlayerMobjState(player->mo, S_PLAY_BOUNCE_LANDING);
 	player->pflags |= PF_BOUNCING|PF_THOKKED;
@@ -4981,7 +4987,7 @@ void P_Telekinesis(player_t *player, fixed_t thrust, fixed_t range)
 		if (!((mo2->flags & MF_SHOOTABLE && mo2->flags & MF_ENEMY) || mo2->type == MT_EGGGUARD || mo2->player))
 			continue;
 
-		dist = FixedHypot(FixedHypot(player->mo->x-mo2->x, player->mo->y-mo2->y), player->mo->z-mo2->z);
+		dist = P_AproxDistance(P_AproxDistance(player->mo->x-mo2->x, player->mo->y-mo2->y), player->mo->z-mo2->z);
 
 		if (range < dist)
 			continue;
@@ -5924,7 +5930,7 @@ static void P_3dMovement(player_t *player)
 	player->rmomy = player->mo->momy - player->cmomy;
 
 	// Calculates player's speed based on distance-of-a-line formula
-	player->speed = R_PointToDist2(0, 0, player->rmomx, player->rmomy);
+	player->speed = P_AproxDistance(player->rmomx, player->rmomy);
 
 	// Monster Iestyn - 04-11-13
 	// Quadrants are stupid, excessive and broken, let's do this a much simpler way!
@@ -6464,12 +6470,12 @@ static void P_NightsTransferPoints(player_t *player, fixed_t xspeed, fixed_t rad
 
 		//CONS_Debug(DBG_NIGHTS, "T1 is at %d, %d\n", transfer1->x>>FRACBITS, transfer1->y>>FRACBITS);
 		//CONS_Debug(DBG_NIGHTS, "T2 is at %d, %d\n", transfer2->x>>FRACBITS, transfer2->y>>FRACBITS);
-		//CONS_Debug(DBG_NIGHTS, "Distance from T1: %d\n", FixedHypot(transfer1->x - player->mo->x, transfer1->y - player->mo->y)>>FRACBITS);
-		//CONS_Debug(DBG_NIGHTS, "Distance from T2: %d\n", FixedHypot(transfer2->x - player->mo->x, transfer2->y - player->mo->y)>>FRACBITS);
+		//CONS_Debug(DBG_NIGHTS, "Distance from T1: %d\n", P_AproxDistance(transfer1->x - player->mo->x, transfer1->y - player->mo->y)>>FRACBITS);
+		//CONS_Debug(DBG_NIGHTS, "Distance from T2: %d\n", P_AproxDistance(transfer2->x - player->mo->x, transfer2->y - player->mo->y)>>FRACBITS);
 
 		// Transfer1 is closer to the player than transfer2
-		if (FixedHypot(transfer1->x - player->mo->x, transfer1->y - player->mo->y)>>FRACBITS
-			< FixedHypot(transfer2->x - player->mo->x, transfer2->y - player->mo->y)>>FRACBITS)
+		if (P_AproxDistance(transfer1->x - player->mo->x, transfer1->y - player->mo->y)>>FRACBITS
+			< P_AproxDistance(transfer2->x - player->mo->x, transfer2->y - player->mo->y)>>FRACBITS)
 		{
 			//CONS_Debug(DBG_NIGHTS, " must be < 0 to transfer\n");
 
@@ -7709,7 +7715,7 @@ void P_BlackOw(player_t *player)
 	S_StartSound (player->mo, sfx_bkpoof); // Sound the BANG!
 
 	for (i = 0; i < MAXPLAYERS; i++)
-		if (playeringame[i] && FixedHypot(player->mo->x - players[i].mo->x,
+		if (playeringame[i] && P_AproxDistance(player->mo->x - players[i].mo->x,
 			player->mo->y - players[i].mo->y) < 1536*FRACUNIT)
 			P_FlashPal(&players[i], PAL_NUKE, 10);
 
@@ -7893,7 +7899,7 @@ static void P_SkidStuff(player_t *player)
 					P_SpawnSkidDust(player, 0, false);
 			}
 		}
-		else if (FixedHypot(pmx, pmy) >= FixedMul(player->runspeed/2, player->mo->scale) // if you were moving faster than half your run speed last frame
+		else if (P_AproxDistance(pmx, pmy) >= FixedMul(player->runspeed/2, player->mo->scale) // if you were moving faster than half your run speed last frame
 		&& (player->mo->momx != pmx || player->mo->momy != pmy) // and you are moving differently this frame
 		&& P_GetPlayerControlDirection(player) == 2) // and your controls are pointing in the opposite direction to your movement
 		{ // check for skidding
@@ -8524,7 +8530,7 @@ void P_MovePlayer(player_t *player)
 		P_ResetScore(player);
 
 	// Show the "THOK!" graphic when spinning quickly across the ground. (even applies to non-spinners, in the case of zoom tubes)
-	if (player->pflags & PF_SPINNING && FixedHypot(player->speed, player->mo->momz) > FixedMul(15<<FRACBITS, player->mo->scale) && !(player->pflags & PF_JUMPED))
+	if (player->pflags & PF_SPINNING && P_AproxDistance(player->speed, player->mo->momz) > FixedMul(15<<FRACBITS, player->mo->scale) && !(player->pflags & PF_JUMPED))
 	{
 		P_SpawnSpinMobj(player, player->spinitem);
 		G_GhostAddSpin();
@@ -8645,14 +8651,16 @@ void P_MovePlayer(player_t *player)
 	{
 		boolean atspinheight = false;
 		fixed_t oldheight = player->mo->height;
+		fixed_t luaheight = LUAh_PlayerHeight(player);
 
+		if (luaheight != -1)
+		{
+			player->mo->height = luaheight;
+			if (luaheight <= P_GetPlayerSpinHeight(player))
+				atspinheight = true; // spinning will not save you from being crushed
+		}
 		// Less height while spinning. Good for spinning under things...?
-		if ((player->mo->state == &states[player->mo->info->painstate])
-		|| ((player->pflags & PF_JUMPED) && !(player->pflags & PF_NOJUMPDAMAGE))
-		|| (player->pflags & PF_SPINNING)
-		|| player->powers[pw_tailsfly] || player->pflags & PF_GLIDING
-		|| (player->charability == CA_GLIDEANDCLIMB && player->mo->state-states == S_PLAY_GLIDE_LANDING)
-		|| (player->charability == CA_FLY && player->mo->state-states == S_PLAY_FLY_TIRED))
+		else if (P_PlayerShouldUseSpinHeight(player))
 		{
 			player->mo->height = P_GetPlayerSpinHeight(player);
 			atspinheight = true;
@@ -8745,7 +8753,7 @@ static void P_DoZoomTube(player_t *player)
 	speed = abs(player->speed);
 
 	// change slope
-	dist = FixedHypot(FixedHypot(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - player->mo->z);
+	dist = P_AproxDistance(P_AproxDistance(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - player->mo->z);
 
 	if (dist < 1)
 		dist = 1;
@@ -8786,7 +8794,7 @@ static void P_DoZoomTube(player_t *player)
 			// calculate MOMX/MOMY/MOMZ for next waypoint
 
 			// change slope
-			dist = FixedHypot(FixedHypot(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - player->mo->z);
+			dist = P_AproxDistance(P_AproxDistance(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - player->mo->z);
 
 			if (dist < 1)
 				dist = 1;
@@ -8839,7 +8847,7 @@ static void P_DoRopeHang(player_t *player)
 	sequence = player->mo->tracer->threshold;
 
 	// change slope
-	dist = FixedHypot(FixedHypot(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - playerz);
+	dist = P_AproxDistance(P_AproxDistance(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - playerz);
 
 	if (dist < 1)
 		dist = 1;
@@ -8902,7 +8910,7 @@ static void P_DoRopeHang(player_t *player)
 
 			// calculate MOMX/MOMY/MOMZ for next waypoint
 			// change slope
-			dist = FixedHypot(FixedHypot(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - playerz);
+			dist = P_AproxDistance(P_AproxDistance(player->mo->tracer->x - player->mo->x, player->mo->tracer->y - player->mo->y), player->mo->tracer->z - playerz);
 
 			if (dist < 1)
 				dist = 1;
@@ -9003,7 +9011,7 @@ void P_NukeEnemies(mobj_t *inflictor, mobj_t *source, fixed_t radius)
 		if (abs(inflictor->x - mo->x) > radius || abs(inflictor->y - mo->y) > radius || abs(inflictor->z - mo->z) > radius)
 			continue; // Workaround for possible integer overflow in the below -Red
 
-		if (FixedHypot(FixedHypot(inflictor->x - mo->x, inflictor->y - mo->y), inflictor->z - mo->z) > radius)
+		if (P_AproxDistance(P_AproxDistance(inflictor->x - mo->x, inflictor->y - mo->y), inflictor->z - mo->z) > radius)
 			continue;
 
 		if (mo->type == MT_MINUS && !(mo->flags & (MF_SPECIAL|MF_SHOOTABLE)))
@@ -9139,12 +9147,12 @@ mobj_t *P_LookForFocusTarget(player_t *player, mobj_t *exclude, SINT8 direction,
 
 		{
 			fixed_t zdist = (player->mo->z + player->mo->height/2) - (mo->z + mo->height/2);
-			dist = FixedHypot(player->mo->x-mo->x, player->mo->y-mo->y);
+			dist = P_AproxDistance(player->mo->x-mo->x, player->mo->y-mo->y);
 
 			if (abs(zdist) > dist)
 				continue; // Don't home outside of desired angle!
 
-			dist = FixedHypot(dist, zdist);
+			dist = P_AproxDistance(dist, zdist);
 			if (dist > maxdist)
 				continue; // out of range
 		}
@@ -9236,7 +9244,7 @@ mobj_t *P_LookForEnemies(player_t *player, boolean nonenemies, boolean bullet)
 
 		{
 			fixed_t zdist = (player->mo->z + player->mo->height/2) - (mo->z + mo->height/2);
-			dist = FixedHypot(player->mo->x-mo->x, player->mo->y-mo->y);
+			dist = P_AproxDistance(player->mo->x-mo->x, player->mo->y-mo->y);
 			if (bullet)
 			{
 				if ((R_PointToAngle2(0, 0, dist, zdist) + span) > span*2)
@@ -9253,7 +9261,7 @@ mobj_t *P_LookForEnemies(player_t *player, boolean nonenemies, boolean bullet)
 					continue;
 			}
 
-			dist = FixedHypot(dist, zdist);
+			dist = P_AproxDistance(dist, zdist);
 			if (dist > maxdist)
 				continue; // out of range
 		}
@@ -9313,7 +9321,7 @@ boolean P_HomingAttack(mobj_t *source, mobj_t *enemy) // Home in on your target
 
 	// change slope
 	zdist = ((P_MobjFlip(source) == -1) ? (enemy->z + enemy->height) - (source->z + source->height) : (enemy->z - source->z));
-	dist = FixedHypot(FixedHypot(enemy->x - source->x, enemy->y - source->y), zdist);
+	dist = P_AproxDistance(P_AproxDistance(enemy->x - source->x, enemy->y - source->y), zdist);
 
 	if (dist < 1)
 		dist = 1;
@@ -10362,7 +10370,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	// follow the player
 	/*if (player->playerstate != PST_DEAD && (camspeed) != 0)
 	{
-		if (FixedHypot(mo->x - thiscam->x, mo->y - thiscam->y) > (checkdist + FixedHypot(mo->momx, mo->momy)) * 4
+		if (P_AproxDistance(mo->x - thiscam->x, mo->y - thiscam->y) > (checkdist + P_AproxDistance(mo->momx, mo->momy)) * 4
 			|| abs(mo->z - thiscam->z) > checkdist * 3)
 		{
 			if (!resetcalled)
@@ -10427,7 +10435,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 		}
 
 		/* check z distance too for orbital camera */
-		if (FixedHypot(FixedHypot(vx - mo->x, vy - mo->y),
+		if (P_AproxDistance(P_AproxDistance(vx - mo->x, vy - mo->y),
 					vz - ( mo->z + mo->height / 2 )) < FixedMul(48*FRACUNIT, mo->scale))
 			mo->flags2 |= MF2_SHADOW;
 		else
@@ -10912,7 +10920,7 @@ static void P_ParabolicMove(mobj_t *mo, fixed_t x, fixed_t y, fixed_t z, fixed_t
 	fixed_t dx = x - mo->x;
 	fixed_t dy = y - mo->y;
 	fixed_t dz = z - mo->z;
-	fixed_t dh = FixedHypot(dx, dy);
+	fixed_t dh = P_AproxDistance(dx, dy);
 	fixed_t c = FixedDiv(dx, dh);
 	fixed_t s = FixedDiv(dy, dh);
 	fixed_t fixConst = FixedDiv(speed, g);
@@ -11356,7 +11364,7 @@ static void P_DoMetalJetFume(player_t *player, mobj_t *fume)
 	angle_t angle = player->drawangle;
 	fixed_t dist;
 	panim_t panim = player->panim;
-	tic_t dashmode = player->dashmode;
+	tic_t dashmode = min(player->dashmode, DASHMODE_MAX);
 	boolean underwater = mo->eflags & MFE_UNDERWATER;
 	statenum_t stat = fume->state-states;
 
@@ -11784,7 +11792,7 @@ void P_PlayerThink(player_t *player)
 			if (mo2->flags2 & MF2_NIGHTSPULL)
 				continue;
 
-			if (FixedHypot(FixedHypot(mo2->x - x, mo2->y - y), mo2->z - z) > FixedMul(128*FRACUNIT, player->mo->scale))
+			if (P_AproxDistance(P_AproxDistance(mo2->x - x, mo2->y - y), mo2->z - z) > FixedMul(128*FRACUNIT, player->mo->scale))
 				continue;
 
 			// Yay! The thing's in reach! Pull it in!
@@ -12020,7 +12028,7 @@ void P_PlayerThink(player_t *player)
 				if (!currentlyonground)
 					acceleration /= 2;
 				// fake skidding! see P_SkidStuff for reference on conditionals
-				else if (!player->skidtime && !(player->mo->eflags & MFE_GOOWATER) && !(player->pflags & (PF_JUMPED|PF_SPINNING|PF_SLIDING)) && !(player->charflags & SF_NOSKID) && FixedHypot(player->mo->momx, player->mo->momy) >= FixedMul(player->runspeed, player->mo->scale)) // modified from player->runspeed/2 'cuz the skid was just TOO frequent ngl
+				else if (!player->skidtime && !(player->mo->eflags & MFE_GOOWATER) && !(player->pflags & (PF_JUMPED|PF_SPINNING|PF_SLIDING)) && !(player->charflags & SF_NOSKID) && P_AproxDistance(player->mo->momx, player->mo->momy) >= FixedMul(player->runspeed, player->mo->scale)) // modified from player->runspeed/2 'cuz the skid was just TOO frequent ngl
 				{
 					if (player->mo->state-states != S_PLAY_SKID)
 						P_SetPlayerMobjState(player->mo, S_PLAY_SKID);
@@ -12605,7 +12613,7 @@ void P_PlayerAfterThink(player_t *player)
 						P_SetPlayerAngle(player, player->mo->angle);
 				}
 
-				if (FixedHypot(player->mo->x - tails->x, player->mo->y - tails->y) > player->mo->radius)
+				if (P_AproxDistance(player->mo->x - tails->x, player->mo->y - tails->y) > player->mo->radius)
 					player->powers[pw_carry] = CR_NONE;
 
 				if (player->powers[pw_carry] != CR_NONE)
@@ -12794,7 +12802,7 @@ void P_PlayerAfterThink(player_t *player)
 				player->mo->momy = ptera->momy;
 				player->mo->momz = ptera->momz;
 
-				if (FixedHypot(player->mo->x - ptera->x - ptera->watertop, player->mo->y - ptera->y - ptera->waterbottom) > player->mo->radius)
+				if (P_AproxDistance(player->mo->x - ptera->x - ptera->watertop, player->mo->y - ptera->y - ptera->waterbottom) > player->mo->radius)
 					goto dropoff;
 
 				ptera->watertop >>= 1;
@@ -12946,4 +12954,34 @@ boolean P_PlayerFullbright(player_t *player)
 		&& (player->exiting
 			|| !(player->mo->state >= &states[S_PLAY_NIGHTS_TRANS1]
 			&& player->mo->state < &states[S_PLAY_NIGHTS_TRANS6])))); // Note the < instead of <=
+}
+
+#define JUMPCURLED(player) ((player->pflags & PF_JUMPED)\
+	&& (!(player->charflags & SF_NOJUMPSPIN))\
+	&& (player->panim == PA_JUMP || player->panim == PA_ROLL))\
+
+// returns true if the player can enter a sector that they could not if standing at their skin's full height
+boolean P_PlayerCanEnterSpinGaps(player_t *player)
+{
+	UINT8 canEnter = LUAh_PlayerCanEnterSpinGaps(player);
+	if (canEnter == 1)
+		return true;
+	else if (canEnter == 2)
+		return false;
+
+	return ((player->pflags & (PF_SPINNING|PF_GLIDING)) // players who are spinning or gliding
+		|| (player->charability == CA_GLIDEANDCLIMB && player->mo->state-states == S_PLAY_GLIDE_LANDING) // players who are landing from a glide
+		|| JUMPCURLED(player)); // players who are jumpcurled, but only if they would normally jump that way
+}
+
+// returns true if the player should use their skin's spinheight instead of their skin's height
+boolean P_PlayerShouldUseSpinHeight(player_t *player)
+{
+	return ((player->pflags & (PF_SPINNING|PF_GLIDING))
+		|| (player->mo->state == &states[player->mo->info->painstate])
+		|| (player->panim == PA_ROLL)
+		|| ((player->powers[pw_tailsfly] || (player->charability == CA_FLY && player->mo->state-states == S_PLAY_FLY_TIRED))
+			&& !(player->charflags & SF_NOJUMPSPIN))
+		|| (player->charability == CA_GLIDEANDCLIMB && player->mo->state-states == S_PLAY_GLIDE_LANDING)
+		|| JUMPCURLED(player));
 }

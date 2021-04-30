@@ -1,8 +1,8 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime Ita Passos.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1998-2020 by Sonic Team Junior.
+// Copyright (C) 1998-2021 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -225,10 +225,34 @@ void SetStates(void)
 // -----------------+
 // DeleteTexture    : Deletes a texture from the GPU and frees its data
 // -----------------+
-EXPORT void HWRAPI(DeleteTexture) (FTextureInfo *pTexInfo)
+EXPORT void HWRAPI(DeleteTexture) (GLMipmap_t *pTexInfo)
 {
-	if (pTexInfo->downloaded)
+	FTextureInfo *head = TexCacheHead;
+
+	if (!pTexInfo)
+		return;
+	else if (pTexInfo->downloaded)
 		pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+
+	while (head)
+	{
+		if (head->downloaded == pTexInfo->downloaded)
+		{
+			if (head->next)
+				head->next->prev = head->prev;
+			else // no next -> tail is being deleted -> update TexCacheTail
+				TexCacheTail = head->prev;
+			if (head->prev)
+				head->prev->next = head->next;
+			else // no prev -> head is being deleted -> update TexCacheHead
+				TexCacheHead = head->next;
+			free(head);
+			break;
+		}
+
+		head = head->next;
+	}
+
 	pTexInfo->downloaded = 0;
 }
 
@@ -393,7 +417,7 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 // -----------------+
 // UpdateTexture    : Updates the texture data.
 // -----------------+
-EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
+EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 {
 	// Download a mipmap
 	boolean updatemipmap = true;
@@ -538,7 +562,7 @@ EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
 // -----------------+
 // SetTexture       : The mipmap becomes the current texture source
 // -----------------+
-EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
+EXPORT void HWRAPI(SetTexture) (GLMipmap_t *pTexInfo)
 {
 	if (!pTexInfo)
 	{
@@ -555,15 +579,25 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	}
 	else
 	{
+		FTextureInfo *newTex = calloc(1, sizeof (*newTex));
+
 		UpdateTexture(pTexInfo);
-		pTexInfo->nextmipmap = NULL;
-		if (gl_cachetail)
-		{ // insertion at the tail
-			gl_cachetail->nextmipmap = pTexInfo;
-			gl_cachetail = pTexInfo;
+
+		newTex->texture = pTexInfo;
+		newTex->downloaded = (UINT32)pTexInfo->downloaded;
+		newTex->width = (UINT32)pTexInfo->width;
+		newTex->height = (UINT32)pTexInfo->height;
+		newTex->format = (UINT32)pTexInfo->format;
+
+		// insertion at the tail
+		if (TexCacheTail)
+		{
+			newTex->prev = TexCacheTail;
+			TexCacheTail->next = newTex;
+			TexCacheTail = newTex;
 		}
 		else // initialization of the linked list
-			gl_cachetail = gl_cachehead =  pTexInfo;
+			TexCacheTail = TexCacheHead = newTex;
 	}
 }
 
@@ -583,29 +617,37 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 	// PolyColor
 	if (pSurf)
 	{
+		float red = (pSurf->PolyColor.s.red/255.0f);
+		float green = (pSurf->PolyColor.s.green/255.0f);
+		float blue = (pSurf->PolyColor.s.blue/255.0f);
+		float alpha = (pSurf->PolyColor.s.alpha/255.0f);
+
 		// If Modulated, mix the surface colour to the texture
 		if (CurrentPolyFlags & PF_Modulated)
-		{
-			// Poly color
-			poly.red    = (pSurf->PolyColor.s.red/255.0f);
-			poly.green  = (pSurf->PolyColor.s.green/255.0f);
-			poly.blue   = (pSurf->PolyColor.s.blue/255.0f);
-			poly.alpha  = (pSurf->PolyColor.s.alpha/255.0f);
+			pglColor4f(red, green, blue, alpha);
 
-			pglColor4f(poly.red, poly.green, poly.blue, poly.alpha);
+		// If the surface is either modulated or colormapped, or both
+		if (CurrentPolyFlags & (PF_Modulated | PF_ColorMapped))
+		{
+			poly.red   = red;
+			poly.green = green;
+			poly.blue  = blue;
+			poly.alpha = alpha;
 		}
 
-		// Tint color
-		tint.red   = (pSurf->TintColor.s.red/255.0f);
-		tint.green = (pSurf->TintColor.s.green/255.0f);
-		tint.blue  = (pSurf->TintColor.s.blue/255.0f);
-		tint.alpha = (pSurf->TintColor.s.alpha/255.0f);
+		// Only if the surface is colormapped
+		if (CurrentPolyFlags & PF_ColorMapped)
+		{
+			tint.red   = (pSurf->TintColor.s.red/255.0f);
+			tint.green = (pSurf->TintColor.s.green/255.0f);
+			tint.blue  = (pSurf->TintColor.s.blue/255.0f);
+			tint.alpha = (pSurf->TintColor.s.alpha/255.0f);
 
-		// Fade color
-		fade.red   = (pSurf->FadeColor.s.red/255.0f);
-		fade.green = (pSurf->FadeColor.s.green/255.0f);
-		fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
-		fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
+			fade.red   = (pSurf->FadeColor.s.red/255.0f);
+			fade.green = (pSurf->FadeColor.s.green/255.0f);
+			fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
+			fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
+		}
 	}
 }
 
@@ -844,7 +886,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
 
 	flags = (Surface->PolyFlags | PF_Modulated);
-	if (Surface->PolyFlags & (PF_Additive|PF_AdditiveSource|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
+	if (Surface->PolyFlags & (PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
 		flags |= PF_Occlude;
 	else if (Surface->PolyColor.s.alpha == 0xFF)
 		flags |= (PF_Occlude | PF_Masked);
@@ -1102,7 +1144,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 
 EXPORT INT32 HWRAPI(GetTextureUsed) (void)
 {
-	return GLTexture_GetMemoryUsage(gl_cachehead);
+	return GLTexture_GetMemoryUsage(TexCacheHead);
 }
 
 EXPORT INT32  HWRAPI(GetRenderVersion) (void)

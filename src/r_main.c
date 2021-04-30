@@ -357,7 +357,29 @@ angle_t R_PointToAngle2(fixed_t pviewx, fixed_t pviewy, fixed_t x, fixed_t y)
 
 fixed_t R_PointToDist2(fixed_t px2, fixed_t py2, fixed_t px1, fixed_t py1)
 {
-	return FixedHypot(px1 - px2, py1 - py2);
+	angle_t angle;
+	fixed_t dx, dy, dist;
+
+	dx = abs(px1 - px2);
+	dy = abs(py1 - py2);
+
+	if (dy > dx)
+	{
+		fixed_t temp;
+
+		temp = dx;
+		dx = dy;
+		dy = temp;
+	}
+	if (!dy)
+		return dx;
+
+	angle = (tantoangle[FixedDiv(dy, dx)>>DBITS] + ANGLE_90) >> ANGLETOFINESHIFT;
+
+	// use as cosine
+	dist = FixedDiv(dx, FINESINE(angle));
+
+	return dist;
 }
 
 // Little extra utility. Works in the same way as R_PointToAngle2
@@ -1091,8 +1113,6 @@ subsector_t *R_PointInSubsectorOrNull(fixed_t x, fixed_t y)
 // 18/08/18: (No it's actually 16*viewheight, thanks Jimita for finding this out)
 static void R_SetupFreelook(player_t *player, boolean skybox)
 {
-	INT32 dy = 0;
-
 #ifndef HWRENDER
 	(void)player;
 	(void)skybox;
@@ -1111,14 +1131,15 @@ static void R_SetupFreelook(player_t *player, boolean skybox)
 		G_SoftwareClipAimingPitch((INT32 *)&aimingangle);
 	}
 
-	if (rendermode == render_soft)
-	{
-		dy = (AIMINGTODY(aimingangle)>>FRACBITS) * viewwidth/BASEVIDWIDTH;
-		yslope = &yslopetab[viewheight*8 - (viewheight/2 + dy)];
-	}
+	centeryfrac = (viewheight/2)<<FRACBITS;
 
-	centery = (viewheight/2) + dy;
-	centeryfrac = centery<<FRACBITS;
+	if (rendermode == render_soft)
+		centeryfrac += FixedMul(AIMINGTODY(aimingangle), FixedDiv(viewwidth<<FRACBITS, BASEVIDWIDTH<<FRACBITS));
+
+	centery = FixedInt(FixedRound(centeryfrac));
+
+	if (rendermode == render_soft)
+		yslope = &yslopetab[viewheight*8 - centery];
 }
 
 void R_SetupFrame(player_t *player)

@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2020-2021 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -493,9 +493,8 @@ boolean Shader_Compile(void)
 		}
 	}
 
-	Shader_Set(SHADER_DEFAULT);
-
 #ifdef HAVE_GLES2
+	Shader_Set(SHADER_DEFAULT);
 	pglUseProgram(gl_shaderstate.program);
 	gl_shaderstate.changed = false;
 #endif

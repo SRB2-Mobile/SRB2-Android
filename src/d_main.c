@@ -61,7 +61,7 @@
 #include "p_local.h" // chasecam
 #include "mserv.h" // ms_RoomId
 #include "m_misc.h" // screenshot functionality
-#include "dehacked.h" // Dehacked list test
+#include "deh_tables.h" // Dehacked list test
 #include "m_cond.h" // condition initialization
 #include "fastcmp.h"
 #include "keys.h"
@@ -1116,7 +1116,7 @@ void D_SRB2Main(void)
 	// Print GPL notice for our console users (Linux)
 	CONS_Printf(
 	"\n\nSonic Robo Blast 2\n"
-	"Copyright (C) 1998-2020 by Sonic Team Junior\n\n"
+	"Copyright (C) 1998-2021 by Sonic Team Junior\n\n"
 	"This program comes with ABSOLUTELY NO WARRANTY.\n\n"
 	"This is free software, and you are welcome to redistribute it\n"
 	"and/or modify it under the terms of the GNU General Public License\n"
@@ -1143,7 +1143,7 @@ void D_SRB2Main(void)
 	G_LoadGameSettings();
 
 	// Test Dehacked lists
-	DEH_Check();
+	DEH_TableCheck();
 
 	// Netgame URL special case: change working dir to EXE folder.
 	ChangeDirForUrlHandler();
