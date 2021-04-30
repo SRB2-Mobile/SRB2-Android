@@ -612,8 +612,9 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_showping);
 
 #if defined(__ANDROID__)
-	CV_RegisterVar(&cv_thinkless);
+	cv_thinkless.defaultvalue = "On";
 #endif
+	CV_RegisterVar(&cv_thinkless);
 
 	CV_RegisterVar(&cv_allowseenames);
 

@@ -113,14 +113,11 @@ extern consvar_t cv_maxping;
 extern consvar_t cv_pingtimeout;
 extern consvar_t cv_showping;
 
-
 extern consvar_t cv_skipmapcheck;
 
 extern consvar_t cv_sleep;
 
-#if defined(__ANDROID__)
 extern consvar_t cv_thinkless;
-#endif
 extern consvar_t cv_perfstats;
 
 extern char timedemo_name[256];

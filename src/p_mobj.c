@@ -35,10 +35,6 @@
 #include "f_finale.h"
 #include "m_cond.h"
 
-#if defined(__ANDROID__)
-consvar_t cv_thinkless = CVAR_INIT ("reducedthinking", "On", CV_SAVE, CV_OnOff, NULL);
-#endif
-
 static CV_PossibleValue_t CV_BobSpeed[] = {{0, "MIN"}, {4*FRACUNIT, "MAX"}, {0, NULL}};
 consvar_t cv_movebob = CVAR_INIT ("movebob", "1.0", CV_FLOAT|CV_SAVE, CV_BobSpeed, NULL);
 
@@ -2308,6 +2304,14 @@ boolean P_CheckSolidLava(ffloor_t *rover)
 			return true;
 
 	return false;
+}
+
+static inline boolean P_CanZMove(mobj_t *mobj)
+{
+	return (!(mobj->eflags & MFE_ONGROUND) || mobj->momz
+	|| ((mobj->eflags & MFE_VERTICALFLIP) && mobj->z + mobj->height != mobj->ceilingz)
+	|| (!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z != mobj->floorz)
+	|| P_IsObjectInGoop(mobj));
 }
 
 //
@@ -9987,6 +9991,76 @@ static boolean P_FuseThink(mobj_t *mobj)
 	return !P_MobjWasRemoved(mobj);
 }
 
+static CV_PossibleValue_t thinkless_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Aggressive"}, {0, NULL}};
+consvar_t cv_thinkless = CVAR_INIT("reducedthinking", "Off", CV_SAVE, thinkless_cons_t, NULL);
+
+#define reducedthinking (cv_thinkless.value && !(netgame || multiplayer))
+
+static inline boolean P_MobjDistanceCheck(mobj_t *mobj)
+{
+	fixed_t tx, ty, cx, cy;
+	const fixed_t blocksize = 1024*FRACUNIT;
+	const fixed_t range = 4;
+	tx = mobj->x / blocksize;
+	ty = mobj->y / blocksize;
+	cx = viewx / blocksize;
+	cy = viewy / blocksize;
+
+	if (abs(tx-cx) > range || abs(ty-cy) > range)
+		return false;
+
+	return true;
+}
+
+static inline boolean P_CanMobjThink(mobj_t *mobj)
+{
+	boolean nothink = false;
+
+	if (!reducedthinking)
+		return true;
+
+	if (mobj->player)
+		return true;
+
+	if (cv_thinkless.value == 1)
+	{
+		switch (mobj->type)
+		{
+			case MT_MACEPOINT:
+			case MT_CHAINMACEPOINT:
+			case MT_SPRINGBALLPOINT:
+			case MT_CHAINPOINT:
+			case MT_FIREBARPOINT:
+			case MT_CUSTOMMACEPOINT:
+			case MT_HIDDEN_SLING:
+			case MT_OVERLAY:
+				nothink = true;
+				break;
+			default:
+				if (mobj->flags & MF_ENEMY)
+				{
+					nothink = true;
+					break;
+				}
+
+				if (mobj->flags & MF_SCENERY && (!mobj->momx && !mobj->momy && !mobj->momz))
+				{
+					nothink = true;
+					break;
+				}
+
+				if (P_CanZMove(mobj))
+					nothink = true;
+				break;
+		}
+	}
+
+	if (nothink || cv_thinkless.value == 2)
+		return P_MobjDistanceCheck(mobj);
+
+	return true;
+}
+
 //
 // P_MobjThinker
 //
@@ -9998,22 +10072,8 @@ void P_MobjThinker(mobj_t *mobj)
 	if (mobj->flags & MF_NOTHINK)
 		return;
 
-#if defined(__ANDROID__)
-	//__ANDROID__: lmao fuck netplay I just want cez2 to be playable
-	if (!mobj->player && (cv_thinkless.value && !(netgame || multiplayer)))
-	{
-		fixed_t tx, ty, cx, cy;
-		const fixed_t blocksize = 1024*FRACUNIT;
-		const fixed_t range = 4;
-		tx = mobj->x / blocksize;
-		ty = mobj->y / blocksize;
-		cx = viewx / blocksize;
-		cy = viewy / blocksize;
-
-		if (abs(tx-cx) > range || abs(ty-cy) > range)
-			return;
-	}
-#endif
+	if (!P_CanMobjThink(mobj))
+		return;
 
 	if ((mobj->flags & MF_BOSS) && mobj->spawnpoint && (bossdisabled & (1<<mobj->spawnpoint->extrainfo)))
 		return;
@@ -10134,10 +10194,7 @@ void P_MobjThinker(mobj_t *mobj)
 
 	// always do the gravity bit now, that's simpler
 	// BUT CheckPosition only if wasn't done before.
-	if (!(mobj->eflags & MFE_ONGROUND) || mobj->momz
-		|| ((mobj->eflags & MFE_VERTICALFLIP) && mobj->z + mobj->height != mobj->ceilingz)
-		|| (!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z != mobj->floorz)
-		|| P_IsObjectInGoop(mobj))
+	if (P_CanZMove(mobj))
 	{
 		if (!P_ZMovement(mobj))
 			return; // mobj was removed
@@ -10363,10 +10420,7 @@ void P_SceneryThinker(mobj_t *mobj)
 
 	// always do the gravity bit now, that's simpler
 	// BUT CheckPosition only if wasn't done before.
-	if (!(mobj->eflags & MFE_ONGROUND) || mobj->momz
-		|| ((mobj->eflags & MFE_VERTICALFLIP) && mobj->z + mobj->height != mobj->ceilingz)
-		|| (!(mobj->eflags & MFE_VERTICALFLIP) && mobj->z != mobj->floorz)
-		|| P_IsObjectInGoop(mobj))
+	if (P_CanZMove(mobj))
 	{
 		if (!P_SceneryZMovement(mobj))
 			return; // mobj was removed
