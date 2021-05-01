@@ -42,13 +42,18 @@ fmatrix4_t modelMatrix;
 
 static GLint viewport[4];
 
-/* Drawing Functions */
-typedef void (R_GL_APIENTRY * PFNglEnableVertexAttribArray) (GLuint index);
-static PFNglEnableVertexAttribArray pglEnableVertexAttribArray;
-typedef void (R_GL_APIENTRY * PFNglDisableVertexAttribArray) (GLuint index);
-static PFNglDisableVertexAttribArray pglDisableVertexAttribArray;
 typedef void (R_GL_APIENTRY * PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
 static PFNglVertexAttribPointer pglVertexAttribPointer;
+
+static void VertexAttribPointerInternal(int attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer, const char *function, const int line)
+{
+	int loc = Shader_AttribLoc(attrib);
+	if (loc == -1)
+		I_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)", Shader_AttribLocName(attrib), function, line);
+	pglVertexAttribPointer(loc, size, type, normalized, stride, pointer);
+}
+
+#define VertexAttribPointer(attrib, size, type, normalized, stride, pointer) VertexAttribPointerInternal(attrib, size, type, normalized, stride, pointer, __FUNCTION__, __LINE__)
 
 boolean GLBackend_LoadFunctions(void)
 {
@@ -84,8 +89,6 @@ boolean GLBackend_LoadExtraFunctions(void)
 
 	GETOPENGLFUNC(BlendEquation)
 
-	GETOPENGLFUNC(EnableVertexAttribArray)
-	GETOPENGLFUNC(DisableVertexAttribArray)
 	GETOPENGLFUNC(VertexAttribPointer)
 	GETOPENGLFUNC(GenerateMipmap)
 
@@ -244,8 +247,10 @@ void SetStates(void)
 
 	if (gl_shaderstate.current)
 	{
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_POSITION));
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+		Shader_EnableVertexAttribArray(LOC_POSITION);
+		Shader_EnableVertexAttribArray(LOC_TEXCOORD);
+		Shader_DisableVertexAttribArray(LOC_COLORS);
+		Shader_DisableVertexAttribArray(LOC_NORMAL);
 	}
 
 	tex_downloaded = 0;
@@ -386,8 +391,10 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 
 	if (gl_shaderstate.current)
 	{
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_POSITION));
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+		Shader_EnableVertexAttribArray(LOC_POSITION);
+		Shader_EnableVertexAttribArray(LOC_TEXCOORD);
+		Shader_DisableVertexAttribArray(LOC_COLORS);
+		Shader_DisableVertexAttribArray(LOC_NORMAL);
 	}
 }
 
@@ -426,7 +433,7 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 
 	Shader_SetUniforms(NULL, &fcolor, NULL, NULL);
 
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, p);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, p);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
@@ -633,52 +640,60 @@ EXPORT void HWRAPI(SetTexture) (GLMipmap_t *pTexInfo)
 }
 
 // code that is common between DrawPolygon and DrawIndexedTriangles
-// the corona thing is there too, i have no idea if that stuff works with DrawIndexedTriangles and batching
-static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD PolyFlags)
+static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD PolyFlags, INT32 shader)
 {
 	GLRGBAFloat poly = {1.0f, 1.0f, 1.0f, 1.0f};
 	GLRGBAFloat tint = {1.0f, 1.0f, 1.0f, 1.0f};
 	GLRGBAFloat fade = {1.0f, 1.0f, 1.0f, 1.0f};
 
 	GLRGBAFloat *c_poly = NULL, *c_tint = NULL, *c_fade = NULL;
-	boolean modulated;
 
 	if (gl_shaderstate.current)
 	{
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_POSITION));
-		pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+		Shader_EnableVertexAttribArray(LOC_POSITION);
+		Shader_EnableVertexAttribArray(LOC_TEXCOORD);
 	}
 
 	if (PolyFlags & PF_Corona)
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
-	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
-	modulated = (CurrentPolyFlags & PF_Modulated);
+	SetBlend(PolyFlags);
+	if (shader)
+		SetShader(shader);
 
 	// If Modulated, mix the surface colour to the texture
-	if (pSurf && modulated)
+	if (pSurf)
 	{
-		// Poly color
-		poly.red   = byte2float(pSurf->PolyColor.s.red);
-		poly.green = byte2float(pSurf->PolyColor.s.green);
-		poly.blue  = byte2float(pSurf->PolyColor.s.blue);
-		poly.alpha = byte2float(pSurf->PolyColor.s.alpha);
+		// If Modulated, mix the surface colour to the texture
+		if (CurrentPolyFlags & (PF_Modulated | PF_ColorMapped))
+		{
+			poly.red   = (pSurf->PolyColor.s.red/255.0f);
+			poly.green = (pSurf->PolyColor.s.green/255.0f);
+			poly.blue  = (pSurf->PolyColor.s.blue/255.0f);
+			poly.alpha = (pSurf->PolyColor.s.alpha/255.0f);
 
-		// Tint color
-		tint.red   = byte2float(pSurf->TintColor.s.red);
-		tint.green = byte2float(pSurf->TintColor.s.green);
-		tint.blue  = byte2float(pSurf->TintColor.s.blue);
-		tint.alpha = byte2float(pSurf->TintColor.s.alpha);
+			if (CurrentPolyFlags & PF_Modulated)
+				c_poly = &poly;
+			else
+				c_poly = &white;
+		}
 
-		// Fade color
-		fade.red   = byte2float(pSurf->FadeColor.s.red);
-		fade.green = byte2float(pSurf->FadeColor.s.green);
-		fade.blue  = byte2float(pSurf->FadeColor.s.blue);
-		fade.alpha = byte2float(pSurf->FadeColor.s.alpha);
+		// Only if the surface is colormapped
+		if (CurrentPolyFlags & PF_ColorMapped)
+		{
+			tint.red   = (pSurf->TintColor.s.red/255.0f);
+			tint.green = (pSurf->TintColor.s.green/255.0f);
+			tint.blue  = (pSurf->TintColor.s.blue/255.0f);
+			tint.alpha = (pSurf->TintColor.s.alpha/255.0f);
 
-		c_poly = &poly;
-		c_tint = &tint;
-		c_fade = &fade;
+			fade.red   = (pSurf->FadeColor.s.red/255.0f);
+			fade.green = (pSurf->FadeColor.s.green/255.0f);
+			fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
+			fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
+
+			c_tint = &tint;
+			c_fade = &fade;
+		}
 	}
 	else
 		c_poly = &white;
@@ -689,17 +704,17 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 // -----------------+
 // DrawPolygon      : Render a polygon, set the texture, set render mode
 // -----------------+
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
+static void DrawPolygon_GLES2(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader)
 {
 	if (gl_shaderstate.current == NULL)
 		return;
 
-	PreparePolygon(pSurf, pOutVerts, PolyFlags);
+	PreparePolygon(pSurf, pOutVerts, PolyFlags, shader);
 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
+	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
 
@@ -713,17 +728,27 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 		SetClamp(GL_TEXTURE_WRAP_T);
 }
 
+EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
+{
+	DrawPolygon_GLES2(pSurf, pOutVerts, iNumPts, PolyFlags, 0);
+}
+
+EXPORT void HWRAPI(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader)
+{
+	DrawPolygon_GLES2(pSurf, pOutVerts, iNumPts, PolyFlags, shader);
+}
+
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
 {
 	if (gl_shaderstate.current == NULL)
 		return;
 
-	PreparePolygon(pSurf, pOutVerts, PolyFlags);
+	PreparePolygon(pSurf, pOutVerts, PolyFlags, 0);
 
 	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
+	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
 
@@ -768,10 +793,10 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
-	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_COLORS), 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
+	Shader_EnableVertexAttribArray(LOC_COLORS);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
+	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
+	VertexAttribPointer(LOC_COLORS, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// set transforms
 	scale[1] = (float)sky->height / 200.0f;
@@ -806,7 +831,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 		}
 	}
 
-	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
+	Shader_DisableVertexAttribArray(LOC_COLORS);
 
 	// bind with 0, so, switch back to normal pointer operation
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -859,6 +884,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	float pol = 0.0f;
 
+	boolean useNormals;
 	boolean useTinyFrames;
 
 	fvector3_t v_scale;
@@ -902,14 +928,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float(Surface->FadeColor.s.blue);
 	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
 
-	flags = (Surface->PolyFlags | PF_Modulated);
-	if (Surface->PolyFlags & (PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
-		flags |= PF_Occlude;
-	else if (Surface->PolyColor.s.alpha == 0xFF)
-		flags |= (PF_Occlude | PF_Masked);
-	SetBlend(flags);
-
-	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_NORMAL));
+	useNormals = (model_lighting && (Shader_AttribLoc(LOC_NORMAL) != -1));
+	if (useNormals)
+		Shader_EnableVertexAttribArray(LOC_NORMAL);
 
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
@@ -1011,9 +1032,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			{
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_NORMAL), 3, GL_BYTE, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
+				VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
+				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
+				if (useNormals)
+					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
 
 				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 				pglBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1036,9 +1058,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 					*normPtr++ = (char)(frame->normals[j] + (pol * (nextframe->normals[j] - frame->normals[j])));
 				}
 
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_SHORT, GL_FALSE, 0, vertTinyBuffer);
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_NORMAL), 3, GL_BYTE, GL_FALSE, 0, normTinyBuffer);
+				VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, 0, vertTinyBuffer);
+				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				if (useNormals)
+					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, 0, normTinyBuffer);
 
 				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 			}
@@ -1056,9 +1079,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				// Zoom! Take advantage of just shoving the entire arrays to the GPU.
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_NORMAL), 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
+				VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
+				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
+				if (useNormals)
+					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
 
 				pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
 
@@ -1083,9 +1107,10 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 					*normPtr++ = frame->normals[j] + (pol * (nextframe->normals[j] - frame->normals[j]));
 				}
 
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, vertBuffer);
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
-				pglVertexAttribPointer(Shader_AttribLoc(LOC_NORMAL), 3, GL_FLOAT, GL_FALSE, 0, normBuffer);
+				VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertBuffer);
+				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				if (useNormals)
+					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_TRUE, 0, normBuffer);
 
 				pglDrawArrays(GL_TRIANGLES, 0, mesh->numVertices);
 			}
@@ -1095,7 +1120,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	lzml_matrix4_identity(modelMatrix);
 	Shader_SetTransform();
 
-	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_NORMAL));
+	if (useNormals)
+		Shader_DisableVertexAttribArray(LOC_NORMAL);
 
 	pglDisable(GL_CULL_FACE);
 }
@@ -1105,6 +1131,12 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 // -----------------+
 EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
+	Shader_SetIfChanged(gl_shaderstate.current);
+
+	Shader_EnableVertexAttribArray(LOC_TEXCOORD);
+	Shader_EnableVertexAttribArray(LOC_POSITION);
+	Shader_DisableVertexAttribArray(LOC_COLORS);
+
 	DrawModelEx(model, frameIndex, duration, tics, nextFrameIndex, pos, scale, flipped, hflipped, Surface);
 }
 
@@ -1229,15 +1261,15 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglDisable(GL_DEPTH_TEST);
 	pglDisable(GL_BLEND);
 
-	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+	Shader_DisableVertexAttribArray(LOC_TEXCOORD);
 
 	// Draw a black square behind the screen texture,
 	// so nothing shows through the edges
 	Shader_SetUniforms(NULL, &black, NULL, NULL);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, blackBack);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, blackBack);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD));
+	Shader_EnableVertexAttribArray(LOC_TEXCOORD);
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	for(x=0;x<SCREENVERTS-1;x++)
@@ -1265,7 +1297,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 			stCoords[6] = float_nextx;
 			stCoords[7] = float_y;
 
-			pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, stCoords);
+			VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, stCoords);
 
 			// float vertCoords[12];
 			vertCoords[0] = points[x][y][0] / 4.5f;
@@ -1281,7 +1313,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 			vertCoords[10] = points[x + 1][y][1] / 4.5f;
 			vertCoords[11] = 1.0f;
 
-			pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
+			VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
 
 			pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 		}
@@ -1412,8 +1444,8 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 	pglBindTexture(GL_TEXTURE_2D, screentexture);
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, fix);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
+	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = screentexture;
@@ -1474,8 +1506,8 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 
 	Shader_Set(tinted ? SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE : SHADER_FADEMASK);
 
-	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
-	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD1));
+	Shader_DisableVertexAttribArray(LOC_COLORS);
+	Shader_EnableVertexAttribArray(LOC_TEXCOORD1);
 
 	Shader_SetSampler(gluniform_startscreen, 0);
 	Shader_SetSampler(gluniform_endscreen, 1);
@@ -1497,13 +1529,13 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	pglActiveTexture(GL_TEXTURE0 + 2);
 	pglBindTexture(GL_TEXTURE_2D, fademaskdownloaded);
 
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD0), 2, GL_FLOAT, GL_FALSE, 0, fix);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD1), 2, GL_FLOAT, GL_FALSE, 0, defaultST);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
+	VertexAttribPointer(LOC_TEXCOORD0, 2, GL_FLOAT, GL_FALSE, 0, fix);
+	VertexAttribPointer(LOC_TEXCOORD1, 2, GL_FLOAT, GL_FALSE, 0, defaultST);
 
 	pglActiveTexture(GL_TEXTURE0);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD1));
+	Shader_DisableVertexAttribArray(LOC_TEXCOORD1);
 
 	UnSetShader();
 	tex_downloaded = endScreenWipe;
@@ -1649,8 +1681,8 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, 0, off);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, 0, fix);
+	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, off);
+	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = finalScreenTexture;

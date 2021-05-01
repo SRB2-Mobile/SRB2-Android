@@ -122,11 +122,7 @@ void HWR_ProcessPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPt
 		unsortedVertexArraySize += iNumPts;
 	}
 	else
-	{
-        if (shader)
-            HWD.pfnSetShader(shader);
-        HWD.pfnDrawPolygon(pSurf, pOutVerts, iNumPts, PolyFlags);
-    }
+        HWD.pfnDrawPolygonShader(pSurf, pOutVerts, iNumPts, PolyFlags, shader);
 }
 
 static int comparePolygons(const void *p1, const void *p2)
@@ -282,9 +278,9 @@ void HWR_RenderBatches(void)
 	// and a color array could replace the color calls.
 
 	// set state for first batch
-
 	if (cv_glshaders.value && gl_shadersavailable)
 	{
+		HWD.pfnSetBlend(currentPolyFlags);
 		HWD.pfnSetShader(currentShader);
 	}
 
@@ -420,14 +416,6 @@ void HWR_RenderBatches(void)
 		if (stopFlag) break;
 
 		// change state according to change bools and next vars, update current vars and reset bools
-		if (changeShader)
-		{
-			HWD.pfnSetShader(nextShader);
-			currentShader = nextShader;
-			changeShader = false;
-
-			ps_hw_numshaders++;
-		}
 		if (changeTexture)
 		{
 			// texture should be already ready for use from calls to SetTexture during batch collection
@@ -443,6 +431,14 @@ void HWR_RenderBatches(void)
 			changePolyFlags = false;
 
 			ps_hw_numpolyflags++;
+		}
+		if (changeShader)
+		{
+			HWD.pfnSetShader(nextShader);
+			currentShader = nextShader;
+			changeShader = false;
+
+			ps_hw_numshaders++;
 		}
 		if (changeSurfaceInfo)
 		{

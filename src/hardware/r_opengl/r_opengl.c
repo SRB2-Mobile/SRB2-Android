@@ -796,13 +796,15 @@ EXPORT void HWRAPI(SetTexture) (GLMipmap_t *pTexInfo)
 
 // code that is common between DrawPolygon and DrawIndexedTriangles
 // the corona thing is there too, i have no idea if that stuff works with DrawIndexedTriangles and batching
-static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD PolyFlags)
+static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD PolyFlags, INT32 shader)
 {
 	static GLRGBAFloat poly = {0,0,0,0};
 	static GLRGBAFloat tint = {0,0,0,0};
 	static GLRGBAFloat fade = {0,0,0,0};
 
-	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
+	SetBlend(PolyFlags);
+	if (shader)
+		SetShader(shader);
 
 	if (pSurf)
 	{
@@ -903,9 +905,9 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 // -----------------+
 // DrawPolygon      : Render a polygon, set the texture, set render mode
 // -----------------+
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
+static void DrawPolygon_GL2(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader)
 {
-	PreparePolygon(pSurf, pOutVerts, PolyFlags);
+	PreparePolygon(pSurf, pOutVerts, PolyFlags, shader);
 
 	pglVertexPointer(3, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].x);
 	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].s);
@@ -921,9 +923,19 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 		SetClamp(GL_TEXTURE_WRAP_T);
 }
 
+EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
+{
+	DrawPolygon_GL2(pSurf, pOutVerts, iNumPts, PolyFlags, 0);
+}
+
+EXPORT void HWRAPI(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader)
+{
+	DrawPolygon_GL2(pSurf, pOutVerts, iNumPts, PolyFlags, shader);
+}
+
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
 {
-	PreparePolygon(pSurf, pOutVerts, PolyFlags);
+	PreparePolygon(pSurf, pOutVerts, PolyFlags, 0);
 
 	pglVertexPointer(3, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].x);
 	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].s);
@@ -1072,7 +1084,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	boolean useVBO = true;
 
-	FBITFIELD flags;
 	int i;
 
 	// Because otherwise, scaling the screen negatively vertically breaks the lighting
@@ -1150,13 +1161,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float(Surface->FadeColor.s.blue);
 	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
 
-	flags = (Surface->PolyFlags | PF_Modulated);
-	if (Surface->PolyFlags & (PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
-		flags |= PF_Occlude;
-	else if (Surface->PolyColor.s.alpha == 0xFF)
-		flags |= (PF_Occlude | PF_Masked);
-
-	SetBlend(flags);
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);

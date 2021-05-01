@@ -263,8 +263,11 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 				wasfullscreen = SDL_FALSE;
 				SDL_SetWindowFullscreen(window, 0);
 			}
+
 			// Reposition window only in windowed mode
 			SDL_SetWindowSize(window, width, height);
+
+#if !defined(__ANDROID__)
 			if (reposition)
 			{
 				SDL_SetWindowPosition(window,
@@ -272,6 +275,9 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 					SDL_WINDOWPOS_CENTERED_DISPLAY(SDL_GetWindowDisplayIndex(window))
 				);
 			}
+#else
+			(void)reposition;
+#endif
 		}
 	}
 	else
@@ -421,7 +427,7 @@ static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 		case SDL_SCANCODE_RGUI:   return KEY_RIGHTWIN;
 
 #if defined(__ANDROID__)
-		case SDL_SCANCODE_AC_BACK:        return KEY_ESCAPE;
+		case SDL_SCANCODE_AC_BACK: return KEY_ESCAPE;
 #endif
 
 		default:                  break;
@@ -1034,7 +1040,7 @@ static void Impl_DenormalizeTouchCoords(float *x, float *y)
 	*x = (*x) / scale;
 	*y = (*y) / scale;
 
-	// Multiply by window size
+	// Multiply by the window's size
 	SDL_GetWindowSize(window, &w, &h);
 	*x = (*x) * (float)w;
 	*y = (*y) * (float)h;
@@ -1809,6 +1815,10 @@ INT32 VID_CheckRenderer(void)
 	if (dedicated)
 		return 0;
 
+#if defined(__ANDROID__)
+	SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
+#endif
+
 	if (setrenderneeded)
 	{
 		rendermode = setrenderneeded;
@@ -2318,10 +2328,7 @@ void I_StartupGraphics(void)
 	I_ShutdownTTF();
 #endif
 
-#if defined(__ANDROID__)
-	SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-#else
-	// Lactozilla: I don't know why I_StartupGraphics calls VID_SetMode(320x200) twice
+#if !defined(__ANDROID__)
 	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
 #endif
 
@@ -2362,6 +2369,7 @@ void VID_StartupOpenGL(void)
 		HWD.pfnFinishUpdate     = NULL;
 		HWD.pfnDraw2DLine       = hwSym("Draw2DLine",NULL);
 		HWD.pfnDrawPolygon      = hwSym("DrawPolygon",NULL);
+		HWD.pfnDrawPolygonShader = hwSym("DrawPolygonShader",NULL);
 		HWD.pfnDrawIndexedTriangles = hwSym("DrawIndexedTriangles",NULL);
 		HWD.pfnRenderSkyDome    = hwSym("RenderSkyDome",NULL);
 		HWD.pfnSetBlend         = hwSym("SetBlend",NULL);

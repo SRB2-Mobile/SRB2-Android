@@ -36,6 +36,7 @@ EXPORT void HWRAPI(SetPalette) (RGBA_t *ppal);
 EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl);
 EXPORT void HWRAPI(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
 EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
+EXPORT void HWRAPI(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader);
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray);
 EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky);
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
@@ -90,6 +91,7 @@ struct hwdriver_s
 	FinishUpdate        pfnFinishUpdate;
 	Draw2DLine          pfnDraw2DLine;
 	DrawPolygon         pfnDrawPolygon;
+	DrawPolygonShader   pfnDrawPolygonShader;
 	DrawIndexedTriangles    pfnDrawIndexedTriangles;
 	RenderSkyDome       pfnRenderSkyDome;
 	SetBlend            pfnSetBlend;

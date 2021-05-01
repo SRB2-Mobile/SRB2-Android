@@ -347,15 +347,14 @@ static void SetBlendMode(FBITFIELD flags)
 
 #ifdef HAVE_GLES2
 	alpha_test = true;
+	alpha_threshold = 0.5f;
 #endif
 
 	// Alpha test
 	switch (flags)
 	{
 		case PF_Masked & PF_Blending:
-#ifdef HAVE_GLES2
-			alpha_threshold = 0.5f;
-#else
+#ifndef HAVE_GLES2
 			pglAlphaFunc(GL_GREATER, 0.5f);
 #endif
 			break;
@@ -379,9 +378,7 @@ static void SetBlendMode(FBITFIELD flags)
 #endif
 			break;
 		default:
-#ifdef HAVE_GLES2
-			alpha_threshold = 0.5f;
-#else
+#ifndef HAVE_GLES2
 			pglAlphaFunc(GL_GREATER, 0.5f);
 #endif
 			break;
@@ -502,6 +499,12 @@ static INT32 GetAlphaTestShader(INT32 type)
 			return SHADER_WALL_ALPHA_TEST;
 		case SHADER_SPRITE:
 			return SHADER_SPRITE_ALPHA_TEST;
+		case SHADER_MODEL:
+			return SHADER_MODEL_ALPHA_TEST;
+		case SHADER_MODEL_LIGHTING:
+			return SHADER_MODEL_LIGHTING_ALPHA_TEST;
+		case SHADER_WATER:
+			return SHADER_WATER_ALPHA_TEST;
 		default:
 			return type;
 	}
@@ -515,7 +518,7 @@ INT32 GLBackend_GetShaderType(INT32 type)
 	// However don't override a custom shader.
 	if (type == SHADER_MODEL && model_lighting
 	&& !(gl_shaders[SHADER_MODEL].custom && !gl_shaders[SHADER_MODEL_LIGHTING].custom))
-		return SHADER_MODEL_LIGHTING;
+		type = SHADER_MODEL_LIGHTING;
 #endif
 
 #ifdef HAVE_GLES2
@@ -528,6 +531,9 @@ INT32 GLBackend_GetShaderType(INT32 type)
 		case SHADER_FLOOR:
 		case SHADER_WALL:
 		case SHADER_SPRITE:
+		case SHADER_MODEL:
+		case SHADER_MODEL_LIGHTING:
+		case SHADER_WATER:
 		{
 			INT32 newshader = GetAlphaTestShader(type);
 			if (!(gl_shaders[type].custom && !gl_shaders[newshader].custom))

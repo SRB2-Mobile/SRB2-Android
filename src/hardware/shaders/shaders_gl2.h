@@ -81,7 +81,7 @@
 
 // same as above but multiplies results with the lighting value from the
 // accompanying vertex shader (stored in gl_Color)
-#define GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER \
+#define GLSL_MODEL_LIGHTING_FRAGMENT_SHADER \
 	"uniform sampler2D tex;\n" \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \

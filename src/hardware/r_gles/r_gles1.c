@@ -68,8 +68,6 @@ boolean GLBackend_LoadExtraFunctions(void)
 	GETOPENGLFUNC(BufferData)
 	GETOPENGLFUNC(DeleteBuffers)
 
-	GETOPENGLFUNC(BlendEquation)
-
 	return true;
 }
 
@@ -612,7 +610,7 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 	if (PolyFlags & PF_Corona)
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
-	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
+	SetBlend(PolyFlags);
 
 	// PolyColor
 	if (pSurf)
@@ -670,6 +668,12 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 
 	if (PolyFlags & PF_ForceWrapY)
 		SetClamp(GL_TEXTURE_WRAP_T);
+}
+
+EXPORT void HWRAPI(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader)
+{
+	(void)shader;
+	DrawPolygon(pSurf, pOutVerts, iNumPts, PolyFlags);
 }
 
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
@@ -884,13 +888,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.green = (Surface->FadeColor.s.green/255.0f);
 	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
 	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
-
-	flags = (Surface->PolyFlags | PF_Modulated);
-	if (Surface->PolyFlags & (PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
-		flags |= PF_Occlude;
-	else if (Surface->PolyColor.s.alpha == 0xFF)
-		flags |= (PF_Occlude | PF_Masked);
-	SetBlend(flags);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);

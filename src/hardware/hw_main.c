@@ -174,7 +174,7 @@ boolean gl_powersoftwo = false;
 // Lighting
 // ==========================================================================
 
-static boolean HWR_UseShader(void)
+boolean HWR_UseShader(void)
 {
 	return (cv_glshaders.value && gl_shadersavailable);
 }
@@ -6813,6 +6813,9 @@ customshaderxlat_t shaderxlat[] =
 	{"FlatAlphaTest", SHADER_FLOOR_ALPHA_TEST},
 	{"WallTextureAlphaTest", SHADER_WALL_ALPHA_TEST},
 	{"SpriteAlphaTest", SHADER_SPRITE_ALPHA_TEST},
+	{"ModelAlphaTest", SHADER_MODEL_ALPHA_TEST},
+	{"ModelLightingAlphaTest", SHADER_MODEL_LIGHTING_ALPHA_TEST},
+	{"WaterRippleAlphaTest", SHADER_WATER_ALPHA_TEST},
 	{"FadeMask", SHADER_FADEMASK},
 	{"FadeMaskTinted", SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE},
 #endif

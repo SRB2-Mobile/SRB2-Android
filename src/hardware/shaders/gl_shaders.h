@@ -120,6 +120,7 @@ typedef struct gl_shaderstate_s
 extern gl_shaderstate_t gl_shaderstate;
 
 void Shader_Set(int type);
+void Shader_SetIfChanged(gl_shader_t *shader);
 void Shader_UnSet(void);
 
 #ifdef HAVE_GLES2
@@ -138,6 +139,9 @@ void Shader_SetInfo(hwdshaderinfo_t info, INT32 value);
 
 #ifdef HAVE_GLES2
 int Shader_AttribLoc(int loc);
+const char *Shader_AttribLocName(int loc);
+boolean Shader_EnableVertexAttribArray(int attrib);
+boolean Shader_DisableVertexAttribArray(int attrib);
 #endif
 
 #ifndef GL_FRAGMENT_SHADER

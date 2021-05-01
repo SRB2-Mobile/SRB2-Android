@@ -1287,6 +1287,7 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
 	UINT8 spr2 = 0;
 	FTransform p;
 	FSurfaceInfo Surf;
+	FBITFIELD flags;
 
 	if (!cv_glmodels.value)
 		return false;
@@ -1437,9 +1438,7 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
 			}
 		}
 
-		//HWD.pfnSetBlend(blend); // This seems to actually break translucency?
 		finalscale = md2->scale;
-		//Hurdler: arf, I don't like that implementation at all... too much crappy
 
 		if (gpatch && hwrPatch && hwrPatch->mipmap->format) // else if meant that if a texture couldn't be loaded, it would just end up using something else's texture
 		{
@@ -1644,9 +1643,18 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
 		p.mirror = atransform.mirror; // from Kart
 #endif
 
-		HWD.pfnSetShader(SHADER_MODEL);	// model shader
+		flags = (Surf.PolyFlags | PF_Modulated);
+		if (Surf.PolyFlags & (PF_Additive|PF_Subtractive|PF_ReverseSubtract|PF_Multiplicative))
+			flags |= PF_Occlude;
+		else if (Surf.PolyColor.s.alpha == 0xFF)
+			flags |= (PF_Occlude | PF_Masked);
+
+		HWD.pfnSetBlend(flags);
+		HWD.pfnSetShader(SHADER_MODEL);
 		HWD.pfnDrawModel(md2->model, frame, durs, tics, nextFrame, &p, finalscale, flip, hflip, &Surf);
 	}
+
+	HWD.pfnSetShader(SHADER_DEFAULT);
 
 	return true;
 }

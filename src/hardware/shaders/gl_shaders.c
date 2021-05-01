@@ -38,6 +38,8 @@ typedef void   (R_GL_APIENTRY *PFNglUniform3fv)         (GLint, GLsizei, const G
 typedef void   (R_GL_APIENTRY *PFNglUniformMatrix4fv)   (GLint, GLsizei, GLboolean, const GLfloat *);
 typedef GLint  (R_GL_APIENTRY *PFNglGetUniformLocation) (GLuint, const GLchar*);
 typedef GLint  (R_GL_APIENTRY *PFNglGetAttribLocation)  (GLuint, const GLchar*);
+typedef void   (R_GL_APIENTRY *PFNglEnableVertexAttribArray) (GLuint index);
+typedef void   (R_GL_APIENTRY *PFNglDisableVertexAttribArray) (GLuint index);
 
 static PFNglCreateShader pglCreateShader;
 static PFNglShaderSource pglShaderSource;
@@ -61,7 +63,12 @@ static PFNglUniform2fv pglUniform2fv;
 static PFNglUniform3fv pglUniform3fv;
 static PFNglUniformMatrix4fv pglUniformMatrix4fv;
 static PFNglGetUniformLocation pglGetUniformLocation;
+
+#ifdef HAVE_GLES2
 static PFNglGetAttribLocation pglGetAttribLocation;
+static PFNglEnableVertexAttribArray pglEnableVertexAttribArray;
+static PFNglDisableVertexAttribArray pglDisableVertexAttribArray;
+#endif
 
 gl_shader_t gl_shaders[HWR_MAXSHADERS];
 gl_shader_t gl_usershaders[HWR_MAXSHADERS];
@@ -104,7 +111,7 @@ static struct {
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER},
 
 	// Model shader + diffuse lighting from above
-	{GLSL_MODEL_LIGHTING_VERTEX_SHADER, GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER},
+	{GLSL_MODEL_LIGHTING_VERTEX_SHADER, GLSL_MODEL_LIGHTING_FRAGMENT_SHADER},
 
 	// Water shader
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WATER_FRAGMENT_SHADER},
@@ -117,16 +124,25 @@ static struct {
 
 #ifdef HAVE_GLES2
 	// Default shader with alpha test
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_DEFAULT_FRAGMENT_SHADER_ALPHA_TEST},
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_DEFAULT_ALPHA_TEST},
 
 	// Floor shader with alpha test
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_ALPHA_TEST},
 
 	// Wall shader with alpha test
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_ALPHA_TEST},
 
 	// Sprite shader with alpha test
-	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_ALPHA_TEST},
+
+	// Model shader with alpha test
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_ALPHA_TEST},
+
+	// Model lighting shader with alpha test
+	{GLSL_MODEL_LIGHTING_VERTEX_SHADER, GLSL_MODEL_LIGHTING_ALPHA_TEST},
+
+	// Water shader with alpha test
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_WATER_ALPHA_TEST},
 
 	// Fade mask shader
 	{GLSL_FADEMASK_VERTEX_SHADER, GLSL_FADEMASK_FRAGMENT_SHADER},
@@ -162,7 +178,12 @@ void Shader_LoadFunctions(void)
 	pglUniform3fv = GLBackend_GetFunction("glUniform3fv");
 	pglUniformMatrix4fv = GLBackend_GetFunction("glUniformMatrix4fv");
 	pglGetUniformLocation = GLBackend_GetFunction("glGetUniformLocation");
+
+#ifdef HAVE_GLES2
 	pglGetAttribLocation = GLBackend_GetFunction("glGetAttribLocation");
+	pglEnableVertexAttribArray = GLBackend_GetFunction("glEnableVertexAttribArray");
+	pglDisableVertexAttribArray = GLBackend_GetFunction("glDisableVertexAttribArray");
+#endif
 }
 
 #ifdef HAVE_GLES2
@@ -184,12 +205,64 @@ int Shader_AttribLoc(int loc)
 		I_Error("Shader_AttribLoc: shader not set");
 
 	attrib = LOC_TO_ATTRIB[loc];
-	pos = shader->attributes[attrib];
 
-	if (pos == -1)
-		return 0;
+	return shader->attributes[attrib];
+}
 
-	return pos;
+const char *Shader_AttribLocName(int loc)
+{
+	const char *names[] = {
+		"LOC_POSITION",
+		"LOC_TEXCOORD0",
+		"LOC_NORMAL",
+		"LOC_COLORS",
+		"LOC_TEXCOORD1",
+	};
+
+	if (loc < 0 || loc > LOC_TEXCOORD1)
+		return "(invalid)";
+
+	return names[loc];
+}
+
+boolean Shader_EnableVertexAttribArray(int attrib)
+{
+	gl_shader_t *shader = gl_shaderstate.current;
+	int loc;
+
+	if (!shader)
+		return false;
+
+	Shader_SetIfChanged(shader);
+	loc = Shader_AttribLoc(attrib);
+
+	if (loc != -1)
+	{
+		pglEnableVertexAttribArray(loc);
+		return true;
+	}
+
+	return false;
+}
+
+boolean Shader_DisableVertexAttribArray(int attrib)
+{
+	gl_shader_t *shader = gl_shaderstate.current;
+	int loc;
+
+	if (!shader)
+		return false;
+
+	Shader_SetIfChanged(shader);
+	loc = Shader_AttribLoc(attrib);
+
+	if (loc != -1)
+	{
+		pglDisableVertexAttribArray(loc);
+		return true;
+	}
+
+	return false;
 }
 #endif
 
@@ -293,6 +366,15 @@ void Shader_UnSet(void)
 		pglUseProgram(0);
 	gl_shadersenabled = false;
 #endif
+}
+
+void Shader_SetIfChanged(gl_shader_t *shader)
+{
+	if (shader && gl_shaderstate.changed)
+	{
+		pglUseProgram(shader->program);
+		gl_shaderstate.changed = false;
+	}
 }
 
 void Shader_Clean(void)
@@ -456,7 +538,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	shader->attributes[glattribute_texcoord]     = GETATTRIB("a_texcoord");
 	shader->attributes[glattribute_normal]       = GETATTRIB("a_normal");
 	shader->attributes[glattribute_colors]       = GETATTRIB("a_colors");
-	shader->attributes[glattribute_fadetexcoord] = GETATTRIB("a_fadetexcoord");
+	shader->attributes[glattribute_fadetexcoord] = GETATTRIB("a_fademasktexcoord");
 
 #undef GETATTRIB
 
@@ -522,15 +604,6 @@ boolean Shader_Compile(void)
 #endif
 
 	return true;
-}
-
-static void Shader_SetIfChanged(gl_shader_t *shader)
-{
-	if (gl_shaderstate.changed)
-	{
-		pglUseProgram(shader->program);
-		gl_shaderstate.changed = false;
-	}
 }
 
 #ifdef HAVE_GLES2
@@ -614,6 +687,7 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 
 		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
 
+#ifdef HAVE_GLES2
 		if (alpha_test)
 		{
 			UNIFORM_1(shader->uniforms[gluniform_alphathreshold], alpha_threshold, pglUniform1f);
@@ -621,6 +695,7 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 		}
 		else
 			UNIFORM_1(shader->uniforms[gluniform_alphatest], false, pglUniform1i);
+#endif
 
 		#undef UNIFORM_1
 		#undef UNIFORM_2
