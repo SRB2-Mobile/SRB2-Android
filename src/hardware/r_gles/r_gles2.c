@@ -743,37 +743,29 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	if (sky->rebuild)
 	{
 		// delete VBO when already exists
-		if (gl_ext_arb_vertex_buffer_object)
-		{
-			if (sky->vbo)
-				pglDeleteBuffers(1, &sky->vbo);
-		}
+		if (sky->vbo)
+			pglDeleteBuffers(1, &sky->vbo);
 
-		if (gl_ext_arb_vertex_buffer_object)
-		{
-			// generate a new VBO and get the associated ID
-			pglGenBuffers(1, &sky->vbo);
+		// generate a new VBO and get the associated ID
+		pglGenBuffers(1, &sky->vbo);
 
-			// bind VBO in order to use
-			pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
+		// bind VBO in order to use
+		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
-			// upload data to VBO
-			pglBufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
-		}
+		// upload data to VBO
+		pglBufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
 
 		sky->rebuild = false;
 	}
 
 	if (gl_shaderstate.current == NULL)
 	{
-		if (gl_ext_arb_vertex_buffer_object)
-			pglBindBuffer(GL_ARRAY_BUFFER, 0);
+		pglBindBuffer(GL_ARRAY_BUFFER, 0);
 		return;
 	}
 
 	// bind VBO in order to use
-	if (gl_ext_arb_vertex_buffer_object)
-		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
+	pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
 	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
@@ -817,8 +809,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
 
 	// bind with 0, so, switch back to normal pointer operation
-	if (gl_ext_arb_vertex_buffer_object)
-		pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 
