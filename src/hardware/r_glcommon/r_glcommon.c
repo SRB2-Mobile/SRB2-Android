@@ -546,7 +546,7 @@ void SetSurface(INT32 w, INT32 h)
 		gl_renderer = pglGetString(GL_RENDERER);
 
 #if defined(__ANDROID__)
-		CONS_Printf("OpenGL %s\n", gl_version);
+		CONS_Printf("OpenGL version: %s\n", gl_version);
 		CONS_Printf("GPU: %s\n", gl_renderer);
 #else
 		GL_DBG_Printf("OpenGL %s\n", gl_version);
