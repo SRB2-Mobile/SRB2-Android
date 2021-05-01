@@ -1486,23 +1486,18 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	pglDisableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
 	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_TEXCOORD1));
 
-	if (gl_shaderstate.changed)
+	Shader_SetSampler(gluniform_startscreen, 0);
+	Shader_SetSampler(gluniform_endscreen, 1);
+	Shader_SetSampler(gluniform_fademask, 2);
+
+	if (tinted)
 	{
-		gl_shaderstate.changed = false;
-
-		Shader_SetSampler(gluniform_startscreen, 0);
-		Shader_SetSampler(gluniform_endscreen, 1);
-		Shader_SetSampler(gluniform_fademask, 2);
-
-		if (tinted)
-		{
-			Shader_SetIntegerUniform(gluniform_isfadingin, isfadingin);
-			Shader_SetIntegerUniform(gluniform_istowhite, istowhite);
-		}
-
-		Shader_SetUniforms(NULL, &white, NULL, NULL);
-		Shader_SetTransform();
+		Shader_SetIntegerUniform(gluniform_isfadingin, isfadingin);
+		Shader_SetIntegerUniform(gluniform_istowhite, istowhite);
 	}
+
+	Shader_SetUniforms(NULL, &white, NULL, NULL);
+	Shader_SetTransform();
 
 	pglActiveTexture(GL_TEXTURE0 + 0);
 	pglBindTexture(GL_TEXTURE_2D, startScreenWipe);

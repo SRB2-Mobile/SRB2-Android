@@ -50,7 +50,7 @@
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = u_projection * vec4(a_position, 1.0f);\n" \
+		"gl_Position = u_projection * vec4((a_position.x * 2.0f) - 1.0f, (a_position.y * -2.0f) + 1.0f, 1.0f, 1.0f);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
 		"v_fademasktexcoord = vec2(a_fademasktexcoord.x, a_fademasktexcoord.y);\n" \
 	"}\0"
