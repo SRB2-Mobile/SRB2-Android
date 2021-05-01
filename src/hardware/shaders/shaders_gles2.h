@@ -96,6 +96,17 @@
 		"gl_FragColor = texture2D(t_texsampler, v_texcoord) * poly_color;\n" \
 	"}\0"
 
+#define GLSL_DEFAULT_FRAGMENT_SHADER_ALPHA_TEST \
+	GLSL_BASE_VARYING \
+	GLSL_BASE_UNIFORMS \
+	"uniform float alpha_threshold;\n" \
+	"void main(void) {\n" \
+		"vec4 Texel = texture2D(t_texsampler, v_texcoord);\n" \
+		"if (Texel.a <= alpha_threshold)\n" \
+			"discard;\n" \
+		"gl_FragColor = Texel * poly_color;\n" \
+	"}\0"
+
 //
 // Sky fragment shader
 //

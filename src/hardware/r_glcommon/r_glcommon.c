@@ -494,6 +494,8 @@ static INT32 GetAlphaTestShader(INT32 type)
 {
 	switch (type)
 	{
+		case SHADER_DEFAULT:
+			return SHADER_ALPHA_TEST;
 		case SHADER_FLOOR:
 			return SHADER_FLOOR_ALPHA_TEST;
 		case SHADER_WALL:
@@ -522,6 +524,7 @@ INT32 GLBackend_GetShaderType(INT32 type)
 
 	switch (type)
 	{
+		case SHADER_DEFAULT:
 		case SHADER_FLOOR:
 		case SHADER_WALL:
 		case SHADER_SPRITE:

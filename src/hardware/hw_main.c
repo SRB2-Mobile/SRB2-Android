@@ -6809,6 +6809,7 @@ customshaderxlat_t shaderxlat[] =
 	{"Fog", SHADER_FOG},
 	{"Sky", SHADER_SKY},
 #ifdef HAVE_GLES2
+	{"AlphaTest", SHADER_ALPHA_TEST},
 	{"FlatAlphaTest", SHADER_FLOOR_ALPHA_TEST},
 	{"WallTextureAlphaTest", SHADER_WALL_ALPHA_TEST},
 	{"SpriteAlphaTest", SHADER_SPRITE_ALPHA_TEST},
