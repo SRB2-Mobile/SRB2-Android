@@ -6808,6 +6808,13 @@ customshaderxlat_t shaderxlat[] =
 	{"WaterRipple", SHADER_WATER},
 	{"Fog", SHADER_FOG},
 	{"Sky", SHADER_SKY},
+#ifdef HAVE_GLES2
+	{"FlatAlphaTest", SHADER_FLOOR_ALPHA_TEST},
+	{"WallTextureAlphaTest", SHADER_WALL_ALPHA_TEST},
+	{"SpriteAlphaTest", SHADER_SPRITE_ALPHA_TEST},
+	{"FadeMask", SHADER_FADEMASK},
+	{"FadeMaskTinted", SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE},
+#endif
 	{NULL, 0},
 };
 

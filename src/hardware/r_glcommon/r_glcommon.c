@@ -50,6 +50,9 @@ GLint min_filter = GL_LINEAR;
 GLint mag_filter = GL_LINEAR;
 GLint anisotropic_filter = 0;
 
+boolean alpha_test = false;
+float alpha_threshold = 0.0f;
+
 boolean model_lighting = false;
 
 // Linked list of all textures.
@@ -342,11 +345,19 @@ static void SetBlendMode(FBITFIELD flags)
 			break;
 	}
 
+#ifdef HAVE_GLES2
+	alpha_test = true;
+#endif
+
 	// Alpha test
 	switch (flags)
 	{
 		case PF_Masked & PF_Blending:
+#ifdef HAVE_GLES2
+			alpha_threshold = 0.5f;
+#else
 			pglAlphaFunc(GL_GREATER, 0.5f);
+#endif
 			break;
 		case PF_Translucent & PF_Blending:
 		case PF_Additive & PF_Blending:
@@ -354,13 +365,25 @@ static void SetBlendMode(FBITFIELD flags)
 		case PF_ReverseSubtract & PF_Blending:
 		case PF_Environment & PF_Blending:
 		case PF_Multiplicative & PF_Blending:
+#ifdef HAVE_GLES2
+			alpha_threshold = 0.0f;
+#else
 			pglAlphaFunc(GL_NOTEQUAL, 0.0f);
+#endif
 			break;
 		case PF_Fog & PF_Fog:
+#ifdef HAVE_GLES2
+			alpha_test = false;
+#else
 			pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
+#endif
 			break;
 		default:
+#ifdef HAVE_GLES2
+			alpha_threshold = 0.5f;
+#else
 			pglAlphaFunc(GL_GREATER, 0.5f);
+#endif
 			break;
 	}
 }
@@ -466,6 +489,23 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 	CurrentPolyFlags = PolyFlags;
 }
 
+#ifdef HAVE_GLES2
+static INT32 GetAlphaTestShader(INT32 type)
+{
+	switch (type)
+	{
+		case SHADER_FLOOR:
+			return SHADER_FLOOR_ALPHA_TEST;
+		case SHADER_WALL:
+			return SHADER_WALL_ALPHA_TEST;
+		case SHADER_SPRITE:
+			return SHADER_SPRITE_ALPHA_TEST;
+		default:
+			return type;
+	}
+}
+#endif
+
 INT32 GLBackend_GetShaderType(INT32 type)
 {
 #ifdef GL_SHADERS
@@ -474,6 +514,25 @@ INT32 GLBackend_GetShaderType(INT32 type)
 	if (type == SHADER_MODEL && model_lighting
 	&& !(gl_shaders[SHADER_MODEL].custom && !gl_shaders[SHADER_MODEL_LIGHTING].custom))
 		return SHADER_MODEL_LIGHTING;
+#endif
+
+#ifdef HAVE_GLES2
+	if (!alpha_test)
+		return type;
+
+	switch (type)
+	{
+		case SHADER_FLOOR:
+		case SHADER_WALL:
+		case SHADER_SPRITE:
+		{
+			INT32 newshader = GetAlphaTestShader(type);
+			if (!(gl_shaders[type].custom && !gl_shaders[newshader].custom))
+				return newshader;
+		}
+		default:
+			break;
+	}
 #endif
 
 	return type;
@@ -486,10 +545,13 @@ void SetSurface(INT32 w, INT32 h)
 		gl_version = pglGetString(GL_VERSION);
 		gl_renderer = pglGetString(GL_RENDERER);
 
+#if defined(__ANDROID__)
+		CONS_Printf("OpenGL %s\n", gl_version);
+		CONS_Printf("GPU: %s\n", gl_renderer);
+#else
 		GL_DBG_Printf("OpenGL %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
 
-#if !defined(__ANDROID__)
 		if (strcmp((const char*)gl_renderer, "GDI Generic") == 0 &&
 			strcmp((const char*)gl_version, "1.1.0") == 0)
 		{

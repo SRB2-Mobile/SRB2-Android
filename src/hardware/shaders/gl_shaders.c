@@ -116,6 +116,15 @@ static struct {
 	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SKY_FRAGMENT_SHADER},
 
 #ifdef HAVE_GLES2
+	// Floor shader with alpha test
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+
+	// Wall shader with alpha test
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+
+	// Sprite shader with alpha test
+	{GLSL_DEFAULT_VERTEX_SHADER, GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST},
+
 	// Fade mask shader
 	{GLSL_FADEMASK_VERTEX_SHADER, GLSL_FADEMASK_FRAGMENT_SHADER},
 
@@ -407,9 +416,9 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	memset(shader->modelMatrix, 0x00, sizeof(fmatrix4_t));
 
 	// transform
-	shader->uniforms[gluniform_model]       = GETUNI("u_model");
-	shader->uniforms[gluniform_view]        = GETUNI("u_view");
-	shader->uniforms[gluniform_projection]  = GETUNI("u_projection");
+	shader->uniforms[gluniform_model]      = GETUNI("u_model");
+	shader->uniforms[gluniform_view]       = GETUNI("u_view");
+	shader->uniforms[gluniform_projection] = GETUNI("u_projection");
 
 	// samplers
 	shader->uniforms[gluniform_startscreen] = GETUNI("t_startscreen");
@@ -417,20 +426,22 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	shader->uniforms[gluniform_fademask]    = GETUNI("t_fademask");
 
 	// misc.
-	shader->uniforms[gluniform_isfadingin]  = GETUNI("is_fading_in");
-	shader->uniforms[gluniform_istowhite]   = GETUNI("is_to_white");
+	shader->uniforms[gluniform_alphatest]      = GETUNI("alpha_test");
+	shader->uniforms[gluniform_alphathreshold] = GETUNI("alpha_threshold");
+	shader->uniforms[gluniform_isfadingin]     = GETUNI("is_fading_in");
+	shader->uniforms[gluniform_istowhite]      = GETUNI("is_to_white");
 #endif
 
 	// lighting
-	shader->uniforms[gluniform_poly_color]  = GETUNI("poly_color");
-	shader->uniforms[gluniform_tint_color]  = GETUNI("tint_color");
-	shader->uniforms[gluniform_fade_color]  = GETUNI("fade_color");
-	shader->uniforms[gluniform_lighting]    = GETUNI("lighting");
-	shader->uniforms[gluniform_fade_start]  = GETUNI("fade_start");
-	shader->uniforms[gluniform_fade_end]    = GETUNI("fade_end");
+	shader->uniforms[gluniform_poly_color] = GETUNI("poly_color");
+	shader->uniforms[gluniform_tint_color] = GETUNI("tint_color");
+	shader->uniforms[gluniform_fade_color] = GETUNI("fade_color");
+	shader->uniforms[gluniform_lighting]   = GETUNI("lighting");
+	shader->uniforms[gluniform_fade_start] = GETUNI("fade_start");
+	shader->uniforms[gluniform_fade_end]   = GETUNI("fade_end");
 
 	// misc. (custom shaders)
-	shader->uniforms[gluniform_leveltime]   = GETUNI("leveltime");
+	shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
 
 #undef GETUNI
 
@@ -599,6 +610,14 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 		}
 
 		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
+
+		if (alpha_test)
+		{
+			UNIFORM_1(shader->uniforms[gluniform_alphathreshold], alpha_threshold, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_alphatest], true, pglUniform1i);
+		}
+		else
+			UNIFORM_1(shader->uniforms[gluniform_alphatest], false, pglUniform1i);
 
 		#undef UNIFORM_1
 		#undef UNIFORM_2

@@ -64,6 +64,8 @@ typedef enum
 
 	// misc.
 #ifdef HAVE_GLES2
+	gluniform_alphatest,
+	gluniform_alphathreshold,
 	gluniform_isfadingin,
 	gluniform_istowhite,
 #endif

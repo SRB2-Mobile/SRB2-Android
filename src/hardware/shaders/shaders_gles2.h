@@ -185,6 +185,25 @@
 		"gl_FragColor = FinalColor;\n" \
 	"}\0"
 
+#define GLSL_SOFTWARE_FRAGMENT_SHADER_ALPHA_TEST \
+	GLSL_BASE_VARYING \
+	GLSL_BASE_SAMPLER \
+	GLSL_DOOM_UNIFORMS \
+	"uniform float alpha_threshold;\n" \
+	GLSL_DOOM_COLORMAP \
+	GLSL_DOOM_LIGHT_EQUATION \
+	"void main(void) {\n" \
+		"vec4 Texel = texture2D(t_texsampler, v_texcoord);\n" \
+		"if (Texel.a <= alpha_threshold)\n" \
+			"discard;\n" \
+		"vec4 BaseColor = Texel * poly_color;\n" \
+		"vec4 FinalColor = BaseColor;\n" \
+		GLSL_SOFTWARE_TINT_EQUATION \
+		GLSL_SOFTWARE_FADE_EQUATION \
+		"FinalColor.a = Texel.a * poly_color.a;\n" \
+		"gl_FragColor = FinalColor;\n" \
+	"}\0"
+
 // same as above but multiplies results with the lighting value from the
 // accompanying vertex shader (stored in gl_Color)
 #define GLSL_SOFTWARE_MODEL_LIGHTING_FRAGMENT_SHADER \

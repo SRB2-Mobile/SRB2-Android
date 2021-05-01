@@ -501,6 +501,9 @@ extern GLint min_filter;
 extern GLint mag_filter;
 extern GLint anisotropic_filter;
 
+extern boolean alpha_test;
+extern float alpha_threshold;
+
 extern boolean model_lighting;
 
 extern FTextureInfo *TexCacheTail;
