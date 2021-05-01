@@ -779,7 +779,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglEnableVertexAttribArray(Shader_AttribLoc(LOC_COLORS));
 	pglVertexAttribPointer(Shader_AttribLoc(LOC_POSITION), 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
 	pglVertexAttribPointer(Shader_AttribLoc(LOC_TEXCOORD), 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
-	pglVertexAttribPointer(Shader_AttribLoc(LOC_COLORS), 4, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_r);
+	pglVertexAttribPointer(Shader_AttribLoc(LOC_COLORS), 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// set transforms
 	scale[1] = (float)sky->height / 200.0f;
