@@ -1184,10 +1184,13 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 	movebkey = PLAYERINPUTDOWN(ssplayer, gc_backward);
 
 #ifdef TOUCHINPUTS
-	straferkey = (straferkey || PLAYERINPUTDOWN(ssplayer, gc_dpadur) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
-	strafelkey = (strafelkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpaddl));
-	movefkey = (movefkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpadur));
-	movebkey = (movebkey || PLAYERINPUTDOWN(ssplayer, gc_dpaddl) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
+	if (ssplayer == 1)
+	{
+		straferkey = (straferkey || PLAYERINPUTDOWN(ssplayer, gc_dpadur) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
+		strafelkey = (strafelkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpaddl));
+		movefkey = (movefkey || PLAYERINPUTDOWN(ssplayer, gc_dpadul) || PLAYERINPUTDOWN(ssplayer, gc_dpadur));
+		movebkey = (movebkey || PLAYERINPUTDOWN(ssplayer, gc_dpaddl) || PLAYERINPUTDOWN(ssplayer, gc_dpaddr));
+	}
 #endif
 
 	if (strafeisturn)
@@ -1322,7 +1325,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 
 		G_HandleVectorDeadZone(&touchmovevector, cv_touchjoydeadzone.value);
 
-		if (touchmovevector.xaxis != 0)
+		if (ssplayer == 1 && touchmovevector.xaxis != 0)
 			side += ((touchmovevector.xaxis * sidemove[1]) >> 10);
 	}
 	else
@@ -1337,7 +1340,7 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 
 		G_HandleVectorDeadZone(&accelmovevector, cv_acceldeadzone.value);
 
-		if (accelmovevector.xaxis != 0)
+		if (ssplayer == 1 && accelmovevector.xaxis != 0)
 			side += ((accelmovevector.xaxis * sidemove[1]) >> 10);
 	}
 	else
@@ -1358,12 +1361,12 @@ void G_BuildTiccmd(ticcmd_t *cmd, INT32 realtics, UINT8 ssplayer)
 		forward -= ((movejoystickvector->yaxis * forwardmove[1]) >> 10); // ANALOG!
 
 #ifdef TOUCHINPUTS
-	if (touchmovevector.yaxis != 0)
+	if (ssplayer == 1 && touchmovevector.yaxis != 0)
 		forward -= ((touchmovevector.yaxis * forwardmove[1]) >> 10);
 #endif
 
 #ifdef ACCELEROMETER
-	if (accelmovevector.yaxis != 0)
+	if (ssplayer == 1 && accelmovevector.yaxis != 0)
 		forward -= ((accelmovevector.yaxis * forwardmove[1]) >> 10);
 #endif
 
