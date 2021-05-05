@@ -431,7 +431,6 @@ enum {
 // Name of local directory for config files and savegames
 #if defined(__ANDROID__)
 #define SHAREDSTORAGEFOLDER "Sonic Robo Blast 2"
-#define DEFAULTDIR // Don't define a default directory
 #elif (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
 #define DEFAULTDIR ".srb2"
 #else

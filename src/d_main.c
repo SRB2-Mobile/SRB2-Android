@@ -997,10 +997,13 @@ static void IdentifyVersion(void)
 	srb2waddir = I_LocateWad();
 #endif
 
+#if defined(__ANDROID__)
+	strlcpy(srb2path, I_AppStorageLocation(), sizeof(srb2path));
+#else
 	// get the current directory (possible problem on NT with "." as current dir)
 	if (srb2waddir)
 	{
-		strlcpy(srb2path,srb2waddir,sizeof (srb2path));
+		strlcpy(srb2path, srb2waddir,sizeof (srb2path));
 	}
 	else
 	{
@@ -1011,6 +1014,7 @@ static void IdentifyVersion(void)
 			srb2waddir = ".";
 		}
 	}
+#endif
 
 #if defined (macintosh) && !defined (HAVE_SDL)
 	// cwd is always "/" when app is dbl-clicked
@@ -1168,10 +1172,6 @@ void D_SRB2Main(void)
 
 	if (devparm)
 		CONS_Printf(M_GetText("Development mode ON.\n"));
-
-	// default savegame
-	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
-	strcpy(liveeventbackup, "live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
 
 #if !defined(__ANDROID__)
 	D_SetupHome();
@@ -1644,9 +1644,67 @@ const char *D_Home(void)
 	else return NULL;
 }
 
+#if defined(__ANDROID__)
+static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, const char **homelist, char *defpath)
+{
+	INT32 i;
+
+	for (i = 0; homelist[i]; i++)
+	{
+		snprintf(dest, destsize, "%s" PATHSEP "%s", homelist[i], path);
+		if (FIL_ReadFileOK(dest))
+			return;
+	}
+
+	snprintf(dest, destsize, "%s" PATHSEP "%s", defpath, path);
+}
+
+static void D_AndroidSetupHome(const char *userhome)
+{
+	const char *homelist[3] = {0, 0, 0};
+	INT32 next = 0;
+
+	strlcpy(srb2home, userhome, sizeof(srb2home));
+
+	// can't use sprintf since there is %u in savegamename
+	strcatbf(savegamename, srb2home, PATHSEP);
+	strcatbf(liveeventbackup, srb2home, PATHSEP);
+
+#define ListAdd(path) \
+	homelist[next] = path; \
+	if (homelist[next]) \
+		next++;
+
+	ListAdd(srb2home);
+	ListAdd(I_AppStorageLocation());
+
+#define SetupLocation(loc, path) FindUsableStorageLocation(loc, sizeof(loc), path, homelist, srb2home)
+
+	SetupLocation(downloaddir, "DOWNLOAD");
+
+	if (dedicated)
+		SetupLocation(configfile, "d"CONFIGFILENAME);
+	else
+		SetupLocation(configfile, CONFIGFILENAME);
+
+#ifdef TOUCHINPUTS
+	SetupLocation(touchlayoutfolder, "touchlayouts");
+#endif
+
+	SetupLocation(luafiledir, "luafiles");
+
+#undef SetupLocation
+#undef ListAdd
+}
+#endif
+
 void D_SetupHome(void)
 {
 	const char *userhome = D_Home(); //Alam: path to home
+
+	// default savegame
+	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
+	strcpy(liveeventbackup, "live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
 
 	if (!userhome)
 	{
@@ -1661,8 +1719,10 @@ void D_SetupHome(void)
 	}
 	else
 	{
+#if defined(__ANDROID__)
+		D_AndroidSetupHome(userhome);
+#elif defined(DEFAULTDIR)
 		// use user specific config file
-#ifdef DEFAULTDIR
 		snprintf(srb2home, sizeof srb2home, "%s" PATHSEP DEFAULTDIR, userhome);
 		snprintf(downloaddir, sizeof downloaddir, "%s" PATHSEP "DOWNLOAD", srb2home);
 		if (dedicated)

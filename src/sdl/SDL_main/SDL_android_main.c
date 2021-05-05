@@ -126,8 +126,6 @@ int main(int argc, char* argv[])
 
 	if (JNI_SharedStorage)
 	{
-		CONS_Printf("Shared storage location: %s\n", JNI_SharedStorage);
-
 		// Check storage permissions.
 		if (!StorageCheckPermission())
 			DisplayToast("Storage permission was not granted");

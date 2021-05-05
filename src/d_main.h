@@ -19,7 +19,6 @@
 
 extern boolean advancedemo;
 
-// make sure not to write back the config until it's been correctly loaded
 extern tic_t rendergametic;
 
 extern char srb2home[256]; //Alam: My Home

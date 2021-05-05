@@ -210,70 +210,87 @@ char *JNI_GetStorageDirectory(void)
 	return storageDir;
 }
 
-// Get the secondary external storage path (usually, the SD card)
-char *JNI_ExternalStoragePath(void)
+// Get path to removable storage
+static char *JNI_RemovableStorage = NULL;
+char *JNI_RemovableStoragePath(void)
 {
-	static char *extPath = NULL;
+	LOCALREF
+	JNIEnv *env;
+	jmethodID method;
+	jobject context;
+	jobject fileObject;
+	jobjectArray pathArray;
+	jsize arraySize;
+	jstring pathString;
+	const char *path;
 
-	if (!extPath)
-	{
-		LOCALREF
-		JNIEnv *env;
-		jmethodID method;
-		jobject context;
-		jobject fileObject;
-		jobjectArray pathArray;
-		jsize arraySize;
-		jstring pathString;
-		const char *path;
+	JNI_ENV(NULL);
+	JNI_CONTEXT;
 
-		JNI_ENV(NULL);
-		JNI_CONTEXT;
-
-		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, context), "getExternalFilesDirs", "(Ljava/lang/String;)[Ljava/io/File;");
-		if (!method)
-		{
-			CLEANREF
-			return NULL;
-		}
-
-		// fileObject = context.getExternalFilesDirs();
-		fileObject = (*env)->CallObjectMethod(env, context, method, NULL);
-		if (!fileObject)
-		{
-			CLEANREF
-			return NULL;
-		}
-
-		pathArray = (jobjectArray)fileObject; // Cast to array.
-		arraySize = (jsize)(*env)->GetArrayLength(env, pathArray);
-		if (arraySize < 2)
-		{
-			CLEANREF
-			return NULL;
-		}
-
-		// Get second file object.
-		fileObject = (jobject)(*env)->GetObjectArrayElement(env, pathArray, 1);
-		if (fileObject == NULL)
-		{
-			CLEANREF
-			return NULL;
-		}
-
-		// pathString = fileObject.getAbsolutePath();
-		method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject), "getAbsolutePath", "()Ljava/lang/String;");
-		pathString = (jstring)(*env)->CallObjectMethod(env, fileObject, method);
-
-		path = (*env)->GetStringUTFChars(env, pathString, NULL);
-		extPath = malloc(strlen(path) + 1);
-		strcpy(extPath, path);
-		(*env)->ReleaseStringUTFChars(env, pathString, path);
-
-		CLEANREF
+#define NULLREMSTORAGE \
+	if (JNI_RemovableStorage) \
+	{ \
+		free(JNI_RemovableStorage); \
+		JNI_RemovableStorage = NULL; \
 	}
 
-	return extPath;
+	method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, context), "getExternalFilesDirs", "(Ljava/lang/String;)[Ljava/io/File;");
+	if (!method)
+	{
+		CLEANREF
+		NULLREMSTORAGE
+		return NULL;
+	}
+
+	// fileObject = context.getExternalFilesDirs();
+	fileObject = (*env)->CallObjectMethod(env, context, method, NULL);
+	if (!fileObject)
+	{
+		CLEANREF
+		NULLREMSTORAGE
+		return NULL;
+	}
+
+	pathArray = (jobjectArray)fileObject; // Cast to array.
+	arraySize = (jsize)(*env)->GetArrayLength(env, pathArray);
+	if (arraySize < 2)
+	{
+		CLEANREF
+		NULLREMSTORAGE
+		return NULL;
+	}
+
+	// Get second file object.
+	fileObject = (jobject)(*env)->GetObjectArrayElement(env, pathArray, 1);
+	if (fileObject == NULL)
+	{
+		CLEANREF
+		NULLREMSTORAGE
+		return NULL;
+	}
+
+	// pathString = fileObject.getAbsolutePath();
+	method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, fileObject), "getAbsolutePath", "()Ljava/lang/String;");
+	if (!method)
+	{
+		CLEANREF
+		NULLREMSTORAGE
+		return NULL;
+	}
+
+	pathString = (jstring)(*env)->CallObjectMethod(env, fileObject, method);
+	path = (*env)->GetStringUTFChars(env, pathString, NULL);
+
+	JNI_RemovableStorage = realloc(JNI_RemovableStorage, strlen(path) + 1);
+	strcpy(JNI_RemovableStorage, path);
+
+	(*env)->ReleaseStringUTFChars(env, pathString, path);
+
+	CLEANREF
+
+#undef NULLREMSTORAGE
+
+	return JNI_RemovableStorage;
 }
 
 // Get device info

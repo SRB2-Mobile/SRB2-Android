@@ -2732,16 +2732,6 @@ static const char *locateWad(void)
 	const char *WadPath;
 
 #if defined(__ANDROID__)
-	// Access the SD card first
-	WadPath = JNI_ExternalStoragePath();
-	if (WadPath)
-	{
-		I_OutputMsg("External storage: %s", WadPath);
-		strcpy(returnWadPath, WadPath);
-		if (isWadPathOk(returnWadPath))
-			return returnWadPath;
-	}
-
 	// Access the shared storage location
 	WadPath = I_SharedStorageLocation();
 	if (WadPath)
@@ -2752,7 +2742,17 @@ static const char *locateWad(void)
 			return returnWadPath;
 	}
 
-	// Access the app-specific storage location
+	// Access removable storage
+	WadPath = JNI_RemovableStoragePath();
+	if (WadPath)
+	{
+		I_OutputMsg("Removable storage: %s", WadPath);
+		strcpy(returnWadPath, WadPath);
+		if (isWadPathOk(returnWadPath))
+			return returnWadPath;
+	}
+
+	// Access app-specific storage last
 	// This will always return the path, even if isWadPathOk would fail.
 	WadPath = I_AppStorageLocation();
 	if (WadPath)
@@ -2942,6 +2942,15 @@ const char *I_SharedStorageLocation(void)
 	}
 
 	return sharedStorage;
+#else
+	return NULL;
+#endif
+}
+
+const char *I_RemovableStorageLocation(void)
+{
+#if defined(__ANDROID__)
+	return JNI_RemovableStoragePath();
 #else
 	return NULL;
 #endif

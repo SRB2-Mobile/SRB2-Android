@@ -368,6 +368,11 @@ const char *I_AppStorageLocation(void);
 */
 const char *I_SharedStorageLocation(void);
 
+/**	\brief Location that is removable storage.
+		\return path to removable storage
+*/
+const char *I_RemovableStorageLocation(void);
+
 /**	\brief First Joystick's events
 */
 void I_GetJoystickEvents(void);

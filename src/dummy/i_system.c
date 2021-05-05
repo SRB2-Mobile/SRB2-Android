@@ -172,6 +172,11 @@ const char *I_SharedStorageLocation(void)
 	return NULL;
 }
 
+const char *I_RemovableStorageLocation(void)
+{
+	return NULL;
+}
+
 void I_GetJoystickEvents(void){}
 
 void I_GetJoystick2Events(void){}

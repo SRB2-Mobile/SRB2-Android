@@ -54,7 +54,7 @@ extern const char *JNI_SharedStorage;
 extern boolean JNI_StoragePermission;
 
 char *JNI_GetStorageDirectory(void);
-char *JNI_ExternalStoragePath(void);
+char *JNI_RemovableStoragePath(void);
 
 char *JNI_GetDeviceInfo(const char *info);
 
