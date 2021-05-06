@@ -103,10 +103,6 @@
 	#endif
 #endif
 
-#if defined(__ANDROID__)
-#define DITHER
-#endif
-
 // maximum number of windowed modes (see windowedModes[][])
 #define MAXWINMODES (18)
 
