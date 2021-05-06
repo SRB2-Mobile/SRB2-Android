@@ -3130,14 +3130,6 @@ INT32 I_RequestSystemPermission(const char *permission)
 	return 0;
 }
 
-INT32 I_OpenAppSettings(void)
-{
-#if defined(__ANDROID__)
-	JNI_OpenAppSettings();
-#endif
-	return 1;
-}
-
 const CPUInfoFlags *I_CPUInfo(void)
 {
 #if defined (_WIN32)

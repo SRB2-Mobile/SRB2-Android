@@ -375,15 +375,5 @@ boolean JNI_CheckPermission(const char *permission)
 
 void JNI_DisplayToast(const char *text)
 {
-	JNIEnv *env = JNI_GetEnv();
-	jstring toastText = (*env)->NewStringUTF(env, text);
-	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "displayToast", "(Ljava/lang/String;)V");
-	(*env)->CallStaticVoidMethod(env, activityClass, method, toastText);
-}
-
-void JNI_OpenAppSettings(void)
-{
-	JNIEnv *env = JNI_GetEnv();
-	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "appSettingsIntent", "()V");
-	(*env)->CallStaticVoidMethod(env, activityClass, method);
+	SDL_AndroidShowToast(text, 1, -1, 0, 0);
 }

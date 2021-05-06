@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -605,17 +605,6 @@ extern "C" {
 #define SDL_HINT_JOYSTICK_HIDAPI_PS4 "SDL_JOYSTICK_HIDAPI_PS4"
 
 /**
- *  \brief  A variable controlling whether the HIDAPI driver for PS5 controllers should be used.
- *
- *  This variable can be set to the following values:
- *    "0"       - HIDAPI driver is not used
- *    "1"       - HIDAPI driver is used
- *
- *  The default is the value of SDL_HINT_JOYSTICK_HIDAPI
- */
-#define SDL_HINT_JOYSTICK_HIDAPI_PS5 "SDL_JOYSTICK_HIDAPI_PS5"
-
-/**
  *  \brief  A variable controlling whether extended input reports should be used for PS4 controllers when using the HIDAPI driver.
  *
  *  This variable can be set to the following values:
@@ -627,8 +616,63 @@ extern "C" {
  *
  *  Once extended reports are enabled, they can not be disabled without
  *  power cycling the controller.
+ *
+ *  For compatibility with applications written for versions of SDL prior
+ *  to the introduction of PS5 controller support, this value will also
+ *  control the state of extended reports on PS5 controllers when the
+ *  SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE hint is not explicitly set.
  */
 #define SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE "SDL_JOYSTICK_HIDAPI_PS4_RUMBLE"
+
+/**
+ *  \brief  A variable controlling whether the HIDAPI driver for PS5 controllers should be used.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - HIDAPI driver is not used
+ *    "1"       - HIDAPI driver is used
+ *
+ *  The default is the value of SDL_HINT_JOYSTICK_HIDAPI
+ */
+#define SDL_HINT_JOYSTICK_HIDAPI_PS5 "SDL_JOYSTICK_HIDAPI_PS5"
+
+/**
+ *  \brief  A variable controlling whether extended input reports should be used for PS5 controllers when using the HIDAPI driver.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - extended reports are not enabled (the default)
+ *    "1"       - extended reports
+ *
+ *  Extended input reports allow rumble on Bluetooth PS5 controllers, but
+ *  break DirectInput handling for applications that don't use SDL.
+ *
+ *  Once extended reports are enabled, they can not be disabled without
+ *  power cycling the controller.
+ *
+ *  For compatibility with applications written for versions of SDL prior
+ *  to the introduction of PS5 controller support, this value defaults to
+ *  the value of SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE.
+ */
+#define SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE "SDL_JOYSTICK_HIDAPI_PS5_RUMBLE"
+
+/**
+ *  \brief  A variable controlling whether the player LEDs should be lit to indicate which player is associated with a PS5 controller.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - player LEDs are not enabled
+ *    "1"       - player LEDs are enabled (the default)
+ */
+#define SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED "SDL_JOYSTICK_HIDAPI_PS5_PLAYER_LED"
+
+/**
+ *  \brief  A variable controlling whether the HIDAPI driver for Google Stadia controllers should be used.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - HIDAPI driver is not used
+ *    "1"       - HIDAPI driver is used
+ *
+ *  The default is the value of SDL_HINT_JOYSTICK_HIDAPI
+ */
+#define SDL_HINT_JOYSTICK_HIDAPI_STADIA "SDL_JOYSTICK_HIDAPI_STADIA"
 
 /**
  *  \brief  A variable controlling whether the HIDAPI driver for Steam Controllers should be used.
@@ -651,6 +695,26 @@ extern "C" {
  *  The default is the value of SDL_HINT_JOYSTICK_HIDAPI
  */
 #define SDL_HINT_JOYSTICK_HIDAPI_SWITCH "SDL_JOYSTICK_HIDAPI_SWITCH"
+
+/**
+ *  \brief  A variable controlling whether the Home button LED should be turned on when a Nintendo Switch controller is opened
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - home button LED is left off
+ *    "1"       - home button LED is turned on (the default)
+ */
+#define SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED "SDL_JOYSTICK_HIDAPI_SWITCH_HOME_LED"
+
+ /**
+  *  \brief  A variable controlling whether Switch Joy-Cons should be treated the same as Switch Pro Controllers when using the HIDAPI driver.
+  *
+  *  This variable can be set to the following values:
+  *    "0"       - basic Joy-Con support with no analog input (the default)
+  *    "1"       - Joy-Cons treated as half full Pro Controllers with analog inputs and sensors
+  *
+  *  This does not combine Joy-Cons into a single controller. That's up to the user.
+  */
+#define SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS "SDL_JOYSTICK_HIDAPI_JOY_CONS"
 
 /**
  *  \brief  A variable controlling whether the HIDAPI driver for XBox controllers should be used.
@@ -743,7 +807,7 @@ extern "C" {
  *
  *  The higher resolution the timer, the more frequently the CPU services
  *  timer interrupts, and the more precise delays are, but this takes up
- *  power and CPU time.  This hint is only used on Windows 7 and earlier.
+ *  power and CPU time.  This hint is only used on Windows.
  *
  *  See this blog post for more information:
  *  http://randomascii.wordpress.com/2013/07/08/windows-timer-resolution-megawatts-wasted/
@@ -1182,6 +1246,59 @@ extern "C" {
 #define SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING "SDL_WINDOWS_DISABLE_THREAD_NAMING"
 
 /**
+ * \brief Force SDL to use Critical Sections for mutexes on Windows.
+ *        On Windows 7 and newer, Slim Reader/Writer Locks are available.
+ *        They offer better performance, allocate no kernel ressources and
+ *        use less memory. SDL will fall back to Critical Sections on older
+ *        OS versions or if forced to by this hint.
+ *        This also affects Condition Variables. When SRW mutexes are used,
+ *        SDL will use Windows Condition Variables as well. Else, a generic
+ *        SDL_cond implementation will be used that works with all mutexes.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Use SRW Locks when available. If not, fall back to Critical Sections. (default)
+ *    "1"       - Force the use of Critical Sections in all cases.
+ *
+ */
+#define SDL_HINT_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS "SDL_WINDOWS_FORCE_MUTEX_CRITICAL_SECTIONS"
+
+/**
+ * \brief Force SDL to use Kernel Semaphores on Windows.
+ *        Kernel Semaphores are inter-process and require a context
+ *        switch on every interaction. On Windows 8 and newer, the
+ *        WaitOnAddress API is available. Using that and atomics to
+ *        implement semaphores increases performance.
+ *        SDL will fall back to Kernel Objects on older OS versions
+ *        or if forced to by this hint.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Use Atomics and WaitOnAddress API when available. If not, fall back to Kernel Objects. (default)
+ *    "1"       - Force the use of Kernel Objects in all cases.
+ *
+ */
+#define SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL "SDL_WINDOWS_FORCE_SEMAPHORE_KERNEL"
+
+/**
+ * \brief Use the D3D9Ex API introduced in Windows Vista, instead of normal D3D9.
+ *        Direct3D 9Ex contains changes to state management that can eliminate device
+ *        loss errors during scenarios like Alt+Tab or UAC prompts. D3D9Ex may require
+ *        some changes to your application to cope with the new behavior, so this
+ *        is disabled by default.
+ *
+ *  This hint must be set before initializing the video subsystem.
+ *
+ *  For more information on Direct3D 9Ex, see:
+ *    - https://docs.microsoft.com/en-us/windows/win32/direct3darticles/graphics-apis-in-windows-vista#direct3d-9ex
+ *    - https://docs.microsoft.com/en-us/windows/win32/direct3darticles/direct3d-9ex-improvements
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Use the original Direct3D 9 API (default)
+ *    "1"       - Use the Direct3D 9Ex API on Vista and later (and fall back if D3D9Ex is unavailable)
+ *
+ */
+#define SDL_HINT_WINDOWS_USE_D3D9EX "SDL_WINDOWS_USE_D3D9EX"
+
+/**
  * \brief Tell SDL which Dispmanx layer to use on a Raspberry PI
  *
  * Also known as Z-order. The variable can take a negative or positive value.
@@ -1202,10 +1319,34 @@ extern "C" {
  *
  * Since it's driver-specific, it's only supported where possible and
  * implemented. Currently supported the following drivers:
+ *
  * - KMSDRM (kmsdrm)
  * - Raspberry Pi (raspberrypi)
  */
 #define SDL_HINT_VIDEO_DOUBLE_BUFFER      "SDL_VIDEO_DOUBLE_BUFFER"
+
+/**
+ * \brief Determines whether SDL enforces that DRM master is required in order
+ *        to initialize the KMSDRM video backend.
+ *
+ * The DRM subsystem has a concept of a "DRM master" which is a DRM client that
+ * has the ability to set planes, set cursor, etc. When SDL is DRM master, it
+ * can draw to the screen using the SDL rendering APIs. Without DRM master, SDL
+ * is still able to process input and query attributes of attached displays,
+ * but it cannot change display state or draw to the screen directly.
+ *
+ * In some cases, it can be useful to have the KMSDRM backend even if it cannot
+ * be used for rendering. An app may want to use SDL for input processing while
+ * using another rendering API (such as an MMAL overlay on Raspberry Pi) or
+ * using its own code to render to DRM overlays that SDL doesn't support.
+ *
+ * This hint must be set before initializing the video subsystem.
+ *
+ * This variable can be set to the following values:
+ *    "0"       - SDL will allow usage of the KMSDRM backend without DRM master
+ *    "1"       - SDL Will require DRM master to use the KMSDRM backend (default)
+ */
+#define SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER      "SDL_KMSDRM_REQUIRE_DRM_MASTER"
 
 /**
  *  \brief  A variable controlling what driver to use for OpenGL ES contexts.
@@ -1470,6 +1611,39 @@ extern "C" {
  */
 #define SDL_HINT_AUDIO_DEVICE_STREAM_NAME "SDL_AUDIO_DEVICE_STREAM_NAME"
 
+/**
+ *  \brief Specify an application role for an audio device.
+ *
+ * Some audio backends (such as Pipewire) allow you to describe the role of
+ * your audio stream. Among other things, this description might show up in
+ * a system control panel or software for displaying and manipulating media
+ * playback/capture graphs.
+ *
+ * This hints lets you transmit that information to the OS. The contents of
+ * this hint are used while opening an audio device. You should use a string
+ * that describes your what your program is playing (Game, Music, Movie,
+ * etc...).
+ *
+ * Setting this to "" or leaving it unset will have SDL use a reasonable
+ * default: "Game" or something similar.
+ *
+ * On targets where this is not supported, this hint does nothing.
+ */
+#define SDL_HINT_AUDIO_DEVICE_STREAM_ROLE "SDL_AUDIO_DEVICE_STREAM_ROLE"
+
+/**
+ *  \brief Specify the behavior of Alt+Tab while the keyboard is grabbed.
+ *
+ * By default, SDL emulates Alt+Tab functionality while the keyboard is grabbed
+ * and your window is full-screen. This prevents the user from getting stuck in
+ * your application if you've enabled keyboard grab.
+ *
+ * The variable can be set to the following values:
+ *   "0"       - SDL will not handle Alt+Tab. Your application is responsible
+                 for handling Alt+Tab while the keyboard is grabbed.
+ *   "1"       - SDL will minimize your window when Alt+Tab is pressed (default)
+*/
+#define SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED "SDL_ALLOW_ALT_TAB_WHILE_GRABBED"
 
 /**
  *  \brief Override for SDL_GetPreferredLocales()
@@ -1498,71 +1672,113 @@ typedef enum
 
 
 /**
- *  \brief Set a hint with a specific priority
+ * Set a hint with a specific priority.
  *
- *  The priority controls the behavior when setting a hint that already
- *  has a value.  Hints will replace existing hints of their priority and
- *  lower.  Environment variables are considered to have override priority.
+ * The priority controls the behavior when setting a hint that already has a
+ * value. Hints will replace existing hints of their priority and lower.
+ * Environment variables are considered to have override priority.
  *
- *  \return SDL_TRUE if the hint was set, SDL_FALSE otherwise
+ * \param name the hint to set
+ * \param value the value of the hint variable
+ * \param priority the SDL_HintPriority level for the hint
+ * \returns SDL_TRUE if the hint was set, SDL_FALSE otherwise.
+ *
+ * \sa SDL_GetHint
+ * \sa SDL_SetHint
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_SetHintWithPriority(const char *name,
                                                          const char *value,
                                                          SDL_HintPriority priority);
 
 /**
- *  \brief Set a hint with normal priority
+ * Set a hint with normal priority.
  *
- *  \return SDL_TRUE if the hint was set, SDL_FALSE otherwise
+ * Hints will not be set if there is an existing override hint or environment
+ * variable that takes precedence. You can use SDL_SetHintWithPriority() to
+ * set the hint with override priority instead.
+ *
+ * \param name the hint to set
+ * \param value the value of the hint variable
+ * \returns SDL_TRUE if the hint was set, SDL_FALSE otherwise.
+ *
+ * \sa SDL_GetHint
+ * \sa SDL_SetHintWithPriority
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_SetHint(const char *name,
                                              const char *value);
 
 /**
- *  \brief Get a hint
+ * Get the value of a hint.
  *
- *  \return The string value of a hint variable.
+ * \param name the hint to query
+ * \returns the string value of a hint or NULL if the hint isn't set.
+ *
+ * \sa SDL_SetHint
+ * \sa SDL_SetHintWithPriority
  */
 extern DECLSPEC const char * SDLCALL SDL_GetHint(const char *name);
 
 /**
- *  \brief Get a hint
+ * Get the boolean value of a hint variable.
  *
- *  \return The boolean value of a hint variable.
+ * \param name the name of the hint to get the boolean value from
+ * \param default_value the value to return if the hint does not exist
+ * \returns the boolean value of a hint or the provided default value if the
+ *          hint does not exist.
+ *
+ * \since This function is available since SDL 2.0.5.
+ *
+ * \sa SDL_GetHint
+ * \sa SDL_SetHint
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_GetHintBoolean(const char *name, SDL_bool default_value);
 
 /**
- * \brief type definition of the hint callback function.
+ * Type definition of the hint callback function.
+ *
+ * \param userdata what was passed as `userdata` to SDL_AddHintCallback()
+ * \param name what was passed as `name` to SDL_AddHintCallback()
+ * \param oldValue the previous hint value
+ * \param newValue the new value hint is to be set to
  */
 typedef void (SDLCALL *SDL_HintCallback)(void *userdata, const char *name, const char *oldValue, const char *newValue);
 
 /**
- *  \brief Add a function to watch a particular hint
+ * Add a function to watch a particular hint.
  *
- *  \param name The hint to watch
- *  \param callback The function to call when the hint value changes
- *  \param userdata A pointer to pass to the callback function
+ * \param name the hint to watch
+ * \param callback An SDL_HintCallback function that will be called when the
+ *        hint value changes
+ * \param userdata a pointer to pass to the callback function
+ *
+ * \since This function is available since SDL 2.0.0.
+ *
+ * \sa SDL_DelHintCallback
  */
 extern DECLSPEC void SDLCALL SDL_AddHintCallback(const char *name,
                                                  SDL_HintCallback callback,
                                                  void *userdata);
 
 /**
- *  \brief Remove a function watching a particular hint
+ * Remove a function watching a particular hint.
  *
- *  \param name The hint being watched
- *  \param callback The function being called when the hint value changes
- *  \param userdata A pointer being passed to the callback function
+ * \param name the hint being watched
+ * \param callback An SDL_HintCallback function that will be called when the
+ *        hint value changes
+ * \param userdata a pointer being passed to the callback function
+ *
+ * \since This function is available since SDL 2.0.0.
+ *
+ * \sa SDL_AddHintCallback
  */
 extern DECLSPEC void SDLCALL SDL_DelHintCallback(const char *name,
                                                  SDL_HintCallback callback,
                                                  void *userdata);
 
 /**
- *  \brief  Clear all hints
+ * Clear all hints.
  *
- *  This function is called during SDL_Quit() to free stored hints.
+ * This function is automatically called during SDL_Quit().
  */
 extern DECLSPEC void SDLCALL SDL_ClearHints(void);
 

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -28,7 +28,7 @@
 /* This is a set of defines to configure the SDL features */
 
 #if !defined(_STDINT_H_) && (!defined(HAVE_STDINT_H) || !_HAVE_STDINT_H)
-#if defined(__GNUC__) || defined(__DMC__) || defined(__WATCOMC__)
+#if defined(__GNUC__) || defined(__DMC__) || defined(__WATCOMC__) || defined(__clang__)
 #define HAVE_STDINT_H   1
 #elif defined(_MSC_VER)
 typedef signed __int8 int8_t;
@@ -119,9 +119,6 @@ typedef unsigned int uintptr_t;
 #define HAVE_STRRCHR 1
 #define HAVE_STRSTR 1
 /* #undef HAVE_STRTOK_R */
-#if defined(_MSC_VER)
-#define HAVE_STRTOK_S 1
-#endif
 /* These functions have security warnings, so we won't use them */
 /* #undef HAVE__LTOA */
 /* #undef HAVE__ULTOA */
@@ -136,6 +133,7 @@ typedef unsigned int uintptr_t;
 #define HAVE__STRNICMP 1
 #define HAVE__WCSICMP 1
 #define HAVE__WCSNICMP 1
+#define HAVE__WCSDUP 1
 #define HAVE_ACOS   1
 #define HAVE_ACOSF  1
 #define HAVE_ASIN   1
@@ -172,7 +170,12 @@ typedef unsigned int uintptr_t;
 /* These functions were added with the VC++ 2013 C runtime library */
 #if _MSC_VER >= 1800
 #define HAVE_STRTOLL 1
+#define HAVE_STRTOULL 1
 #define HAVE_VSSCANF 1
+#define HAVE_LROUND 1
+#define HAVE_LROUNDF 1
+#define HAVE_ROUND 1
+#define HAVE_ROUNDF 1
 #define HAVE_SCALBN 1
 #define HAVE_SCALBNF 1
 #define HAVE_TRUNC  1
@@ -233,6 +236,7 @@ typedef unsigned int uintptr_t;
 #define SDL_LOADSO_WINDOWS  1
 
 /* Enable various threading systems */
+#define SDL_THREAD_GENERIC_COND_SUFFIX 1
 #define SDL_THREAD_WINDOWS  1
 
 /* Enable various timer systems */

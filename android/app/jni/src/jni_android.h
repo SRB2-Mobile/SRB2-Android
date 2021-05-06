@@ -60,6 +60,5 @@ char *JNI_GetDeviceInfo(const char *info);
 
 boolean JNI_CheckPermission(const char *permission);
 void JNI_DisplayToast(const char *text);
-void JNI_OpenAppSettings(void);
 
 #endif

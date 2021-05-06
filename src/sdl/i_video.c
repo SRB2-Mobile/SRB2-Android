@@ -125,6 +125,8 @@ static void Impl_SetDither(void);
 static consvar_t cv_dither = CVAR_INIT ("dither", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Impl_SetDither);
 #endif
 
+static void Impl_SetColorBufferDepth(INT32 red, INT32 green, INT32 blue, INT32 alpha);
+
 UINT8 graphics_started = 0; // Is used in console.c and screen.c
 
 // To disable fullscreen at startup; is set in VID_PrepareModeList
@@ -1914,6 +1916,10 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		flags |= SDL_WINDOW_OPENGL;
 #endif
 
+#if defined(__ANDROID__)
+	Impl_SetColorBufferDepth(8, 8, 8, 8);
+#endif
+
 	// Create a window
 	window = SDL_CreateWindow("SRB2 "VERSIONSTRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			realwidth, realheight, flags);
@@ -2000,6 +2006,16 @@ static void Impl_InitGLESDriver(void)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, version_major);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, version_minor);
+}
+#endif
+
+#if defined(__ANDROID__)
+static void Impl_SetColorBufferDepth(INT32 red, INT32 green, INT32 blue, INT32 alpha)
+{
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, red);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, green);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, blue);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, alpha);
 }
 #endif
 

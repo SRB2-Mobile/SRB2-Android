@@ -403,11 +403,6 @@ INT32 I_CheckSystemPermission(const char *permission);
 */
 INT32 I_RequestSystemPermission(const char *permission);
 
-/**	\brief Opens the app's settings.
-		\return 1 if it succeeded, 0 if not.
-*/
-INT32 I_OpenAppSettings(void);
-
 /** \brief Put data in system clipboard
 */
 INT32 I_ClipboardCopy(const char *data, size_t size);
