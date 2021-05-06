@@ -856,7 +856,7 @@ void GLTexture_SetFilterMode(INT32 mode)
 }
 
 // -----------------------+
-// Texture_GetMemoryUsage : calculates total memory usage by textures
+// GetMemoryUsage         : calculates total memory usage by textures
 // Returns                : total memory amount used by textures, excluding mipmaps
 // -----------------------+
 INT32 GLTexture_GetMemoryUsage(FTextureInfo *head)
@@ -880,6 +880,86 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head)
 	}
 
 	return res;
+}
+
+void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data)
+{
+	INT32 i;
+
+	if (dst_stride == width*3)
+	{
+		GLubyte *top = (GLvoid*)dst_data, *bottom = top + dst_stride * (height - 1);
+		GLubyte *row = malloc(dst_stride);
+
+		if (!row)
+			return;
+
+		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
+		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, dst_data);
+		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		for (i = 0; i < height/2; i++)
+		{
+			memcpy(row, top, dst_stride);
+			memcpy(top, bottom, dst_stride);
+			memcpy(bottom, row, dst_stride);
+			top += dst_stride;
+			bottom -= dst_stride;
+		}
+
+		free(row);
+	}
+	else
+	{
+		GLubyte *image = malloc(width*height*3*sizeof(*image));
+		if (!image)
+			return;
+
+		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
+		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, image);
+		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		for (i = height-1; i >= 0; i--)
+		{
+			INT32 j;
+			for (j = 0; j < width; j++)
+			{
+				dst_data[(height-1-i)*width+j] =
+				(UINT16)(
+				                 ((image[(i*width+j)*3]>>3)<<11) |
+				                 ((image[(i*width+j)*3+1]>>2)<<5) |
+				                 ((image[(i*width+j)*3+2]>>3)));
+			}
+		}
+
+		free(image);
+	}
+}
+
+void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data)
+{
+	INT32 i;
+
+	GLubyte *top = (GLvoid*)dst_data, *bottom = top + dst_stride * (height - 1);
+	GLubyte *row = malloc(dst_stride);
+
+	if (!row)
+		return;
+
+	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
+	pglReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, dst_data);
+	pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	for(i = 0; i < height/2; i++)
+	{
+		memcpy(row, top, dst_stride);
+		memcpy(top, bottom, dst_stride);
+		memcpy(bottom, row, dst_stride);
+		top += dst_stride;
+		bottom -= dst_stride;
+	}
+
+	free(row);
 }
 
 // -------------------+

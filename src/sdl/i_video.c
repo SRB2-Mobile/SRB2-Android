@@ -103,16 +103,12 @@
 	#endif
 #endif
 
+#if defined(__ANDROID__)
+#define DITHER
+#endif
+
 // maximum number of windowed modes (see windowedModes[][])
 #define MAXWINMODES (18)
-
-/**	\brief
-*/
-static INT32 numVidModes = -1;
-
-/**	\brief
-*/
-static char vidModeName[33][32]; // allow 33 different modes
 
 rendermode_t rendermode = render_soft;
 rendermode_t chosenrendermode = render_none; // set by command line arguments
@@ -123,6 +119,11 @@ boolean highcolor = false;
 consvar_t cv_vidwait = CVAR_INIT ("vid_wait", "On", CV_SAVE, CV_OnOff, NULL);
 static consvar_t cv_stretch = CVAR_INIT ("stretch", "Off", CV_SAVE|CV_NOSHOWHELP, CV_OnOff, NULL);
 static consvar_t cv_alwaysgrabmouse = CVAR_INIT ("alwaysgrabmouse", "Off", CV_SAVE, CV_OnOff, NULL);
+
+#ifdef DITHER
+static void Impl_SetDither(void);
+static consvar_t cv_dither = CVAR_INIT ("dither", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Impl_SetDither);
+#endif
 
 UINT8 graphics_started = 0; // Is used in console.c and screen.c
 
@@ -141,9 +142,6 @@ static SDL_bool disable_mouse = SDL_FALSE;
 #define MOUSE_MENU false //(!disable_mouse && cv_usemouse.value && menuactive && !USE_FULLSCREEN)
 #define MOUSEBUTTONS_MAX MOUSEBUTTONS
 
-// first entry in the modelist which is not bigger than MAXVIDWIDTHxMAXVIDHEIGHT
-static      INT32          firstEntry = 0;
-
 // Total mouse motion X/Y offsets
 static      INT32        mousemovex = 0, mousemovey = 0;
 
@@ -152,19 +150,15 @@ static      SDL_Surface *vidSurface = NULL;
 static      SDL_Surface *bufSurface = NULL;
 static      SDL_Surface *icoSurface = NULL;
 static      SDL_Color    localPalette[256];
-#if 0
-static      SDL_Rect   **modeList = NULL;
-static       Uint8       BitsPerPixel = 16;
-#endif
-Uint16      realwidth = BASEVIDWIDTH;
-Uint16      realheight = BASEVIDHEIGHT;
 static       SDL_bool    mousegrabok = SDL_TRUE;
 static       SDL_bool    wrapmouseok = SDL_FALSE;
 #define HalfWarpMouse(x,y) if (wrapmouseok) SDL_WarpMouseInWindow(window, (Uint16)(x/2),(Uint16)(y/2))
-static       SDL_bool    videoblitok = SDL_FALSE;
 static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 static       SDL_bool    appOnBackground = SDL_FALSE;
+
+Uint16      realwidth = BASEVIDWIDTH;
+Uint16      realheight = BASEVIDHEIGHT;
 
 static struct
 {
@@ -177,7 +171,6 @@ SDL_Window   *window;
 SDL_Renderer *renderer;
 static SDL_Texture  *texture;
 static SDL_bool      havefocus = SDL_TRUE;
-static const char *fallback_resolution_name = "Fallback";
 
 // windowed video modes from which to choose from.
 static INT32 windowedModes[MAXWINMODES][2] =
@@ -202,10 +195,12 @@ static INT32 windowedModes[MAXWINMODES][2] =
 	{ 320, 200}, // 1.60,1.00
 };
 
+static char vidModeName[MAXWINMODES][32];
+static const char *fallback_resolution_name = "Fallback";
+
 static void Impl_VideoSetupSDLBuffer(void);
 static void Impl_VideoSetupBuffer(void);
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
-//static void Impl_SetWindowName(const char *title);
 static void Impl_SetWindowIcon(void);
 
 static void Impl_VideoSetupSoftwareSurface(INT32 width, INT32 height)
@@ -515,65 +510,22 @@ static void SurfaceInfo(const SDL_Surface *infoSurface, const char *SurfaceText)
 
 static void VID_Command_Info_f (void)
 {
-#if 0
-	SDL2STUB();
-#else
-#if 0
-	const SDL_VideoInfo *videoInfo;
-	videoInfo = SDL_GetVideoInfo(); //Alam: Double-Check
-	if (videoInfo)
-	{
-		CONS_Printf("%s", M_GetText("Video Interface Capabilities:\n"));
-		if (videoInfo->hw_available)
-			CONS_Printf("%s", M_GetText(" Hardware surfaces\n"));
-		if (videoInfo->wm_available)
-			CONS_Printf("%s", M_GetText(" Window manager\n"));
-		//UnusedBits1  :6
-		//UnusedBits2  :1
-		if (videoInfo->blit_hw)
-			CONS_Printf("%s", M_GetText(" Accelerated blits HW-2-HW\n"));
-		if (videoInfo->blit_hw_CC)
-			CONS_Printf("%s", M_GetText(" Accelerated blits HW-2-HW with Colorkey\n"));
-		if (videoInfo->wm_available)
-			CONS_Printf("%s", M_GetText(" Accelerated blits HW-2-HW with Alpha\n"));
-		if (videoInfo->blit_sw)
-		{
-			CONS_Printf("%s", M_GetText(" Accelerated blits SW-2-HW\n"));
-			if (!M_CheckParm("-noblit")) videoblitok = SDL_TRUE;
-		}
-		if (videoInfo->blit_sw_CC)
-			CONS_Printf("%s", M_GetText(" Accelerated blits SW-2-HW with Colorkey\n"));
-		if (videoInfo->blit_sw_A)
-			CONS_Printf("%s", M_GetText(" Accelerated blits SW-2-HW with Alpha\n"));
-		if (videoInfo->blit_fill)
-			CONS_Printf("%s", M_GetText(" Accelerated Color filling\n"));
-		//UnusedBits3  :16
-		if (videoInfo->video_mem)
-			CONS_Printf(M_GetText(" There is %i KB of video memory\n"), videoInfo->video_mem);
-		else
-			CONS_Printf("%s", M_GetText(" There no video memory for SDL\n"));
-		//*vfmt
-	}
-#else
-	if (!M_CheckParm("-noblit")) videoblitok = SDL_TRUE;
-#endif
 	SurfaceInfo(bufSurface, M_GetText("Current Engine Mode"));
 	SurfaceInfo(vidSurface, M_GetText("Current Video Mode"));
-#endif
 }
 
 static void VID_Command_ModeList_f(void)
 {
-	// List windowed modes
 	INT32 i = 0;
-	CONS_Printf("NOTE: Under SDL2, all modes are supported on all platforms.\n");
-	CONS_Printf("Under opengl, fullscreen only supports native desktop resolution.\n");
-	CONS_Printf("Under software, the mode is stretched up to desktop resolution.\n");
-	for (i = 0; i < MAXWINMODES; i++)
-	{
-		CONS_Printf("%2d: %dx%d\n", i, windowedModes[i][0], windowedModes[i][1]);
-	}
 
+#if !defined(__ANDROID__)
+	CONS_Printf("NOTE: Under SDL2, all modes are supported on all platforms.\n");
+	CONS_Printf("Under OpenGL, fullscreen only supports native desktop resolution.\n");
+	CONS_Printf("Under software, the mode is stretched up to desktop resolution.\n");
+#endif
+
+	for (; i < MAXWINMODES; i++)
+		CONS_Printf("%2d: %dx%d\n", i, windowedModes[i][0], windowedModes[i][1]);
 }
 
 static void VID_Command_Mode_f (void)
@@ -1624,39 +1576,18 @@ void I_SetPalette(RGBA_t *palette)
 // return number of fullscreen + X11 modes
 INT32 VID_NumModes(void)
 {
-	if (USE_FULLSCREEN && numVidModes != -1)
-		return numVidModes - firstEntry;
-	else
-		return MAXWINMODES;
+	return MAXWINMODES;
 }
 
 const char *VID_GetModeName(INT32 modeNum)
 {
-#if 0
-	if (USE_FULLSCREEN && numVidModes != -1) // fullscreen modes
-	{
-		modeNum += firstEntry;
-		if (modeNum >= numVidModes)
-			return NULL;
-
-		sprintf(&vidModeName[modeNum][0], "%dx%d",
-			modeList[modeNum]->w,
-			modeList[modeNum]->h);
-	}
-	else // windowed modes
-	{
-#endif
 	if (modeNum == -1)
-	{
 		return fallback_resolution_name;
-	}
-		if (modeNum > MAXWINMODES)
-			return NULL;
+	else if (modeNum > MAXWINMODES)
+		return NULL;
 
-		sprintf(&vidModeName[modeNum][0], "%dx%d",
-			windowedModes[modeNum][0],
-			windowedModes[modeNum][1]);
-	//}
+	snprintf(&vidModeName[modeNum][0], 32, "%dx%d", windowedModes[modeNum][0], windowedModes[modeNum][1]);
+
 	return &vidModeName[modeNum][0];
 }
 
@@ -1671,103 +1602,12 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h)
 		}
 	}
 	return -1;
-#if 0
-	INT32 matchMode = -1, i;
-	VID_PrepareModeList();
-	if (USE_FULLSCREEN && numVidModes != -1)
-	{
-		for (i=firstEntry; i<numVidModes; i++)
-		{
-			if (modeList[i]->w == w &&
-			    modeList[i]->h == h)
-			{
-				matchMode = i;
-				break;
-			}
-		}
-		if (-1 == matchMode) // use smaller mode
-		{
-			w -= w%BASEVIDWIDTH;
-			h -= h%BASEVIDHEIGHT;
-			for (i=firstEntry; i<numVidModes; i++)
-			{
-				if (modeList[i]->w == w &&
-				    modeList[i]->h == h)
-				{
-					matchMode = i;
-					break;
-				}
-			}
-			if (-1 == matchMode) // use smallest mode
-				matchMode = numVidModes-1;
-		}
-		matchMode -= firstEntry;
-	}
-	else
-	{
-		for (i=0; i<MAXWINMODES; i++)
-		{
-			if (windowedModes[i][0] == w &&
-			    windowedModes[i][1] == h)
-			{
-				matchMode = i;
-				break;
-			}
-		}
-		if (-1 == matchMode) // use smaller mode
-		{
-			w -= w%BASEVIDWIDTH;
-			h -= h%BASEVIDHEIGHT;
-			for (i=0; i<MAXWINMODES; i++)
-			{
-				if (windowedModes[i][0] == w &&
-				    windowedModes[i][1] == h)
-				{
-					matchMode = i;
-					break;
-				}
-			}
-			if (-1 == matchMode) // use smallest mode
-				matchMode = MAXWINMODES-1;
-		}
-	}
-	return matchMode;
-#endif
 }
 
 void VID_PrepareModeList(void)
 {
 	// Under SDL2, we just use the windowed modes list, and scale in windowed fullscreen.
 	allow_fullscreen = true;
-#if 0
-	INT32 i;
-
-	firstEntry = 0;
-
-#ifdef HWRENDER
-	if (rendermode == render_opengl)
-		modeList = SDL_ListModes(NULL, SDL_OPENGL|SDL_FULLSCREEN);
-	else
-#endif
-	modeList = SDL_ListModes(NULL, surfaceFlagsF|SDL_HWSURFACE); //Alam: At least hardware surface
-
-	if (disable_fullscreen?0:cv_fullscreen.value) // only fullscreen needs preparation
-	{
-		if (-1 != numVidModes)
-		{
-			for (i=0; i<numVidModes; i++)
-			{
-				if (modeList[i]->w <= MAXVIDWIDTH &&
-					modeList[i]->h <= MAXVIDHEIGHT)
-				{
-					firstEntry = i;
-					break;
-				}
-			}
-		}
-	}
-	allow_fullscreen = true;
-#endif
 }
 
 void VID_DisplayGLError(void)
@@ -1815,14 +1655,14 @@ INT32 VID_CheckRenderer(void)
 	if (dedicated)
 		return 0;
 
-#if defined(__ANDROID__)
-	SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
-#endif
-
 	if (setrenderneeded)
 	{
 		rendermode = setrenderneeded;
 		rendererchanged = 1;
+
+#if defined(__ANDROID__)
+		SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
+#endif
 
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
@@ -1893,6 +1733,11 @@ INT32 VID_CheckRenderer(void)
 	}
 #endif
 
+#ifdef DITHER
+	if (rendererchanged)
+		Impl_SetDither();
+#endif
+
 	return rendererchanged;
 }
 
@@ -1956,7 +1801,6 @@ INT32 VID_SetMode(INT32 modeNum)
 		vid.modenum = modeNum;
 	}
 
-	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
 	VID_CheckRenderer();
 	return SDL_TRUE;
 }
@@ -1996,6 +1840,11 @@ INT32 VID_CreateContext(void)
 		}
 		SDL_RenderSetLogicalSize(renderer, BASEVIDWIDTH, BASEVIDHEIGHT);
 	}
+
+#ifdef DITHER
+	Impl_SetDither();
+#endif
+
 	return 1;
 }
 
@@ -2082,17 +1931,6 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 
 	return SDL_TRUE;
 }
-
-/*
-static void Impl_SetWindowName(const char *title)
-{
-	if (window == NULL)
-	{
-		return;
-	}
-	SDL_SetWindowTitle(window, title);
-}
-*/
 
 static void Impl_SetWindowIcon(void)
 {
@@ -2181,6 +2019,28 @@ static void Impl_InitVideoSubSystem(void)
 #endif
 }
 
+#ifdef DITHER
+static void Impl_SetDither(void)
+{
+	if (!graphics_started)
+		return;
+
+	if (rendermode == render_soft)
+	{
+#if defined(__ANDROID__)
+		if (cv_dither.value)
+			glEnable(GL_DITHER);
+		else
+			glDisable(GL_DITHER);
+#endif
+	}
+#ifdef HWRENDER
+	else if (rendermode == render_opengl && vid.glstate == VID_GL_LIBRARY_LOADED)
+		HWD.pfnSetSpecialState(HWD_SET_DITHER, cv_dither.value);
+#endif
+}
+#endif
+
 void I_StartupGraphics(void)
 {
 	if (dedicated)
@@ -2197,6 +2057,9 @@ void I_StartupGraphics(void)
 	COM_AddCommand ("vid_mode", VID_Command_Mode_f);
 	CV_RegisterVar (&cv_vidwait);
 	CV_RegisterVar (&cv_stretch);
+#ifdef DITHER
+	CV_RegisterVar (&cv_dither);
+#endif
 	CV_RegisterVar (&cv_alwaysgrabmouse);
 	disable_mouse = M_CheckParm("-nomouse");
 	disable_fullscreen = M_CheckParm("-win") ? 1 : 0;
@@ -2313,8 +2176,6 @@ void I_StartupGraphics(void)
 	// SDL_GL_LoadLibrary to work well on Windows
 
 	// Create window
-	//Impl_CreateWindow(USE_FULLSCREEN);
-	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
 	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
 
 	vid.width = BASEVIDWIDTH; // Default size for startup

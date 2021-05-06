@@ -44,7 +44,7 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFl
 EXPORT void HWRAPI(SetTexture) (GLMipmap_t *TexInfo);
 EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *TexInfo);
 EXPORT void HWRAPI(DeleteTexture) (GLMipmap_t *TexInfo);
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
 EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
 EXPORT void HWRAPI(ClearMipMapCache) (void);
 

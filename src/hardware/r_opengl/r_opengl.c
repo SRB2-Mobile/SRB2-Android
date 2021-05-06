@@ -394,50 +394,9 @@ EXPORT void HWRAPI(ClearMipMapCache) (void)
 //                  : store pixels as 16bit 565 RGB
 // Returns          : 16bit 565 RGB pixel array stored in dst_data
 // -----------------+
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height,
-                                INT32 dst_stride, UINT16 * dst_data)
+EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data)
 {
-	INT32 i;
-	// GL_DBG_Printf ("ReadRect()\n");
-	if (dst_stride == width*3)
-	{
-		GLubyte*top = (GLvoid*)dst_data, *bottom = top + dst_stride * (height - 1);
-		GLubyte *row = malloc(dst_stride);
-		if (!row) return;
-		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, dst_data);
-		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		for(i = 0; i < height/2; i++)
-		{
-			memcpy(row, top, dst_stride);
-			memcpy(top, bottom, dst_stride);
-			memcpy(bottom, row, dst_stride);
-			top += dst_stride;
-			bottom -= dst_stride;
-		}
-		free(row);
-	}
-	else
-	{
-		INT32 j;
-		GLubyte *image = malloc(width*height*3*sizeof (*image));
-		if (!image) return;
-		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, image);
-		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		for (i = height-1; i >= 0; i--)
-		{
-			for (j = 0; j < width; j++)
-			{
-				dst_data[(height-1-i)*width+j] =
-				(UINT16)(
-				                 ((image[(i*width+j)*3]>>3)<<11) |
-				                 ((image[(i*width+j)*3+1]>>2)<<5) |
-				                 ((image[(i*width+j)*3+2]>>3)));
-			}
-		}
-		free(image);
-	}
+	GLBackend_ReadRectRGB(x, y, width, height, dst_stride, (UINT16 *)dst_data);
 }
 
 

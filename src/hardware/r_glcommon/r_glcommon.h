@@ -376,6 +376,9 @@ void  GLTexture_Flush(void);
 void  GLTexture_SetFilterMode(INT32 mode);
 INT32 GLTexture_GetMemoryUsage(FTextureInfo *head);
 
+void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
+
 boolean GLBackend_Init(void);
 boolean GLBackend_LoadFunctions(void);
 boolean GLBackend_LoadExtraFunctions(void);
