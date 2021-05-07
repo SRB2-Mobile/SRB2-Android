@@ -297,7 +297,6 @@
 //
 
 #define GLSL_FOG_FRAGMENT_SHADER \
-	"varying vec2 v_texcoord;\n" \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \

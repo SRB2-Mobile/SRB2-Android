@@ -697,7 +697,8 @@ static void DrawPolygon_GLES2(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
 
@@ -731,7 +732,8 @@ EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutV
 	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
-	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
+	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
 	pglDrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
 
@@ -778,7 +780,8 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	// activate and specify pointers to arrays
 	Shader_EnableVertexAttribArray(LOC_COLORS);
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
-	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
+	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
 	VertexAttribPointer(LOC_COLORS, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
 
 	// set transforms
@@ -1022,7 +1025,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
 				VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
-				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
+				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
 
@@ -1048,7 +1052,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				}
 
 				VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, 0, vertTinyBuffer);
-				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, 0, normTinyBuffer);
 
@@ -1069,7 +1074,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
 				VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
-				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
+				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
 
@@ -1097,7 +1103,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 				}
 
 				VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertBuffer);
-				VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_TRUE, 0, normBuffer);
 
