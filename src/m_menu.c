@@ -215,7 +215,6 @@ static INT32 vidm_selected = 0;
 static INT32 vidm_nummodes;
 static INT32 vidm_column_size;
 
-// new menus
 static tic_t recatkdrawtimer = 0;
 static tic_t ntsatkdrawtimer = 0;
 
@@ -236,6 +235,8 @@ static boolean stopstopmessage = false;
 static void M_EscapeMenu(void);
 static void M_BreadcrumbEscape(void);
 
+static boolean M_TouchInputs(void);
+
 #ifndef NONET
 static void M_HandleServerPage(INT32 choice);
 static void M_RoomMenu(INT32 choice);
@@ -255,6 +256,8 @@ TSNAVHANDLER(LevelPlatter);
 TSNAVHANDLER(SaveSelect);
 TSNAVHANDLER(CharacterSelect);
 TSNAVHANDLER(AddonsMenu);
+TSNAVHANDLER(SoundTest);
+TSNAVHANDLER(UnlockChecklist);
 #endif
 
 //
@@ -371,12 +374,18 @@ static void M_Credits(INT32 choice);
 static void M_SoundTest(INT32 choice);
 static void M_PandorasBox(INT32 choice);
 static void M_EmblemHints(INT32 choice);
+static void M_UnlockChecklist(INT32 choice);
 static void M_HandleEmblemHints(INT32 choice);
-UINT32 hintpage = 1;
 static void M_HandleChecklist(INT32 choice);
-menu_t SR_MainDef, SR_UnlockChecklistDef;
+
+static void M_ChecklistTicker(void);
 
 static UINT8 check_on;
+static INT32 check_held = 0;
+static INT32 check_heldtime = 0;
+
+menu_t SR_MainDef, SR_UnlockChecklistDef;
+UINT32 hintpage = 1;
 
 // Misc. Main Menu
 static void M_SinglePlayerMenu(INT32 choice);
@@ -972,7 +981,7 @@ static menuitem_t SR_PandorasBox[] =
 // Sky Room Custom Unlocks
 static menuitem_t SR_MainMenu[] =
 {
-	{IT_STRING|IT_SUBMENU,NULL, "Extras Checklist", &SR_UnlockChecklistDef, 0},
+	{IT_STRING | IT_CALL, NULL, "Extras Checklist", M_UnlockChecklist, 0},
 	{IT_DISABLED,         NULL, "",   NULL,                 0}, // Custom1
 	{IT_DISABLED,         NULL, "",   NULL,                 0}, // Custom2
 	{IT_DISABLED,         NULL, "",   NULL,                 0}, // Custom3
@@ -2138,12 +2147,12 @@ menu_t SR_UnlockChecklistDef =
 	M_DrawChecklist,
 	30, 30,
 	0,
-	NULL, NULL
+	NULL, M_ChecklistTicker
 };
 
 menu_t SR_SoundTestDef =
 {
-	MTREE2(MN_SR_MAIN, MN_SR_SOUNDTEST), 0,
+	MTREE2(MN_SR_MAIN, MN_SR_SOUNDTEST), MENUSTYLE_SOUNDTEST,
 	NULL,
 	sizeof (SR_SoundTestMenu)/sizeof (menuitem_t),
 	&SR_MainDef,
@@ -3569,11 +3578,26 @@ static useractionstring_t useractionstrings[NUMUSERACTIONS - 1] = {
 		"Press a key.\n", "Push any button.\n", "Tap anywhere.\n", "Click any button.\n"}
 };
 
+static INT32 UserAction_GetConfirmButton(INT32 method)
+{
+	return (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTECENTER : KEY_JOY1;
+}
+
+static INT32 UserAction_GetBackButton(INT32 method)
+{
+	return (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 3);
+}
+
+static INT32 UserAction_GetESCButton(INT32 method)
+{
+	return (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 1);
+}
+
 static const char *UserAction_ToButton(INT32 type, INT32 method)
 {
-	INT32 confirm = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTECENTER : KEY_JOY1;
-	INT32 back = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 3);
-	INT32 esc = (method == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : (KEY_JOY1 + 1);
+	INT32 confirm = UserAction_GetConfirmButton(method);
+	INT32 back = UserAction_GetBackButton(method);
+	INT32 esc = UserAction_GetESCButton(method);
 
 	switch (type)
 	{
@@ -3623,6 +3647,16 @@ const char *M_GetUserActionString(INT32 type)
 	return "";
 }
 
+static const char *M_GetModeAttackExitString(void)
+{
+	if (inputmethod == INPUTMETHOD_TOUCH)
+		return M_GetText("Tap 'Back' to exit");
+	else if (inputmethod == INPUTMETHOD_JOYSTICK || inputmethod == INPUTMETHOD_TVREMOTE)
+		return va(M_GetText("Push %s to exit"), G_KeynumToString(UserAction_GetESCButton(inputmethod)));
+	else
+		return M_GetText("Press ESC to exit");
+}
+
 #define StartUserActionMessage(type) M_StartMessage(va("%s%s", M_GetText(message), M_GetUserActionString(type)), NULL, MM_NOTHING)
 
 void M_ShowAnyKeyMessage(const char *message)
@@ -3663,7 +3697,11 @@ boolean M_TSNav_CanShowBack(void)
 boolean M_TSNav_CanShowConfirm(void)
 {
 	// Always hidden.
-	if (cv_touchnavmethod.value == 0 && currentMenu == &OP_PlaystyleDef)
+	if (cv_touchnavmethod.value == 0
+	&& (currentMenu->menustyle == MENUSTYLE_PLAYSTYLE || currentMenu->menustyle == MENUSTYLE_SOUNDTEST))
+		return false;
+
+	if (currentMenu == &SR_UnlockChecklistDef)
 		return false;
 
 	return tsnav_showconfirm;
@@ -3711,6 +3749,14 @@ boolean M_TSNav_OnMainMenu(void)
 boolean M_TSNav_OnMessage(void)
 {
 	return (currentMenu == &MessageDef && M_TSNav_RoutineIsMessage());
+}
+
+INT32 M_TSNav_BackCorner(void)
+{
+	if (currentMenu->menustyle == MENUSTYLE_SOUNDTEST)
+		return TSNAV_CORNER_TOP_TEST;
+
+	return 0;
 }
 
 void M_TSNav_SetBackVisible(boolean set)
@@ -3766,12 +3812,15 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 			return TSNAVHANDLER_CALL(LevelPlatter);
 		case MENUSTYLE_ADDONS:
 			return TSNAVHANDLER_CALL(AddonsMenu);
+		case MENUSTYLE_SOUNDTEST:
+			return TSNAVHANDLER_CALL(SoundTest);
 		default:
 			break;
 	}
 
 	if (currentMenu == &SP_LoadDef) return TSNAVHANDLER_CALL(SaveSelect);
 	if (currentMenu == &SP_PlayerDef) return TSNAVHANDLER_CALL(CharacterSelect);
+	if (currentMenu == &SR_UnlockChecklistDef) return TSNAVHANDLER_CALL(UnlockChecklist);
 
 	return false;
 }
@@ -3960,14 +4009,26 @@ static INT32 M_CVarValue(const consvar_t *var)
 static const char *M_CVarLongestValue(consvar_t *var)
 {
 #ifdef TOUCHINPUTS
-	if (inputmethod == INPUTMETHOD_TOUCH && var->PossibleValue)
+	if (M_TouchInputs() && var->PossibleValue)
 		return CV_LongestPossibleValue(var);
 #endif
 
 	return var->string;
 }
 
-static const char *M_LongestCharacterName(void)
+static INT32 M_CVarLongestValueWidth(consvar_t *var, INT32 flags)
+{
+	const char *longest = M_CVarLongestValue(var);
+
+#ifdef TOUCHINPUTS
+	if (currentMenu == &SP_MarathonDef && var == &cv_dummymarathon && longest == var->PossibleValue[1].strvalue)
+		return V_ThinStringWidth(longest, flags);
+#endif
+
+	return V_StringWidth(longest, flags);
+}
+
+static const char *M_LongestPlayerName(void)
 {
 	INT32 i = 0;
 	size_t len, last = 0;
@@ -3980,10 +4041,10 @@ static const char *M_LongestCharacterName(void)
 		if (!description[i].used)
 			continue;
 
-		if (description[char_on].displayname[0])
-			str = description[char_on].displayname;
+		if (description[i].displayname[0])
+			str = description[i].displayname;
 		else
-			str = description[char_on].skinname;
+			str = description[i].skinname;
 
 		len = strlen(str);
 
@@ -4545,7 +4606,9 @@ static INT32 M_GetCVarTouchPos(consvar_t *cv)
 
 	if (gamestate == GS_TIMEATTACK)
 	{
-		if (currentMenu != &SP_NightsAttackDef && currentMenu != &SP_TimeAttackDef)
+		if (currentMenu == &SP_MarathonDef)
+			soffset = 68;
+		else if (currentMenu != &SP_NightsAttackDef && currentMenu != &SP_TimeAttackDef)
 			soffset = 80;
 	}
 	else if (currentMenu == &OP_MonitorToggleDef)
@@ -4553,7 +4616,7 @@ static INT32 M_GetCVarTouchPos(consvar_t *cv)
 
 	x = BASEVIDWIDTH - currentMenu->x - soffset;
 	if (cv)
-		x -= V_StringWidth(M_CVarLongestValue(cv), 0);
+		x -= M_CVarLongestValueWidth(cv, 0);
 
 	return x;
 }
@@ -4623,7 +4686,7 @@ static boolean M_IsTouchingCVar(consvar_t **cv, menuitem_t *item, INT32 *key, IN
 		case IT_CV_STRING:
 			break;
 		default:
-			w = V_StringWidth(M_CVarLongestValue(cvar), 0);
+			w = M_CVarLongestValueWidth(cvar, 0);
 			x = base - w;
 
 			// Touch the arrows.
@@ -4665,6 +4728,55 @@ static boolean M_IsTouchingCVar(consvar_t **cv, menuitem_t *item, INT32 *key, IN
 	return false;
 }
 
+static boolean M_IsTouchingMarathonPlayerName(menuitem_t *item, INT32 *key, INT32 y, INT32 fx, INT32 fy)
+{
+	UINT16 dispstatus = (currentMenu->menuitems[marathonplayer].status & IT_DISPLAY);
+	INT32 base, soffset = 0, x, w, h = 8;
+
+	if (currentMenu != &SP_MarathonDef)
+		return false;
+
+	if (dispstatus == IT_STRING || dispstatus == IT_WHITESTRING)
+		soffset = 68;
+
+	base = BASEVIDWIDTH - currentMenu->x - soffset;
+	w = V_StringWidth(M_LongestPlayerName(), 0);
+	x = base - w;
+
+	// Touch the arrows.
+	if (key && (item == &currentMenu->menuitems[itemOn]))
+	{
+		INT32 ax = x;
+		INT32 aw = 16;
+
+		// Left arrow
+		ax -= (3 + aw);
+
+		if (M_FingerTouchingSelection(fx, fy, ax, y, aw, h))
+		{
+			(*key) = KEY_LEFTARROW;
+			return true;
+		}
+
+		// Right arrow
+		ax = x + w + 3;
+
+		if (M_FingerTouchingSelection(fx, fy, ax, y, aw, h))
+		{
+			(*key) = KEY_RIGHTARROW;
+			return true;
+		}
+	}
+
+	if (M_FingerTouchingSelection(fx, fy, x, y, w, h))
+	{
+		(*key) = KEY_RIGHTARROW;
+		return true;
+	}
+
+	return false;
+}
+
 static INT16 M_IsTouchingGenericMenuSelection(INT32 fx, INT32 fy, INT32 *key, consvar_t **cv)
 {
 	INT32 x = currentMenu->x;
@@ -4684,6 +4796,10 @@ static INT16 M_IsTouchingGenericMenuSelection(INT32 fx, INT32 fy, INT32 *key, co
 
 				if (cv && (currentMenu->menuitems[i].status & IT_TYPE) == IT_CVAR
 				&& M_IsTouchingCVar(cv, &currentMenu->menuitems[i], key, y, fx, fy))
+					return i;
+
+				if (currentMenu == &SP_MarathonDef && i == marathonplayer
+				&& M_IsTouchingMarathonPlayerName(&currentMenu->menuitems[i], key, y, fx, fy))
 					return i;
 
 				w = V_StringWidth(currentMenu->menuitems[i].text, V_OLDSPACING);
@@ -5313,6 +5429,8 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 					}
 					else if (!((currentMenu->menuitems[selection].status & IT_TYPE) & IT_SPACE))
 					{
+						if (currentMenu == &SP_MarathonDef && selection == marathonplayer && itemOn != marathonplayer)
+							slkey = -1;
 						M_SetItemOn(selection);
 						S_StartSound(NULL, sfx_menu1);
 					}
@@ -6305,6 +6423,15 @@ static void M_BreadcrumbEscape(void)
 		M_EscapeMenu();
 }
 
+static boolean M_TouchInputs(void)
+{
+#ifdef TOUCHINPUTS
+	return (inputmethod == INPUTMETHOD_TOUCH && cv_touchnavmethod.value != 2);
+#else
+	return false;
+#endif
+}
+
 //
 // M_Ticker
 //
@@ -6807,7 +6934,7 @@ static void M_DrawGenericMenu(void)
 									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
 								if (i == itemOn)
 								{
-									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+									V_DrawCharacter(BASEVIDWIDTH - x - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 											'\x1C' | V_YELLOWMAP, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 											'\x1D' | V_YELLOWMAP, false);
@@ -7207,7 +7334,7 @@ static void M_DrawGenericScrollMenu(void)
 									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
 								if (i == itemOn)
 								{
-									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+									V_DrawCharacter(BASEVIDWIDTH - x - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 											'\x1C' | V_YELLOWMAP, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 											'\x1D' | V_YELLOWMAP, false);
@@ -7467,7 +7594,7 @@ static void M_DrawCenteredMenu(void)
 									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
 								if (i == itemOn)
 								{
-									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+									V_DrawCharacter(BASEVIDWIDTH - x - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 											'\x1C' | V_YELLOWMAP, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 											'\x1D' | V_YELLOWMAP, false);
@@ -9369,7 +9496,7 @@ static void M_AddonsGetScrollbar(INT32 *x, INT32 *y, INT32 *w, INT32 *h, size_t 
 	INT32 offs = 21, width = 1;
 
 #ifdef TOUCHINPUTS
-	if (inputmethod == INPUTMETHOD_TOUCH)
+	if (M_TouchInputs())
 	{
 		offs = 28;
 		width = 8;
@@ -9390,10 +9517,7 @@ static void M_DrawAddons(void)
 	size_t t, b; // top and bottom item #s to draw in directory
 	const UINT8 *flashcol = NULL;
 	UINT8 hilicol;
-
-#ifdef TOUCHINPUTS
-	boolean ontouchscreen = (inputmethod == INPUTMETHOD_TOUCH);
-#endif
+	boolean ontouchscreen = M_TouchInputs();
 
 	// hack - need to refresh at end of frame to handle addfile...
 	if (refreshdirmenu & M_AddonsRefresh())
@@ -9439,7 +9563,7 @@ static void M_DrawAddons(void)
 	// addons menu back color
 	V_DrawFill(x-21, y - 1, addonboxwidth, m, 159);
 
-	M_AddonsGetItems(&t, &i, &b, &m, (inputmethod == INPUTMETHOD_TOUCH));
+	M_AddonsGetItems(&t, &i, &b, &m, ontouchscreen);
 
 	// draw the scrollbar!
 	M_AddonsGetScrollbar(&sx, &sy, &sw, &sh, i, m);
@@ -9483,7 +9607,7 @@ static void M_DrawAddons(void)
 				flags = V_ALLOWLOWERCASE|highlightflags;
 			}
 
-			if (inputmethod == INPUTMETHOD_TOUCH)
+			if (M_TouchInputs())
 				charsonside--;
 
 			// draw name of the item, use ... if too long
@@ -9811,8 +9935,7 @@ TSNAVHANDLER(AddonsMenu)
 			case ev_touchmotion:
 				if (addons_scrollbar == event->key)
 				{
-					fixed_t dy = FloatToFixed(finger->fdy);
-					fixed_t scroll = FixedMul(dy, FixedDiv(addonmenuheight<<FRACBITS, m<<FRACBITS) / vid.dupy);
+					fixed_t scroll = FloatToFixed((finger->fdy * (addonmenuheight / (float)m)) / (float)vid.dupy);
 
 					addons_scroll = max(0, addons_scroll - scroll);
 
@@ -10126,59 +10249,95 @@ UINT8 skyRoomMenuTranslations[MAXUNLOCKABLES];
 
 static boolean checklist_cangodown; // uuuueeerggghhhh HACK
 
-static void M_HandleChecklist(INT32 choice)
+static void M_UnlockChecklist(INT32 choice)
+{
+	(void)choice;
+	check_held = 0;
+	check_heldtime = 0;
+	M_SetupNextMenu(&SR_UnlockChecklistDef);
+}
+
+static void M_ChecklistTicker(void)
+{
+	if (check_held)
+	{
+		if (check_heldtime > TICRATE/2)
+			M_HandleChecklist(check_held);
+		else
+			check_heldtime++;
+	}
+}
+
+static void M_ChecklistDown(void)
+{
+	if ((check_on != MAXUNLOCKABLES) && checklist_cangodown)
+	{
+		INT32 j;
+
+		for (j = check_on+1; j < MAXUNLOCKABLES; j++)
+		{
+			if (!unlockables[j].name[0])
+				continue;
+			// if (unlockables[j].nochecklist)
+			//	continue;
+			if (!unlockables[j].conditionset)
+				continue;
+			if (unlockables[j].conditionset > MAXCONDITIONSETS)
+				continue;
+			if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
+				continue;
+			if (unlockables[j].conditionset == unlockables[check_on].conditionset)
+				continue;
+			break;
+		}
+		if (j != MAXUNLOCKABLES)
+			check_on = j;
+	}
+}
+
+static void M_ChecklistUp(void)
 {
 	INT32 j;
+
+	if (!check_on)
+		return;
+
+	for (j = check_on-1; j > -1; j--)
+	{
+		if (!unlockables[j].name[0])
+			continue;
+		// if (unlockables[j].nochecklist)
+		//	continue;
+		if (!unlockables[j].conditionset)
+			continue;
+		if (unlockables[j].conditionset > MAXCONDITIONSETS)
+			continue;
+		if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
+			continue;
+		if (j && unlockables[j].conditionset == unlockables[j-1].conditionset)
+			continue;
+		break;
+	}
+	if (j != -1)
+		check_on = j;
+}
+
+static void M_HandleChecklist(INT32 choice)
+{
+	INT32 on = check_on;
+
 	switch (choice)
 	{
 		case KEY_DOWNARROW:
-			S_StartSound(NULL, sfx_menu1);
-			if ((check_on != MAXUNLOCKABLES) && checklist_cangodown)
-			{
-				for (j = check_on+1; j < MAXUNLOCKABLES; j++)
-				{
-					if (!unlockables[j].name[0])
-						continue;
-					// if (unlockables[j].nochecklist)
-					//	continue;
-					if (!unlockables[j].conditionset)
-						continue;
-					if (unlockables[j].conditionset > MAXCONDITIONSETS)
-						continue;
-					if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
-						continue;
-					if (unlockables[j].conditionset == unlockables[check_on].conditionset)
-						continue;
-					break;
-				}
-				if (j != MAXUNLOCKABLES)
-					check_on = j;
-			}
+			M_ChecklistDown();
+			if (check_on != on)
+				S_StartSound(NULL, sfx_menu1);
 			return;
 
 		case KEY_UPARROW:
-			S_StartSound(NULL, sfx_menu1);
-			if (check_on)
-			{
-				for (j = check_on-1; j > -1; j--)
-				{
-					if (!unlockables[j].name[0])
-						continue;
-					// if (unlockables[j].nochecklist)
-					//	continue;
-					if (!unlockables[j].conditionset)
-						continue;
-					if (unlockables[j].conditionset > MAXCONDITIONSETS)
-						continue;
-					if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
-						continue;
-					if (j && unlockables[j].conditionset == unlockables[j-1].conditionset)
-						continue;
-					break;
-				}
-				if (j != -1)
-					check_on = j;
-			}
+			M_ChecklistUp();
+			if (check_on != on)
+				S_StartSound(NULL, sfx_menu1);
 			return;
 
 		case KEY_ESCAPE:
@@ -10191,6 +10350,41 @@ static void M_HandleChecklist(INT32 choice)
 			break;
 	}
 }
+
+#ifdef TOUCHINPUTS
+TSNAVHANDLER(UnlockChecklist)
+{
+	INT32 sx = 10, sy;
+
+	#define HANDLEARROW(key) \
+	if (M_FingerTouchingSelection(event->x, event->y, sx-4, sy-4, 16, 16)) \
+	{ \
+		if (event->type == ev_touchdown) \
+		{ \
+			M_HandleChecklist(key); \
+			check_held = key; \
+			check_heldtime = 0; \
+		} \
+		else if (event->type == ev_touchup) \
+		{ \
+			check_held = 0; \
+			check_heldtime = 0; \
+		} \
+		finger->type.menu = true; \
+		return true; \
+	}
+
+	sy = currentMenu->y;
+	HANDLEARROW(KEY_UPARROW)
+
+	sy += scrollareaheight * 2;
+	HANDLEARROW(KEY_DOWNARROW)
+
+	#undef HANDLEARROW
+
+	return true;
+}
+#endif
 
 #define addy(add) { y += add; if ((y - currentMenu->y) > (scrollareaheight*2)) goto finishchecklist; }
 
@@ -10618,40 +10812,26 @@ static void M_HandleEmblemHints(INT32 choice)
 
 }
 
-/*static void M_DrawSkyRoom(void)
-{
-	INT32 i, y = 0;
-
-	M_DrawGenericMenu();
-
-	for (i = 0; i < currentMenu->numitems; ++i)
-	{
-		if (currentMenu->menuitems[i].status == (IT_STRING|IT_KEYHANDLER))
-		{
-			y = currentMenu->menuitems[i].alphaKey;
-			break;
-		}
-	}
-	if (!y)
-		return;
-
-	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + y, V_YELLOWMAP, cv_soundtest.string);
-	if (i == itemOn)
-	{
-		V_DrawCharacter(BASEVIDWIDTH - currentMenu->x - 10 - V_StringWidth(cv_soundtest.string, 0) - (skullAnimCounter/5), currentMenu->y + y,
-			'\x1C' | V_YELLOWMAP, false);
-		V_DrawCharacter(BASEVIDWIDTH - currentMenu->x + 2 + (skullAnimCounter/5), currentMenu->y + y,
-			'\x1D' | V_YELLOWMAP, false);
-	}
-	if (cv_soundtest.value)
-		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + y + 8, V_YELLOWMAP, S_sfx[cv_soundtest.value].name);
-}*/
-
 static musicdef_t *curplaying = NULL;
 static INT32 st_sel = 0, st_cc = 0;
 static tic_t st_time = 0;
-static patch_t* st_radio[9];
-static patch_t* st_launchpad[4];
+static patch_t *st_radio[9];
+static patch_t *st_launchpad[4];
+static boolean st_padheld = false;
+
+#define st_list_x 165
+#define st_list_height 112
+
+#ifdef TOUCHINPUTS
+static fixed_t st_scroll;
+static INT32 st_scrollbar;
+
+static void M_SoundTestResetScroll(void)
+{
+	st_scroll = 0;
+	st_scrollbar = -1;
+}
+#endif
 
 static void M_CacheSoundTest(void)
 {
@@ -10693,6 +10873,11 @@ static void M_SoundTest(INT32 choice)
 	st_time = 0;
 
 	st_sel = 0;
+	st_padheld = false;
+
+#ifdef TOUCHINPUTS
+	M_SoundTestResetScroll();
+#endif
 
 	st_cc = cv_closedcaptioning.value; // hack;
 	cv_closedcaptioning.value = 1; // hack
@@ -10700,11 +10885,128 @@ static void M_SoundTest(INT32 choice)
 	M_SetupNextMenu(&SR_SoundTestDef);
 }
 
+static void M_SoundTestGetItems(INT32 *t_out, INT32 *i_out, INT32 *b_out, INT32 *height_out, boolean scrolled)
+{
+	INT32 t, b, q, i, height = st_list_height;
+	INT32 sel = st_sel;
+
+#ifdef TOUCHINPUTS
+	if (scrolled)
+		sel = min(FixedInt(st_scroll / 24), numsoundtestdefs);
+#else
+	(void)scrolled;
+#endif
+
+	if (numsoundtestdefs <= 7)
+	{
+		t = 0;
+		b = numsoundtestdefs - 1;
+		i = 0;
+	}
+	else
+	{
+		q = height;
+		height = (5*height)/numsoundtestdefs;
+		if (sel < 3)
+		{
+			t = 0;
+			b = 6;
+			i = 0;
+		}
+		else if (sel >= numsoundtestdefs-4)
+		{
+			t = numsoundtestdefs - 7;
+			b = numsoundtestdefs - 1;
+			i = q-height;
+		}
+		else
+		{
+			t = sel - 3;
+			b = sel + 3;
+			i = (t * (q-height))/(numsoundtestdefs - 7);
+		}
+	}
+
+	if (t_out)
+		(*t_out) = t;
+	if (i_out)
+		(*i_out) = i;
+	if (b_out)
+		(*b_out) = b;
+	if (height_out)
+		(*height_out) = height;
+}
+
+static void M_SoundTestGetScrollbar(INT32 *x, INT32 *y, INT32 *w, INT32 *h, INT32 i, INT32 height)
+{
+	INT32 offs = st_list_x+140-1, width = 1;
+
+#ifdef TOUCHINPUTS
+	if (M_TouchInputs())
+	{
+		offs += 3;
+		width = 12;
+	}
+#endif
+
+	(*x) = offs;
+	(*y) = 60 + i;
+	(*w) = width;
+	(*h) = height;
+}
+
+static void M_SoundTestGetRadio(INT32 *x, INT32 *y, fixed_t *hscale_out, fixed_t *vscale_out, fixed_t *bounce_out, UINT8 *frame)
+{
+	fixed_t hscale = FRACUNIT/2, vscale = FRACUNIT/2, bounce = 0;
+
+	if (x)
+		(*x) = 90<<FRACBITS;
+	if (x)
+		(*y) = (BASEVIDHEIGHT-32)<<FRACBITS;
+
+	if (curplaying && curplaying != &soundtestsfx)
+	{
+		fixed_t work, bpm = curplaying->bpm;
+		angle_t ang;
+		//bpm = FixedDiv((60*TICRATE)<<FRACBITS, bpm); -- bake this in on load
+
+		work = st_time<<FRACBITS;
+		work %= bpm;
+
+		if (st_time >= (FRACUNIT>>1)) // prevent overflow jump - takes about 15 minutes of loop on the same song to reach
+			st_time = (work>>FRACBITS);
+
+		work = FixedDiv(work*180, bpm);
+
+		if (frame)
+		{
+			UINT8 f = 8-(work/(20<<FRACBITS));
+			if (f > 8) // VERY small likelihood for the above calculation to wrap, but it turns out it IS possible lmao
+				f = 0;
+			(*frame) = f;
+		}
+
+		ang = (FixedAngle(work)>>ANGLETOFINESHIFT) & FINEMASK;
+		bounce = (FINESINE(ang) - FRACUNIT/2);
+		hscale -= bounce/16;
+		vscale += bounce/16;
+	}
+
+	if (hscale_out)
+		(*hscale_out) = hscale;
+	if (vscale_out)
+		(*vscale_out) = vscale;
+	if (bounce_out)
+		(*bounce_out) = bounce;
+}
+
 static void M_DrawSoundTest(void)
 {
 	INT32 x, y, i;
-	fixed_t hscale = FRACUNIT/2, vscale = FRACUNIT/2, bounce = 0;
+	fixed_t hscale, vscale, bounce = 0;
 	UINT8 frame[4] = {0, 0, -1, SKINCOLOR_RUBY};
+
+	M_SoundTestGetRadio(&x, &y, &hscale, &vscale, &bounce, &frame[0]);
 
 	// let's handle the ticker first. ideally we'd tick this somewhere else, BUT...
 	if (curplaying)
@@ -10716,7 +11018,8 @@ static void M_DrawSoundTest(void)
 				frame[1] = (2-st_time);
 				frame[2] = ((cv_soundtest.value - 1) % 9);
 				frame[3] += (((cv_soundtest.value - 1) / 9) % (FIRSTSUPERCOLOR - frame[3]));
-				if (st_time < 2)
+
+				if (!st_padheld && st_time < 2)
 					st_time++;
 			}
 		}
@@ -10728,33 +11031,9 @@ static void M_DrawSoundTest(void)
 				st_time = 0;
 			}
 			else
-			{
-				fixed_t work, bpm = curplaying->bpm;
-				angle_t ang;
-				//bpm = FixedDiv((60*TICRATE)<<FRACBITS, bpm); -- bake this in on load
-
-				work = st_time<<FRACBITS;
-				work %= bpm;
-
-				if (st_time >= (FRACUNIT>>1)) // prevent overflow jump - takes about 15 minutes of loop on the same song to reach
-					st_time = (work>>FRACBITS);
-
-				work = FixedDiv(work*180, bpm);
-				frame[0] = 8-(work/(20<<FRACBITS));
-				if (frame[0] > 8) // VERY small likelihood for the above calculation to wrap, but it turns out it IS possible lmao
-					frame[0] = 0;
-				ang = (FixedAngle(work)>>ANGLETOFINESHIFT) & FINEMASK;
-				bounce = (FINESINE(ang) - FRACUNIT/2);
-				hscale -= bounce/16;
-				vscale += bounce/16;
-
 				st_time++;
-			}
 		}
 	}
-
-	x = 90<<FRACBITS;
-	y = (BASEVIDHEIGHT-32)<<FRACBITS;
 
 	V_DrawStretchyFixedPatch(x, y,
 		hscale, vscale,
@@ -10787,8 +11066,9 @@ static void M_DrawSoundTest(void)
 	y = (BASEVIDWIDTH-(vid.width/vid.dupx))/2;
 
 	V_DrawFill(y, 20, vid.width/vid.dupx, 24, 159);
+
 	{
-		static fixed_t st_scroll = -1;
+		static fixed_t scroll = -1;
 		const char* titl;
 		x = 16;
 		V_DrawString(x, 10, 0, "NOW PLAYING:");
@@ -10804,10 +11084,10 @@ static void M_DrawSoundTest(void)
 
 		i = V_LevelNameWidth(titl);
 
-		if (++st_scroll >= i)
-			st_scroll %= i;
+		if (++scroll >= i)
+			scroll %= i;
 
-		x -= st_scroll;
+		x -= scroll;
 
 		while (x < BASEVIDWIDTH-y)
 			x += i;
@@ -10821,56 +11101,41 @@ static void M_DrawSoundTest(void)
 			V_DrawRightAlignedThinString(BASEVIDWIDTH-16, 46, V_ALLOWLOWERCASE, curplaying->authors);
 	}
 
-	V_DrawFill(165, 60, 140, 112, 159);
+	V_DrawFill(st_list_x, 60, 140, st_list_height, 159);
 
 	{
-		INT32 t, b, q, m = 112;
+		INT32 t, b, m;
+		INT32 sx, sy, sw, sh;
+		boolean ontouchscreen = M_TouchInputs();
 
-		if (numsoundtestdefs <= 7)
+		M_SoundTestGetItems(&t, &i, &b, &m, ontouchscreen);
+		M_SoundTestGetScrollbar(&sx, &sy, &sw, &sh, i, m);
+
+		if (ontouchscreen)
+			V_DrawFill(sx, 60, sw, st_list_height, 159);
+
+		V_DrawFill(sx, sy, sw, sh, 0);
+
+		if (!ontouchscreen)
 		{
-			t = 0;
-			b = numsoundtestdefs - 1;
-			i = 0;
-		}
-		else
-		{
-			q = m;
-			m = (5*m)/numsoundtestdefs;
-			if (st_sel < 3)
-			{
-				t = 0;
-				b = 6;
-				i = 0;
-			}
-			else if (st_sel >= numsoundtestdefs-4)
-			{
-				t = numsoundtestdefs - 7;
-				b = numsoundtestdefs - 1;
-				i = q-m;
-			}
-			else
-			{
-				t = st_sel - 3;
-				b = st_sel + 3;
-				i = (t * (q-m))/(numsoundtestdefs - 7);
-			}
+			if (t != 0)
+				V_DrawString(st_list_x+140+4, 60+4 - (skullAnimCounter/5), V_YELLOWMAP, "\x1A");
+
+			if (b != numsoundtestdefs - 1)
+				V_DrawString(st_list_x+140+4, 60+st_list_height-12 + (skullAnimCounter/5), V_YELLOWMAP, "\x1B");
 		}
 
-		V_DrawFill(165+140-1, 60 + i, 1, m, 0);
-
-		if (t != 0)
-			V_DrawString(165+140+4, 60+4 - (skullAnimCounter/5), V_YELLOWMAP, "\x1A");
-
-		if (b != numsoundtestdefs - 1)
-			V_DrawString(165+140+4, 60+112-12 + (skullAnimCounter/5), V_YELLOWMAP, "\x1B");
-
-		x = 169;
+		x = st_list_x+4;
 		y = 64;
+
+		sw = 140;
+		if (!ontouchscreen)
+			sw--;
 
 		while (t <= b)
 		{
 			if (t == st_sel)
-				V_DrawFill(165, y-4, 140-1, 16, 155);
+				V_DrawFill(st_list_x, y-4, sw, 16, 155);
 			if (!soundtestdefs[t]->allowed)
 			{
 				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE, "???");
@@ -10889,10 +11154,11 @@ static void M_DrawSoundTest(void)
 
 				if (curplaying == soundtestdefs[t])
 				{
+					INT32 offs = (ontouchscreen ? 0 : 1);
 					sfxstr = (cv_soundtest.value) ? S_sfx[cv_soundtest.value].name : "N/A";
 					i = V_StringWidth(sfxstr, 0);
-					V_DrawFill(165+140-9-i, y-4, i+8, 16, 150);
-					V_DrawRightAlignedString(165+140-5, y, V_YELLOWMAP, sfxstr);
+					V_DrawFill(st_list_x+140-(8+offs)-i, y-4, i+8, 16, 150);
+					V_DrawRightAlignedString(165+140-(4+offs), y, V_YELLOWMAP, sfxstr);
 				}
 			}
 			else
@@ -10900,9 +11166,8 @@ static void M_DrawSoundTest(void)
 				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE, soundtestdefs[t]->title);
 				if (curplaying == soundtestdefs[t])
 				{
-					V_DrawFill(165+140-9, y-4, 8, 16, 150);
-					//V_DrawCharacter(165+140-8, y, '\x19' | V_YELLOWMAP, false);
-					V_DrawFixedPatch((165+140-9)<<FRACBITS, (y<<FRACBITS)-(bounce*4), FRACUNIT, 0, hu_font['\x19'-HU_FONTSTART], V_GetStringColormap(V_YELLOWMAP));
+					V_DrawFill(st_list_x+sw-8, y-4, 8, 16, 150);
+					V_DrawFixedPatch((st_list_x+sw-8)<<FRACBITS, (y<<FRACBITS)-(bounce*4), FRACUNIT, 0, hu_font['\x19'-HU_FONTSTART], V_GetStringColormap(V_YELLOWMAP));
 				}
 			}
 			t++;
@@ -11032,6 +11297,225 @@ static void M_HandleSoundTest(INT32 choice)
 			M_ClearMenus(true);
 	}
 }
+
+#ifdef TOUCHINPUTS
+TSNAVHANDLER(SoundTest)
+{
+	INT32 fx = event->x;
+	INT32 fy = event->y;
+	INT32 sx, sy, sw, sh;
+	boolean sbar = (numsoundtestdefs > 7);
+
+	INT32 t, b, i, m;
+
+	if (lastinputmethod != INPUTMETHOD_TOUCH)
+	{
+		INT32 sel = st_sel;
+
+		M_SoundTestGetItems(&t, &i, &b, &m, false);
+
+		if (sel <= 3)
+			st_scroll = 0;
+		else if (sel >= numsoundtestdefs-4)
+			st_scroll = numsoundtestdefs-4;
+		else
+			st_scroll = sel;
+
+		if (st_scroll)
+			st_scroll *= 24<<FRACBITS;
+	}
+
+	if (event->type == ev_touchup)
+		st_padheld = false;
+
+	M_SoundTestGetItems(&t, &i, &b, &m, true);
+
+	if (sbar)
+	{
+		M_SoundTestGetScrollbar(&sx, &sy, &sw, &sh, i, m);
+
+		switch (event->type)
+		{
+			case ev_touchdown:
+				if (st_scrollbar >= 0)
+					break;
+				else if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh))
+				{
+					st_scrollbar = event->key;
+					finger->type.menu = true;
+					finger->selection = 0;
+					return true;
+				}
+				break;
+			case ev_touchmotion:
+				if (st_scrollbar == event->key)
+				{
+					fixed_t scroll = FloatToFixed((finger->fdy * (st_list_height / (float)m)) / (float)vid.dupy);
+
+					st_scroll = max(0, st_scroll - scroll);
+
+					finger->type.menu = true;
+					return true;
+				}
+				break;
+			case ev_touchup:
+				if (st_scrollbar >= 0)
+				{
+					fixed_t max = (numsoundtestdefs-4) * 24<<FRACBITS;
+					if (st_scroll > max)
+						st_scroll = max;
+
+					st_scrollbar = -1;
+
+					finger->type.menu = true;
+					finger->selection = 0;
+					return true;
+				}
+			default:
+				break;
+		}
+	}
+
+	sy = 60;
+	sh = 16;
+
+	while (t <= b)
+	{
+		sx = 164;
+		sw = 140;
+
+		if (soundtestdefs[t] == &soundtestsfx && t == st_sel)
+		{
+			const char *sfxstr = va("SFX %s", cv_soundtest.string);
+
+			i = st_list_x + 4;
+			sw = 16;
+
+			#define HANDLEARROW(key) \
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh)) \
+			{ \
+				if (event->type == ev_touchdown) \
+					finger->int_arr[0] = key; \
+				else if (event->type == ev_touchup && finger->int_arr[0] == key) \
+					M_HandleSoundTest(key); \
+				finger->type.menu = true; \
+				return true; \
+			}
+
+			sx = i - 16;
+			HANDLEARROW(KEY_LEFTARROW)
+
+			sx = i + 2 + V_StringWidth(sfxstr, 0);
+			HANDLEARROW(KEY_RIGHTARROW)
+
+			#undef HANDLEARROW
+
+			if (!cv_soundtest.value)
+				goto loop_done;
+			else if (curplaying == &soundtestsfx)
+			{
+				sfxstr = S_sfx[cv_soundtest.value].name;
+				i = V_StringWidth(sfxstr, 0);
+				sx = st_list_x+140-9-i;
+				sw = i + 8;
+			}
+		}
+
+		if (event->type == ev_touchdown)
+		{
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh))
+			{
+				finger->selection = t;
+				finger->type.menu = true;
+				return true;
+			}
+		}
+		else if (event->type == ev_touchup)
+		{
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh) && t == finger->selection)
+			{
+				if (st_sel == t && cv_touchnavmethod.value == 0)
+					M_HandleSoundTest(KEY_ENTER);
+				else
+				{
+					st_sel = t;
+					S_StartSound(NULL, sfx_menu1);
+				}
+
+				finger->selection = -1;
+				return true;
+			}
+		}
+
+loop_done:
+		t++;
+		sy += 16;
+		if (sy > BASEVIDHEIGHT)
+			break;
+	}
+
+	{
+		boolean launchpad = (soundtestdefs[st_sel] == &soundtestsfx);
+
+		if (!launchpad)
+		{
+			UINT8 frame = 0;
+			fixed_t hscale, vscale;
+			M_SoundTestGetRadio(&sx, &sy, &hscale, &vscale, NULL, &frame);
+			V_GetPatchScreenRegion(&sx, &sy, &sw, &sh, hscale, vscale, 0, st_radio[frame]);
+		}
+		else
+		{
+			M_SoundTestGetRadio(&sx, &sy, NULL, NULL, NULL, NULL);
+			V_GetPatchScreenRegion(&sx, &sy, &sw, &sh, FRACUNIT/2, FRACUNIT/2, 0, st_launchpad[0]);
+		}
+
+		sx /= FRACUNIT;
+		sy /= FRACUNIT;
+		sw /= FRACUNIT;
+		sh /= FRACUNIT;
+
+		if (event->type == ev_touchdown)
+		{
+			if (fx >= sx && fx <= sx+sw && fy >= sy && fy <= sy+sh)
+			{
+				if (launchpad)
+				{
+					st_padheld = true;
+					finger->selection = -3;
+					if (cv_soundtest.value)
+						M_HandleSoundTest(KEY_ENTER);
+					else
+						M_HandleSoundTest(KEY_BACKSPACE);
+				}
+				else
+					finger->selection = -2;
+
+				finger->type.menu = true;
+				return true;
+			}
+		}
+		else if (event->type == ev_touchup)
+		{
+			if ((fx >= sx && fx <= sx+sw && fy >= sy && fy <= sy+sh) && finger->selection == (launchpad ? -3 : -2))
+			{
+				if (!launchpad)
+				{
+					if (curplaying && curplaying != &soundtestsfx)
+						M_HandleSoundTest(KEY_BACKSPACE);
+					else
+						M_HandleSoundTest(KEY_ENTER);
+				}
+
+				finger->selection = -1;
+				return true;
+			}
+		}
+	}
+
+	return true;
+}
+#endif
 
 // Entering secrets menu
 static void M_SecretsMenu(INT32 choice)
@@ -11221,11 +11705,9 @@ static void M_SinglePlayerMenu(INT32 choice)
 	else // Otherwise, if Marathon Run is allowed and Record Attack is unlocked, unlock Marathon Run!
 		SP_MainMenu[spmarathon].status = raUnlocked ? IT_CALL|IT_STRING|IT_CALL_NOTMODIFIED : IT_SECRET;
 
-#if !defined(__ANDROID__)
 	if (tutorialmap) // If there's a tutorial available in the current add-on...
 		SP_MainMenu[sptutorial].status = IT_CALL | IT_STRING; // ...always unlock Tutorial
 	else // But if there's no tutorial available in the current add-on...
-#endif
 	{
 		SP_MainMenu[sptutorial].status = IT_NOTHING|IT_DISABLED; // ...hide and disable the Tutorial option...
 		M_SPShiftSelections(sptutorial); // ...and lower the above options' display positions by 8 pixels to close the gap
@@ -13180,7 +13662,7 @@ void M_DrawTimeAttackMenu(void)
 			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, V_YELLOWMAP, cv->string);
 			if (i == itemOn)
 			{
-				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 					'\x1C' | V_YELLOWMAP, false);
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset + 2 + (skullAnimCounter/5), y,
 					'\x1D' | V_YELLOWMAP, false);
@@ -13236,10 +13718,9 @@ void M_DrawTimeAttackMenu(void)
 		y = 32+lsheadingheight;
 		V_DrawSmallScaledPatch(216, y, 0, PictureOfLevel);
 
-
 		if (currentMenu == &SP_TimeAttackDef)
 		{
-			if (itemOn == talevel)
+			if (itemOn == talevel && !M_TouchInputs())
 			{
 				/* Draw arrows !! */
 				y = y + 25 - 4;
@@ -13248,10 +13729,9 @@ void M_DrawTimeAttackMenu(void)
 				V_DrawCharacter(216 + 80 + 2 + (skullAnimCounter/5), y,
 						'\x1D' | V_YELLOWMAP, false);
 			}
-#ifndef TOUCHINPUTS
+
 			// Draw press ESC to exit string on main record attack menu
-			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
-#endif
+			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetModeAttackExitString());
 		}
 
 		em = M_GetLevelEmblems(cv_nextmap.value);
@@ -13511,7 +13991,7 @@ void M_DrawNightsAttackMenu(void)
 			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, V_YELLOWMAP, cv->string);
 			if (i == itemOn)
 			{
-				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 					'\x1C' | V_YELLOWMAP, false);
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset + 2 + (skullAnimCounter/5), y,
 					'\x1D' | V_YELLOWMAP, false);
@@ -13551,10 +14031,9 @@ void M_DrawNightsAttackMenu(void)
 		y = 32+lsheadingheight;
 		V_DrawSmallScaledPatch(208, y, 0, PictureOfLevel);
 
-		// Draw press ESC to exit string on main nights attack menu
 		if (currentMenu == &SP_NightsAttackDef)
 		{
-			if (itemOn == nalevel)
+			if (itemOn == nalevel && !M_TouchInputs())
 			{
 				/* Draw arrows !! */
 				y = y + 25 - 4;
@@ -13563,10 +14042,9 @@ void M_DrawNightsAttackMenu(void)
 				V_DrawCharacter(208 + 80 + 2 + (skullAnimCounter/5), y,
 						'\x1D' | V_YELLOWMAP, false);
 			}
-#ifndef TOUCHINPUTS
-			// Draw press ESC to exit string on main record attack menu
-			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
-#endif
+
+			// Draw press ESC to exit string on main nights attack menu
+			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetModeAttackExitString());
 		}
 
 		// Super Sonic
@@ -13999,6 +14477,7 @@ static void M_HandleMarathonChoosePlayer(INT32 choice)
 			char_on = selectval;
 			break;
 		case KEY_RIGHTARROW:
+		case KEY_ENTER:
 			if ((selectval = description[char_on].next) == char_on)
 				return;
 			char_on = selectval;
@@ -14197,16 +14676,9 @@ void M_DrawMarathon(void)
 		work = NULL;
 		if ((currentMenu->menuitems[i].status & IT_TYPE) == IT_CVAR)
 		{
-			const char *str;
-
 			cv = (consvar_t *)currentMenu->menuitems[i].itemaction;
 			cvstring = cv->string;
-			str = M_CVarLongestValue(cv);
-
-			if (cv == &cv_dummymarathon && cv->value == 1)
-				cvwidth = V_ThinStringWidth(str, 0);
-			else
-				cvwidth = V_StringWidth(str, 0);
+			cvwidth = M_CVarLongestValueWidth(cv, 0);
 		}
 		else if (i == marathonplayer)
 		{
@@ -14225,8 +14697,8 @@ void M_DrawMarathon(void)
 			else
 				cvstring = description[char_on].skinname;
 
-			if (inputmethod == INPUTMETHOD_TOUCH)
-				cvwidth = V_StringWidth(M_LongestCharacterName(), 0);
+			if (M_TouchInputs())
+				cvwidth = V_StringWidth(M_LongestPlayerName(), 0);
 			else
 				cvwidth = V_StringWidth(cvstring, 0);
 		}
@@ -14242,9 +14714,9 @@ void M_DrawMarathon(void)
 
 			// Should see nothing but strings
 			if (cv == &cv_dummymarathon && cv->value == 1)
-				V_DrawThinString(BASEVIDWIDTH - x - soffset - w, y+1, flags, cvstring);
+				V_DrawRightAlignedThinString(BASEVIDWIDTH - x - soffset, y+1, flags, cvstring);
 			else
-				V_DrawString(BASEVIDWIDTH - x - soffset - w, y, flags, cvstring);
+				V_DrawRightAlignedString(BASEVIDWIDTH - x - soffset, y, flags, cvstring);
 			if (i == itemOn)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - w - (skullAnimCounter/5), y,
@@ -14262,7 +14734,7 @@ void M_DrawMarathon(void)
 	V_DrawString(currentMenu->x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
 
 	// Draw press ESC to exit string on main record attack menu
-	V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
+	V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetModeAttackExitString());
 }
 
 // ========
@@ -16902,7 +17374,7 @@ static void M_DrawColorMenu(void)
 									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
 								if (i == itemOn)
 								{
-									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(M_CVarLongestValue(cv), 0) - (skullAnimCounter/5), y,
+									V_DrawCharacter(BASEVIDWIDTH - x - 10 - M_CVarLongestValueWidth(cv, 0) - (skullAnimCounter/5), y,
 											'\x1C' | V_YELLOWMAP, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 											'\x1D' | V_YELLOWMAP, false);

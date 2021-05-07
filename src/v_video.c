@@ -3171,10 +3171,10 @@ void V_DrawScaledString(fixed_t x, fixed_t y, fixed_t scale, INT32 option, const
 		if (charwidth)
 		{
 			w = charwidth * dupx;
-			center = w/2 - SHORT(hu_font[c]->width)*(dupx/2);
+			center = w/2 - hu_font[c]->width*(dupx/2);
 		}
 		else
-			w = SHORT(hu_font[c]->width) * dupx;
+			w = hu_font[c]->width * dupx;
 
 		if ((cx>>FRACBITS) > scrwidth)
 			continue;

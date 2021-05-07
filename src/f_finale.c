@@ -4126,7 +4126,7 @@ static void F_GetPageTextGeometry(UINT8 *pagelines, boolean *rightside, INT32 *b
 	*textr = *rightside ? BASEVIDWIDTH - (((*boxh * 4) + (*boxh/2)*4) + 4) : BASEVIDWIDTH-4;
 }
 
-static fixed_t F_GetPromptHideHudBound(void)
+fixed_t F_GetPromptHideHudBound(void)
 {
 	UINT8 pagelines;
 	boolean rightside;

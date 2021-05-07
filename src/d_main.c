@@ -77,6 +77,7 @@
 
 #ifdef TOUCHINPUTS
 #include "ts_custom.h"
+#include "ts_draw.h"
 #endif
 
 #ifdef HWRENDER
@@ -370,6 +371,9 @@ static void D_Display(void)
 
 		case GS_INTERMISSION:
 			Y_IntermissionDrawer();
+#ifdef TOUCHINPUTS
+			TS_DrawControlsNotInGame();
+#endif
 			HU_Erase();
 			HU_Drawer();
 			break;

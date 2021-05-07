@@ -2819,22 +2819,28 @@ static void ST_overlayDrawer(void)
 	demoinputdrawn = false;
 
 #ifdef TOUCHINPUTS
-	if (M_IsOnTouchOptions())
+	if (demoplayback || promptblockcontrols)
+		drawtouchcontrols = false;
+
+	if (splitscreen && stplyr == &players[secondarydisplayplayer])
+		drawtouchbuttons = false;
+	else if (M_IsOnTouchOptions())
 	{
 		drawtouchbuttons = true;
 		touchalphalevel = cv_touchtrans.value;
 	}
 	else
 	{
-		drawtouchbuttons = (G_InGameInput() && touchscreenavailable && controlmethod == INPUTMETHOD_TOUCH);
+		drawtouchbuttons = TS_CanDrawButtons();
 		touchalphalevel = min(cv_touchtrans.value, st_translucency);
-
-		if (takescreenshot && !cv_touchscreenshots.value)
-			drawtouchbuttons = false;
 	}
 
-	if (drawtouchbuttons && !demoplayback)
+	if (drawtouchbuttons)
+	{
 		TS_DrawControls(touchcontrols, drawtouchcontrols && (stplyr == &players[consoleplayer]), touchalphalevel);
+		if (modeattacking && demoplayback)
+			ST_drawInput();
+	}
 	else
 #endif
 	if (modeattacking && !(demoplayback && hu_showscores)

@@ -92,6 +92,7 @@
 
 #ifdef TOUCHINPUTS
 #include "../ts_main.h"
+#include "../ts_draw.h"
 #endif
 
 #if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
@@ -121,7 +122,9 @@ static void Impl_SetDither(void);
 static consvar_t cv_dither = CVAR_INIT ("dither", "Off", CV_SAVE|CV_CALL|CV_NOINIT, CV_OnOff, Impl_SetDither);
 #endif
 
+#if defined(__ANDROID__)
 static void Impl_SetColorBufferDepth(INT32 red, INT32 green, INT32 blue, INT32 alpha);
+#endif
 
 UINT8 graphics_started = 0; // Is used in console.c and screen.c
 
@@ -1502,7 +1505,7 @@ void I_FinishUpdate(void)
 
 #ifdef TOUCHINPUTS
 	if (touchscreenavailable && cv_showfingers.value && !(takescreenshot && !cv_touchscreenshots.value))
-		SCR_DisplayFingers();
+		TS_DrawFingers();
 #endif
 
 	if (appOnBackground == SDL_TRUE)

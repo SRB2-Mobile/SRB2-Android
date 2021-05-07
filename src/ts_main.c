@@ -25,6 +25,7 @@
 
 #include "st_stuff.h"
 #include "hu_stuff.h"
+#include "v_video.h"
 
 #include "s_sound.h" // S_StartSound
 
@@ -316,7 +317,7 @@ static void HandleNonPlayerControlButton(INT32 gc)
 	else if (gc == gc_console)
 		CON_Toggle();
 	// Handle pause button
-	else if (gc == gc_pause)
+	else if (gc == gc_pause && !modeattacking)
 		G_HandlePauseKey(true);
 	// Handle spy mode
 	else if (gc == gc_viewpoint)
@@ -364,7 +365,7 @@ void TS_HandleFingerEvent(event_t *ev)
 	touchfinger_t *finger = &touchfingers[ev->key];
 	boolean touchmotion = (ev->type == ev_touchmotion);
 	boolean foundbutton = false;
-	boolean movecamera = true;
+	boolean movecamera = (!splitscreen);
 	INT32 gc = finger->u.gamecontrol, i;
 
 	if (TS_IsCustomizingControls())
@@ -426,7 +427,7 @@ void TS_HandleFingerEvent(event_t *ev)
 				}
 
 				// Ignore disabled player controls
-				if (!touch_useinputs && TS_ButtonIsPlayerControl(i))
+				if ((!touch_useinputs || promptblockcontrols) && TS_ButtonIsPlayerControl(i))
 					continue;
 
 				// Check if your finger touches this button.
@@ -488,6 +489,8 @@ void TS_HandleFingerEvent(event_t *ev)
 				INT32 dx = finger->dx;
 				INT32 dy = finger->dy;
 
+				controlmethod = INPUTMETHOD_TOUCH;
+
 				if (touchmotion && finger->type.joystick) // Remember that this is an union!
 				{
 					INT32 movex = (INT32)(dx*((cv_touchcamhorzsens.value*cv_touchcamhorzsens.value)/110.0f + 0.1f));
@@ -514,7 +517,6 @@ void TS_HandleFingerEvent(event_t *ev)
 						touchxmove = (fx * xsens) / (FixedToFloat(touch_joystick_w) * (float)vid.dupx);
 						touchymove = (fy * ysens) / (FixedToFloat(touch_joystick_h) * (float)vid.dupy);
 						touchpressure = finger->pressure;
-						controlmethod = INPUTMETHOD_TOUCH;
 					}
 					// Mouse
 					else if (finger->type.mouse == FINGERMOTION_MOUSE && (touch_camera && movecamera))
@@ -522,14 +524,12 @@ void TS_HandleFingerEvent(event_t *ev)
 						mousex = movex;
 						mousey = movey;
 						mlooky = (INT32)(dy*((cv_touchcamvertsens.value*cv_touchcamhorzsens.value)/110.0f + 0.1f));
-						controlmethod = INPUTMETHOD_TOUCH;
 					}
 				}
 				else if (touch_camera && movecamera)
 				{
 					finger->type.mouse = FINGERMOTION_MOUSE;
 					finger->u.gamecontrol = gc_null;
-					controlmethod = INPUTMETHOD_TOUCH;
 				}
 			}
 			break;
@@ -613,10 +613,11 @@ void TS_UpdateFingers(INT32 realtics)
 		{
 			if (pausedelay < 0)
 				finger->longpress = 0;
-			else if (finger->longpress < TICRATE)
+			else if (finger->longpress < TICRATE/2)
 			{
-				pausedelay = 3;
-				finger->longpress++;
+				if (!finger->longpress && pausedelay < 1+(NEWTICRATE/2))
+					pausedelay = 1+(NEWTICRATE/2);
+				finger->longpress += realtics;
 			}
 			else if (G_CanRetryModeAttack())
 				G_HandlePauseKey(false);
@@ -662,6 +663,7 @@ void TS_OnTouchEvent(INT32 id, evtype_t type, touchevent_t *event)
 	finger->fdx = event->fdx;
 	finger->fdy = event->fdy;
 	finger->pressure = event->pressure;
+	finger->longpress = 0;
 
 	if (type == ev_touchdown)
 		finger->down = true;
@@ -980,6 +982,11 @@ static touchbuttonname_t touchbuttonnames[] = {
 	{gc_null, NULL, NULL}
 };
 
+static touchbuttonname_t replaytouchbuttonnames[] = {
+	{gc_systemmenu, "EXIT", "ESC"},
+	{gc_null, NULL, NULL}
+};
+
 static touchbuttonname_t nightstouchbuttonnames[] = {
 	{gc_spin, "BRAKE", "BRK"},
 	{gc_jump, "DRILL", "DRL"},
@@ -989,6 +996,15 @@ static touchbuttonname_t nightstouchbuttonnames[] = {
 const char *TS_GetButtonName(INT32 gc, touchconfigstatus_t *status)
 {
 	INT32 i;
+
+	if (modeattacking && demoplayback)
+	{
+		for (i = 0; (replaytouchbuttonnames[i].gc != gc_null); i++)
+		{
+			if (replaytouchbuttonnames[i].gc == gc)
+				return replaytouchbuttonnames[i].name;
+		}
+	}
 
 	if (status && status->nights)
 	{
@@ -1081,27 +1097,41 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	fixed_t corneroffset = 4 * FRACUNIT;
 	fixed_t topcorner, bottomcorner, rightcorner;
 	fixed_t jsoffs = status->ringslinger ? (-4 * FRACUNIT) : 0, jumph;
-	fixed_t offs = (promptactive ? -16 : 0);
+	fixed_t offs = 0;
+	fixed_t promptoffs = 0;
 	fixed_t nonjoyoffs = -12 * FRACUNIT;
 	fixed_t bottomalign = 0;
 
 	touchconfig_t *ref;
 	boolean bothvisible;
 	boolean eithervisible;
+	boolean specialstage = (status->nights || status->specialstage);
+
+	if (status->tutorialmode && status->promptactive)
+	{
+		y = F_GetPromptHideHudBound();
+		if (y < 0)
+			promptoffs = -(y / vid.dupy);
+	}
 
 	if (widescreen)
 	{
 		rightcorner = (((vid.width / vid.dupx) - status->corners) * FRACUNIT);
-		bottomcorner = ((vid.height / vid.dupy) * FRACUNIT);
+		bottomcorner = (((vid.height / vid.dupy) - promptoffs) * FRACUNIT);
 	}
 	else
 	{
 		rightcorner = (BASEVIDWIDTH - status->corners) * FRACUNIT;
-		bottomcorner = BASEVIDHEIGHT * FRACUNIT;
+		bottomcorner = (BASEVIDHEIGHT - promptoffs) * FRACUNIT;
 	}
 
 	if (status->altliveshud)
-		topcorner = (ST_GetLivesHUDInfo()->y * FRACUNIT) + (16 * FRACUNIT) + corneroffset;
+	{
+		y = (16 * FRACUNIT);
+		if (status->splitscreen)
+			y /= 2;
+		topcorner = (ST_GetLivesHUDInfo()->y * FRACUNIT) + y + corneroffset;
+	}
 	else
 		topcorner = corneroffset;
 
@@ -1111,6 +1141,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 
 	TS_GetJoystick(&dx, &dy, &dw, &dh, tiny);
 	dx += (status->corners * FRACUNIT);
+	dy -= (promptoffs * FRACUNIT);
 
 	// D-Pad
 	ScaleDPadBase(tms, status, tiny, dx, dy, dw, dh, scale, offs, bottomalign);
@@ -1125,8 +1156,11 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	controls[gc_joystick].w = touch_joystick_w;
 	controls[gc_joystick].h = touch_joystick_h;
 
-	if (status->nights || status->specialstage)
+	if (specialstage)
 		jsoffs += (16 * FRACUNIT);
+
+	if (status->nights && status->modeattacking)
+		jsoffs -= (24 * FRACUNIT);
 
 	// Jump and spin
 	if (tiny)
@@ -1218,7 +1252,7 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	controls[gc_systemmenu].w = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].h = SCALECOORD(32 * FRACUNIT);
 	controls[gc_systemmenu].x = (rightcorner - controls[gc_systemmenu].w - corneroffset);
-	controls[gc_systemmenu].y = (topcorner + ((status->nights || status->specialstage) ? 40 * FRACUNIT : 0));
+	controls[gc_systemmenu].y = (topcorner + (specialstage ? 40 * FRACUNIT : 0));
 
 	// Pause
 	controls[gc_pause].x = controls[gc_systemmenu].x;
@@ -1253,12 +1287,15 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	{
 		fixed_t left, top;
 
-		if (bothvisible)
+		if (!status->cantalk)
+			ref = &controls[gc_systemmenu];
+		else if (bothvisible)
 			ref = &controls[gc_pause];
 		else // only if one of either are visible, but not both
 			ref = (controls[gc_viewpoint].hidden ? &controls[gc_pause] : &controls[gc_viewpoint]);
 
-		if (status->nights || status->specialstage)
+		if (specialstage && !status->modeattacking
+		&& !(!controls[gc_viewpoint].hidden || !controls[gc_pause].hidden))
 		{
 			left = rightcorner;
 			top = ref->y + ref->h + SCALECOORD(4 * FRACUNIT);
@@ -1274,11 +1311,14 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	}
 	else
 	{
+		boolean bothhidden = (controls[gc_pause].hidden && controls[gc_viewpoint].hidden);
+		boolean usemenupos = (specialstage && (!status->cantalk && bothhidden));
+		boolean usespecialstagepos = (!usemenupos) && (specialstage && !(status->cantalk && bothhidden));
 		fixed_t left, top;
 
-		ref = &controls[(status->nights || status->specialstage) ? gc_systemmenu : gc_viewpoint];
-		left = (status->nights || status->specialstage) ? rightcorner : ref->x;
-		top = (status->nights || status->specialstage) ? ref->h + SCALECOORD(4 * FRACUNIT) : 0;
+		ref = &controls[usemenupos ? gc_systemmenu : gc_viewpoint];
+		left = usespecialstagepos ? rightcorner : ref->x;
+		top = usespecialstagepos ? ref->h + SCALECOORD(4 * FRACUNIT) : 0;
 
 		x = (left - w - SCALECOORD(4 * FRACUNIT));
 		y = ref->y + top;
@@ -1464,33 +1504,39 @@ void TS_PositionNavigation(void)
 {
 	touchnavstatus_t *status = &touchnavigationstatus;
 	touchnavbutton_t *nav = touchnavigation;
-	fixed_t hcorner = 12, vcorner;
-	INT32 size = 0;
+	fixed_t hcorner = 4 * FRACUNIT, vcorner = hcorner;
 	fixed_t basebtnsize = 24 * FRACUNIT;
 	fixed_t btnsize = basebtnsize;
+	INT32 dupz = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 
 	touchnavbutton_t *back = &nav[TOUCHNAV_BACK];
 	touchnavbutton_t *confirm = &nav[TOUCHNAV_CONFIRM];
 	touchnavbutton_t *con = &nav[TOUCHNAV_CONSOLE];
 
-	if (vid.width == BASEVIDWIDTH * vid.dupx)
-		hcorner = 4;
-	else
+	if (vid.width != BASEVIDWIDTH * vid.dupx)
 	{
-		fixed_t dup = min(FixedDiv(vid.width * FRACUNIT, BASEVIDWIDTH * FRACUNIT), (vid.dupx - 1)<<FRACBITS);
-		size = ((vid.width - hcorner) - (BASEVIDWIDTH * vid.dupx)) / 8;
-		btnsize += max(FixedMul(size, dup), basebtnsize);
-	}
+		INT32 left = (vid.width - (BASEVIDWIDTH * dupz)) / 2;
+		INT32 top = (vid.height - (BASEVIDHEIGHT * dupz)) / 2;
+		fixed_t size;
 
-	hcorner *= FRACUNIT;
-	vcorner = hcorner;
+		if (top > left)
+			size = (top * FRACUNIT) - ((vcorner + basebtnsize) * dupz);
+		else
+			size = (left * FRACUNIT) - ((hcorner * 2 + basebtnsize) * dupz);
+
+		size /= dupz;
+
+		if (size > 0)
+			btnsize += size;
+	}
 
 	hcorner += (status->corners * FRACUNIT);
 
 	// Back
 	back->key = KEY_ESCAPE;
-	back->defined = true;
+	back->shadow = false;
 	back->dontscaletext = (btnsize == basebtnsize);
+	back->defined = true;
 
 	if (!status->canreturn)
 		back->defined = false;
@@ -1506,16 +1552,33 @@ void TS_PositionNavigation(void)
 	}
 	else
 	{
+		fixed_t y = vcorner;
+		fixed_t test = 0;
+
 		back->patch = "NAV_BACK";
-		back->x = hcorner;
-		back->y = vcorner;
+		back->shadow = true;
 		back->w = back->h = btnsize;
+
+		if (status->returncorner & TSNAV_CORNER_RIGHT)
+			back->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w) - hcorner;
+		else
+			back->x = hcorner;
+
+		if (vid.height != BASEVIDHEIGHT * dupz)
+			test = (BASEVIDHEIGHT * dupz) * FRACUNIT;
+
+		if ((status->returncorner & TSNAV_CORNER_BOTTOM)
+		|| (y > test && status->returncorner & TSNAV_CORNER_TOP_TEST))
+			back->y = (((vid.height / vid.dupy) * FRACUNIT) - back->h) - vcorner;
+		else
+			back->y = y;
 	}
 
 	// Confirm
 	confirm->key = KEY_ENTER;
-	confirm->defined = true;
+	confirm->shadow = false;
 	confirm->dontscaletext = (btnsize == basebtnsize);
+	confirm->defined = true;
 
 	if (status->layoutsubmenuopen || !status->canconfirm)
 		confirm->defined = false;
@@ -1533,8 +1596,9 @@ void TS_PositionNavigation(void)
 	else
 	{
 		confirm->patch = "NAV_CONFIRM";
+		confirm->shadow = true;
 		confirm->w = confirm->h = btnsize;
-		confirm->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w - hcorner);
+		confirm->x = (((vid.width / vid.dupx) * FRACUNIT) - confirm->w) - hcorner;
 		confirm->y = vcorner;
 	}
 
@@ -1593,16 +1657,24 @@ void TS_DefineButtons(void)
 		status.preset = touch_preset;
 		status.movementstyle = touch_movementstyle;
 
-		status.altliveshud = ST_AltLivesHUDEnabled();
 		status.ringslinger = G_RingSlingerGametype();
 		status.ctfgametype = (gametyperules & GTR_TEAMFLAGS);
 		status.nights = (maptol & TOL_NIGHTS);
 		status.specialstage = G_IsSpecialStage(gamemap);
+		status.tutorialmode = tutorialmode;
+		status.splitscreen = splitscreen;
+		status.modeattacking = modeattacking;
 		status.canpause = ((netgame && (cv_pause.value || server || IsPlayerAdmin(consoleplayer))) || (modeattacking && demorecording));
 		status.canviewpointswitch = G_CanViewpointSwitch(false);
 		status.cantalk = (netgame && !CHAT_MUTE);
 		status.canteamtalk = (G_GametypeHasTeams() && players[consoleplayer].ctfteam);
+		status.promptactive = promptactive;
 		status.promptblockcontrols = promptblockcontrols;
+
+		if (F_GetPromptHideHud(ST_GetLivesHUDInfo()->y))
+			status.altliveshud = false;
+		else
+			status.altliveshud = ST_AltLivesHUDEnabled() && (!(status.nights || status.specialstage)) && (gamestate == GS_LEVEL);
 
 		if (memcmp(&status, &touchcontrolstatus, size))
 		{
@@ -1648,6 +1720,7 @@ void TS_DefineNavigationButtons(void)
 	navstatus.canreturn = M_TSNav_CanShowBack();
 	navstatus.canconfirm = M_TSNav_CanShowConfirm();
 	navstatus.canopenconsole = ((!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole());
+	navstatus.returncorner = M_TSNav_BackCorner();
 
 	if (memcmp(&navstatus, &touchnavigationstatus, size))
 	{

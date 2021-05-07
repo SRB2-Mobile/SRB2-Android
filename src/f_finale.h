@@ -62,6 +62,7 @@ void F_TextPromptDrawer(void);
 void F_EndTextPrompt(boolean forceexec, boolean noexec);
 boolean F_GetPromptHideHudAll(void);
 boolean F_GetPromptHideHud(fixed_t y);
+fixed_t F_GetPromptHideHudBound(void);
 
 void F_StartGameEnd(void);
 void F_StartIntro(void);

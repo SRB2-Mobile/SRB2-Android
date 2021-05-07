@@ -19,7 +19,11 @@
 
 #ifdef TOUCHINPUTS
 void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alphalevel);
+void TS_DrawControlsNotInGame(void);
+boolean TS_CanDrawButtons(void);
+
 void TS_DrawNavigation(void);
+void TS_DrawFingers(void);
 #endif
 
 #endif // __TS_DRAW_H__

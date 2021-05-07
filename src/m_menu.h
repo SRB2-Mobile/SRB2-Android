@@ -147,13 +147,14 @@ typedef enum
 
 typedef enum
 {
-	MENUSTYLE_DEFAULT   = 0,
+	MENUSTYLE_DEFAULT = 0,
 	MENUSTYLE_SCROLL,
 	MENUSTYLE_CENTER,
 	MENUSTYLE_PLATTER,
 	MENUSTYLE_PLAYSTYLE,
 	MENUSTYLE_VIDEOMODES,
 	MENUSTYLE_ADDONS,
+	MENUSTYLE_SOUNDTEST,
 
 	MENUSTYLE_MOBILE    = 0x100,
 } menustyle_t;
@@ -424,6 +425,8 @@ boolean M_TSNav_CanShowConsole(void);
 
 boolean M_TSNav_OnMainMenu(void);
 boolean M_TSNav_OnMessage(void);
+
+INT32 M_TSNav_BackCorner(void);
 
 void M_TSNav_SetBackVisible(boolean set);
 void M_TSNav_SetConfirmVisible(boolean set);

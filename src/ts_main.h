@@ -101,6 +101,7 @@ typedef struct
 	const char *name; // name
 	const char *patch; // patch
 	UINT8 color, pressedcolor; // colors
+	boolean shadow; // display a shadow beneath the button
 
 	boolean down; // is down
 	tic_t tics; // time held down
@@ -186,10 +187,14 @@ typedef struct
 	boolean ctfgametype; // gametyperules & GTR_TEAMFLAGS
 	boolean nights; // maptol & TOL_NIGHTS
 	boolean specialstage; // G_IsSpecialStage
+	boolean tutorialmode;
+	boolean splitscreen;
+	UINT8 modeattacking;
 	boolean canpause;
 	boolean canviewpointswitch; // G_CanViewpointSwitch()
 	boolean cantalk; // netgame && !CHAT_MUTE
 	boolean canteamtalk; // G_GametypeHasTeams() && players[consoleplayer].ctfteam
+	boolean promptactive;
 	boolean promptblockcontrols;
 } touchconfigstatus_t;
 
@@ -205,7 +210,15 @@ typedef struct
 	boolean canopenconsole; // (!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole()
 	boolean customizingcontrols; // TS_IsCustomizingControls
 	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
+	INT32 returncorner; // M_TSNav_BackCorner
 } touchnavstatus_t;
+
+enum
+{
+	TSNAV_CORNER_BOTTOM = 1,
+	TSNAV_CORNER_RIGHT = 1<<1,
+	TSNAV_CORNER_TOP_TEST = 1<<2,
+};
 
 extern touchconfigstatus_t touchcontrolstatus;
 extern touchnavstatus_t touchnavigationstatus;
