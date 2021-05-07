@@ -243,7 +243,9 @@ static void M_StopMessage(INT32 choice);
 static boolean stopstopmessage = false;
 
 static void M_EscapeMenu(void);
+#ifdef BREADCRUMB
 static void M_BreadcrumbEscape(void);
+#endif
 
 static boolean M_TouchInput(void);
 
@@ -410,6 +412,9 @@ static void M_Options(INT32 choice);
 static void M_SelectableClearMenus(INT32 choice);
 static void M_Retry(INT32 choice);
 static void M_EndGame(INT32 choice);
+#ifdef BREADCRUMB
+static void M_BreadcrumbEndGame(INT32 choice);
+#endif
 static void M_MapChange(INT32 choice);
 static void M_ChangeLevel(INT32 choice);
 static void M_ConfirmSpectate(INT32 choice);
@@ -421,6 +426,12 @@ static void M_SetupChoosePlayer(INT32 choice);
 static UINT8 M_SetupChoosePlayerDirect(INT32 choice);
 static void M_ExitGameResponse(INT32 ch);
 static void M_QuitSRB2(INT32 choice);
+static void M_QuitResponse(INT32 ch);
+#ifdef BREADCRUMB
+static void M_BreadcrumbExitGameResponse(INT32 ch);
+static void M_BreadcrumbQuitSRB2(INT32 choice);
+static void M_BreadcrumbQuitResponse(INT32 ch);
+#endif
 
 menu_t SP_MainDef, OP_MainDef;
 menu_t MISC_ScrambleTeamDef, MISC_ChangeTeamDef;
@@ -3700,9 +3711,34 @@ const char *M_GetUserActionString(INT32 type)
 				case INPUTMETHOD_MOUSE:
 					return M_GetText(string->mouse_string);
 				case INPUTMETHOD_JOYSTICK:
-				case INPUTMETHOD_TVREMOTE:
 					if (!UserAction_IsAnyKey(type))
 						return useractionva(M_GetText(string->joy_string), UserAction_ToButton(type, inputmethod));
+					else
+						return M_GetText(string->joy_string);
+				case INPUTMETHOD_TVREMOTE:
+					if (!UserAction_IsAnyKey(type))
+					{
+						const char *button;
+
+						switch (type)
+						{
+							case PRESS_Y_MESSAGE:
+							case PRESS_Y_MESSAGE_L:
+							case CONFIRM_MESSAGE:
+								button = "Center";
+								break;
+							case PRESS_N_MESSAGE:
+							case PRESS_N_MESSAGE_L:
+							case PRESS_ESC_MESSAGE:
+								button = "Back";
+								break;
+							default:
+								button = UserAction_ToButton(type, INPUTMETHOD_TVREMOTE);
+								break;
+						}
+
+						return useractionva(M_GetText(string->joy_string), button);
+					}
 					else
 						return M_GetText(string->joy_string);
 			}
@@ -3718,9 +3754,11 @@ const char *M_GetUserActionString(INT32 type)
 static const char *M_GetModeAttackExitString(void)
 {
 	if (inputmethod == INPUTMETHOD_TOUCH)
-		return M_GetText("Tap 'Back' to exit");
-	else if (inputmethod == INPUTMETHOD_JOYSTICK || inputmethod == INPUTMETHOD_TVREMOTE)
-		return va(M_GetText("Push %s to exit"), G_KeynumToString(UserAction_GetESCButton(inputmethod)));
+		return M_GetText("Tap Back to exit");
+	else if (inputmethod == INPUTMETHOD_JOYSTICK)
+		return va(M_GetText("Push %s to exit"), G_KeynumToString(UserAction_GetESCButton(INPUTMETHOD_JOYSTICK)));
+	else if (inputmethod == INPUTMETHOD_TVREMOTE)
+		return M_GetText("Push Back to exit");
 	else
 		return M_GetText("Press ESC to exit");
 }
@@ -5615,7 +5653,10 @@ boolean M_Responder(event_t *ev)
 	static INT32 pmousex = 0, pmousey = 0;
 	static INT32 lastx = 0, lasty = 0;
 	void (*routine)(INT32 choice); // for some casting problem
+
+#ifdef BREADCRUMB
 	boolean breadcrumb = false;
+#endif
 
 	if (dedicated || (demoplayback && titledemo)
 	|| gamestate == GS_INTRO || gamestate == GS_ENDING || gamestate == GS_CUTSCENE
@@ -5664,7 +5705,9 @@ boolean M_Responder(event_t *ev)
 				case KEY_MOUSE1 + 1:
 				case KEY_JOY1 + 1:
 				case KEY_REMOTEBACK:
+#ifdef BREADCRUMB
 					breadcrumb = (ch == KEY_REMOTEBACK);
+#endif
 					ch = KEY_ESCAPE;
 					break;
 				case KEY_JOY1 + 2:
@@ -6017,9 +6060,11 @@ boolean M_Responder(event_t *ev)
 			noFurtherInput = true;
 			currentMenu->lastOn = itemOn;
 
+#ifdef BREADCRUMB
 			if (breadcrumb)
 				M_BreadcrumbEscape();
 			else
+#endif
 				M_EscapeMenu();
 
 			return true;
@@ -6529,10 +6574,11 @@ static void M_EscapeMenu(void)
 		M_GoBack(0);
 }
 
-static void M_BreadcrumbCheckQuit(INT32 setitemon, void (*func)(INT32), INT32 choice)
+#ifdef BREADCRUMB
+static void M_BreadcrumbCheckQuit(INT32 setitemon, void (*func)(INT32))
 {
 	if (itemOn == setitemon)
-		func(choice);
+		func(0);
 	else
 		M_SetItemOn(setitemon);
 }
@@ -6540,16 +6586,17 @@ static void M_BreadcrumbCheckQuit(INT32 setitemon, void (*func)(INT32), INT32 ch
 static void M_BreadcrumbEscape(void)
 {
 	if (currentMenu == &MAPauseDef)
-		M_BreadcrumbCheckQuit(mapause_abort, M_ModeAttackEndGame, 0);
+		M_BreadcrumbCheckQuit(mapause_abort, M_ModeAttackEndGame);
 	else if (currentMenu == &SPauseDef)
-		M_BreadcrumbCheckQuit(spause_quit, M_ExitGameResponse, KEY_ENTER);
+		M_BreadcrumbCheckQuit(spause_quit, M_BreadcrumbEndGame);
 	else if (currentMenu == &MPauseDef)
-		M_BreadcrumbCheckQuit(mpause_quit, M_ExitGameResponse, KEY_ENTER);
+		M_BreadcrumbCheckQuit(mpause_quit, M_BreadcrumbEndGame);
 	else if (currentMenu == &MainDef)
-		M_BreadcrumbCheckQuit(quitsrb2, M_QuitResponse, KEY_ENTER);
+		M_BreadcrumbCheckQuit(quitsrb2, M_BreadcrumbQuitSRB2);
 	else
 		M_EscapeMenu();
 }
+#endif
 
 static boolean M_TouchInput(void)
 {
@@ -15008,27 +15055,60 @@ void M_DrawMarathon(void)
 // END GAME
 // ========
 
+static void M_DoExitGame(void)
+{
+	G_SetExitGameFlag();
+	M_ClearMenus(true);
+}
+
 static void M_ExitGameResponse(INT32 ch)
 {
 	if (ch != 'y' && ch != KEY_ENTER)
 		return;
 
-	//Command_ExitGame_f();
-	G_SetExitGameFlag();
-	M_ClearMenus(true);
+	M_DoExitGame();
 }
 
-static void M_EndGame(INT32 choice)
+#ifdef BREADCRUMB
+static void M_BreadcrumbExitGameResponse(INT32 ch)
 {
-	(void)choice;
+	if (inputmethod != INPUTMETHOD_TVREMOTE)
+	{
+		M_ExitGameResponse(ch);
+		return;
+	}
+
+	if (ch != 'n' && ch != KEY_ESCAPE)
+		return;
+
+	M_DoExitGame();
+}
+#endif
+
+static void M_AskEndGame(void *routine, INT32 uatype)
+{
 	if (demoplayback || demorecording)
 		return;
 
 	if (!Playing())
 		return;
 
-	M_StartMessage(va("Are you sure you want to end the game?\n\n(%s)\n", M_GetUserActionString(CONFIRM_MESSAGE)), M_ExitGameResponse, MM_YESNO);
+	M_StartMessage(va("Are you sure you want to end the game?\n\n(%s)\n", M_GetUserActionString(uatype)), routine, MM_YESNO);
 }
+
+static void M_EndGame(INT32 choice)
+{
+	(void)choice;
+	M_AskEndGame(M_ExitGameResponse, CONFIRM_MESSAGE);
+}
+
+#ifdef BREADCRUMB
+static void M_BreadcrumbEndGame(INT32 choice)
+{
+	(void)choice;
+	M_AskEndGame(M_BreadcrumbExitGameResponse, PRESS_N_MESSAGE);
+}
+#endif
 
 //===========================================================================
 // Connect Menu
@@ -18232,14 +18312,13 @@ static INT32 quitsounds[] =
 	sfx_chchng // Tails 11-09-99
 };
 
-void M_QuitResponse(INT32 ch)
+static void M_DoQuit(void)
 {
 	tic_t ptime;
 	INT32 mrand;
 
-	if (ch != 'y' && ch != KEY_ENTER)
-		return;
 	LUAh_GameQuit(true);
+
 	if (!(netgame || cv_debug))
 	{
 		S_ResetCaptions();
@@ -18257,18 +18336,56 @@ void M_QuitResponse(INT32 ch)
 			I_Sleep();
 		}
 	}
+
 	I_Quit();
+}
+
+static void M_QuitResponse(INT32 ch)
+{
+	if (ch != 'y' && ch != KEY_ENTER)
+		return;
+
+	M_DoQuit();
+}
+
+#ifdef BREADCRUMB
+static void M_BreadcrumbQuitResponse(INT32 ch)
+{
+	if (inputmethod != INPUTMETHOD_TVREMOTE)
+	{
+		M_QuitResponse(ch);
+		return;
+	}
+
+	if (ch != 'n' && ch != KEY_ESCAPE)
+		return;
+
+	M_DoQuit();
+}
+#endif
+
+static void M_AskQuitSRB2(void *routine, INT32 uatype)
+{
+	const char *message;
+
+	if (inputmethod == INPUTMETHOD_KEYBOARD && uatype == CONFIRM_MESSAGE)
+		message = quitmsg[M_RandomKey(NUM_QUITMESSAGES)];
+	else
+		message = va(M_GetText("Are you sure you want to close the game?\n\n(%s)\n"), M_GetUserActionString(uatype));
+
+	M_StartMessage(message, routine, MM_YESNO);
 }
 
 static void M_QuitSRB2(INT32 choice)
 {
-	const char *message;
 	(void)choice;
-
-	if (inputmethod == INPUTMETHOD_KEYBOARD)
-		message = quitmsg[M_RandomKey(NUM_QUITMESSAGES)];
-	else
-		message = va(M_GetText("Are you sure you want to close the game?\n\n(%s)\n"), M_GetUserActionString(CONFIRM_MESSAGE));
-
-	M_StartMessage(message, M_QuitResponse, MM_YESNO);
+	M_AskQuitSRB2(M_QuitResponse, CONFIRM_MESSAGE);
 }
+
+#ifdef BREADCRUMB
+static void M_BreadcrumbQuitSRB2(INT32 choice)
+{
+	(void)choice;
+	M_AskQuitSRB2(M_BreadcrumbQuitResponse, PRESS_N_MESSAGE);
+}
+#endif

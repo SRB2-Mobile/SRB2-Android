@@ -630,6 +630,10 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 #define SPLASH_SCREEN
 #endif
 
+/// Breadcrumb navigation
+/// https://developer.android.com/training/tv/start/controllers#back-button
+#define BREADCRUMB
+
 ///	Allow the use of the SOC RESETINFO command.
 ///	\note	Builds that are tight on memory should disable this.
 ///	    	This stops the game from storing backups of the states, sprites, and mobjinfo tables.
