@@ -103,7 +103,7 @@ static CV_PossibleValue_t touchtrans_cons_t[] = {{0, "MIN"}, {10, "MAX"}, {0, NU
 consvar_t cv_touchtrans = CVAR_INIT ("touch_transinput", "10", CV_SAVE | CV_SLIDER_SAFE, touchtrans_cons_t, NULL);
 consvar_t cv_touchmenutrans = CVAR_INIT ("touch_transmenu", "10", CV_SAVE | CV_SLIDER_SAFE, touchtrans_cons_t, NULL);
 
-static CV_PossibleValue_t touchnavmethod_cons_t[] = {{0, "Default"}, {1, "Selection only"}, {2, "Screen regions"}, {0, NULL}};
+static CV_PossibleValue_t touchnavmethod_cons_t[] = {{0, "Default"}, {1, "Only highlight"}, {2, "Screen regions"}, {0, NULL}};
 consvar_t cv_touchnavmethod = CVAR_INIT ("touch_navmethod", "Default", CV_SAVE, touchnavmethod_cons_t, NULL);
 
 // Miscellaneous options

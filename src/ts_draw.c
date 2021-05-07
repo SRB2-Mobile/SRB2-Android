@@ -516,7 +516,7 @@ static void DrawNavigationButton(INT32 nav)
 
 	if (strlen(control->patch))
 	{
-		patch_t *patch = W_CachePatchName(control->patch, PU_PATCH);
+		patch_t *patch = W_CachePatchLongName(control->patch, PU_PATCH);
 
 		fixed_t pressure = FRACUNIT;
 		fixed_t minpressure = FRACUNIT / 4;

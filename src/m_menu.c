@@ -181,6 +181,7 @@ static void M_NextItemOn(void);
 static void M_PrevItemOn(void);
 
 static INT16 skullAnimCounter = 10; // skull animation counter
+static INT32 highlightflags, recommendedflags, warningflags;
 
 #ifdef TOUCHMENUS
 typedef struct
@@ -220,6 +221,15 @@ static tic_t ntsatkdrawtimer = 0;
 
 static tic_t keydown = 0;
 
+typedef void (*heldkeyroutine_t)(INT32 choice);
+
+struct
+{
+	INT32 key, threshold, rate;
+	INT32 time[2], sound;
+	heldkeyroutine_t routine;
+} heldkey;
+
 //
 // PROTOTYPES
 //
@@ -235,7 +245,16 @@ static boolean stopstopmessage = false;
 static void M_EscapeMenu(void);
 static void M_BreadcrumbEscape(void);
 
-static boolean M_TouchInputs(void);
+static boolean M_TouchInput(void);
+
+static void M_SetHeldKey(INT32 key);
+static void M_SetHeldKeyHandler(heldkeyroutine_t routine);
+static void M_HandleHeldKey(heldkeyroutine_t routine);
+static void M_ClearHeldKey(void);
+
+#define M_SetHeldKeyThreshold(thres) heldkey.threshold = thres
+#define M_SetHeldKeyRate(r) heldkey.rate = r
+#define M_SetHeldKeySound(sfx) heldkey.sound = sfx
 
 #ifndef NONET
 static void M_HandleServerPage(INT32 choice);
@@ -255,9 +274,11 @@ static const char *M_CreateSecretMenuOption(const char *str);
 TSNAVHANDLER(LevelPlatter);
 TSNAVHANDLER(SaveSelect);
 TSNAVHANDLER(CharacterSelect);
+TSNAVHANDLER(PlayerSetup);
 TSNAVHANDLER(AddonsMenu);
 TSNAVHANDLER(SoundTest);
 TSNAVHANDLER(UnlockChecklist);
+TSNAVHANDLER(Statistics);
 #endif
 
 //
@@ -378,11 +399,7 @@ static void M_UnlockChecklist(INT32 choice);
 static void M_HandleEmblemHints(INT32 choice);
 static void M_HandleChecklist(INT32 choice);
 
-static void M_ChecklistTicker(void);
-
 static UINT8 check_on;
-static INT32 check_held = 0;
-static INT32 check_heldtime = 0;
 
 menu_t SR_MainDef, SR_UnlockChecklistDef;
 UINT32 hintpage = 1;
@@ -428,7 +445,7 @@ static void M_MarathonLiveEventBackup(INT32 choice);
 static void M_Marathon(INT32 choice);
 static void M_HandleMarathonChoosePlayer(INT32 choice);
 static void M_StartMarathon(INT32 choice);
-menu_t SP_LevelStatsDef;
+static menu_t SP_LevelStatsDef;
 static menu_t SP_TimeAttackDef, SP_ReplayDef, SP_GuestReplayDef, SP_GhostDef;
 static menu_t SP_NightsAttackDef, SP_NightsReplayDef, SP_NightsGuestReplayDef, SP_NightsGhostDef;
 static menu_t SP_MarathonDef;
@@ -625,6 +642,9 @@ static boolean M_CharacterSelectPrev(void);
 
 static void M_GetCharacterSelectPrevNext(INT32 i, INT32 *prev, INT32 *next);
 static void M_GetCharacterSelectPosition(INT32 i, INT32 *x, INT32 *y);
+
+static menutouchfx_t setupmpfx;
+static void M_MultiPlayerMenuTicker(void);
 
 // ====================================================================================================================
 
@@ -2112,10 +2132,7 @@ menu_t MISC_ChangeLevelDef =
 	NULL, M_LevelPlatterTicker
 };
 
-menu_t MISC_HelpDef = IMAGEDEF(MISC_HelpMenu);
-
-static INT32 highlightflags, recommendedflags, warningflags;
-
+static menu_t MISC_HelpDef = IMAGEDEF(MISC_HelpMenu);
 
 // Sky Room
 menu_t SR_PandoraDef =
@@ -2147,7 +2164,7 @@ menu_t SR_UnlockChecklistDef =
 	M_DrawChecklist,
 	30, 30,
 	0,
-	NULL, M_ChecklistTicker
+	NULL, NULL
 };
 
 menu_t SR_SoundTestDef =
@@ -2203,11 +2220,11 @@ menu_t SP_LoadDef =
 	NULL, M_SaveSelectTicker
 };
 
-menu_t SP_LevelSelectDef = MAPPLATTERMENUSTYLE(
+static menu_t SP_LevelSelectDef = MAPPLATTERMENUSTYLE(
 	MTREE4(MN_SP_MAIN, MN_SP_LOAD, MN_SP_PLAYER, MN_SP_LEVELSELECT),
 	NULL, SP_LevelSelectMenu);
 
-menu_t SP_LevelStatsDef =
+static menu_t SP_LevelStatsDef =
 {
 	MTREE2(MN_SP_MAIN, MN_SP_LEVELSTATS), 0,
 	"M_STATS",
@@ -2440,7 +2457,7 @@ menu_t MP_PlayerSetupDef =
 	M_DrawSetupMultiPlayerMenu,
 	19, 22,
 	0,
-	M_QuitMultiPlayerMenu, NULL
+	M_QuitMultiPlayerMenu, M_MultiPlayerMenuTicker
 };
 
 // Options
@@ -3541,6 +3558,57 @@ static void M_NavGoBack(INT32 choice)
 }
 #endif
 
+static void M_SetHeldKey(INT32 key)
+{
+	heldkey.key = key;
+	heldkey.time[0] = heldkey.time[1] = 0;
+}
+
+static void M_ClearHeldKey(void)
+{
+	heldkey.key = 0;
+	heldkey.time[0] = heldkey.time[1] = 0;
+	M_SetHeldKeyRate(0);
+	M_SetHeldKeySound(sfx_None);
+	M_SetHeldKeyThreshold(TICRATE / 2);
+}
+
+static void M_SetHeldKeyHandler(heldkeyroutine_t routine)
+{
+	M_ClearHeldKey();
+	heldkey.routine = routine;
+}
+
+static void M_HandleHeldKey(heldkeyroutine_t routine)
+{
+	if (!(heldkey.key && routine))
+		return;
+
+	if (heldkey.time[0] > heldkey.threshold)
+	{
+		if (heldkey.rate)
+		{
+			heldkey.time[1]++;
+
+			if (heldkey.time[1] > heldkey.rate)
+			{
+				heldkey.time[1] = 0;
+				routine(heldkey.key);
+				if (heldkey.sound != sfx_None)
+					S_StartSound(NULL, heldkey.sound);
+			}
+		}
+		else
+		{
+			routine(heldkey.key);
+			if (heldkey.sound != sfx_None)
+				S_StartSound(NULL, heldkey.sound);
+		}
+	}
+	else
+		heldkey.time[0]++;
+}
+
 //
 // USER ACTION MESSAGES
 //
@@ -3698,10 +3766,11 @@ boolean M_TSNav_CanShowConfirm(void)
 {
 	// Always hidden.
 	if (cv_touchnavmethod.value == 0
-	&& (currentMenu->menustyle == MENUSTYLE_PLAYSTYLE || currentMenu->menustyle == MENUSTYLE_SOUNDTEST))
+	&& (currentMenu->menustyle == MENUSTYLE_PLAYSTYLE || currentMenu->menustyle == MENUSTYLE_SOUNDTEST
+	|| currentMenu == &MP_PlayerSetupDef))
 		return false;
 
-	if (currentMenu == &SR_UnlockChecklistDef)
+	if (currentMenu == &SR_UnlockChecklistDef || currentMenu == &SP_LevelStatsDef)
 		return false;
 
 	return tsnav_showconfirm;
@@ -3716,24 +3785,23 @@ boolean M_TSNav_CanShowConsole(void)
 	return tsnav_showconsole;
 }
 
-// FIXME: Whenever the player presses the TV remote center button, it sends a button down event, and a button up event.
-// Now, it can be a bit too fast for the menu.
-// This can all happen before the on-screen keyboard could even be raised.
-// Whenever I did testing on an Android TV, the text input would be "confirmed"
-// at the same time I tried to open the on-screen keyboard.
-#if 0
-static boolean M_TSNav_RoutineIsTextField(void)
+static boolean M_TSNav_OnTextField(void)
 {
-	void (*action)(INT32 choice);
+	void (*action)(INT32 choice) = currentMenu->menuitems[itemOn].itemaction;
 
-	if ((currentMenu->menuitems[itemOn].status & IT_TYPE) != IT_CALL)
-		return false;
-
-	action = MessageDef.menuitems[itemOn].itemaction;
-
-	return (action == M_HandleConnectIP || (action == M_HandleSetupMultiPlayer && itemOn == 0));
-}
+	if (action)
+	{
+#if 0
+		if ((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR)
+			return ((currentMenu->menuitems[itemOn].status & IT_CVARTYPE) == IT_CV_STRING);
 #endif
+
+		if ((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_KEYHANDLER)
+			return (action == M_HandleConnectIP);
+	}
+
+	return false;
+}
 
 static boolean M_TSNav_RoutineIsMessage(void)
 {
@@ -3820,7 +3888,9 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 
 	if (currentMenu == &SP_LoadDef) return TSNAVHANDLER_CALL(SaveSelect);
 	if (currentMenu == &SP_PlayerDef) return TSNAVHANDLER_CALL(CharacterSelect);
+	if (currentMenu == &MP_PlayerSetupDef) return TSNAVHANDLER_CALL(PlayerSetup);
 	if (currentMenu == &SR_UnlockChecklistDef) return TSNAVHANDLER_CALL(UnlockChecklist);
+	if (currentMenu == &SP_LevelStatsDef) return TSNAVHANDLER_CALL(Statistics);
 
 	return false;
 }
@@ -4009,7 +4079,7 @@ static INT32 M_CVarValue(const consvar_t *var)
 static const char *M_CVarLongestValue(consvar_t *var)
 {
 #ifdef TOUCHINPUTS
-	if (M_TouchInputs() && var->PossibleValue)
+	if (M_TouchInput() && var->PossibleValue)
 		return CV_LongestPossibleValue(var);
 #endif
 
@@ -4028,7 +4098,59 @@ static INT32 M_CVarLongestValueWidth(consvar_t *var, INT32 flags)
 	return V_StringWidth(longest, flags);
 }
 
-static const char *M_LongestPlayerName(void)
+static const char *M_LongestCharacterName(void)
+{
+	INT32 i = 0;
+	size_t len, last = 0;
+	const char *longest = NULL;
+
+	for (; i < MAXSKINS; i++)
+	{
+		const char *str = NULL;
+
+		if (!skins[i].name[0] || !R_SkinUsable(-1, i))
+			continue;
+
+		str = skins[i].realname;
+		len = strlen(str);
+
+		if (len > last)
+		{
+			last = len;
+			longest = str;
+		}
+	}
+
+	return longest;
+}
+
+static const char *M_LongestColorName(void)
+{
+	INT32 i = 1;
+	size_t len, last = 0;
+	const char *longest = NULL;
+
+	for (; i < numskincolors; i++)
+	{
+		const char *str = NULL;
+
+		if (!skincolors[i].accessible)
+			continue;
+
+		str = skincolors[i].name;
+		len = strlen(str);
+
+		if (len > last)
+		{
+			last = len;
+			longest = str;
+		}
+	}
+
+	return longest;
+}
+
+static const char *M_LongestCharselName(void)
 {
 	INT32 i = 0;
 	size_t len, last = 0;
@@ -4740,7 +4862,7 @@ static boolean M_IsTouchingMarathonPlayerName(menuitem_t *item, INT32 *key, INT3
 		soffset = 68;
 
 	base = BASEVIDWIDTH - currentMenu->x - soffset;
-	w = V_StringWidth(M_LongestPlayerName(), 0);
+	w = V_StringWidth(M_LongestCharselName(), 0);
 	x = base - w;
 
 	// Touch the arrows.
@@ -5398,7 +5520,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 
 		if (selection == M_IsTouchingMenuSelection(x, y, &slkey, &cv))
 		{
-			if (I_KeyboardOnScreen())
+			if (I_KeyboardOnScreen() && !M_TSNav_OnTextField())
 				I_CloseScreenKeyboard();
 
 			switch (currentMenu->menustyle)
@@ -5424,7 +5546,9 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 				default:
 					if (itemOn == selection)
 					{
-						if (!((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR && !cv))
+						if (I_KeyboardOnScreen() && M_TSNav_OnTextField())
+							I_CloseScreenKeyboard();
+						else if (cv_touchnavmethod.value == 0 && !((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR && !cv))
 							(*ch) = KEY_ENTER;
 					}
 					else if (!((currentMenu->menuitems[selection].status & IT_TYPE) & IT_SPACE))
@@ -6191,6 +6315,7 @@ void M_StartControlPanel(void)
 	}
 
 	CON_ToggleOff(); // move away console
+	M_SetHeldKeyHandler(NULL);
 
 #ifdef TOUCHINPUTS
 	// Update touch screen navigation
@@ -6243,6 +6368,8 @@ void M_ClearMenus(boolean callexitmenufunc)
 	if (I_KeyboardOnScreen())
 		I_CloseScreenKeyboard();
 #endif
+
+	M_SetHeldKeyHandler(NULL);
 }
 
 void M_EndModeAttackRun(void)
@@ -6289,6 +6416,7 @@ void M_SetupNextMenu(menu_t *menudef)
 			return; // we can't quit this menu (also used to set parameter from the menu)
 	}
 
+	M_SetHeldKeyHandler(NULL);
 	hidetitlemap = false;
 
 #ifdef TOUCHMENUS
@@ -6423,7 +6551,7 @@ static void M_BreadcrumbEscape(void)
 		M_EscapeMenu();
 }
 
-static boolean M_TouchInputs(void)
+static boolean M_TouchInput(void)
 {
 #ifdef TOUCHINPUTS
 	return (inputmethod == INPUTMETHOD_TOUCH && cv_touchnavmethod.value != 2);
@@ -6458,6 +6586,9 @@ void M_Ticker(void)
 	{
 		if (currentMenu->routine)
 			currentMenu->routine();
+
+		if (heldkey.routine)
+			M_HandleHeldKey(heldkey.routine);
 
 #ifdef TOUCHMENUS
 		M_UpdateMobileMenuState();
@@ -9035,6 +9166,7 @@ void M_StartMessage(const char *string, void *routine,
 	MessageDef.lastOn = (INT16)((strlines<<8)+max);
 
 	currentMenu = &MessageDef;
+	M_SetHeldKeyHandler(NULL);
 	M_ClearItemOn();
 
 #ifdef TOUCHINPUTS
@@ -9496,7 +9628,7 @@ static void M_AddonsGetScrollbar(INT32 *x, INT32 *y, INT32 *w, INT32 *h, size_t 
 	INT32 offs = 21, width = 1;
 
 #ifdef TOUCHINPUTS
-	if (M_TouchInputs())
+	if (M_TouchInput())
 	{
 		offs = 28;
 		width = 8;
@@ -9517,7 +9649,7 @@ static void M_DrawAddons(void)
 	size_t t, b; // top and bottom item #s to draw in directory
 	const UINT8 *flashcol = NULL;
 	UINT8 hilicol;
-	boolean ontouchscreen = M_TouchInputs();
+	boolean ontouchscreen = M_TouchInput();
 
 	// hack - need to refresh at end of frame to handle addfile...
 	if (refreshdirmenu & M_AddonsRefresh())
@@ -9574,7 +9706,7 @@ static void M_DrawAddons(void)
 		V_DrawFill(sx, sy, sw, sh, hilicol);
 
 	// draw up arrow that bobs up and down
-	if (t != 0)
+	if (!ontouchscreen && t != 0)
 		V_DrawString(19, y+4 - (skullAnimCounter/5), highlightflags, "\x1A");
 
 	// make the selection box flash yellow
@@ -9607,7 +9739,7 @@ static void M_DrawAddons(void)
 				flags = V_ALLOWLOWERCASE|highlightflags;
 			}
 
-			if (M_TouchInputs())
+			if (M_TouchInput())
 				charsonside--;
 
 			// draw name of the item, use ... if too long
@@ -9621,7 +9753,7 @@ static void M_DrawAddons(void)
 	}
 
 	// draw down arrow that bobs down and up
-	if (b != sizedirmenu)
+	if (!ontouchscreen && b != sizedirmenu)
 		V_DrawString(19, y-12 + (skullAnimCounter/5), highlightflags, "\x1B");
 
 	// draw search box
@@ -9739,10 +9871,8 @@ static void M_AddonsArrows(INT32 choice)
 	}
 }
 
-static void M_HandleAddons(INT32 choice)
+static void M_HandleAddonsTextInput(INT32 choice)
 {
-	boolean exitmenu = false; // exit to previous menu
-
 	if (M_ChangeStringAddons(choice))
 	{
 		char *tempname = NULL;
@@ -9758,6 +9888,16 @@ static void M_HandleAddons(INT32 choice)
 		searchfilemenu(tempname);
 #endif
 	}
+}
+
+static void M_HandleAddons(INT32 choice)
+{
+	boolean exitmenu = false; // exit to previous menu
+
+#ifdef TOUCHINPUTS
+	if (choice == KEY_DEL || choice == KEY_BACKSPACE || !I_KeyboardOnScreen())
+#endif
+		M_HandleAddonsTextInput(choice);
 
 	switch (choice)
 	{
@@ -9785,6 +9925,10 @@ static void M_HandleAddons(INT32 choice)
 		case KEY_ENTER:
 			{
 				boolean refresh = true;
+#ifdef TOUCHINPUTS
+				if (I_KeyboardOnScreen())
+					I_CloseScreenKeyboard();
+#endif
 				if (!dirmenu[dir_on[menudepthleft]])
 					S_StartSound(NULL, sfx_lose);
 				else
@@ -9882,6 +10026,14 @@ static void M_HandleAddons(INT32 choice)
 }
 
 #ifdef TOUCHINPUTS
+static void VirtualKeyboard_AddonsSearch(char *text, size_t length)
+{
+	size_t i;
+	for (i = 0; i < length; i++)
+		M_HandleAddonsTextInput(text[i]);
+	S_StartSound(NULL, sfx_menu1);
+}
+
 TSNAVHANDLER(AddonsMenu)
 {
 	INT32 fx = event->x;
@@ -9929,7 +10081,7 @@ TSNAVHANDLER(AddonsMenu)
 					addons_scrollbar = event->key;
 					finger->type.menu = true;
 					finger->selection = 0;
-					return true;
+					goto done;
 				}
 				break;
 			case ev_touchmotion:
@@ -9940,7 +10092,7 @@ TSNAVHANDLER(AddonsMenu)
 					addons_scroll = max(0, addons_scroll - scroll);
 
 					finger->type.menu = true;
-					return true;
+					goto done;
 				}
 				break;
 			case ev_touchup:
@@ -9954,7 +10106,7 @@ TSNAVHANDLER(AddonsMenu)
 
 					finger->type.menu = true;
 					finger->selection = 0;
-					return true;
+					goto done;
 				}
 			default:
 				break;
@@ -9976,7 +10128,7 @@ TSNAVHANDLER(AddonsMenu)
 			{
 				finger->selection = (INT16)i;
 				finger->type.menu = true;
-				return true;
+				goto done;
 			}
 		}
 		else if (event->type == ev_touchup)
@@ -9993,7 +10145,7 @@ TSNAVHANDLER(AddonsMenu)
 					dir_on[menudepthleft] = i;
 
 				finger->selection = -1;
-				return true;
+				goto done;
 			}
 		}
 
@@ -10003,6 +10155,38 @@ loop_done:
 			break;
 	}
 
+	if (!I_KeyboardOnScreen())
+	{
+		sx = x - (21 + 5 + 16);
+		sy = BASEVIDHEIGHT - currentMenu->y + 1;
+		sw = 282;
+
+		if (event->type == ev_touchdown)
+		{
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh))
+			{
+				finger->selection = -2;
+				finger->type.menu = true;
+				return true;
+			}
+		}
+		else if (event->type == ev_touchup)
+		{
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh) && finger->selection == -2)
+			{
+				I_RaiseScreenKeyboard(NULL, 0);
+				I_ScreenKeyboardCallback(VirtualKeyboard_AddonsSearch);
+			}
+
+			finger->selection = -1;
+			finger->type.menu = true;
+			return true;
+		}
+	}
+
+done:
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
 	return true;
 }
 #endif
@@ -10252,20 +10436,8 @@ static boolean checklist_cangodown; // uuuueeerggghhhh HACK
 static void M_UnlockChecklist(INT32 choice)
 {
 	(void)choice;
-	check_held = 0;
-	check_heldtime = 0;
 	M_SetupNextMenu(&SR_UnlockChecklistDef);
-}
-
-static void M_ChecklistTicker(void)
-{
-	if (check_held)
-	{
-		if (check_heldtime > TICRATE/2)
-			M_HandleChecklist(check_held);
-		else
-			check_heldtime++;
-	}
+	M_SetHeldKeyHandler(M_HandleChecklist);
 }
 
 static void M_ChecklistDown(void)
@@ -10326,6 +10498,9 @@ static void M_HandleChecklist(INT32 choice)
 {
 	INT32 on = check_on;
 
+	if (currentMenu != &SR_UnlockChecklistDef)
+		return;
+
 	switch (choice)
 	{
 		case KEY_DOWNARROW:
@@ -10362,14 +10537,10 @@ TSNAVHANDLER(UnlockChecklist)
 		if (event->type == ev_touchdown) \
 		{ \
 			M_HandleChecklist(key); \
-			check_held = key; \
-			check_heldtime = 0; \
+			M_SetHeldKey(key); \
 		} \
 		else if (event->type == ev_touchup) \
-		{ \
-			check_held = 0; \
-			check_heldtime = 0; \
-		} \
+			M_ClearHeldKey(); \
 		finger->type.menu = true; \
 		return true; \
 	}
@@ -10942,7 +11113,7 @@ static void M_SoundTestGetScrollbar(INT32 *x, INT32 *y, INT32 *w, INT32 *h, INT3
 	INT32 offs = st_list_x+140-1, width = 1;
 
 #ifdef TOUCHINPUTS
-	if (M_TouchInputs())
+	if (M_TouchInput())
 	{
 		offs += 3;
 		width = 12;
@@ -11106,7 +11277,7 @@ static void M_DrawSoundTest(void)
 	{
 		INT32 t, b, m;
 		INT32 sx, sy, sw, sh;
-		boolean ontouchscreen = M_TouchInputs();
+		boolean ontouchscreen = M_TouchInput();
 
 		M_SoundTestGetItems(&t, &i, &b, &m, ontouchscreen);
 		M_SoundTestGetScrollbar(&sx, &sy, &sw, &sh, i, m);
@@ -13385,6 +13556,7 @@ static void M_Statistics(INT32 choice)
 		statsMax = 0;
 
 	M_SetupNextMenu(&SP_LevelStatsDef);
+	M_SetHeldKeyHandler(M_HandleLevelStats);
 }
 
 static void M_DrawStatsMaps(int location)
@@ -13480,6 +13652,8 @@ bottomarrow:
 
 static void M_DrawLevelStats(void)
 {
+	const char *playtimestr = "Total Play Time:";
+
 	char beststr[40];
 
 	tic_t besttime = 0;
@@ -13492,7 +13666,13 @@ static void M_DrawLevelStats(void)
 
 	M_DrawMenuTitle();
 
-	V_DrawString(20, 24, V_YELLOWMAP, "Total Play Time:");
+#ifdef TOUCHINPUTS
+	if (inputmethod == INPUTMETHOD_TOUCH)
+		V_DrawCenteredString(BASEVIDWIDTH/2, 24, V_YELLOWMAP, playtimestr);
+	else
+#endif
+		V_DrawString(20, 24, V_YELLOWMAP, playtimestr);
+
 	V_DrawCenteredString(BASEVIDWIDTH/2, 32, 0, va("%i hours, %i minutes, %i seconds",
 	                         G_TicsToHours(totalplaytime),
 	                         G_TicsToMinutes(totalplaytime, false),
@@ -13561,18 +13741,25 @@ static void M_HandleLevelStats(INT32 choice)
 {
 	boolean exitmenu = false; // exit to previous menu
 
+	if (currentMenu != &SP_LevelStatsDef)
+		return;
+
 	switch (choice)
 	{
 		case KEY_DOWNARROW:
-			S_StartSound(NULL, sfx_menu1);
 			if (statsLocation < statsMax)
+			{
 				++statsLocation;
+				S_StartSound(NULL, sfx_menu1);
+			}
 			break;
 
 		case KEY_UPARROW:
-			S_StartSound(NULL, sfx_menu1);
 			if (statsLocation)
+			{
 				--statsLocation;
+				S_StartSound(NULL, sfx_menu1);
+			}
 			break;
 
 		case KEY_PGDN:
@@ -13597,6 +13784,86 @@ static void M_HandleLevelStats(INT32 choice)
 			M_ClearMenus(true);
 	}
 }
+
+#ifdef TOUCHINPUTS
+TSNAVHANDLER(Statistics)
+{
+	INT32 sx = 10, sy = 80;
+	INT32 i = -1;
+	INT32 location = statsLocation;
+	boolean dotopname = true, dobottomarrow = (location < statsMax);
+
+	#define HANDLEARROW(key) \
+	if (M_FingerTouchingSelection(event->x, event->y, sx-4, sy-8, 16, 16)) \
+	{ \
+		if (event->type == ev_touchdown) \
+		{ \
+			M_HandleLevelStats(key); \
+			M_SetHeldKey(key); \
+		} \
+		else if (event->type == ev_touchup) \
+			M_ClearHeldKey(); \
+		finger->type.menu = true; \
+		return true; \
+	}
+
+	if (location)
+		HANDLEARROW(KEY_UPARROW)
+
+	while (statsMapList[++i] != -1)
+	{
+		if (location)
+		{
+			--location;
+			continue;
+		}
+		else if (dotopname)
+		{
+			sy += 8;
+			dotopname = false;
+		}
+
+		sy += 8;
+		if (sy >= BASEVIDHEIGHT-8)
+			goto bottomarrow;
+	}
+
+	if (dotopname && !location)
+		sy += 8;
+	else if (location)
+		--location;
+
+	// Extra Emblems
+	for (i = -2; i < numextraemblems; ++i)
+	{
+		if (i == -1)
+		{
+			if (location)
+			{
+				sy += 8;
+				location++;
+			}
+		}
+		if (location)
+		{
+			--location;
+			continue;
+		}
+
+		sy += 8;
+		if (sy >= BASEVIDHEIGHT-8)
+			goto bottomarrow;
+	}
+
+bottomarrow:
+	if (dobottomarrow)
+		HANDLEARROW(KEY_DOWNARROW)
+
+	#undef HANDLEARROW
+
+	return true;
+}
+#endif
 
 // ===========
 // MODE ATTACK
@@ -13720,7 +13987,7 @@ void M_DrawTimeAttackMenu(void)
 
 		if (currentMenu == &SP_TimeAttackDef)
 		{
-			if (itemOn == talevel && !M_TouchInputs())
+			if (itemOn == talevel && !M_TouchInput())
 			{
 				/* Draw arrows !! */
 				y = y + 25 - 4;
@@ -14033,7 +14300,7 @@ void M_DrawNightsAttackMenu(void)
 
 		if (currentMenu == &SP_NightsAttackDef)
 		{
-			if (itemOn == nalevel && !M_TouchInputs())
+			if (itemOn == nalevel && !M_TouchInput())
 			{
 				/* Draw arrows !! */
 				y = y + 25 - 4;
@@ -14697,8 +14964,8 @@ void M_DrawMarathon(void)
 			else
 				cvstring = description[char_on].skinname;
 
-			if (M_TouchInputs())
-				cvwidth = V_StringWidth(M_LongestPlayerName(), 0);
+			if (M_TouchInput())
+				cvwidth = V_StringWidth(M_LongestCharselName(), 0);
 			else
 				cvwidth = V_StringWidth(cvstring, 0);
 		}
@@ -15531,7 +15798,7 @@ static void M_IPv4TextboxInput(INT32 choice)
 }
 
 #ifdef TOUCHINPUTS
-static void M_IPv4TextboxScreenKeyboardInput(char *text, size_t length)
+static void VirtualKeyboard_IPv4Textbox(char *text, size_t length)
 {
 	size_t i;
 	for (i = 0; i < length; i++)
@@ -15540,6 +15807,7 @@ static void M_IPv4TextboxScreenKeyboardInput(char *text, size_t length)
 			break;
 		M_IPv4TextboxInput(text[i]);
 	}
+	S_StartSound(NULL, sfx_menu1);
 }
 #endif
 
@@ -15567,7 +15835,7 @@ static void M_HandleConnectIP(INT32 choice)
 			if (!I_KeyboardOnScreen())
 			{
 				I_RaiseScreenKeyboard(NULL, 0);
-				I_ScreenKeyboardCallback(M_IPv4TextboxScreenKeyboardInput);
+				I_ScreenKeyboardCallback(VirtualKeyboard_IPv4Textbox);
 			}
 			else if (I_KeyboardOnScreen())
 #endif
@@ -15744,7 +16012,8 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 	if (itemOn == 1 && (MP_PlayerSetupMenu[1].status & IT_TYPE) != IT_SPACE)
 	{
-		V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(skins[setupm_fakeskin].realname, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
+		const char *str = M_TouchInput() ? M_LongestCharacterName() : skins[setupm_fakeskin].realname;
+		V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(str, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
 			'\x1C' | V_YELLOWMAP, false);
 		V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 			'\x1D' | V_YELLOWMAP, false);
@@ -15764,6 +16033,29 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 	// draw box around character
 	V_DrawFill(x-(charw/2), y, charw, 84, 159);
+
+#ifdef TOUCHINPUTS
+	if (M_TouchInput() && (MP_PlayerSetupMenu[1].status & IT_TYPE) != IT_SPACE)
+	{
+		fixed_t size = 24*FRACUNIT, xscale, yscale;
+		fixed_t btnx = (x - (charw / 2)) * FRACUNIT;
+		fixed_t btny = ((y + 42) - 12) * FRACUNIT;
+
+		#define drawnavbutton(pat, x, y) \
+			patch = W_CachePatchLongName(pat, PU_PATCH); \
+			xscale = FixedDiv(size, patch->width * FRACUNIT); \
+			yscale = FixedDiv(size, patch->height * FRACUNIT); \
+			V_DrawStretchyFixedPatch( \
+				((x + FixedDiv(size, 2 * FRACUNIT)) - ((patch->width / 2) * xscale)), \
+				((y + FixedDiv(size, 2 * FRACUNIT)) - ((patch->height / 2) * yscale)), \
+				xscale, yscale, 0, patch, NULL)
+
+		drawnavbutton("NAV_BACK_GRAYSCALE", btnx - (32 * FRACUNIT), btny);
+		drawnavbutton("NAV_CONFIRM_GRAYSCALE", btnx + ((charw + 8) * FRACUNIT), btny);
+
+		#undef drawnavbutton
+	}
+#endif
 
 	sprdef = &skins[setupm_fakeskin].sprites[multi_spr2];
 
@@ -15820,7 +16112,8 @@ colordraw:
 
 	if (itemOn == 2 && (MP_PlayerSetupMenu[2].status & IT_TYPE) != IT_SPACE)
 	{
-		V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(skincolors[setupm_fakecolor->color].name, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
+		const char *str = M_TouchInput() ? M_LongestColorName() : skincolors[setupm_fakecolor->color].name;
+		V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(str, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
 			'\x1C' | V_YELLOWMAP, false);
 		V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
 			'\x1D' | V_YELLOWMAP, false);
@@ -15886,10 +16179,73 @@ colordraw:
 }
 
 // Handle 1P/2P MP Setup
+static void M_HandleSetupMultiPlayerSkin(INT32 choice)
+{
+	INT32 prev_setupm_fakeskin;
+
+	switch (choice)
+	{
+		case KEY_LEFTARROW:
+			prev_setupm_fakeskin = setupm_fakeskin;
+			do
+			{
+				setupm_fakeskin--;
+				if (setupm_fakeskin < 0)
+					setupm_fakeskin = numskins-1;
+			}
+			while ((prev_setupm_fakeskin != setupm_fakeskin) && !(R_SkinUsable(-1, setupm_fakeskin)));
+			multi_spr2 = P_GetSkinSprite2(&skins[setupm_fakeskin], SPR2_WALK, NULL);
+			break;
+
+		case KEY_RIGHTARROW:
+		case KEY_ENTER:
+			prev_setupm_fakeskin = setupm_fakeskin;
+			do
+			{
+				setupm_fakeskin++;
+				if (setupm_fakeskin > numskins-1)
+					setupm_fakeskin = 0;
+			}
+			while ((prev_setupm_fakeskin != setupm_fakeskin) && !(R_SkinUsable(-1, setupm_fakeskin)));
+			multi_spr2 = P_GetSkinSprite2(&skins[setupm_fakeskin], SPR2_WALK, NULL);
+			break;
+
+		default:
+			break;
+	}
+}
+
+static void M_HandleSetupMultiPlayerColor(INT32 choice)
+{
+	switch (choice)
+	{
+		case KEY_LEFTARROW:
+			setupm_fakecolor = setupm_fakecolor->prev;
+			break;
+
+		case KEY_RIGHTARROW:
+		case KEY_ENTER:
+			setupm_fakecolor = setupm_fakecolor->next;
+			break;
+
+		default:
+			break;
+	}
+
+	// check color
+	if (!skincolors[setupm_fakecolor->color].accessible) {
+		if (choice == KEY_LEFTARROW)
+			while (!skincolors[setupm_fakecolor->color].accessible)
+				setupm_fakecolor = setupm_fakecolor->prev;
+		else if (choice == KEY_RIGHTARROW || choice == KEY_ENTER)
+			while (!skincolors[setupm_fakecolor->color].accessible)
+				setupm_fakecolor = setupm_fakecolor->next;
+	}
+}
+
 static void M_HandleSetupMultiPlayer(INT32 choice)
 {
 	size_t   l;
-	INT32 prev_setupm_fakeskin;
 	boolean  exitmenu = false;  // exit to previous menu and send name change
 
 	switch (choice)
@@ -15908,20 +16264,12 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			if (itemOn == 1)       //player skin
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				prev_setupm_fakeskin = setupm_fakeskin;
-				do
-				{
-					setupm_fakeskin--;
-					if (setupm_fakeskin < 0)
-						setupm_fakeskin = numskins-1;
-				}
-				while ((prev_setupm_fakeskin != setupm_fakeskin) && !(R_SkinUsable(-1, setupm_fakeskin)));
-				multi_spr2 = P_GetSkinSprite2(&skins[setupm_fakeskin], SPR2_WALK, NULL);
+				M_HandleSetupMultiPlayerSkin(choice);
 			}
 			else if (itemOn == 2) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				setupm_fakecolor = setupm_fakecolor->prev;
+				M_HandleSetupMultiPlayerColor(choice);
 			}
 			break;
 
@@ -15947,20 +16295,18 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			if (itemOn == 1)       //player skin
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				prev_setupm_fakeskin = setupm_fakeskin;
-				do
-				{
-					setupm_fakeskin++;
-					if (setupm_fakeskin > numskins-1)
-						setupm_fakeskin = 0;
-				}
-				while ((prev_setupm_fakeskin != setupm_fakeskin) && !(R_SkinUsable(-1, setupm_fakeskin)));
-				multi_spr2 = P_GetSkinSprite2(&skins[setupm_fakeskin], SPR2_WALK, NULL);
+				M_HandleSetupMultiPlayerSkin(choice);
+#ifdef TOUCHINPUTS
+				M_ResetMenuTouchFX(&setupmpfx);
+#endif
 			}
 			else if (itemOn == 2) // player color
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
-				setupm_fakecolor = setupm_fakecolor->next;
+				M_HandleSetupMultiPlayerColor(choice);
+#ifdef TOUCHINPUTS
+				M_ResetMenuTouchFX(&setupmpfx);
+#endif
 			}
 			break;
 
@@ -15984,6 +16330,9 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 						if (setupm_fakecolor->color == col || setupm_fakecolor == menucolortail)
 							break;
 				}
+#ifdef TOUCHINPUTS
+				M_ResetMenuTouchFX(&setupmpfx);
+#endif
 			}
 			break;
 
@@ -16012,16 +16361,6 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 			break;
 	}
 
-	// check color
-	if (itemOn == 2 && !skincolors[setupm_fakecolor->color].accessible) {
-		if (choice == KEY_LEFTARROW)
-			while (!skincolors[setupm_fakecolor->color].accessible)
-				setupm_fakecolor = setupm_fakecolor->prev;
-		else if (choice == KEY_RIGHTARROW || choice == KEY_ENTER)
-			while (!skincolors[setupm_fakecolor->color].accessible)
-				setupm_fakecolor = setupm_fakecolor->next;
-	}
-
 	if (exitmenu)
 	{
 		if (currentMenu->prevMenu)
@@ -16031,6 +16370,292 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 	}
 }
 
+#ifdef TOUCHINPUTS
+TSNAVHANDLER(PlayerSetup)
+{
+	INT32 fx = event->x;
+	INT32 fy = event->y;
+	INT32 x = MP_PlayerSetupDef.x;
+	INT32 y = MP_PlayerSetupDef.y;
+	INT32 h = 14;
+	INT32 sx, sy, sw, sh, i;
+
+	sy = y - (lsheadingheight - 12);
+	sw = 282;
+
+	if (event->type == ev_touchup)
+	{
+		M_ClearHeldKey();
+		if (finger->selection == -2)
+			finger->selection++;
+	}
+
+	if (heldkey.key && (MP_PlayerSetupMenu[1].status & IT_TYPE) == IT_SPACE)
+		M_ClearHeldKey();
+	if (finger->selection == -2 && (MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE)
+		finger->selection++;
+
+	for (i = 0; i < 4; i++)
+	{
+		sx = x;
+		sh = h;
+
+		if (i == 0)
+			sh *= 2;
+		else if (i == 2)
+			sh += 16;
+
+		if (i == 1)
+			sy += 11;
+
+#define charw 74
+
+		if (i == 1 && (MP_PlayerSetupMenu[1].status & IT_TYPE) != IT_SPACE)
+		{
+			INT32 charh = 84;
+			INT32 boxx = BASEVIDWIDTH/2 - (charw / 2), boxy = sy;
+
+			if (event->type == ev_touchdown)
+			{
+				INT32 btnx = boxx;
+				INT32 btnsize = 24;
+
+				if (M_FingerTouchingSelection(fx, fy, boxx, boxy + 11, charw, charh))
+				{
+					finger->selection = i;
+					finger->type.menu = true;
+					goto done;
+				}
+
+				btnx -= 32;
+				boxy += (charh >> 1);
+
+				#define setkey(key) \
+					M_HandleSetupMultiPlayerSkin(key); \
+					M_SetHeldKey(key); \
+					M_SetHeldKeyRate(2); \
+					M_SetHeldKeySound(sfx_menu1); \
+					M_SetHeldKeyThreshold(TICRATE / 3); \
+					S_StartSound(NULL, sfx_menu1); \
+					finger->selection = -1; \
+					finger->type.menu = true
+
+				if (M_FingerTouchingSelection(fx, fy, btnx, boxy, btnsize, btnsize))
+				{
+					setkey(KEY_LEFTARROW);
+					return true;
+				}
+
+				btnx = boxx + charw + 8;
+
+				if (M_FingerTouchingSelection(fx, fy, btnx, boxy, btnsize, btnsize))
+				{
+					setkey(KEY_RIGHTARROW);
+					return true;
+				}
+
+				#undef setkey
+			}
+			else if (event->type == ev_touchup)
+			{
+				if (M_FingerTouchingSelection(fx, fy, boxx, boxy + 11, charw, charh) && i == finger->selection)
+				{
+					M_HandleSetupMultiPlayerSkin(KEY_RIGHTARROW);
+					S_StartSound(NULL, sfx_menu1);
+					finger->selection = -1;
+					goto done;
+				}
+			}
+		}
+		else if (i == 2 && (MP_PlayerSetupMenu[2].status & IT_TYPE) != IT_SPACE)
+		{
+#define indexwidth 8
+			const INT32 numcolors = (282-charw)/(2*indexwidth); // Number of colors per side
+			INT32 w = indexwidth; // Width of a singular color block
+
+			if (event->type == ev_touchdown)
+			{
+				menucolor_t *mc = setupm_fakecolor->prev; // Last accessed color
+				INT16 j;
+
+				INT32 lut[12] = {18, 30, 38, 48, 56, 70, 80, 100, 120, 160, 230, 260};
+#define lookup (lut[min(j-1, 11)]<<FRACBITS)
+
+				sx += numcolors*w;
+
+				if (M_FingerTouchingSelection(fx, fy, sx, y + 128, charw, 16))
+				{
+					finger->selection = -2;
+					finger->type.menu = true;
+					goto done;
+				}
+
+				for (j=0; j<numcolors; j++) {
+					sx -= w;
+					// Find accessible color before this one
+					while (!skincolors[mc->color].accessible)
+						mc = mc->prev;
+					if (M_FingerTouchingSelection(fx, fy, sx, y + 128, w, 16))
+					{
+						if (j == 0)
+							setupm_fakecolor = mc;
+						else
+							setupmpfx.slide[1] = -lookup;
+						finger->type.menu = true;
+						goto done;
+					}
+					mc = mc->prev;
+				}
+
+				mc = setupm_fakecolor->next;
+				sx += numcolors*w + charw;
+				for (j=0; j<numcolors; j++) {
+					// Find accessible color after this one
+					while (!skincolors[mc->color].accessible)
+						mc = mc->next;
+					if (M_FingerTouchingSelection(fx, fy, sx, y + 128, w, 16))
+					{
+						if (j == 0)
+							setupm_fakecolor = mc;
+						else
+							setupmpfx.slide[1] = lookup;
+						finger->type.menu = true;
+						goto done;
+					}
+					sx += w;
+					mc = mc->next;
+				}
+#undef lookup
+#undef charw
+#undef indexwidth
+			}
+			else if (finger->selection == -2)
+			{
+				if (event->type == ev_touchmotion)
+				{
+					fixed_t dx = FloatToFixed(finger->fdx * 2.0f);
+					if (dx)
+						setupmpfx.slide[1] = -dx;
+				}
+				finger->type.menu = true;
+				goto done;
+			}
+		}
+
+		if (i != 2 && finger->selection == -2)
+			continue;
+
+		sx = x;
+
+		if (event->type == ev_touchdown && (MP_PlayerSetupMenu[i].status & IT_TYPE) != IT_SPACE)
+		{
+			finger->int_arr[0] = 0;
+
+#define leftarrowx (BASEVIDWIDTH - x - 10 - V_StringWidth((itemOn == 1) ? M_LongestCharacterName() : M_LongestColorName(), V_ALLOWLOWERCASE))
+#define rightarrowx (BASEVIDWIDTH - x + 2)
+#define arroww 16
+
+			if (itemOn == i && (i == 1 || i == 2))
+			{
+				if (M_FingerTouchingSelection(fx, fy, leftarrowx, sy, arroww, sh))
+				{
+					finger->int_arr[0] = itemOn;
+					finger->int_arr[1] = 1;
+					finger->type.menu = true;
+					goto done;
+				}
+				else if (M_FingerTouchingSelection(fx, fy, rightarrowx, sy, arroww, sh))
+				{
+					finger->int_arr[0] = itemOn;
+					finger->int_arr[1] = 2;
+					finger->type.menu = true;
+					goto done;
+				}
+			}
+
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh))
+			{
+				finger->selection = i;
+				finger->type.menu = true;
+				if (itemOn == 0 && M_FingerTouchingSelection(fx, fy, sx, sy + 11, sw, h))
+					return true;
+				goto done;
+			}
+		}
+		else if (event->type == ev_touchup)
+		{
+			if (finger->int_arr[0] == i && (i == 1 || i == 2))
+			{
+				if ((MP_PlayerSetupMenu[i].status & IT_TYPE) == IT_SPACE)
+				{
+					finger->selection = -1;
+					goto done;
+				}
+				else if (M_FingerTouchingSelection(fx, fy, leftarrowx, sy, arroww, sh) && finger->int_arr[1] == 1)
+				{
+					if (itemOn == 2)
+						M_HandleSetupMultiPlayerColor(KEY_LEFTARROW);
+					else
+						M_HandleSetupMultiPlayerSkin(KEY_LEFTARROW);
+					S_StartSound(NULL, sfx_menu1);
+					finger->selection = -1;
+					goto done;
+				}
+				else if (M_FingerTouchingSelection(fx, fy, rightarrowx, sy, arroww, sh) && finger->int_arr[1] == 2)
+				{
+					if (itemOn == 2)
+						M_HandleSetupMultiPlayerColor(KEY_RIGHTARROW);
+					else
+						M_HandleSetupMultiPlayerSkin(KEY_RIGHTARROW);
+					S_StartSound(NULL, sfx_menu1);
+					finger->selection = -1;
+					goto done;
+				}
+			}
+#undef leftarrowx
+#undef rightarrowx
+#undef arroww
+
+			if (M_FingerTouchingSelection(fx, fy, sx, sy, sw, sh) && i == finger->selection)
+			{
+				if (itemOn == finger->selection)
+				{
+					if (itemOn == 0 && M_FingerTouchingSelection(fx, fy, sx, sy + 11, sw, h))
+					{
+						M_HandleTouchScreenKeyboard(setupm_name, MAXPLAYERNAME);
+						S_StartSound(NULL, sfx_menu1);
+						finger->selection = -1;
+						return true;
+					}
+					else if (itemOn == 3)
+						M_HandleSetupMultiPlayer(KEY_ENTER);
+				}
+				else
+				{
+					itemOn = i;
+					S_StartSound(NULL, sfx_menu1);
+				}
+
+				finger->selection = -1;
+				goto done;
+			}
+		}
+
+		if (i == 0)
+			sy += 24;
+		else if (i == 1)
+			sy += 86;
+		else if (i == 2)
+			sy += 32;
+	}
+
+done:
+	if (I_KeyboardOnScreen())
+		I_CloseScreenKeyboard();
+	return true;
+}
+#endif
+
 // start the multiplayer setup menu
 static void M_SetupMultiPlayer(INT32 choice)
 {
@@ -16038,6 +16663,11 @@ static void M_SetupMultiPlayer(INT32 choice)
 
 	multi_frame = 0;
 	multi_tics = 4;
+
+#ifdef TOUCHINPUTS
+	M_ResetMenuTouchFX(&setupmpfx);
+#endif
+
 	strcpy(setupm_name, cv_playername.string);
 
 	// set for player 1
@@ -16073,6 +16703,7 @@ static void M_SetupMultiPlayer(INT32 choice)
 
 	MP_PlayerSetupDef.prevMenu = currentMenu;
 	M_SetupNextMenu(&MP_PlayerSetupDef);
+	M_SetHeldKeyHandler(M_HandleSetupMultiPlayerSkin);
 }
 
 // start the multiplayer setup menu, for secondary player (splitscreen mode)
@@ -16082,7 +16713,12 @@ static void M_SetupMultiPlayer2(INT32 choice)
 
 	multi_frame = 0;
 	multi_tics = 4;
-	strcpy (setupm_name, cv_playername2.string);
+
+#ifdef TOUCHINPUTS
+	M_ResetMenuTouchFX(&setupmpfx);
+#endif
+
+	strcpy(setupm_name, cv_playername2.string);
 
 	// set for splitscreen secondary player
 	setupm_player = &players[secondarydisplayplayer];
@@ -16136,6 +16772,38 @@ static boolean M_QuitMultiPlayerMenu(void)
 	if (setupm_fakecolor->color != setupm_cvcolor->value)
 		COM_BufAddText (va("%s %d\n",setupm_cvcolor->name,setupm_fakecolor->color));
 	return true;
+}
+
+static void M_MultiPlayerMenuTicker(void)
+{
+#ifdef TOUCHINPUTS
+	menutouchfx_t *fx = &setupmpfx;
+	static INT32 sfxtime = 0;
+
+	INT32 threshold = 32;
+	INT32 dx;
+
+	M_RunSlideFX(fx->slide);
+	dx = FixedInt(FixedRound(fx->slide[0]));
+
+	if (sfxtime < 0)
+		sfxtime++;
+
+	if (dx < -threshold)
+		M_HandleSetupMultiPlayerColor(KEY_LEFTARROW);
+	else if (dx > threshold)
+		M_HandleSetupMultiPlayerColor(KEY_RIGHTARROW);
+	else
+		return;
+
+	fx->slide[0] &= 0xFFFF;
+
+	if (sfxtime >= 0)
+	{
+		S_StartSound(NULL, sfx_s3kb7);
+		sfxtime = -5;
+	}
+#endif
 }
 
 void M_AddMenuColor(UINT16 color) {
