@@ -2099,7 +2099,7 @@ INT32 I_StartupSystem(void)
 	SDL_version SDLlinked;
 	SDL_VERSION(&SDLcompiled)
 	SDL_GetVersion(&SDLlinked);
-#ifdef HAVE_THREADS
+#if defined(HAVE_THREADS) && !defined(__ANDROID__)
 	I_start_threads();
 	I_AddExitFunc(I_stop_threads);
 #endif
