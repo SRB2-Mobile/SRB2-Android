@@ -3604,7 +3604,7 @@ static void Command_Version_f(void)
 		CONS_Printf("Bits Unknown ");
 
 	// No ASM?
-#ifdef NOASM
+#if defined(NOASM) && !defined(__ANDROID__)
 	CONS_Printf("\x85" "NOASM " "\x80");
 #endif
 

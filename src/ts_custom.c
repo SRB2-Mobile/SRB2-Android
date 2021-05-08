@@ -24,6 +24,7 @@
 #include "m_fixed.h"
 #include "m_misc.h"
 #include "m_menu.h"
+#include "m_random.h"
 
 #include "d_event.h"
 #include "g_input.h"
@@ -178,6 +179,14 @@ static void StopRenamingLayout(touchlayout_t *layout)
 
 	if (touchcust_submenu == touchcust_submenu_layouts)
 		TS_MakeLayoutList();
+}
+
+static boolean UseGridLimits(void)
+{
+	if (TS_IsPresetActive() || (usertouchlayout && usertouchlayout->widescreen))
+		return false;
+
+	return (cv_touchlayoutusegrid.value == 1);
 }
 
 // =======
@@ -347,17 +356,20 @@ void TS_SynchronizeCurrentLayout(void)
 	}
 }
 
-static void ShowAllConfigButtons(touchconfig_t *config)
+static void ResetAllConfigButtons(touchconfig_t *config)
 {
-	// reset hidden value so that all buttons are properly populated
 	INT32 i;
-	for (i = 0; i < num_gamecontrols; i++)
-		config->hidden = false;
+
+	for (i = 0; i < num_gamecontrols; i++, config++)
+	{
+		config->hidden = false; // reset hidden value so that all buttons are properly populated
+		config->w = config->h = 0;
+	}
 }
 
 void TS_ClearLayout(touchlayout_t *layout)
 {
-	ShowAllConfigButtons(layout->config);
+	ResetAllConfigButtons(layout->config);
 	TS_BuildLayoutFromPreset(layout);
 }
 
@@ -373,8 +385,6 @@ void TS_ClearCurrentLayout(boolean setdefaults)
 	else
 		TS_SynchronizeLayoutSettingsFromCvars(usertouchlayout);
 
-	// Weird that it was clearing the layout before even properly
-	// setting the default options but whatever
 	TS_ClearLayout(usertouchlayout);
 
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
@@ -389,6 +399,12 @@ touchconfigstatus_t usertouchconfigstatus;
 void TS_BuildLayoutFromPreset(touchlayout_t *layout)
 {
 	TS_BuildPreset(layout->config, &usertouchconfigstatus, tms_joystick, TS_GetDefaultScale(), false, layout->widescreen);
+
+	// Position joystick, weapon buttons, etc.
+	TS_PositionExtraUserButtons();
+
+	// Mark movement controls as d-pad buttons
+	TS_MarkDPadButtons(layout->config);
 }
 
 void TS_DefaultControlLayout(boolean makelayout)
@@ -416,12 +432,15 @@ void TS_DeleteLayout(INT32 layoutnum)
 {
 	touchlayout_t *todelete = (touchlayouts + layoutnum);
 
-	if (usertouchlayout == todelete)
+	if (usertouchlayout == todelete || (!(numtouchlayouts-1) && usertouchlayoutnum != UNSAVEDTOUCHLAYOUT))
 	{
 		usertouchlayout = Z_Calloc(sizeof(touchlayout_t), PU_STATIC, NULL);
 		usertouchlayoutnum = UNSAVEDTOUCHLAYOUT;
+		TS_SynchronizeLayoutSettingsFromCvars(usertouchlayout);
 		TS_CopyLayoutTo(usertouchlayout, todelete);
 		CV_StealthSet(&cv_touchlayout, "None");
+		if (!todelete->saved)
+			userlayoutsaved = userlayoutnew = false;
 	}
 
 	if (usertouchlayoutnum >= layoutnum)
@@ -434,12 +453,23 @@ void TS_DeleteLayout(INT32 layoutnum)
 		memmove(todelete, (todelete + 1), (numtouchlayouts - (layoutnum + 1)) * sizeof(touchlayout_t));
 
 	numtouchlayouts--;
-	touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
 
-	if (usertouchlayoutnum != UNSAVEDTOUCHLAYOUT)
-		usertouchlayout = (touchlayouts + usertouchlayoutnum);
+	if (numtouchlayouts)
+	{
+		touchlayouts = Z_Realloc(touchlayouts, (numtouchlayouts * sizeof(touchlayout_t)), PU_STATIC, NULL);
+
+		if (usertouchlayoutnum != UNSAVEDTOUCHLAYOUT)
+			usertouchlayout = (touchlayouts + usertouchlayoutnum);
+		else
+			touchcust_submenu_highlight = -1;
+	}
 	else
-		touchcust_submenu_highlight = -1;
+	{
+		Z_Free(touchlayouts);
+		touchlayouts = NULL;
+		if (usertouchlayoutnum == UNSAVEDTOUCHLAYOUT)
+			touchcust_submenu_highlight = -1;
+	}
 
 	if (touchcust_submenu_selection >= numtouchlayouts)
 		FocusSubmenuOnSelection(numtouchlayouts - 1);
@@ -460,7 +490,6 @@ void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from)
 void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from)
 {
 	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
-	size_t offs = offsetof(touchlayout_t, usegridlimits);
 
 	if (!to->config)
 		to->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
@@ -470,9 +499,8 @@ void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from)
 	else
 		I_Error("TS_CopyLayoutTo: no layout to copy from!");
 
-	// whatever the last element is
-	layoutsize = (offsetof(touchlayout_t, widescreen) + sizeofmember(touchlayout_t, widescreen)) - offs;
-	M_Memcpy(to + offs, from + offs, layoutsize);
+	to->usegridlimits = from->usegridlimits;
+	to->widescreen = from->widescreen;
 }
 
 #undef sizeofmember
@@ -749,7 +777,10 @@ static void CreateAndSetupNewLayout(boolean setupnew)
 		TS_SynchronizeLayoutCvarsFromSettings(newlayout);
 	}
 	else
+	{
 		TS_CopyLayoutTo(newlayout, usertouchlayout);
+		TS_SynchronizeLayoutSettingsFromCvars(newlayout);
+	}
 
 	usertouchlayout = newlayout;
 	usertouchlayoutnum = newlayoutnum;
@@ -804,7 +835,11 @@ static boolean LoadLayoutAtIndex(INT32 idx)
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
 	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
 
+	// Position joystick, weapon buttons, etc.
 	TS_PositionExtraUserButtons();
+
+	// Mark movement controls as d-pad buttons
+	TS_MarkDPadButtons(usertouchcontrols);
 
 	return true;
 }
@@ -868,12 +903,20 @@ static void SubmenuMessageResponse_LayoutList_Load(INT32 ch)
 
 static void Submenu_LayoutList_Load(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
-	const char *layoutname = TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME);
+	const char *layoutname;
 
 	(void)x;
 	(void)y;
 	(void)finger;
 	(void)event;
+
+	if (touchlayouts == NULL || !numtouchlayouts)
+	{
+		S_StartSound(NULL, sfx_lose);
+		return;
+	}
+
+	layoutname = TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME);
 
 	if (userlayoutsaved && (usertouchlayoutnum == touchcust_submenu_selection))
 	{
@@ -916,7 +959,6 @@ static void SaveLayoutOnList(void)
 		TS_CopyConfigTo(usertouchlayout, usertouchcontrols);
 		TS_CopyLayoutTo(savelayout, usertouchlayout);
 
-		//usertouchlayout->saved = true;
 		usertouchlayout = savelayout;
 		usertouchlayoutnum = touchcust_submenu_selection;
 
@@ -959,7 +1001,12 @@ static void Submenu_LayoutList_Save(INT32 x, INT32 y, touchfinger_t *finger, eve
 	(void)finger;
 	(void)event;
 
-	if (usertouchlayoutnum == UNSAVEDTOUCHLAYOUT)
+	if (touchlayouts == NULL || !numtouchlayouts)
+	{
+		S_StartSound(NULL, sfx_lose);
+		return;
+	}
+	else if (usertouchlayoutnum == UNSAVEDTOUCHLAYOUT)
 	{
 		SaveLayoutOnList();
 		return;
@@ -972,9 +1019,9 @@ static void Submenu_LayoutList_Save(INT32 x, INT32 y, touchfinger_t *finger, eve
 			"\x80Save over the \x82%s \x80layout?\n"
 			"\n(%s to save"
 			"\nor %s to return)\n"),
-			M_GetUserActionString(PRESS_Y_MESSAGE), M_GetUserActionString(PRESS_N_MESSAGE_L),
 			TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME),
-			TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME)),
+			TS_GetShortLayoutName((touchlayouts + touchcust_submenu_selection), MAXMESSAGELAYOUTNAME),
+			M_GetUserActionString(PRESS_Y_MESSAGE), M_GetUserActionString(PRESS_N_MESSAGE_L)),
 		SubmenuMessageResponse_LayoutList_Save, MM_YESNO);
 		return;
 	}
@@ -1016,6 +1063,7 @@ static void DeleteLayoutOnList(INT32 layoutnum)
 	}
 
 	TS_MakeLayoutList();
+	S_StartSound(NULL, sfx_altdi1 + M_RandomKey(4));
 }
 
 static void SubmenuMessageResponse_LayoutList_Delete(INT32 ch)
@@ -1033,6 +1081,12 @@ static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, e
 	(void)y;
 	(void)finger;
 	(void)event;
+
+	if (touchlayouts == NULL || !numtouchlayouts)
+	{
+		S_StartSound(NULL, sfx_lose);
+		return;
+	}
 
 	layout = (touchlayouts + touchcust_submenu_selection);
 
@@ -1059,13 +1113,20 @@ static void Submenu_LayoutList_Delete(INT32 x, INT32 y, touchfinger_t *finger, e
 
 static void Submenu_LayoutList_Rename(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 {
-	touchlayout_t *layout = (touchlayouts + touchcust_submenu_selection);
+	touchlayout_t *layout;
 
 	(void)x;
 	(void)y;
 	(void)finger;
 	(void)event;
 
+	if (touchlayouts == NULL || !numtouchlayouts)
+	{
+		S_StartSound(NULL, sfx_lose);
+		return;
+	}
+
+	layout = (touchlayouts + touchcust_submenu_selection);
 	touchcust_layoutlist_renaming = layout;
 #if defined(__ANDROID__)
 	I_RaiseScreenKeyboard(layout->name, MAXTOUCHLAYOUTNAME);
@@ -1518,7 +1579,7 @@ static void OffsetButtonBy(touchconfig_t *btn, float offsx, float offsy)
 	btn->supposed.x += offsx;
 	btn->supposed.y += offsy;
 
-	if (cv_touchlayoutusegrid.value)
+	if (UseGridLimits())
 	{
 		if (btn->supposed.x < 0.0f)
 			btn->supposed.x = 0.0f;
@@ -2405,11 +2466,11 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 
 		SetButtonSupposedLocation(btn);
 
-#define SUPPOSEDWIDTHCHECKLEFT  ((cv_touchlayoutusegrid.value) && (btn->supposed.x + dx < 0.0f))
-#define SUPPOSEDHEIGHTCHECKTOP  ((cv_touchlayoutusegrid.value) && (btn->supposed.y + dy < 0.0f))
+#define SUPPOSEDWIDTHCHECKLEFT  (UseGridLimits() && (btn->supposed.x + dx < 0.0f))
+#define SUPPOSEDHEIGHTCHECKTOP  (UseGridLimits() && (btn->supposed.y + dy < 0.0f))
 
-#define SUPPOSEDWIDTHCHECKRIGHT ((cv_touchlayoutusegrid.value) && (btn->supposed.x + btn->supposed.w + dx > (BASEVIDWIDTH * vid.dupx)))
-#define SUPPOSEDHEIGHTCHECKBOT  ((cv_touchlayoutusegrid.value) && (btn->supposed.y + btn->supposed.h + dy > (BASEVIDHEIGHT * vid.dupy)))
+#define SUPPOSEDWIDTHCHECKRIGHT (UseGridLimits() && (btn->supposed.x + btn->supposed.w + dx > (BASEVIDWIDTH * vid.dupx)))
+#define SUPPOSEDHEIGHTCHECKBOT  (UseGridLimits() && (btn->supposed.y + btn->supposed.h + dy > (BASEVIDHEIGHT * vid.dupy)))
 
 		switch (corner)
 		{
@@ -2423,7 +2484,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				if (btn->supposed.h - offy < MINBTNHEIGHT)
 					offy = max(0, offy - MINBTNHEIGHT);
 
-				if (cv_touchlayoutusegrid.value)
+				if (UseGridLimits())
 				{
 					if ((offx < 0.0f && btn->supposed.x - offx < 0.0f)
 					|| (offy < 0.0f && btn->supposed.y - offy < 0.0f))
@@ -2448,7 +2509,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				if (btn->supposed.h - offy < MINBTNHEIGHT)
 					offy = max(0, offy - MINBTNHEIGHT);
 
-				if (cv_touchlayoutusegrid.value)
+				if (UseGridLimits())
 				{
 					if (offy < 0.0f && btn->supposed.y - offy < 0.0f)
 						break;
@@ -2476,7 +2537,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				if (btn->supposed.w - offx < MINBTNWIDTH)
 					offx = max(0, offx - MINBTNWIDTH);
 
-				if (cv_touchlayoutusegrid.value)
+				if (UseGridLimits())
 				{
 					if (offx < 0.0f && btn->supposed.x - offx < 0.0f)
 						break;
@@ -2515,7 +2576,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				if (btn->supposed.h - offy < MINBTNHEIGHT)
 					offy = max(0, offy - MINBTNHEIGHT);
 
-				if (cv_touchlayoutusegrid.value)
+				if (UseGridLimits())
 				{
 					if (offy < 0.0f && btn->supposed.y - offy < 0.0f)
 						break;
@@ -2542,7 +2603,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				if (btn->supposed.w - offx < MINBTNWIDTH)
 					offx = max(0, offx - MINBTNWIDTH);
 
-				if (cv_touchlayoutusegrid.value)
+				if (UseGridLimits())
 				{
 					if (offx < 0.0f && btn->supposed.x - offx < 0.0f)
 						break;

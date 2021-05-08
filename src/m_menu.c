@@ -17528,7 +17528,7 @@ static void M_LayoutClearResponse(INT32 ch)
 		return;
 
 	TS_ClearCurrentLayout(true);
-	S_StartSound(NULL, sfx_appear);
+	S_StartSound(NULL, sfx_altdi1 + M_RandomKey(4));
 	//M_ShowAnyKeyMessage("Layout cleared.\n");
 }
 

@@ -21,6 +21,7 @@
 
 #include "m_menu.h" // M_IsCustomizingTouchControls
 #include "m_misc.h" // M_ScreenShot
+#include "m_random.h" // M_RandomKey
 #include "console.h" // CON_Toggle
 
 #include "st_stuff.h"
@@ -116,18 +117,25 @@ static void ClearLayoutAndKeepSettings(void)
 {
 	TS_ClearCurrentLayout(false);
 	TS_SynchronizeCurrentLayout();
+	TS_PositionExtraUserButtons();
+	if (usertouchlayout)
+		TS_MarkDPadButtons(usertouchlayout->config);
 }
 
 static void UseGrid_OnChange(void)
 {
 	if (TS_IsPresetActive() || usertouchlayout->widescreen)
 	{
-		CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
-
 		if (TS_IsPresetActive())
+		{
+			CV_StealthSetValue(&cv_touchlayoutusegrid, 1);
 			M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
+		}
 		else
+		{
+			CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
 			M_ShowESCMessage("You cannot change this option\nif the layout isn't GUI-scaled.\n\n");
+		}
 
 		return;
 	}
@@ -138,25 +146,26 @@ static void UseGrid_OnChange(void)
 
 static void WideScreen_OnChangeResponse(INT32 ch)
 {
-	if (TS_IsPresetActive())
-	{
-		CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
-		M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
-		return;
-	}
-
 	if (ch != 'y' && ch != KEY_ENTER)
 	{
 		CV_StealthSetValue(&cv_touchlayoutwidescreen, usertouchlayout->widescreen);
 		return;
 	}
 
+	CV_StealthSetValue(&cv_touchlayoutusegrid, 0);
 	ClearLayoutAndKeepSettings();
-	S_StartSound(NULL, sfx_appear);
+	S_StartSound(NULL, sfx_altdi1 + M_RandomKey(4));
 }
 
 static void WideScreen_OnChange(void)
 {
+	if (TS_IsPresetActive())
+	{
+		CV_StealthSetValue(&cv_touchlayoutwidescreen, 1);
+		M_ShowESCMessage(TSC_MESSAGE_DISABLECONTROLPRESET);
+		return;
+	}
+
 	if (userlayoutnew)
 		ClearLayoutAndKeepSettings();
 	else
@@ -923,9 +932,17 @@ void TS_DenormalizeCoords(fixed_t *x, fixed_t *y)
 	*y *= BASEVIDHEIGHT;
 }
 
+static boolean LayoutIsWidescreen(void)
+{
+	if (TS_IsPresetActive())
+		return true;
+
+	return usertouchlayout->widescreen;
+}
+
 void TS_CenterCoords(fixed_t *x, fixed_t *y)
 {
-	if (!usertouchlayout->widescreen)
+	if (!LayoutIsWidescreen())
 	{
 		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 		if (vid.width != BASEVIDWIDTH * dup)
@@ -937,7 +954,7 @@ void TS_CenterCoords(fixed_t *x, fixed_t *y)
 
 void TS_CenterIntegerCoords(INT32 *x, INT32 *y)
 {
-	if (!usertouchlayout->widescreen)
+	if (!LayoutIsWidescreen())
 	{
 		INT32 dup = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 		if (vid.width != BASEVIDWIDTH * dup)

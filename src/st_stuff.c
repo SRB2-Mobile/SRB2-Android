@@ -859,25 +859,15 @@ static void ST_drawLivesArea(void)
 			ST_GetLivesHUDInfo()->f|V_PERPLAYER|V_HUDTRANS, faceprefix[stplyr->skin], colormap);
 	}
 
-	if (cv_liveshudpos.value == 1)
-	{
-		x = hudinfo[HUD_LIVES].x + 58;
-		y = hudinfo[HUD_LIVES].y + 10;
-		f = hudinfo[HUD_LIVES].f;
-	}
-	else
-	{
-		x = (ST_GetLivesHUDInfo()->x + 58);
-		y = (ST_GetLivesHUDInfo()->y + 8);
-		f = ST_GetLivesHUDInfo()->f;
-	}
+	x = (ST_GetLivesHUDInfo()->x + 58);
+	y = (ST_GetLivesHUDInfo()->y + 8);
+	f = ST_GetLivesHUDInfo()->f;
 
 	// Metal Sonic recording
 	if (metalrecording)
 	{
 		if (((2*leveltime)/TICRATE) & 1)
-			V_DrawRightAlignedString(x, y,
-				f|V_PERPLAYER|V_REDMAP|V_HUDTRANS, "REC");
+			V_DrawRightAlignedString(x, y, f|V_PERPLAYER|V_REDMAP|V_HUDTRANS, "REC");
 	}
 	// Spectator
 	else if (stplyr->spectator)
@@ -887,7 +877,7 @@ static void ST_drawLivesArea(void)
 	{
 		if (stplyr->pflags & PF_TAGIT)
 		{
-			V_DrawRightAlignedString(x, y, V_HUDTRANS|ST_GetLivesHUDInfo()->f|V_PERPLAYER, "IT!");
+			V_DrawRightAlignedString(x, y, V_HUDTRANS|f|V_PERPLAYER, "IT!");
 			v_colmap = V_ORANGEMAP;
 		}
 	}
@@ -896,12 +886,12 @@ static void ST_drawLivesArea(void)
 	{
 		if (stplyr->ctfteam == 1)
 		{
-			V_DrawRightAlignedString(x, y, V_HUDTRANS|ST_GetLivesHUDInfo()->f|V_PERPLAYER, "RED");
+			V_DrawRightAlignedString(x, y, V_HUDTRANS|f|V_PERPLAYER, "RED");
 			v_colmap = V_REDMAP;
 		}
 		else if (stplyr->ctfteam == 2)
 		{
-			V_DrawRightAlignedString(x, y, V_HUDTRANS|ST_GetLivesHUDInfo()->f|V_PERPLAYER, "BLUE");
+			V_DrawRightAlignedString(x, y, V_HUDTRANS|f|V_PERPLAYER, "BLUE");
 			v_colmap = V_BLUEMAP;
 		}
 	}
