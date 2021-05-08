@@ -1056,8 +1056,10 @@ static inline void CL_DrawConnectionStatus(void)
 		abortstring = "Tap Back to abort";
 	else
 #endif
-	if (inputmethod == INPUTMETHOD_JOYSTICK || inputmethod == INPUTMETHOD_TVREMOTE)
-		abortstring = va("Push %s to abort", G_KeynumToString((inputmethod == INPUTMETHOD_TVREMOTE) ? KEY_REMOTEBACK : KEY_JOY1+1));
+	if (inputmethod == INPUTMETHOD_JOYSTICK)
+		abortstring = va("Push %s to abort", G_KeynumToString(KEY_JOY1+1));
+	else if (inputmethod == INPUTMETHOD_TVREMOTE)
+		abortstring = "Push Back to abort";
 	else
 		abortstring = "Press ESC to abort";
 
