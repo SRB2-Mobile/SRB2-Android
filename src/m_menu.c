@@ -258,11 +258,6 @@ static void M_ClearHeldKey(void);
 #define M_SetHeldKeyRate(r) heldkey.rate = r
 #define M_SetHeldKeySound(sfx) heldkey.sound = sfx
 
-#ifndef NONET
-static void M_HandleServerPage(INT32 choice);
-static void M_RoomMenu(INT32 choice);
-#endif
-
 static const char *M_CreateSecretMenuOption(const char *str);
 
 //
@@ -277,6 +272,7 @@ TSNAVHANDLER(LevelPlatter);
 TSNAVHANDLER(SaveSelect);
 TSNAVHANDLER(CharacterSelect);
 TSNAVHANDLER(PlayerSetup);
+TSNAVHANDLER(ServerList);
 TSNAVHANDLER(AddonsMenu);
 TSNAVHANDLER(SoundTest);
 TSNAVHANDLER(UnlockChecklist);
@@ -494,6 +490,20 @@ menu_t OP_TouchCustomizationDef;
 #endif
 
 static void M_CameraOptionsTicker(void);
+
+//===========================================================================
+// Connect Menu
+//===========================================================================
+
+#define SERVERHEADERHEIGHT 44
+#define SERVERLINEHEIGHT 12
+
+#define S_LINEY(n) currentMenu->y + SERVERHEADERHEIGHT + (n * SERVERLINEHEIGHT)
+
+#ifndef NONET
+static void M_HandleServerPage(INT32 choice);
+static void M_RoomMenu(INT32 choice);
+#endif
 
 // ===============
 // VIDEO MODE MENU
@@ -2429,7 +2439,7 @@ menu_t MP_ServerDef =
 
 menu_t MP_ConnectDef =
 {
-	MTREE2(MN_MP_MAIN, MN_MP_CONNECT), 0,
+	MTREE2(MN_MP_MAIN, MN_MP_CONNECT), MENUSTYLE_SERVERLIST,
 	"M_MULTI",
 	sizeof (MP_ConnectMenu)/sizeof (menuitem_t),
 	&MP_MainDef,
@@ -3920,6 +3930,8 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 			return TSNAVHANDLER_CALL(AddonsMenu);
 		case MENUSTYLE_SOUNDTEST:
 			return TSNAVHANDLER_CALL(SoundTest);
+		case MENUSTYLE_SERVERLIST:
+			return TSNAVHANDLER_CALL(ServerList);
 		default:
 			break;
 	}
@@ -5106,6 +5118,27 @@ static INT16 M_IsTouchingVideoModeSelection(INT32 fx, INT32 fy)
 	return -1;
 }
 
+static INT16 M_IsTouchingServerListSelection(INT32 fx, INT32 fy)
+{
+#ifndef NONET
+	UINT32 i;
+
+	if (m_waiting_mode || serverlistcount <= 0)
+		return -1;
+
+	for (i = 0; i < min(serverlistcount - serverlistpage * SERVERS_PER_PAGE, SERVERS_PER_PAGE); i++)
+	{
+		if (M_FingerTouchingSelection(fx, fy, currentMenu->x, S_LINEY(i), 245, 12))
+			return 4 + i;
+	}
+#else
+	(void)fx;
+	(void)fy;
+#endif
+
+	return -1;
+}
+
 static INT16 M_IsTouchingMenuSelection(INT32 fx, INT32 fy, INT32 *key, consvar_t **cv)
 {
 	switch (currentMenu->menustyle)
@@ -5116,6 +5149,14 @@ static INT16 M_IsTouchingMenuSelection(INT32 fx, INT32 fy, INT32 *key, consvar_t
 			return M_IsTouchingPlaystyleSelection(fx, fy);
 		case MENUSTYLE_VIDEOMODES:
 			return M_IsTouchingVideoModeSelection(fx, fy);
+		case MENUSTYLE_SERVERLIST:
+		{
+			INT16 selection = M_IsTouchingServerListSelection(fx, fy);
+			if (selection == -1)
+				return M_IsTouchingGenericMenuSelection(fx, fy, key, cv);
+			else
+				return selection;
+		}
 		default:
 			break;
 	}
@@ -15114,11 +15155,6 @@ static void M_BreadcrumbEndGame(INT32 choice)
 // Connect Menu
 //===========================================================================
 
-#define SERVERHEADERHEIGHT 44
-#define SERVERLINEHEIGHT 12
-
-#define S_LINEY(n) currentMenu->y + SERVERHEADERHEIGHT + (n * SERVERLINEHEIGHT)
-
 #ifndef NONET
 static UINT32 localservercount;
 
@@ -15325,6 +15361,31 @@ static void M_DrawConnectMenu(void)
 
 	M_DrawGenericMenu();
 
+#ifdef TOUCHINPUTS
+	if (M_TouchInput())
+	{
+		patch_t *patch;
+		INT32 btnsize = 16;
+		fixed_t btnx = (4 * FRACUNIT);
+		fixed_t btny = ((BASEVIDHEIGHT * FRACUNIT) / 2);
+		fixed_t size = btnsize*FRACUNIT, xscale, yscale;
+
+		#define drawnavbutton(pat, x, y) \
+			patch = W_CachePatchLongName(pat, PU_PATCH); \
+			xscale = FixedDiv(size, patch->width * FRACUNIT); \
+			yscale = FixedDiv(size, patch->height * FRACUNIT); \
+			V_DrawStretchyFixedPatch( \
+				((x + FixedDiv(size, 2 * FRACUNIT)) - ((patch->width / 2) * xscale)), \
+				((y + FixedDiv(size, 2 * FRACUNIT)) - ((patch->height / 2) * yscale)), \
+				xscale, yscale, 0, patch, NULL)
+
+		drawnavbutton("NAV_BACK_GRAYSCALE", btnx, btny);
+		drawnavbutton("NAV_CONFIRM_GRAYSCALE", ((BASEVIDWIDTH - btnsize) * FRACUNIT) - btnx, btny);
+
+		#undef drawnavbutton
+	}
+#endif
+
 	if (m_waiting_mode)
 	{
 		// Display a little "please wait" message.
@@ -15389,6 +15450,48 @@ static int ServerListEntryComparator_modified(const void *entry1, const void *en
 
 	// Default to strcmp.
 	return strcmp(sa->info.servername, sb->info.servername);
+}
+#endif
+
+#ifdef TOUCHINPUTS
+TSNAVHANDLER(ServerList)
+{
+#ifndef NONET
+	INT32 fx = event->x;
+	INT32 fy = event->y;
+	INT32 y = (BASEVIDHEIGHT / 2);
+
+	#define setkey(key) \
+		M_HandleServerPage(key); \
+		M_SetHeldKey(key); \
+		M_SetHeldKeyRate(2); \
+		M_SetHeldKeySound(sfx_menu1); \
+		M_SetHeldKeyThreshold(TICRATE / 3); \
+		S_StartSound(NULL, sfx_menu1); \
+		finger->selection = -1; \
+		finger->type.menu = true
+
+	if (event->type == ev_touchdown)
+	{
+		if (M_FingerTouchingSelection(fx, fy, 4, y, 16, 16))
+		{
+			setkey(KEY_LEFTARROW);
+			return true;
+		}
+
+		if (M_FingerTouchingSelection(fx, fy, (BASEVIDWIDTH - 16) - 4, y, 16, 16))
+		{
+			setkey(KEY_RIGHTARROW);
+			return true;
+		}
+	}
+	else if (event->type == ev_touchup)
+		M_ClearHeldKey();
+
+#undef setkey
+#endif
+
+	return false;
 }
 #endif
 
@@ -15494,6 +15597,14 @@ Check_new_version_thread (int *id)
 }
 #endif/*defined (MASTERSERVER) && defined (HAVE_THREADS)*/
 
+static void M_ServerListMenu(void)
+{
+	M_SetupNextMenu(&MP_ConnectDef);
+#ifdef TOUCHINPUTS
+	M_SetHeldKeyHandler(M_HandleServerPage);
+#endif
+}
+
 static void M_ConnectMenu(INT32 choice)
 {
 	(void)choice;
@@ -15509,7 +15620,7 @@ static void M_ConnectMenu(INT32 choice)
 		currentMenu->prevMenu = &MP_MainDef;
 	}
 	else
-		M_SetupNextMenu(&MP_ConnectDef);
+		M_ServerListMenu();
 	M_ClearItemOn();
 	M_Refresh(0);
 }
@@ -15614,12 +15725,17 @@ static void M_ChooseRoom(INT32 choice)
 	to the browser next, not back there.
 	*/
 	if (currentMenu->prevMenu == &MP_MainDef)
-		M_SetupNextMenu(&MP_ConnectDef);
+		M_ServerListMenu();
 	else
 		M_SetupPrevMenu(currentMenu->prevMenu);
 
 	if (currentMenu == &MP_ConnectDef)
+	{
 		M_Refresh(0);
+#ifdef TOUCHINPUTS
+		M_SetHeldKeyHandler(M_HandleServerPage);
+#endif
+	}
 }
 #endif //NONET
 
