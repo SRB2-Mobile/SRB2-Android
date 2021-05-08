@@ -235,13 +235,13 @@ boolean W_UnpackFile(const char *filename, void *handle)
 
 	if (filename == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "%s: cannot unpack without a filename\n", __FUNCTION__);
+		CONS_Alert(CONS_ERROR, "%s: Cannot unpack without a filename.\n", __FUNCTION__);
 		return false;
 	}
 
 	if (handle == NULL)
 	{
-		UnpackError("%s: cannot unpack %s without a handle\n");
+		UnpackError("%s: Cannot unpack %s without a handle.\n");
 		return false;
 	}
 
@@ -252,14 +252,14 @@ boolean W_UnpackFile(const char *filename, void *handle)
 	I_GetDiskFreeSpace(&storagespace);
 	if ((INT64)fullsize > storagespace)
 	{
-		UnpackError("%s: Not enough available storage for caching %s. Loading will be slower.\n");
+		UnpackError("%s: Not enough available storage for caching %s.\n");
 		return false;
 	}
 
 	f = fopen(filename, "w+b");
 	if (!f)
 	{
-		UnpackError("%s: Could not open %s for caching. Loading will be slower.\n");
+		UnpackError("%s: Could not open %s for caching.\n");
 		return false;
 	}
 

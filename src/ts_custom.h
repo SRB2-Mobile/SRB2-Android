@@ -61,7 +61,7 @@ extern char touchlayoutfolder[512];
 
 void TS_InitLayouts(void);
 void TS_LoadLayouts(void);
-void TS_SaveLayouts(void);
+boolean TS_SaveLayouts(void);
 
 void TS_RegisterVariables(void);
 

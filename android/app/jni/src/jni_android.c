@@ -377,6 +377,21 @@ boolean JNI_CheckPermission(const char *permission)
 	return (granted != JNI_FALSE);
 }
 
+boolean JNI_CheckStoragePermission(void)
+{
+	return JNI_CheckPermission(JNI_GetWriteExternalStoragePermission());
+}
+
+boolean JNI_StoragePermissionGranted(void)
+{
+	return JNI_StoragePermission;
+}
+
+const char *JNI_GetWriteExternalStoragePermission(void)
+{
+	return "android.permission.WRITE_EXTERNAL_STORAGE";
+}
+
 void JNI_DisplayToast(const char *text)
 {
 	SDL_AndroidShowToast(text, 1, -1, 0, 0);

@@ -950,6 +950,7 @@ static inline void D_CleanFile(char **list)
 	}
 }
 
+#if !defined(__ANDROID__)
 ///\brief Checks if a netgame URL is being handled, and changes working directory to the EXE's if so.
 ///       Done because browsers (at least, Firefox on Windows) launch the game from the browser's directory, which causes problems.
 static void ChangeDirForUrlHandler(void)
@@ -983,6 +984,7 @@ static void ChangeDirForUrlHandler(void)
 #endif
 	}
 }
+#endif
 
 // ==========================================================================
 // Identify the SRB2 version, and IWAD file to use.
@@ -1160,8 +1162,10 @@ void D_SRB2Main(void)
 	// Test Dehacked lists
 	DEH_TableCheck();
 
+#if !defined(__ANDROID__)
 	// Netgame URL special case: change working dir to EXE folder.
 	ChangeDirForUrlHandler();
+#endif
 
 	// identify the main IWAD file to use
 	IdentifyVersion();
@@ -1690,7 +1694,6 @@ static void D_AndroidSetupHome(const char *userhome)
 	INT32 next = 0;
 
 	strlcpy(srb2home, userhome, sizeof(srb2home));
-	I_mkdir(srb2home, 0755);
 
 	// can't use sprintf since there is %u in savegamename
 	strcatbf(savegamename, srb2home, PATHSEP);

@@ -14,12 +14,6 @@
 
 #include <jni_android.h>
 
-static void DisplayToast(const char *message)
-{
-	JNI_DisplayToast(message);
-	I_OutputMsg("%s\n", message);
-}
-
 #ifdef SPLASH_SCREEN
 static INT32 displayingSplash = 0;
 
@@ -45,7 +39,7 @@ static void ShowSplashScreen(void)
 #define REQUEST_MESSAGE_TITLE "Permission required"
 #define REQUEST_MESSAGE_TEXT "Sonic Robo Blast 2 needs storage permission.\nYour settings and game progress will not be saved if you decline."
 
-static void PolitelyRequestPermission(void)
+static void PermissionRequestMessage(void)
 {
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, REQUEST_MESSAGE_TITLE, REQUEST_MESSAGE_TEXT, NULL);
 }
@@ -58,34 +52,25 @@ static boolean StorageInit(void)
 
 static void StorageGrantedPermission(void)
 {
-	if (JNI_SharedStorage)
-	{
-		DisplayToast("Storage permission granted");
-		I_mkdir(JNI_SharedStorage, 0755);
-	}
+	I_mkdir(JNI_SharedStorage, 0755);
+	JNI_StoragePermission = true;
 }
 
 static boolean StorageCheckPermission(void)
 {
-	const char *permission = "android.permission.WRITE_EXTERNAL_STORAGE";
-
-	if (JNI_SharedStorage == NULL)
-		return false;
-
-	// Permission was already granted.
-	if (I_CheckSystemPermission(permission))
+	// Permission was already granted. Create the directory anyway.
+	if (JNI_CheckStoragePermission())
 	{
-		JNI_StoragePermission = true;
+		StorageGrantedPermission();
 		return true;
 	}
 
-	PolitelyRequestPermission();
+	PermissionRequestMessage();
 
-	// Permission granted -- create the directory.
-	if (I_RequestSystemPermission(permission))
+	// Permission granted. Create the directory.
+	if (I_RequestSystemPermission(JNI_GetWriteExternalStoragePermission()))
 	{
 		StorageGrantedPermission();
-		JNI_StoragePermission = true;
 		return true;
 	}
 
@@ -114,27 +99,19 @@ int main(int argc, char* argv[])
 #endif
 
 	// Init shared storage.
-	StorageInit();
+	if (StorageInit())
+		StorageCheckPermission(); // Check storage permissions.
 
 #ifdef LOGMESSAGES
 	// Start logging.
-	if (logging)
+	if (logging && I_StoragePermission())
 		I_InitLogging();
 #endif
 
 	CONS_Printf("Sonic Robo Blast 2 for Android\n");
 
-	if (JNI_SharedStorage)
-	{
-		// Check storage permissions.
-		if (!StorageCheckPermission())
-			DisplayToast("Storage permission was not granted");
-	}
-	else
-		DisplayToast("NOTICE: There is no shared storage");
-
 #ifdef LOGMESSAGES
-	if (logging)
+	if (logstream)
 		CONS_Printf("Logfile: %s\n", logfilename);
 #endif
 

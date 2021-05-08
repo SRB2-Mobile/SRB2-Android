@@ -2128,7 +2128,10 @@ void I_Quit(void)
 	if (quiting) goto death;
 	SDLforceUngrabMouse();
 	quiting = SDL_FALSE;
-	M_SaveConfig(NULL); //save game config, cvars..
+
+	if (I_StoragePermission())
+		M_SaveConfig(NULL); //save game config, cvars..
+
 #ifndef NONET
 	D_SaveBan(); // save the ban list
 #endif
@@ -2213,7 +2216,7 @@ void I_Error(const char *error, ...)
 			I_ShutdownSystem();
 		if (errorcount == 7)
 			SDL_Quit();
-		if (errorcount == 8)
+		if (errorcount == 8 && I_StoragePermission())
 		{
 			M_SaveConfig(NULL);
 			G_SaveGameData();
@@ -2244,7 +2247,9 @@ void I_Error(const char *error, ...)
 	I_OutputMsg("\nI_Error(): %s\n", buffer);
 	// ---
 
-	M_SaveConfig(NULL); // save game config, cvars..
+	if (I_StoragePermission())
+		M_SaveConfig(NULL); // save game config, cvars..
+
 #ifndef NONET
 	D_SaveBan(); // save the ban list
 #endif
@@ -3128,6 +3133,30 @@ INT32 I_RequestSystemPermission(const char *permission)
 	(void)permission;
 #endif
 	return 0;
+}
+
+INT32 I_StoragePermission(void)
+{
+#if defined(__ANDROID__)
+	if (JNI_StoragePermissionGranted())
+		return 1;
+	else
+		return 0;
+#else
+	return 1;
+#endif
+}
+
+INT32 I_SystemStoragePermission(void)
+{
+#if defined(__ANDROID__)
+	if (JNI_CheckStoragePermission())
+		return 1;
+	else
+		return 0;
+#else
+	return 1;
+#endif
 }
 
 const CPUInfoFlags *I_CPUInfo(void)

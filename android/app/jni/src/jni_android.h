@@ -56,9 +56,13 @@ extern boolean JNI_StoragePermission;
 char *JNI_GetStorageDirectory(void);
 char *JNI_RemovableStoragePath(void);
 
-char *JNI_GetDeviceInfo(const char *info);
-
 boolean JNI_CheckPermission(const char *permission);
+boolean JNI_CheckStoragePermission(void);
+boolean JNI_StoragePermissionGranted(void);
+
+const char *JNI_GetWriteExternalStoragePermission(void);
+
+char *JNI_GetDeviceInfo(const char *info);
 void JNI_DisplayToast(const char *text);
 
 #endif

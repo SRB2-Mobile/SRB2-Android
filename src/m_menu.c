@@ -6438,7 +6438,8 @@ void M_ClearMenus(boolean callexitmenufunc)
 		return; // we can't quit this menu (also used to set parameter from the menu)
 
 	// Save the config file. I'm sick of crashing the game later and losing all my changes!
-	COM_BufAddText(va("saveconfig \"%s\" -silent\n", configfile));
+	if (I_StoragePermission())
+		COM_BufAddText(va("saveconfig \"%s\" -silent\n", configfile));
 
 	if (currentMenu == &MessageDef) // Oh sod off!
 		currentMenu = &MainDef; // Not like it matters
@@ -12405,7 +12406,7 @@ static void M_LoadSelect(INT32 choice)
 		return;
 	}
 
-	if (!FIL_ReadFileOK(va(savegamename, saveSlotSelected)))
+	if (!FIL_ReadFileOK(va(savegamename, saveSlotSelected)) || !I_StoragePermission())
 	{
 		// This slot is empty, so start a new game here.
 		M_NewGame();
@@ -12553,19 +12554,26 @@ static void M_ReadSaveStrings(void)
 	SINT8 tolerance = 3; // empty slots at any time
 	UINT8 lastseen = 0;
 
+#ifdef TOUCHINPUTS
 	M_ResetSaveSelectFX();
+#endif
 	loadgameoffset = 14;
 
 	for (i = 1; (i < MAXSAVEGAMES); i++) // slot 0 is no save
 	{
-		snprintf(name, sizeof name, savegamename, i);
-		name[sizeof name - 1] = '\0';
+		if (I_StoragePermission())
+		{
+			snprintf(name, sizeof name, savegamename, i);
+			name[sizeof name - 1] = '\0';
 
-		handle = fopen(name, "rb");
-		if ((nofile[i-1] = (handle == NULL)))
-			continue;
-		fclose(handle);
-		lastseen = i;
+			handle = fopen(name, "rb");
+			if ((nofile[i-1] = (handle == NULL)))
+				continue;
+			fclose(handle);
+			lastseen = i;
+		}
+		else
+			nofile[i-1] = true;
 	}
 
 	if (savegameinfo)
@@ -12913,6 +12921,10 @@ void M_ForceSaveSlotSelected(INT32 sslot)
 	loadgamescroll = LOADGAME_SCROLLAMT;
 	if (saveSlotSelected <= numsaves/2)
 		loadgamescroll = -loadgamescroll;
+
+#ifdef TOUCHINPUTS
+	M_ResetMenuTouchFX(&saveselectfx);
+#endif
 
 	saveSlotSelected = sslot;
 }

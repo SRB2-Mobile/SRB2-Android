@@ -177,6 +177,16 @@ const char *I_RemovableStorageLocation(void)
 	return NULL;
 }
 
+INT32 I_StoragePermission(void)
+{
+	return 1;
+}
+
+INT32 I_SystemStoragePermission(void)
+{
+	return 1;
+}
+
 void I_GetJoystickEvents(void){}
 
 void I_GetJoystick2Events(void){}

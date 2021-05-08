@@ -285,11 +285,18 @@ void TS_LoadLayouts(void)
 	fclose(f);
 }
 
-void TS_SaveLayouts(void)
+boolean TS_SaveLayouts(void)
 {
-	FILE *f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, TOUCHLAYOUTSFILE), "w");
+	FILE *f = NULL;
 	touchlayout_t *layout = touchlayouts;
 	INT32 i;
+
+	if (!I_StoragePermission())
+		return false;
+
+	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, TOUCHLAYOUTSFILE), "w");
+	if (!f)
+		return false;
 
 	for (i = 0; i < numtouchlayouts; i++)
 	{
@@ -302,6 +309,7 @@ void TS_SaveLayouts(void)
 	}
 
 	fclose(f);
+	return true;
 }
 
 void TS_NewLayout(void)
@@ -539,7 +547,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 	INT32 igc;
 	touchconfig_t *button = NULL;
 
-	if (layout->loaded)
+	if (layout->loaded || !I_StoragePermission())
 		return true;
 
 	strcpy(filename, layout->filename);
@@ -618,7 +626,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 
 boolean TS_SaveSingleLayout(INT32 ilayout)
 {
-	FILE *f;
+	FILE *f = NULL;
 	char filename[MAXTOUCHLAYOUTFILENAME+5];
 
 	touchlayout_t *layout = touchlayouts + ilayout;
@@ -628,7 +636,9 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 	strcpy(filename, layout->filename);
 	FIL_ForceExtension(filename, ".cfg");
 
-	f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, filename), "w");
+	if (I_StoragePermission())
+		f = fopen(va("%s"PATHSEP"%s", touchlayoutfolder, filename), "w");
+
 	if (!f)
 	{
 		S_StartSound(NULL, sfx_lose);
@@ -971,19 +981,32 @@ static void SaveLayoutOnList(void)
 		TS_CopyLayoutTo(savelayout, usertouchlayout);
 	}
 
-	userlayoutsaved = true;
-	userlayoutnew = false;
-	savelayout->saved = true;
 	TS_SaveSingleLayout(usertouchlayoutnum);
-	TS_SaveLayouts();
 
-	S_StartSound(NULL, sfx_strpst);
-	DisplayMessage(va(M_GetText(
-		"\x82%s\n"
-		"\x83Layout saved!\n"
-		"\n%s"),
-	TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME),
-	M_GetUserActionString(PRESS_A_KEY_MESSAGE)));
+	if (TS_SaveLayouts())
+	{
+		userlayoutsaved = true;
+		userlayoutnew = false;
+		savelayout->saved = true;
+
+		S_StartSound(NULL, sfx_strpst);
+		DisplayMessage(va(M_GetText(
+			"\x82%s\n"
+			"\x83Layout saved!\n"
+			"\n%s"),
+		TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME),
+		M_GetUserActionString(PRESS_A_KEY_MESSAGE)));
+	}
+	else
+	{
+		S_StartSound(NULL, sfx_lose);
+		DisplayMessage(va(M_GetText(
+			"\x82%s\n"
+			"\x85""Failed to save layout!\n"
+			"\n%s"),
+		TS_GetShortLayoutName((touchlayouts + usertouchlayoutnum), MAXMESSAGELAYOUTNAME),
+		M_GetUserActionString(PRESS_A_KEY_MESSAGE)));
+	}
 
 	TS_MakeLayoutList();
 }

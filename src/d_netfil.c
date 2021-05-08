@@ -215,7 +215,7 @@ void CL_PrepareDownloadSaveGame(const char *tmpsave)
   */
 boolean CL_CheckDownloadable(void)
 {
-	UINT8 i,dlstatus = 0;
+	UINT8 i, dlstatus = 0;
 
 	for (i = 0; i < fileneedednum; i++)
 		if (fileneeded[i].status != FS_FOUND && fileneeded[i].status != FS_OPEN)
@@ -229,12 +229,15 @@ boolean CL_CheckDownloadable(void)
 				dlstatus = 2;
 		}
 
-	// Downloading locally disabled
-	if (!dlstatus && M_CheckParm("-nodownload"))
-		dlstatus = 3;
-
 	if (!dlstatus)
-		return true;
+	{
+		if (!I_SystemStoragePermission()) // No storage permission
+			dlstatus = 4;
+		else if (M_CheckParm("-nodownload")) // Downloading locally disabled
+			dlstatus = 3;
+		else
+			return true;
+	}
 
 	// not downloadable, put reason in console
 	CONS_Alert(CONS_NOTICE, M_GetText("You need additional files to connect to this server:\n"));
@@ -268,6 +271,9 @@ boolean CL_CheckDownloadable(void)
 			break;
 		case 3:
 			CONS_Printf(M_GetText("All files downloadable, but you have chosen to disable downloading locally.\n"));
+			break;
+		case 4:
+			CONS_Printf(M_GetText("All files downloadable, but the game doesn't have storage access permission.\n"));
 			break;
 	}
 	return false;

@@ -323,6 +323,8 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 #if defined(__ANDROID__)
 static void Impl_AppEnteredForeground(void)
 {
+	static boolean storagewarning = false;
+
 	VID_DestroyContext();
 	VID_CreateContext();
 
@@ -333,6 +335,12 @@ static void Impl_AppEnteredForeground(void)
 	{
 		Impl_VideoSetupSoftwareSurface(vid.width, vid.height);
 		SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
+	}
+
+	if (!storagewarning && !I_StoragePermission() && I_SystemStoragePermission())
+	{
+		CONS_Alert(CONS_NOTICE, M_GetText("Game must be restarted to save progress.\n"));
+		storagewarning = true;
 	}
 }
 #endif

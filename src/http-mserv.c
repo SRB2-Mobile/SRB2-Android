@@ -28,7 +28,7 @@ Documentation available here.
 #include "i_threads.h"
 
 #if defined(__ANDROID__)
-#include "d_main.h" // srb2home
+#include "d_main.h" // srb2path
 #include "i_system.h" // I_mkdir
 #include "z_zone.h"
 #endif
@@ -125,9 +125,9 @@ HMS_get_cert (void)
 	if (! hms_ca_bundle)
 		hms_ca_bundle = Z_StrDup(va("%s"PATHSEP"%s", dir, pem));
 	if (! hms_cert_path)
-		hms_cert_path = Z_StrDup(va("%s"PATHSEP"%s", srb2home, hms_ca_bundle));
+		hms_cert_path = Z_StrDup(va("%s"PATHSEP"%s", srb2path, hms_ca_bundle));
 
-	I_mkdir(va("%s"PATHSEP"%s", srb2home, dir), 0755);
+	I_mkdir(va("%s"PATHSEP"%s", srb2path, dir), 0755);
 }
 
 static void *

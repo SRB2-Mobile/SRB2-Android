@@ -403,6 +403,16 @@ INT32 I_CheckSystemPermission(const char *permission);
 */
 INT32 I_RequestSystemPermission(const char *permission);
 
+/**	\brief Checks if storage permission was granted.
+		\return 1 if it was, 0 if not.
+*/
+INT32 I_StoragePermission(void);
+
+/**	\brief Checks if the app has storage permission (different from granted.)
+		\return 1 if it was, 0 if not.
+*/
+INT32 I_SystemStoragePermission(void);
+
 /** \brief Put data in system clipboard
 */
 INT32 I_ClipboardCopy(const char *data, size_t size);
