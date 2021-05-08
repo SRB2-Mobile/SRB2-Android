@@ -1669,6 +1669,7 @@ static void D_AndroidSetupHome(const char *userhome)
 	INT32 next = 0;
 
 	strlcpy(srb2home, userhome, sizeof(srb2home));
+	I_mkdir(srb2home, 0755);
 
 	// can't use sprintf since there is %u in savegamename
 	strcatbf(savegamename, srb2home, PATHSEP);
