@@ -106,14 +106,21 @@ int SUBVERSION;
 // platform independant focus loss
 UINT8 window_notinfocus = false;
 
-//
-// DEMO LOOP
-//
 static char *startupwadfiles[MAX_WADFILES];
 static char *startuppwads[MAX_WADFILES];
 
+#if defined(__ANDROID__) && defined(UNPACK_FILES) && defined(HAVE_WHANDLE) && defined(HAVE_SDL)
+#define ANDROID_FILE_UNPACK
+#ifndef DEVELOP
+static char *unpackhashes[MAX_WADFILES];
+#endif
+#endif
+
 static fhandletype_t startuphandletype = FILEHANDLE_STANDARD;
 
+//
+// DEMO LOOP
+//
 boolean devparm = false; // started game with -devparm
 
 boolean singletics = false; // timedemo
@@ -1258,14 +1265,28 @@ void D_SRB2Main(void)
 	mainwads++;
 #endif
 
-#if defined(__ANDROID__) && defined(UNPACK_FILES) && defined(HAVE_WHANDLE) && defined(HAVE_SDL)
+#ifdef ANDROID_FILE_UNPACK
 	CONS_Printf("W_UnpackMultipleFiles(): Unpacking IWAD and main PWADs.\n");
-	W_UnpackMultipleFiles(startupwadfiles);
+
+#ifndef DEVELOP
+	D_AddFile(unpackhashes, ASSET_HASH_SRB2_PK3); // srb2.pk3
+	D_AddFile(unpackhashes, ASSET_HASH_ZONES_PK3); // zones.pk3
+	D_AddFile(unpackhashes, ASSET_HASH_PLAYER_DTA); // player.dta
+	D_AddFile(unpackhashes, ASSET_HASH_PATCH_PK3); // patch.pk3
+#ifdef USE_ANDROID_PK3
+	D_AddFile(unpackhashes, ASSET_HASH_ANDROID_PK3); // android.pk3
+#endif
+
+	W_UnpackMultipleFiles(startupwadfiles, unpackhashes);
+	D_CleanFile(unpackhashes);
+#else
+	W_UnpackMultipleFiles(startupwadfiles, NULL);
+#endif // DEVELOP
 
 	// The main files added at startup are handled by SDL_RWops
 	// and can be loaded from the inside the APK.
 	startuphandletype = FILEHANDLE_SDL;
-#endif
+#endif // ANDROID_FILE_UNPACK
 
 	// load wad, including the main wad file
 	CONS_Printf("W_InitMultipleFiles(): Adding IWAD and main PWADs.\n");

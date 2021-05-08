@@ -163,17 +163,23 @@ void W_FileLoadError(const char *fmt, ...);
 // File unpacking
 #ifdef UNPACK_FILES
 
+typedef struct
+{
+    char **filenames;
+    char **hashes;
+} unpacklist_t;
+
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle);
 
 // Checks if a file can be unpacked.
-boolean W_CanUnpackFile(const char *filename, size_t *filesize);
+boolean W_CanUnpackFile(const char *filename, const char *hash, size_t *filesize);
 
 // Count the total number of files to unpack
-boolean W_CheckUnpacking(char **filenames, UINT16 filecount);
+boolean W_CheckUnpacking(unpacklist_t *list, UINT16 filecount);
 
 // Unpack the main files needed at startup.
-void W_UnpackMultipleFiles(char **filenames);
+void W_UnpackMultipleFiles(char **filenames, char **hashes);
 void W_UnpackBaseFiles(void);
 
 #define UNPACK_BUFFER_SIZE 4096

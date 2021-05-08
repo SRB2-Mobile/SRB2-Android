@@ -155,6 +155,56 @@ void W_Shutdown(void)
 }
 
 //===========================================================================
+//                                                         MD5 HASH FUNCTIONS
+//===========================================================================
+
+#ifndef NOMD5
+#define MD5_LEN 16
+
+/**
+  * Prints an MD5 string into a human-readable textual format.
+  *
+  * \param md5 The md5 in binary form -- MD5_LEN (16) bytes.
+  * \param buf Where to print the textual form. Needs 2*MD5_LEN+1 (33) bytes.
+  * \author Graue <graue@oceanbase.org>
+  */
+#define MD5_FORMAT \
+	"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+static void PrintMD5String(const UINT8 *md5, char *buf)
+{
+	snprintf(buf, 2*MD5_LEN+1, MD5_FORMAT,
+		md5[0], md5[1], md5[2], md5[3],
+		md5[4], md5[5], md5[6], md5[7],
+		md5[8], md5[9], md5[10], md5[11],
+		md5[12], md5[13], md5[14], md5[15]);
+}
+
+// Convert an md5 string like "7d355827fa8f981482246d6c95f9bd48"
+// into a real md5.
+static void MD5FromString(const char *matchmd5, UINT8 *realmd5)
+{
+	INT32 ix;
+
+	I_Assert(strlen(matchmd5) == 2*MD5_LEN);
+
+	for (ix = 0; ix < 2*MD5_LEN; ix++)
+	{
+		INT32 n, c = matchmd5[ix];
+		if (isdigit(c))
+			n = c - '0';
+		else
+		{
+			I_Assert(isxdigit(c));
+			if (isupper(c)) n = c - 'A' + 10;
+			else n = c - 'a' + 10;
+		}
+		if (ix & 1) realmd5[ix>>1] = (UINT8)(realmd5[ix>>1]+n);
+		else realmd5[ix>>1] = (UINT8)(n<<4);
+	}
+}
+#endif
+
+//===========================================================================
 //                                                             FILE UNPACKING
 //===========================================================================
 
@@ -282,9 +332,21 @@ static boolean W_CheckInBaseUnpackList(char *filename)
 	return false;
 }
 
-void W_UnpackMultipleFiles(char **filenames)
+void W_UnpackMultipleFiles(char **filenames, char **hashes)
 {
-	W_CheckUnpacking(filenames, mainwads);
+	unpacklist_t list;
+
+	if (!filenames)
+		return;
+	else
+		list.filenames = filenames;
+
+	if (hashes)
+		list.hashes = hashes;
+	else
+		list.hashes = NULL;
+
+	W_CheckUnpacking(&list, mainwads);
 
 	if (numstartupunpack)
 	{
@@ -345,7 +407,7 @@ void W_UnpackBaseFiles(void)
 }
 
 // Checks if a file can be unpacked.
-boolean W_CanUnpackFile(const char *filename, size_t *filesize)
+boolean W_CanUnpackFile(const char *filename, const char *hash, size_t *filesize)
 {
 #if defined(__ANDROID__)
 	void *handle = NULL;
@@ -359,8 +421,7 @@ boolean W_CanUnpackFile(const char *filename, size_t *filesize)
 	// If it does not, continue checking
 	if ((handle = File_Open(fname, "rb", FILEHANDLE_SDL)) == NULL)
 	{
-		// Remove the path from the filename,
-		// leaving only the resource's name itself
+		// Remove the path from the filename, leaving only the resource's name itself
 		nameonly(fname);
 
 		// Search through the filesystem
@@ -368,6 +429,7 @@ boolean W_CanUnpackFile(const char *filename, size_t *filesize)
 		if (!findfile(fname, NULL, true))
 		{
 			handle = File_Open(fname, "rb", FILEHANDLE_SDL);
+
 			if (handle) // If it is found in the application package, it can be unpacked
 			{
 				canunpack = true;
@@ -381,17 +443,38 @@ boolean W_CanUnpackFile(const char *filename, size_t *filesize)
 		}
 	}
 
+#ifndef NOMD5
+	if (hash && !canunpack)
+	{
+		UINT8 md5sum[16];
+		UINT8 cmpsum[16];
+
+		memset(md5sum, 0x00, 16);
+		memset(cmpsum, 0x00, 16);
+
+		if (!md5_stream_whandle(handle, md5sum))
+		{
+			MD5FromString(hash, cmpsum);
+			if (memcmp(md5sum, cmpsum, 16))
+				canunpack = true;
+		}
+	}
+#else
+	(void)hash;
+#endif
+
 	if (handle)
 		File_Close(handle);
 
 	return canunpack;
 #else
 	(void)filename;
+	(void)hash;
 	return false;
 #endif
 }
 
-boolean W_CheckUnpacking(char **filenames, UINT16 filecount)
+boolean W_CheckUnpacking(unpacklist_t *list, UINT16 filecount)
 {
 	UINT16 fnum = 0;
 	size_t totalsize = 0;
@@ -401,18 +484,22 @@ boolean W_CheckUnpacking(char **filenames, UINT16 filecount)
 
 	numstartupunpack = 0;
 
-	for (; (fnum < filecount) && filenames[fnum]; fnum++)
+	for (; (fnum < filecount) && list->filenames[fnum]; fnum++)
 	{
+		const char *hash = NULL;
 		size_t size = 0;
 
 		// Get the resource filename
 		// It'll be needed for W_CheckInBaseUnpackList,
 		// and for startupunpack[]
-		strncpy(filenamebuf, filenames[fnum], MAX_WADPATH);
+		strncpy(filenamebuf, list->filenames[fnum], MAX_WADPATH);
 		filenamebuf[MAX_WADPATH - 1] = '\0';
 		nameonly(filenamebuf);
 
-		if (!W_CheckInBaseUnpackList(filenamebuf) || !W_CanUnpackFile(filenames[fnum], &size))
+		if (list->hashes)
+			hash = list->hashes[fnum];
+
+		if (!W_CheckInBaseUnpackList(filenamebuf) || !W_CanUnpackFile(list->filenames[fnum], hash, &size))
 			startupunpack[fnum] = NULL;
 		else
 		{
@@ -2250,27 +2337,6 @@ static boolean W_IsAndroidPK3(const char *filename)
 }
 #endif
 
-#ifndef NOMD5
-#define MD5_LEN 16
-
-/**
-  * Prints an MD5 string into a human-readable textual format.
-  *
-  * \param md5 The md5 in binary form -- MD5_LEN (16) bytes.
-  * \param buf Where to print the textual form. Needs 2*MD5_LEN+1 (33) bytes.
-  * \author Graue <graue@oceanbase.org>
-  */
-#define MD5_FORMAT \
-	"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-static void PrintMD5String(const UINT8 *md5, char *buf)
-{
-	snprintf(buf, 2*MD5_LEN+1, MD5_FORMAT,
-		md5[0], md5[1], md5[2], md5[3],
-		md5[4], md5[5], md5[6], md5[7],
-		md5[8], md5[9], md5[10], md5[11],
-		md5[12], md5[13], md5[14], md5[15]);
-}
-#endif
 /** Verifies a file's MD5 is as it should be.
   * For releases, used as cheat prevention -- if the MD5 doesn't match, a
   * fatal error is thrown. In debug mode, an MD5 mismatch only triggers a
@@ -2288,26 +2354,10 @@ void W_VerifyFileMD5(UINT16 wadfilenum, const char *matchmd5)
 	(void)matchmd5;
 #else
 	UINT8 realmd5[MD5_LEN];
-	INT32 ix;
 
-	I_Assert(strlen(matchmd5) == 2*MD5_LEN);
 	I_Assert(wadfilenum < numwadfiles);
-	// Convert an md5 string like "7d355827fa8f981482246d6c95f9bd48"
-	// into a real md5.
-	for (ix = 0; ix < 2*MD5_LEN; ix++)
-	{
-		INT32 n, c = matchmd5[ix];
-		if (isdigit(c))
-			n = c - '0';
-		else
-		{
-			I_Assert(isxdigit(c));
-			if (isupper(c)) n = c - 'A' + 10;
-			else n = c - 'a' + 10;
-		}
-		if (ix & 1) realmd5[ix>>1] = (UINT8)(realmd5[ix>>1]+n);
-		else realmd5[ix>>1] = (UINT8)(n<<4);
-	}
+
+	MD5FromString(matchmd5, realmd5);
 
 	if (memcmp(realmd5, wadfiles[wadfilenum]->md5sum, 16))
 	{
