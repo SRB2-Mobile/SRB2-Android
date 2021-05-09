@@ -1079,7 +1079,7 @@ static void (*textinputcallback)(char *, size_t);
 static void Impl_HandleTextInput(SDL_TextInputEvent evt)
 {
 	char *text;
-	size_t length, i;
+	size_t length, i, pos;
 
 	text = evt.text;
 	length = strlen(text);
@@ -1093,20 +1093,21 @@ static void Impl_HandleTextInput(SDL_TextInputEvent evt)
 	if (textinputbuffer == NULL)
 		return;
 
-	if (strlen(textinputbuffer) >= textbufferlength)
+	pos = strlen(textinputbuffer);
+	if (pos >= textbufferlength - 1)
 		return;
 
 	for (i = 0; i < length; i++)
 	{
-		char thischar = text[i];
-		if (((unsigned)thischar) >= 32 && ((unsigned)thischar) <= 127)
+		unsigned char ch = text[i];
+
+		if (ch >= 32 && ch <= 127)
 		{
-			char cat[2];
-			cat[0] = thischar;
-			cat[1] = '\0';
-			strcat(textinputbuffer, cat);
+			textinputbuffer[pos++] = ch;
+			textinputbuffer[pos++] = '\0';
 		}
-		if (strlen(textinputbuffer) >= textbufferlength)
+
+		if (strlen(textinputbuffer) >= textbufferlength - 1)
 			break;
 	}
 }

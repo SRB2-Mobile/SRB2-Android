@@ -1929,10 +1929,14 @@ static menuitem_t OP_SoundOptionsMenu[] =
 #endif
 
 #ifdef HAVE_MIXERX
+#if defined(__ANDROID__)
+#define MIXERX_MENUOFFSET 55
+#else
 #define MIXERX_MENUOFFSET 81
+#endif // __ANDROID__
 #else
 #define MIXERX_MENUOFFSET 0
-#endif
+#endif // HAVE_MIXERX
 
 static menuitem_t OP_SoundAdvancedMenu[] =
 {
@@ -1945,8 +1949,10 @@ static menuitem_t OP_SoundAdvancedMenu[] =
 	{IT_HEADER, NULL, "MIDI Settings", NULL, OPENMPT_MENUOFFSET},
 	{IT_STRING | IT_CVAR, NULL, "MIDI Player", &cv_midiplayer, OPENMPT_MENUOFFSET+12},
 	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "FluidSynth Sound Font File", &cv_midisoundfontpath, OPENMPT_MENUOFFSET+24},
+#if !defined(__ANDROID__)
 	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "TiMidity++ Config Folder", &cv_miditimiditypath, OPENMPT_MENUOFFSET+51},
-#endif
+#endif // __ANDROID__
+#endif // HAVE_MIXERX
 
 	{IT_HEADER, NULL, "Miscellaneous", NULL, OPENMPT_MENUOFFSET+MIXERX_MENUOFFSET},
 	{IT_STRING | IT_CVAR, NULL, "Play Sound Effects if Unfocused", &cv_playsoundsifunfocused, OPENMPT_MENUOFFSET+MIXERX_MENUOFFSET+12},
@@ -3945,7 +3951,41 @@ static boolean M_TSNav_HandleMenu(touchfinger_t *finger, event_t *event)
 	return false;
 }
 
-static INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length)
+static consvar_t *vkeyboard_cv = NULL;
+
+static void VirtualKeyboard_CVarTextField(char *text, size_t inputlen)
+{
+	char buf[MAXSTRINGLENGTH];
+	size_t i, len = strlen(vkeyboard_cv->string);
+
+	if (!vkeyboard_cv || len >= MAXSTRINGLENGTH - 1)
+		return;
+
+	for (i = 0; i < inputlen; i++)
+	{
+		unsigned char ch = text[i];
+
+		if (ch >= 32 && ch <= 127 && len < MAXSTRINGLENGTH - 1)
+		{
+			M_Memcpy(buf, vkeyboard_cv->string, len);
+			buf[len++] = ch;
+			buf[len] = 0;
+			CV_Set(vkeyboard_cv, buf);
+			len = strlen(vkeyboard_cv->string);
+		}
+
+		if (len >= MAXSTRINGLENGTH - 1)
+			return;
+	}
+}
+
+static void M_CloseTouchScreenKeyboard(void)
+{
+	vkeyboard_cv = NULL;
+	I_CloseScreenKeyboard();
+}
+
+static INT32 M_TSHandleTextField(char *buffer, size_t length)
 {
 	if (!I_KeyboardOnScreen())
 	{
@@ -3954,9 +3994,28 @@ static INT32 M_HandleTouchScreenKeyboard(char *buffer, size_t length)
 	}
 	else
 	{
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 		return -1;
 	}
+
+	return 0;
+}
+
+static INT32 M_TSHandleTextFieldCVar(consvar_t *cvar)
+{
+	if (!I_KeyboardOnScreen())
+	{
+		vkeyboard_cv = cvar;
+		I_RaiseScreenKeyboard(NULL, 0);
+		I_ScreenKeyboardCallback(VirtualKeyboard_CVarTextField);
+		return 1;
+	}
+	else
+	{
+		M_CloseTouchScreenKeyboard();
+		return -1;
+	}
+
 	return 0;
 }
 #endif
@@ -4032,7 +4091,7 @@ static boolean M_ChangeStringCvar(INT32 choice)
 		case KEY_ENTER:
 			{
 				// Handle the on-screen keyboard
-				INT32 handled = M_HandleTouchScreenKeyboard(cv->zstring, MAXSTRINGLENGTH);
+				INT32 handled = M_TSHandleTextFieldCVar(cv);
 				if (handled == -1) // closed
 					CV_Set(cv, cv->zstring);
 			}
@@ -5579,7 +5638,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 					{
 						// The keyboard has to be kept raised when Enter is hit.
 						if (I_KeyboardOnScreen() && key != KEY_ENTER)
-							I_CloseScreenKeyboard();
+							M_CloseTouchScreenKeyboard();
 						else
 							(*ch) = key;
 					}
@@ -5600,7 +5659,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 		if (selection == M_IsTouchingMenuSelection(x, y, &slkey, &cv))
 		{
 			if (I_KeyboardOnScreen() && !M_TSNav_OnTextField())
-				I_CloseScreenKeyboard();
+				M_CloseTouchScreenKeyboard();
 
 			switch (currentMenu->menustyle)
 			{
@@ -5626,7 +5685,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 					if (itemOn == selection)
 					{
 						if (I_KeyboardOnScreen() && M_TSNav_OnTextField())
-							I_CloseScreenKeyboard();
+							M_CloseTouchScreenKeyboard();
 						else if (cv_touchnavmethod.value == 0 && !((currentMenu->menuitems[itemOn].status & IT_TYPE) == IT_CVAR && !cv))
 							(*ch) = KEY_ENTER;
 					}
@@ -5645,7 +5704,7 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 		}
 	}
 	else if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 
 done:
 	finger->type.menu = false;
@@ -6410,7 +6469,7 @@ void M_StartControlPanel(void)
 
 	// Close the on-screen keyboard, if it's still open
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 #endif
 
 #ifdef TOUCHMENUS
@@ -6453,7 +6512,7 @@ void M_ClearMenus(boolean callexitmenufunc)
 #ifdef TOUCHINPUTS
 	// Close the on-screen keyboard, if it's still open
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 #endif
 
 	M_SetHeldKeyHandler(NULL);
@@ -6515,7 +6574,7 @@ void M_SetupNextMenu(menu_t *menudef)
 #ifdef TOUCHINPUTS
 	// Close the on-screen keyboard, if it's still open
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 #endif
 
 	currentMenu = menudef;
@@ -10016,7 +10075,7 @@ static void M_HandleAddons(INT32 choice)
 				boolean refresh = true;
 #ifdef TOUCHINPUTS
 				if (I_KeyboardOnScreen())
-					I_CloseScreenKeyboard();
+					M_CloseTouchScreenKeyboard();
 #endif
 				if (!dirmenu[dir_on[menudepthleft]])
 					S_StartSound(NULL, sfx_lose);
@@ -10275,7 +10334,7 @@ loop_done:
 
 done:
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 	return true;
 }
 #endif
@@ -15961,7 +16020,7 @@ static void M_ConnectIP(INT32 choice)
 
 #ifdef TOUCHINPUTS
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 #endif
 
 	if (*setupm_ip == 0)
@@ -16485,7 +16544,7 @@ static void M_HandleSetupMultiPlayer(INT32 choice)
 #ifdef TOUCHINPUTS
 			// Handle the on-screen keyboard
 			if (itemOn == 0)
-				M_HandleTouchScreenKeyboard(setupm_name, MAXPLAYERNAME);
+				M_TSHandleTextField(setupm_name, MAXPLAYERNAME+1);
 			else
 #endif
 			if (itemOn == 3
@@ -16830,7 +16889,7 @@ TSNAVHANDLER(PlayerSetup)
 				{
 					if (itemOn == 0 && M_FingerTouchingSelection(fx, fy, sx, sy + 11, sw, h))
 					{
-						M_HandleTouchScreenKeyboard(setupm_name, MAXPLAYERNAME);
+						M_TSHandleTextField(setupm_name, MAXPLAYERNAME+1);
 						S_StartSound(NULL, sfx_menu1);
 						finger->selection = -1;
 						return true;
@@ -16859,7 +16918,7 @@ TSNAVHANDLER(PlayerSetup)
 
 done:
 	if (I_KeyboardOnScreen())
-		I_CloseScreenKeyboard();
+		M_CloseTouchScreenKeyboard();
 	return true;
 }
 #endif
