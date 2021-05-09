@@ -1562,7 +1562,7 @@ void CONS_Printf(const char *fmt, ...)
 	if (refresh)
 	{
 		CON_Drawer(); // here we display the console text
-		I_FinishUpdate(); // page flip or blit buffer
+		I_CheckFinishUpdate(); // page flip or blit buffer
 	}
 }
 
@@ -1791,7 +1791,7 @@ static void CON_DrawBackpic(void)
 {
 	patch_t *con_backpic;
 	lumpnum_t piclump;
-	int x, w, h;
+	INT32 x, y, w, h;
 
 	// Get the lumpnum for CONSBACK, STARTUP (Only during game startup) or fallback into MISSING.
 	if (con_startup)
@@ -1808,27 +1808,44 @@ static void CON_DrawBackpic(void)
 	// Center the backpic, and draw a vertically cropped patch.
 	w = (con_backpic->width * vid.dupx);
 	x = (vid.width / 2) - (w / 2);
-	h = con_curlines/vid.dupy;
+
+	if (con_startup)
+		y = (vid.height / 2) - ((con_backpic->height * vid.dupy) / 2);
+	else
+		h = (con_curlines / vid.dupy);
 
 	// If the patch doesn't fill the entire screen,
 	// then fill the sides with a solid color.
-	if (x > 0)
+	if (x > 0 || con_startup)
 	{
 		column_t *column = (column_t *)((UINT8 *)(con_backpic->columns) + (con_backpic->columnofs[0]));
+
 		if (!column->topdelta)
 		{
 			UINT8 *source = (UINT8 *)(column) + 3;
-			INT32 color = (source[0] | V_NOSCALESTART);
-			// left side
-			V_DrawFill(0, 0, x, con_curlines, color);
-			// right side
-			V_DrawFill((x + w), 0, (vid.width - w), con_curlines, color);
+			INT32 color = source[0];
+
+			if (con_startup)
+				V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, color);
+			else
+			{
+				V_DrawFill(0, 0, x, con_curlines, (color | V_NOSCALESTART)); // Left side
+				V_DrawFill((x + w), 0, (vid.width - w), con_curlines, (color | V_NOSCALESTART)); // Right side
+			}
 		}
 	}
 
 	// Draw the patch.
-	V_DrawCroppedPatch(x << FRACBITS, 0, FRACUNIT, V_NOSCALESTART, con_backpic,
-			0, ( BASEVIDHEIGHT - h ), BASEVIDWIDTH, h);
+	if (con_startup)
+	{
+		V_DrawCroppedPatch(x << FRACBITS, y << FRACBITS, FRACUNIT, V_NOSCALESTART, con_backpic,
+				0, 0, BASEVIDWIDTH, BASEVIDHEIGHT);
+	}
+	else
+	{
+		V_DrawCroppedPatch(x << FRACBITS, 0, FRACUNIT, V_NOSCALESTART, con_backpic,
+				0, ( BASEVIDHEIGHT - h ), BASEVIDWIDTH, h);
+	}
 
 	// Unlock the cached patch.
 	W_UnlockCachedPatch(con_backpic);

@@ -90,15 +90,19 @@ INT32 VID_SetMode(INT32 modenum);
 */
 void VID_GetNativeResolution(INT32 *width, INT32 *height);
 
-/**	\brief Creates a rendering context
+/**	\brief Creates a rendering context.
 	\return	1 if the context was changed, 0 if it was not
 */
 INT32 VID_CreateContext(void);
 
-/**	\brief Destroys the rendering context
+/**	\brief Destroys the current rendering context.
 	\return	1 if the context was destroyed, 0 if it was not
 */
 INT32 VID_DestroyContext(void);
+
+/**	\brief Recreates the current rendering context.
+*/
+void VID_RecreateContext(void);
 
 /**	\brief Checks the render state
 	\return	1 if the renderer changed, 0 if it did not
@@ -163,6 +167,10 @@ void I_UpdateNoBlit(void);
 /**	\brief Update video system with updating frame
 */
 void I_FinishUpdate(void);
+
+/**	\brief I_FinishUpdate(), but checks the rendering context
+*/
+void I_CheckFinishUpdate(void);
 
 /**	\brief I_FinishUpdate(), but vsync disabled
 */

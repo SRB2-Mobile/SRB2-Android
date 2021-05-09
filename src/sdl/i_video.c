@@ -320,11 +320,8 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	}
 }
 
-#if defined(__ANDROID__)
-static void Impl_AppEnteredForeground(void)
+void VID_RecreateContext(void)
 {
-	static boolean storagewarning = false;
-
 	VID_DestroyContext();
 	VID_CreateContext();
 
@@ -336,6 +333,14 @@ static void Impl_AppEnteredForeground(void)
 		Impl_VideoSetupSoftwareSurface(vid.width, vid.height);
 		SDL_RenderSetLogicalSize(renderer, vid.width, vid.height);
 	}
+}
+
+#if defined(__ANDROID__)
+static void Impl_AppEnteredForeground(void)
+{
+	static boolean storagewarning = false;
+
+	VID_RecreateContext();
 
 	if (!storagewarning && !I_StoragePermission() && I_SystemStoragePermission())
 	{
@@ -1543,6 +1548,32 @@ void I_FinishUpdate(void)
 }
 
 //
+// I_CheckFinishUpdate
+//
+void I_CheckFinishUpdate(void)
+{
+#if defined(__ANDROID__)
+	SDL_Event ev;
+
+	if (rendermode == render_none)
+		return; //Alam: No software or OpenGl surface
+
+	SDL_PumpEvents();
+
+	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERBACKGROUND, SDL_APP_WILLENTERBACKGROUND))
+		Impl_Unfocused(true);
+
+	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
+	{
+		VID_RecreateContext();
+		Impl_Unfocused(false);
+	}
+#endif
+
+	I_FinishUpdate();
+}
+
+//
 // I_UpdateNoVsync
 //
 void I_UpdateNoVsync(void)
@@ -2181,6 +2212,10 @@ void I_StartupGraphics(void)
 			window = NULL;
 		}
 #endif
+
+		VID_RecreateContext();
+		SDL_RenderClear(renderer);
+		SCR_Recalc();
 	}
 
 	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
@@ -2199,22 +2234,25 @@ void I_StartupGraphics(void)
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
 
-	// Create window
-	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
+	// Default size for startup
+#if defined(__ANDROID__)
+	vid.width = 1280;
+	vid.height = 720;
+#else
+	vid.width = BASEVIDWIDTH;
+	vid.height = BASEVIDHEIGHT;
+#endif
 
-	vid.width = BASEVIDWIDTH; // Default size for startup
-	vid.height = BASEVIDHEIGHT; // BitsPerPixel is the SDL interface's
-	vid.recalc = true; // Set up the console stufff
-	vid.direct = NULL; // Maybe direct access?
-	vid.bpp = 1; // This is the game engine's Bpp
-	vid.WndParent = NULL; //For the window?
+	// Create window
+	VID_SetMode(VID_GetModeForSize(vid.width, vid.height));
+
+	vid.recalc = true;
+	vid.direct = NULL;
+	vid.bpp = 1;
+	vid.WndParent = NULL;
 
 #ifdef HAVE_TTF
 	I_ShutdownTTF();
-#endif
-
-#if !defined(__ANDROID__)
-	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
 #endif
 
 	if (M_CheckParm("-nomousegrab"))
@@ -2517,6 +2555,7 @@ void VID_PresentSplashScreen(void)
 
 void I_ReportProgress(int progress)
 {
+	SDL_Event ev;
 	SDL_Rect base, back, front;
 	const int progress_height = (vid.height / 10);
 	float fprogress;
@@ -2525,6 +2564,12 @@ void I_ReportProgress(int progress)
 	int scrw, scrh;
 	float aspect[2];
 	float x = 0.0f;
+
+	SDL_PumpEvents();
+
+	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERBACKGROUND, SDL_APP_WILLENTERBACKGROUND));
+	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
+		VID_RecreateContext();
 
 	SDL_GetWindowSize(window, &scrw, &scrh);
 
