@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.stjr.srb2"
-    android:versionCode="2290"
+    android:versionCode="2291"
     android:versionName="2.2.9"
     android:installLocation="auto">
 
