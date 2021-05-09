@@ -396,11 +396,7 @@ void Shader_Clean(void)
 	}
 }
 
-#ifdef HAVE_GLES2
-#define Shader_ErrorMessage I_Error
-#else
 #define Shader_ErrorMessage GL_MSG_Error
-#endif
 
 static void Shader_CompileError(const char *message, GLuint program, INT32 shadernum)
 {
