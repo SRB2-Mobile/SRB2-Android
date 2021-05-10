@@ -504,7 +504,6 @@ void SCR_ChangeRenderer(void)
 
 	if (rendermode == render_opengl && (vid.glstate == VID_GL_LIBRARY_LOADED)) // Clear these out before switching to software
 		HWR_ClearAllTextures();
-
 #endif
 
 	// Set the new render mode

@@ -387,6 +387,8 @@ boolean GLBackend_LoadLegacyFunctions(void);
 void   *GLBackend_GetFunction(const char *proc);
 
 INT32 GLBackend_GetShaderType(INT32 type);
+INT32 GLBackend_GetAlphaTestShader(INT32 type);
+INT32 GLBackend_InvertAlphaTestShader(INT32 type);
 
 boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start);
 

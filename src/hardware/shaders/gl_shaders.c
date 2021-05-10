@@ -328,6 +328,24 @@ void Shader_Set(int type)
 		gl_shader_t *baseshader = &gl_shaders[type];
 		gl_shader_t *usershader = &gl_usershaders[type];
 
+		if (!baseshader->program)
+		{
+#ifdef HAVE_GLES2
+			if (alpha_test)
+			{
+				baseshader = &gl_shaders[GLBackend_InvertAlphaTestShader(type)];
+
+				if (!baseshader->program)
+				{
+					baseshader = &gl_shaders[SHADER_DEFAULT];
+					alpha_test = false;
+				}
+			}
+			else
+#endif
+				baseshader = &gl_shaders[SHADER_DEFAULT];
+		}
+
 		if (usershader->program)
 			shader = (gl_allowshaders == HWD_SHADEROPTION_NOCUSTOM) ? baseshader : usershader;
 		else
@@ -574,7 +592,13 @@ boolean Shader_Compile(void)
 		usershader->program = 0;
 
 		if (!Shader_CompileProgram(shader, i, vert_shader, frag_shader))
+		{
 			shader->program = 0;
+#ifdef HAVE_GLES2
+			if (i == SHADER_DEFAULT)
+				return false;
+#endif
+		}
 
 		// Compile custom shader
 		if ((i == SHADER_DEFAULT) || !(gl_customshaders[i].vertex || gl_customshaders[i].fragment))
@@ -639,7 +663,9 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 	{
 		if (!shader->program)
 		{
+#ifndef HAVE_GLES2
 			pglUseProgram(0);
+#endif
 			return;
 		}
 

@@ -31,7 +31,7 @@
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0f);\n" \
+		"gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
 		"v_normal = a_normal;\n" \
 		"v_colors = a_colors;\n" \
@@ -50,7 +50,7 @@
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = u_projection * vec4(a_position.x, a_position.y, 1.0f, 1.0f);\n" \
+		"gl_Position = u_projection * vec4(a_position.x, a_position.y, 1.0, 1.0);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
 		"v_fademasktexcoord = vec2(a_fademasktexcoord.x, a_fademasktexcoord.y);\n" \
 	"}\0"
@@ -68,12 +68,12 @@
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"float nDotVP = dot(a_normal, vec3(0.0f, 1.0f, 0.0f));\n" \
-		"float light = 0.75f + max(nDotVP, 0.0f);\n" \
-		"gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0f);\n" \
+		"float nDotVP = dot(a_normal, vec3(0.0, 1.0, 0.0));\n" \
+		"float light = 0.75 + max(nDotVP, 0.0);\n" \
+		"gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);\n" \
 		"v_texcoord = vec2(a_texcoord.x, a_texcoord.y);\n" \
 		"v_normal = a_normal;\n" \
-		"v_colors = vec4(light, light, light, 1.0f);\n" \
+		"v_colors = vec4(light, light, light, 1.0);\n" \
 	"}\0"
 
 // ==================
@@ -148,13 +148,13 @@
 		"float FadeAlpha = MaskTexel.r;\n" \
 		"if (is_fading_in == true)\n" \
 		"{\n" \
-			"FadeAlpha = (1.0f - FadeAlpha);\n" \
+			"FadeAlpha = (1.0 - FadeAlpha);\n" \
 			"MixTexel = texture2D(t_endscreen, v_texcoord);\n" \
 		"}\n" \
 		"else\n" \
 			"MixTexel = texture2D(t_startscreen, v_texcoord);\n" \
-		"float FadeRed = clamp((FadeAlpha * 3.0f), 0.0f, 1.0f);\n" \
-		"float FadeGreen = clamp((FadeAlpha * 2.0f), 0.0f, 1.0f);\n" \
+		"float FadeRed = clamp((FadeAlpha * 3.0), 0.0, 1.0);\n" \
+		"float FadeGreen = clamp((FadeAlpha * 2.0), 0.0, 1.0);\n" \
 		"if (is_to_white == true)\n" \
 		"{\n" \
 			"FinalColor.r = MixTexel.r + FadeRed;\n" \
@@ -167,7 +167,7 @@
 			"FinalColor.g = MixTexel.g - FadeGreen;\n" \
 			"FinalColor.b = MixTexel.b - FadeAlpha;\n" \
 		"}\n" \
-		"FinalColor.a = 1.0f;\n" \
+		"FinalColor.a = 1.0;\n" \
 		"gl_FragColor = FinalColor;\n" \
 	"}\0"
 

@@ -1659,7 +1659,12 @@ void VID_DisplayGLError(void)
 	if (menuactive)
 	{
 		if (lastglerror)
-			M_StartMessage(va(M_GetText("OpenGL failed to load:\n%s\n\n%s"), lastglerror, M_GetUserActionString(PRESS_A_KEY_MESSAGE)), NULL, MM_NOTHING);
+		{
+			size_t len = strlen(lastglerror);
+			while (lastglerror[len] == '\n' || lastglerror[len] == '\0')
+				lastglerror[len--] = '\0';
+			M_StartMessage(va(M_GetText("OpenGL failed to load:\n\n%s\n\n%s"), lastglerror, M_GetUserActionString(PRESS_A_KEY_MESSAGE)), NULL, MM_NOTHING);
+		}
 		else
 			M_ShowAnyKeyMessage("OpenGL failed to load.\nCheck the console\nor log file for details.\n\n");
 	}
@@ -2332,9 +2337,16 @@ void VID_StartupOpenGL(void)
 
 		if (vid.glstate == VID_GL_LIBRARY_ERROR)
 		{
+			CV_StealthSet(&cv_renderer, "Software");
 			rendermode = render_soft;
-			setrenderneeded = 0;
+
+			if (setrenderneeded)
+			{
+				renderswitcherror = render_opengl;
+				setrenderneeded = 0;
+			}
 		}
+
 		glstartup = true;
 	}
 #endif

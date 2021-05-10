@@ -486,30 +486,43 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 	CurrentPolyFlags = PolyFlags;
 }
 
-#ifdef HAVE_GLES2
-static INT32 GetAlphaTestShader(INT32 type)
+INT32 GLBackend_GetAlphaTestShader(INT32 type)
 {
+#ifdef HAVE_GLES2
 	switch (type)
 	{
-		case SHADER_DEFAULT:
-			return SHADER_ALPHA_TEST;
-		case SHADER_FLOOR:
-			return SHADER_FLOOR_ALPHA_TEST;
-		case SHADER_WALL:
-			return SHADER_WALL_ALPHA_TEST;
-		case SHADER_SPRITE:
-			return SHADER_SPRITE_ALPHA_TEST;
-		case SHADER_MODEL:
-			return SHADER_MODEL_ALPHA_TEST;
-		case SHADER_MODEL_LIGHTING:
-			return SHADER_MODEL_LIGHTING_ALPHA_TEST;
-		case SHADER_WATER:
-			return SHADER_WATER_ALPHA_TEST;
-		default:
-			return type;
+		case SHADER_DEFAULT: return SHADER_ALPHA_TEST;
+		case SHADER_FLOOR: return SHADER_FLOOR_ALPHA_TEST;
+		case SHADER_WALL: return SHADER_WALL_ALPHA_TEST;
+		case SHADER_SPRITE: return SHADER_SPRITE_ALPHA_TEST;
+		case SHADER_MODEL: return SHADER_MODEL_ALPHA_TEST;
+		case SHADER_MODEL_LIGHTING: return SHADER_MODEL_LIGHTING_ALPHA_TEST;
+		case SHADER_WATER: return SHADER_WATER_ALPHA_TEST;
+		default: break;
 	}
-}
 #endif
+
+	return type;
+}
+
+INT32 GLBackend_InvertAlphaTestShader(INT32 type)
+{
+#ifdef HAVE_GLES2
+	switch (type)
+	{
+		case SHADER_ALPHA_TEST: return SHADER_DEFAULT;
+		case SHADER_FLOOR_ALPHA_TEST: return SHADER_FLOOR;
+		case SHADER_WALL_ALPHA_TEST: return SHADER_WALL;
+		case SHADER_SPRITE_ALPHA_TEST: return SHADER_SPRITE;
+		case SHADER_MODEL_ALPHA_TEST: return SHADER_MODEL;
+		case SHADER_MODEL_LIGHTING_ALPHA_TEST: return SHADER_MODEL_LIGHTING;
+		case SHADER_WATER_ALPHA_TEST: return SHADER_WATER;
+		default: break;
+	}
+#endif
+
+	return type;
+}
 
 INT32 GLBackend_GetShaderType(INT32 type)
 {
@@ -535,7 +548,7 @@ INT32 GLBackend_GetShaderType(INT32 type)
 		case SHADER_MODEL_LIGHTING:
 		case SHADER_WATER:
 		{
-			INT32 newshader = GetAlphaTestShader(type);
+			INT32 newshader = GLBackend_GetAlphaTestShader(type);
 			if (!(gl_shaders[type].custom && !gl_shaders[newshader].custom))
 				return newshader;
 		}

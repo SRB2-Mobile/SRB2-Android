@@ -49,7 +49,7 @@ static void VertexAttribPointerInternal(int attrib, GLint size, GLenum type, GLb
 {
 	int loc = Shader_AttribLoc(attrib);
 	if (loc == -1)
-		I_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)", Shader_AttribLocName(attrib), function, line);
+		GL_MSG_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)", Shader_AttribLocName(attrib), function, line);
 	pglVertexAttribPointer(loc, size, type, normalized, stride, pointer);
 }
 
@@ -67,15 +67,14 @@ boolean GLBackend_LoadFunctions(void)
 
 	if (!GLBackend_LoadCommonFunctions())
 		return false;
+
 	GLBackend_LoadExtraFunctions();
 
 	GETOPENGLFUNC(ClearDepthf)
 	GETOPENGLFUNC(DepthRangef)
 
 	Shader_LoadFunctions();
-	Shader_Compile();
-
-	return true;
+	return Shader_Compile();
 }
 
 boolean GLBackend_LoadExtraFunctions(void)
