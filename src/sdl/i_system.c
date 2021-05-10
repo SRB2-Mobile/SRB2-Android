@@ -388,6 +388,36 @@ FUNCNORETURN static ATTRNORETURN void quit_handler(int num)
 	I_Quit();
 }
 
+INT32 I_OnMobileSystem(void)
+{
+	const char *platform = SDL_GetPlatform();
+	return (!strcmp(platform, "Android") || strcmp(platform, "iOS"));
+}
+
+INT32 I_OnTabletDevice(void)
+{
+	return (SDL_IsTablet() == SDL_TRUE);
+}
+
+INT32 I_OnTVDevice(void)
+{
+	return (I_OnAndroidTV() || I_OnAppleTV());
+}
+
+INT32 I_OnAndroidTV(void)
+{
+#if defined(__ANDROID__)
+	return (SDL_IsAndroidTV() == SDL_TRUE);
+#else
+	return 0;
+#endif
+}
+
+INT32 I_OnAppleTV(void)
+{
+	return (!strcmp(SDL_GetPlatform(), "tvOS"));
+}
+
 #ifdef HAVE_TERMIOS
 // TERMIOS console code from Quake3: thank you!
 SDL_bool stdin_active = SDL_TRUE;
@@ -1415,53 +1445,54 @@ const char *I_GetJoyName(INT32 joyindex)
 	return joyname;
 }
 
-boolean I_JoystickIsGamepad(INT32 joyindex)
+INT32 I_JoystickIsGamepad(INT32 joyindex)
 {
 #ifdef ACCELEROMETER
 	if (I_JoystickIsAccelerometer(joyindex))
-		return false;
+		return 0;
 #endif
 
 	if (I_JoystickIsTVRemote(joyindex))
-		return false;
+		return 0;
 
-	return true;
+	return 1;
 }
 
-boolean I_JoystickIsTVRemote(INT32 joyindex)
+INT32 I_JoystickIsTVRemote(INT32 joyindex)
 {
 	SDL_Joystick *remote;
 
 	if (!joyindex)
-		return false;
+		return 0;
 
 	remote = SDL_JoystickOpen(joyindex - 1);
 	if (remote && SDL_JoystickNumAxes(remote) < 2 && SDL_JoystickNumHats(remote) < 1 && SDL_JoystickNumBalls(remote) < 1)
-		return true;
+		return 1;
 
-	return false;
+	return 0;
 }
 
-boolean I_JoystickIsAccelerometer(INT32 joyindex)
+INT32 I_JoystickIsAccelerometer(INT32 joyindex)
 {
 	const char *name = NULL;
 
 	// SDL's Joystick System starts at 0, not 1
 	joyindex--;
 	if (joyindex < 0 || joyindex >= SDL_NumJoysticks())
-		return false;
+		return 0;
 
 	// Get the joystick name from the device index
 	name = SDL_JoystickNameForIndex(joyindex);
 	if (name == NULL)
-		return false;
+		return 0;
 
 #if defined(__ANDROID__)
 	// Compare with "Android Accelerometer"
-	return (!strcmp(name, ANDROID_ACCELEROMETER_DEVICE));
-#else
-	return false;
+	if (!strcmp(name, ANDROID_ACCELEROMETER_DEVICE))
+		return 1;
 #endif
+
+	return 0;
 }
 
 #ifndef NOMUMBLE

@@ -219,6 +219,26 @@ char *I_ClipboardPaste(void)
 	return NULL;
 }
 
+INT32 I_OnTabletDevice(void)
+{
+	return 0;
+}
+
+INT32 I_OnTVDevice(void)
+{
+	return 0;
+}
+
+INT32 I_OnAndroidTV(void)
+{
+	return 0;
+}
+
+INT32 I_OnAppleTV(void)
+{
+	return 0;
+}
+
 void I_RegisterSysCommands(void) {}
 
 #include "../sdl/dosstr.c"

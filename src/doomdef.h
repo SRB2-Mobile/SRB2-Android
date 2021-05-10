@@ -128,6 +128,11 @@ extern char logfilename[1024];
 /* A mod name to further distinguish versions. */
 #define SRB2APPLICATION "SRB2"
 
+// Defines that the game is being compiled for a mobile OS
+#if defined(__ANDROID__) || defined(__IPHONEOS__) || defined(__TVOS__)
+#define MOBILE_PLATFORM
+#endif
+
 //#define DEVELOP // Disable this for release builds to remove excessive cheat commands and enable MD5 checking and stuff, all in one go. :3
 #ifdef DEVELOP
 #define VERSIONSTRING "Development EXE"
@@ -164,6 +169,11 @@ extern char logfilename[1024];
 
 #ifdef USE_ANDROID_PK3
 #define ANDROID_PK3_FILENAME "android.pk3"
+#endif
+
+// Virtual keyboard
+#if defined(MOBILE_PLATFORM) && defined(TOUCHINPUTS)
+#define ONSCREENKEYBOARD
 #endif
 
 // Use .kart extension addons
@@ -626,7 +636,7 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 #define SHUFFLE // This has nothing to do with sorting, why was it disabled?
 
 /// Splash screen
-#if defined(__ANDROID__)
+#ifdef MOBILE_PLATFORM
 #define SPLASH_SCREEN
 #endif
 

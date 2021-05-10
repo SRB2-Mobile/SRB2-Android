@@ -968,7 +968,7 @@ void G_DefineDefaultControls(void)
 		gamecontroldefault[i][gc_screenshot ][1] = KEY_HAT1+1; // D-Pad Down
 		gamecontroldefault[i][gc_systemmenu ][0] = KEY_JOY1+7; // Start
 
-#if defined(__ANDROID__)
+#ifdef MOBILE_PLATFORM
 		// Basic TV remote controls
 		gamecontroldefault[i][gc_forward    ][1] = KEY_REMOTEUP;
 		gamecontroldefault[i][gc_backward   ][1] = KEY_REMOTEDOWN;

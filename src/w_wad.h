@@ -104,7 +104,7 @@ virtlump_t* vres_Find(const virtres_t*, const char*);
 // (there is a max of simultaneous open files anyway, and this should be plenty)
 #define MAXRESOURCES 48
 
-#if defined(__ANDROID__)
+#ifdef USE_ANDROID_PK3
 #define MAX_WADFILES (MAXRESOURCES+1) // One more
 #else
 #define MAX_WADFILES MAXRESOURCES

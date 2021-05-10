@@ -1616,7 +1616,7 @@ void R_RegisterEngineStuff(void)
 	if (dedicated)
 		return;
 
-#if defined(__ANDROID__) // Override CVARs
+#ifdef MOBILE_PLATFORM // Override CVARs
 	// Change the default draw distance
 	cv_drawdist.defaultvalue = "4096";
 #endif

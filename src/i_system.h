@@ -34,6 +34,26 @@ extern UINT8 graphics_started;
 */
 extern UINT8 keyboard_started;
 
+/**	\brief	Returns 1 if the game is running on a mobile operating system, 0 otherwise.
+*/
+INT32 I_OnMobileSystem(void);
+
+/**	\brief	Returns 1 if the game is running on a tablet, 0 otherwise.
+*/
+INT32 I_OnTabletDevice(void);
+
+/**	\brief	Returns 1 if the application is running on a TV device, 0 otherwise.
+*/
+INT32 I_OnTVDevice(void);
+
+/**	\brief	Returns 1 if the application is running on Android TV, 0 otherwise.
+*/
+INT32 I_OnAndroidTV(void);
+
+/**	\brief	Returns 1 if the application is running on tvOS, 0 otherwise.
+*/
+INT32 I_OnAppleTV(void);
+
 /**	\brief	The I_GetFreeMem function
 
 	\param	total	total memory in the system
@@ -186,25 +206,25 @@ const char *I_GetJoyName(INT32 joyindex);
 
 	\param	joyindex	which joystick
 
-	\return	true if the joystick is a gamepad
+	\return	1 if the joystick is a gamepad
 */
-boolean I_JoystickIsGamepad(INT32 joyindex);
+INT32 I_JoystickIsGamepad(INT32 joyindex);
 
 /**	\brief	The I_JoystickIsTVRemote function
 
 	\param	joyindex	which joystick
 
-	\return	true if the joystick is a TV remote
+	\return	1 if the joystick is a TV remote
 */
-boolean I_JoystickIsTVRemote(INT32 joyindex);
+INT32 I_JoystickIsTVRemote(INT32 joyindex);
 
 /**	\brief	The I_JoystickIsAccelerometer function
 
 	\param	joyindex	which joystick
 
-	\return	true if the joystick is an accelerometer
+	\return	1 if the joystick is an accelerometer
 */
-boolean I_JoystickIsAccelerometer(INT32 joyindex);
+INT32 I_JoystickIsAccelerometer(INT32 joyindex);
 
 #ifdef TOUCHINPUTS
 /**	\brief to startup the touch screen

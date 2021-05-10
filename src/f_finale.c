@@ -836,19 +836,26 @@ static void F_IntroDrawScene(void)
 	}
 	else if (intro_scenenum == 1 && intro_curtime < 5*TICRATE)
 	{
+		INT32 input = inputmethod, trans;
 		const char *skiptext;
-		INT32 trans = intro_curtime + 10 - (5*TICRATE);
+
+		if (I_OnTVDevice())
+			input = INPUTMETHOD_TVREMOTE;
+		else if (I_OnMobileSystem())
+			input = INPUTMETHOD_TOUCH;
+
+		if (input == INPUTMETHOD_TOUCH)
+			skiptext = "\x82""Tap anywhere""\x86"" to skip...";
+		else if (input == INPUTMETHOD_JOYSTICK)
+			skiptext = va("\x86""Push ""\x82""%s""\x86"" to skip...", G_KeynumToString(KEY_JOY1));
+		else if (input == INPUTMETHOD_TVREMOTE)
+			skiptext = "\x86""Push ""\x82""Center""\x86"" to skip...";
+		else
+			skiptext = "\x86""Press ""\x82""ENTER""\x86"" to skip...";
+
+		trans = intro_curtime + 10 - (5*TICRATE);
 		if (trans < 0)
 			trans = 0;
-
-		// TODO: Detect input method.
-		// Don't show anything if no input method was detected.
-		// Assume a keyboard in non-Android, and a TV remote in Android TV.
-#ifdef TOUCHINPUTS
-		skiptext = "\x82""Tap anywhere""\x86"" to skip...";
-#else
-		skiptext = "\x86""Press ""\x82""ENTER""\x86"" to skip...";
-#endif
 
 		V_DrawRightAlignedString(BASEVIDWIDTH-4, BASEVIDHEIGHT-12, V_ALLOWLOWERCASE|(trans<<V_ALPHASHIFT), skiptext);
 	}

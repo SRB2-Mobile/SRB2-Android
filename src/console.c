@@ -455,8 +455,7 @@ void CON_Init(void)
 	con_destlines = vid.height;
 	con_curlines = vid.height;
 
-#if defined(__ANDROID__)
-	// Lactozilla: Change the default console height for Android
+#ifdef TOUCHINPUTS
 	cons_height.defaultvalue = "40";
 #endif
 

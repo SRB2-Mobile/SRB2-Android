@@ -1380,9 +1380,10 @@ static char *CHAT_WordWrap(INT32 x, INT32 w, INT32 option, const char *string)
 
 // let's use this as our coordinates
 INT16 chatx = 13;
-#if defined(__ANDROID__)
+#if defined(MOBILE_PLATFORM) && defined(TOUCHINPUTS)
 INT16 chaty = 64;
 INT32 chatsnapflags = (V_SNAPTOTOP | V_SNAPTOLEFT);
+#define MOBILE_CHAT
 #else
 INT16 chaty = 169;
 INT32 chatsnapflags = (V_SNAPTOBOTTOM | V_SNAPTOLEFT);
@@ -1461,7 +1462,7 @@ static void HU_drawMiniChat(void)
 	}
 
 	y = chaty;
-#if !defined(__ANDROID__)
+#ifndef MOBILE_CHAT
 	y -= charheight*(msglines+1);
 #endif
 
@@ -1563,7 +1564,7 @@ static void HU_drawChatLog(INT32 offset)
 	}
 #endif
 
-#if defined(__ANDROID__)
+#ifdef MOBILE_CHAT
 	y = chaty + offset*charheight - (chat_scroll*charheight);
 #else
 	y = chaty - offset*charheight - (chat_scroll*charheight) - boxh*charheight - 12;
@@ -1675,7 +1676,7 @@ static void HU_DrawChat(void)
 	const char *talk = ntalk;
 	const char *mute = "Chat has been muted.";
 
-#if defined(__ANDROID__)
+#ifdef MOBILE_CHAT
 	y -= charheight;
 #else
 	y -= (typelines*charheight);

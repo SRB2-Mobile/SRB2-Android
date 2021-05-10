@@ -611,7 +611,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_pingtimeout);
 	CV_RegisterVar(&cv_showping);
 
-#if defined(__ANDROID__)
+#ifdef MOBILE_PLATFORM
 	cv_thinkless.defaultvalue = "On";
 #endif
 	CV_RegisterVar(&cv_thinkless);
@@ -819,7 +819,7 @@ void D_RegisterClientCommands(void)
 #endif
 	CV_RegisterVar(&cv_controlperkey);
 
-#if defined(__ANDROID__)
+#ifdef MOBILE_PLATFORM
 	// Disable the mouse
 	cv_usemouse.defaultvalue = "Off";
 #endif

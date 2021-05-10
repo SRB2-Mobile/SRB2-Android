@@ -47,10 +47,6 @@ extern INT32 inputmethod, controlmethod;
 #define ANDROID_ACCELEROMETER_DEVICE "Android Accelerometer"
 #endif
 
-#if defined(__ANDROID__) && defined(TOUCHINPUTS)
-#define ONSCREENKEYBOARD
-#endif
-
 //
 // Mouse, joystick, and TV remote buttons are handled as 'virtual' keys
 //
