@@ -41,12 +41,15 @@
 // Fade mask vertex shader
 //
 
+#define GLSL_FADEMASK_VARYING \
+	"varying vec2 v_texcoord;\n" \
+	"varying vec2 v_fademasktexcoord;\n"
+
 #define GLSL_FADEMASK_VERTEX_SHADER \
 	"attribute vec3 a_position;\n" \
 	"attribute vec2 a_texcoord;\n" \
 	"attribute vec2 a_fademasktexcoord;\n" \
-	"varying vec2 v_texcoord;\n" \
-	"varying vec2 v_fademasktexcoord;\n" \
+	GLSL_FADEMASK_VARYING \
 	"uniform mat4 u_projection;\n" \
 	"void main()\n" \
 	"{\n" \
@@ -84,9 +87,12 @@
 
 #define GLSL_BASE_UNIFORMS \
 	GLSL_BASE_SAMPLER \
-	"uniform vec4 poly_color;\n" \
+	"uniform vec4 poly_color;\n"
+
+#define GLSL_PRECISION_QUALIFIER "precision mediump float;\n"
 
 #define GLSL_DEFAULT_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
@@ -94,6 +100,7 @@
 	"}\0"
 
 #define GLSL_DEFAULT_ALPHA_TEST \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_UNIFORMS \
 	"uniform float alpha_threshold;\n" \
@@ -109,6 +116,7 @@
 //
 
 #define GLSL_SKY_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_UNIFORMS \
 	"void main(void) {\n" \
@@ -120,8 +128,8 @@
 //
 
 #define GLSL_FADEMASK_BASE_IN \
-	"varying vec2 v_texcoord;\n" \
-	"varying vec2 v_fademasktexcoord;\n" \
+	GLSL_PRECISION_QUALIFIER \
+	GLSL_FADEMASK_VARYING \
 	"uniform sampler2D t_startscreen;\n" \
 	"uniform sampler2D t_endscreen;\n" \
 	"uniform sampler2D t_fademask;\n"
@@ -178,6 +186,7 @@
 #include "shaders_software.h"
 
 #define GLSL_SOFTWARE_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -194,6 +203,7 @@
 	"}\0"
 
 #define GLSL_SOFTWARE_ALPHA_TEST \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -219,6 +229,7 @@
 // same as GLSL_SOFTWARE_FRAGMENT_SHADER but multiplies results with the
 // lighting value from the accompanying vertex shader (stored in v_colors)
 #define GLSL_MODEL_LIGHTING_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -236,6 +247,7 @@
 	"}\0"
 
 #define GLSL_MODEL_LIGHTING_ALPHA_TEST \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -260,6 +272,7 @@
 //
 
 #define GLSL_WATER_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -274,6 +287,7 @@
 	"}\0"
 
 #define GLSL_WATER_ALPHA_TEST \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_BASE_VARYING \
 	GLSL_BASE_SAMPLER \
 	GLSL_DOOM_UNIFORMS \
@@ -297,6 +311,7 @@
 //
 
 #define GLSL_FOG_FRAGMENT_SHADER \
+	GLSL_PRECISION_QUALIFIER \
 	GLSL_DOOM_UNIFORMS \
 	GLSL_DOOM_COLORMAP \
 	GLSL_DOOM_LIGHT_EQUATION \
