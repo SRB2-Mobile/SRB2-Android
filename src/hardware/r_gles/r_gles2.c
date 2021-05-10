@@ -227,7 +227,7 @@ void SetStates(void)
 {
 //	GL_DBG_Printf("SetStates()\n");
 
-	pglAlphaFunc(GL_NOTEQUAL, 0.0f);
+	alpha_threshold = 0.0f;
 
 	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
