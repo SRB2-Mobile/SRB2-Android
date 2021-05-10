@@ -3585,6 +3585,12 @@ static void Command_Version_f(void)
 	CONS_Printf("Windows ");
 #elif defined(__ANDROID__)
 	CONS_Printf("Android ");
+	if (I_OnAndroidTV())
+		CONS_Printf("TV ");
+#elif defined(__IPHONEOS__)
+	CONS_Printf("iOS ");
+#elif defined(__TVOS__)
+	CONS_Printf("tvOS ");
 #elif defined(__linux__)
 	CONS_Printf("Linux ");
 #elif defined(MACOSX)
