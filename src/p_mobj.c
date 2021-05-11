@@ -10014,7 +10014,7 @@ static inline boolean P_MobjDistanceCheck(mobj_t *mobj)
 
 static inline boolean P_CanMobjThink(mobj_t *mobj)
 {
-	boolean nothink = false;
+	boolean check = (cv_thinkless.value == 2);
 
 	if (!reducedthinking)
 		return true;
@@ -10023,6 +10023,21 @@ static inline boolean P_CanMobjThink(mobj_t *mobj)
 		return true;
 
 	if (cv_thinkless.value == 1)
+	{
+		if (mobj->flags & MF_ENEMY)
+			check = true;
+
+		if (mobj->flags & MF_SCENERY && (!mobj->momx && !mobj->momy && !mobj->momz))
+			check = true;
+
+		if (P_CanZMove(mobj))
+			check = true;
+	}
+
+	if (!check)
+		return true;
+
+	if (!P_MobjDistanceCheck(mobj))
 	{
 		switch (mobj->type)
 		{
@@ -10034,29 +10049,13 @@ static inline boolean P_CanMobjThink(mobj_t *mobj)
 			case MT_CUSTOMMACEPOINT:
 			case MT_HIDDEN_SLING:
 			case MT_OVERLAY:
-				nothink = true;
-				break;
+				// Always update movedir to prevent desyncing (in the traditional sense, not the netplay sense).
+				mobj->movedir = (mobj->movedir + mobj->lastlook) & FINEMASK;
+				/* FALLTHRU */
 			default:
-				if (mobj->flags & MF_ENEMY)
-				{
-					nothink = true;
-					break;
-				}
-
-				if (mobj->flags & MF_SCENERY && (!mobj->momx && !mobj->momy && !mobj->momz))
-				{
-					nothink = true;
-					break;
-				}
-
-				if (P_CanZMove(mobj))
-					nothink = true;
-				break;
+				return false;
 		}
 	}
-
-	if (nothink || cv_thinkless.value == 2)
-		return P_MobjDistanceCheck(mobj);
 
 	return true;
 }
