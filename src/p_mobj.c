@@ -9992,7 +9992,7 @@ static boolean P_FuseThink(mobj_t *mobj)
 }
 
 static CV_PossibleValue_t thinkless_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Aggressive"}, {0, NULL}};
-consvar_t cv_thinkless = CVAR_INIT("reducedthinking", "Off", CV_SAVE, thinkless_cons_t, NULL);
+consvar_t cv_thinkless = CVAR_INIT("thinkless", "Off", CV_SAVE, thinkless_cons_t, NULL);
 
 #define reducedthinking (cv_thinkless.value && !(netgame || multiplayer) && !(demoplayback || modeattacking || marathonmode || metalrecording))
 

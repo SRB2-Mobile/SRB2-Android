@@ -612,7 +612,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_showping);
 
 #ifdef MOBILE_PLATFORM
-	cv_thinkless.defaultvalue = "On";
+	cv_thinkless.defaultvalue = "Aggressive";
 #endif
 	CV_RegisterVar(&cv_thinkless);
 
