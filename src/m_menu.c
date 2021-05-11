@@ -2530,7 +2530,7 @@ menu_t OP_Joystick2Def = DEFAULTMENUSTYLE(
 menu_t OP_JoystickSetDef =
 {
 	MTREE4(MN_OP_MAIN, 0, 0, MN_OP_JOYSTICKSET), // second and third level set on runtime
-	0, "M_CONTRO",
+	MENUSTYLE_JOYSTICKS, "M_CONTRO",
 	sizeof (OP_JoystickSetMenu)/sizeof (menuitem_t),
 	&OP_Joystick1Def,
 	OP_JoystickSetMenu,
@@ -3818,9 +3818,11 @@ boolean M_TSNav_CanShowBack(void)
 
 boolean M_TSNav_CanShowConfirm(void)
 {
+	menustyle_t style = currentMenu->menustyle;
+
 	// Always hidden.
 	if (cv_touchnavmethod.value == 0
-	&& (currentMenu->menustyle == MENUSTYLE_PLAYSTYLE || currentMenu->menustyle == MENUSTYLE_SOUNDTEST
+	&& (style == MENUSTYLE_PLAYSTYLE || style == MENUSTYLE_SOUNDTEST || style == MENUSTYLE_JOYSTICKS
 	|| currentMenu == &MP_PlayerSetupDef))
 		return false;
 
@@ -5163,6 +5165,21 @@ static INT16 M_IsTouchingPlaystyleSelection(INT32 fx, INT32 fy)
 	return -1;
 }
 
+static INT16 M_IsTouchingJoystickMenuSelection(INT32 fx, INT32 fy)
+{
+	INT32 i;
+
+	for (i = 0; i <= MAX_JOYSTICKS; i++)
+	{
+		INT32 x = OP_JoystickSetDef.x-8;
+		INT32 y = OP_JoystickSetDef.y+LINEHEIGHT*i-12;
+		if (M_FingerTouchingSelection(fx, fy, x+5, y+5, 224, 14))
+			return i;
+	}
+
+	return -1;
+}
+
 static INT16 M_IsTouchingVideoModeSelection(INT32 fx, INT32 fy)
 {
 	INT32 i, row, col;
@@ -5215,6 +5232,8 @@ static INT16 M_IsTouchingMenuSelection(INT32 fx, INT32 fy, INT32 *key, consvar_t
 			return M_IsTouchingScrollMenuSelection(fx, fy, key, cv);
 		case MENUSTYLE_PLAYSTYLE:
 			return M_IsTouchingPlaystyleSelection(fx, fy);
+		case MENUSTYLE_JOYSTICKS:
+			return M_IsTouchingJoystickMenuSelection(fx, fy);
 		case MENUSTYLE_VIDEOMODES:
 			return M_IsTouchingVideoModeSelection(fx, fy);
 		case MENUSTYLE_SERVERLIST:
@@ -5689,6 +5708,15 @@ static boolean M_HandleFingerUpEvent(event_t *ev, INT32 *ch)
 					else if (vidm_testingmode == 0)
 					{
 						vidm_selected = selection;
+						S_StartSound(NULL, sfx_menu1);
+					}
+					break;
+				case MENUSTYLE_JOYSTICKS:
+					if (itemOn == selection)
+						(*ch) = KEY_ENTER;
+					else
+					{
+						M_SetItemOn(selection);
 						S_StartSound(NULL, sfx_menu1);
 					}
 					break;
@@ -16914,7 +16942,7 @@ TSNAVHANDLER(PlayerSetup)
 				}
 				else
 				{
-					itemOn = i;
+					M_SetItemOn(i);
 					S_StartSound(NULL, sfx_menu1);
 				}
 
