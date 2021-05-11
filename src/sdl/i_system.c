@@ -2153,12 +2153,12 @@ INT32 I_StartupSystem(void)
 //
 void I_Quit(void)
 {
-	static SDL_bool quiting = SDL_FALSE;
+	static SDL_bool quitting = SDL_FALSE;
 
 	/* prevent recursive I_Quit() */
-	if (quiting) goto death;
+	if (quitting) goto death;
 	SDLforceUngrabMouse();
-	quiting = SDL_FALSE;
+	quitting = SDL_TRUE;
 
 	if (I_StoragePermission())
 		M_SaveConfig(NULL); //save game config, cvars..

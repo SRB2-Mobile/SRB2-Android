@@ -1437,6 +1437,9 @@ void I_GetEvent(void)
 					M_SetupJoystickMenu(0);
 			 	break;
 			case SDL_QUIT:
+#if defined(__ANDROID__)
+			case SDL_APP_TERMINATING:
+#endif
 				LUAh_GameQuit(true);
 				I_Quit();
 				break;
