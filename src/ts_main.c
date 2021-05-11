@@ -1665,8 +1665,10 @@ void TS_DefineButtons(void)
 
 	if (TS_IsPresetActive())
 	{
-		status.vidwidth = vid.width;
-		status.vidheight = vid.height;
+		status.vid.width = vid.width;
+		status.vid.height = vid.height;
+		status.vid.dupx = vid.dupx;
+		status.vid.dupy = vid.dupy;
 		status.presetscale = touch_preset_scale;
 		status.scalemeta = touch_scale_meta;
 		status.corners = touch_corners;
@@ -1705,8 +1707,10 @@ void TS_DefineButtons(void)
 	}
 	else
 	{
-		status.vidwidth = vid.width;
-		status.vidheight = vid.height;
+		status.vid.width = vid.width;
+		status.vid.height = vid.height;
+		status.vid.dupx = vid.dupx;
+		status.vid.dupy = vid.dupy;
 		status.preset = touch_preset;
 		status.promptblockcontrols = promptblockcontrols;
 
@@ -1728,8 +1732,10 @@ void TS_DefineNavigationButtons(void)
 	if (!TS_Ready())
 		return;
 
-	navstatus.vidwidth = vid.width;
-	navstatus.vidheight = vid.height;
+	navstatus.vid.width = vid.width;
+	navstatus.vid.height = vid.height;
+	navstatus.vid.dupx = vid.dupx;
+	navstatus.vid.dupy = vid.dupy;
 	navstatus.corners = cv_touchcorners.value;
 
 	navstatus.customizingcontrols = TS_IsCustomizingControls();

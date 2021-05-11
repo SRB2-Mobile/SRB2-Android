@@ -173,8 +173,12 @@ extern INT32 touch_corners;
 // Touch config. status
 typedef struct
 {
-	INT32 vidwidth; // vid.width
-	INT32 vidheight; // vid.height
+	struct
+	{
+		INT32 width, height;
+		INT32 dupx, dupy;
+	} vid;
+
 	fixed_t presetscale; // touch_preset_scale
 	boolean scalemeta; // touch_scale_meta
 	INT32 corners; // touch_corners
@@ -201,8 +205,12 @@ typedef struct
 // Touch navigation status
 typedef struct
 {
-	INT32 vidwidth; // vid.width
-	INT32 vidheight; // vid.height
+	struct
+	{
+		INT32 width, height;
+		INT32 dupx, dupy;
+	} vid;
+
 	INT32 corners; // cv_touchcorners.value
 
 	boolean canreturn; // M_TSNav_CanShowBack
