@@ -1631,12 +1631,12 @@ static void Impl_LoopCheckContext(void)
 }
 
 //
-// I_CheckFinishUpdate
+// I_OnLoopFinishUpdate
 //
-void I_CheckFinishUpdate(void)
+void I_OnLoopFinishUpdate(void)
 {
 	if (rendermode == render_none)
-		return; //Alam: No software or OpenGl surface
+		return;
 
 #if defined(__ANDROID__)
 	if (appOnBackground == SDL_FALSE)

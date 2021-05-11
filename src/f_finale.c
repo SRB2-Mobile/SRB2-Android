@@ -928,7 +928,7 @@ void F_IntroDrawer(void)
 #ifdef HAVE_THREADS
 					I_unlock_mutex(m_menu_mutex);
 #endif
-					I_CheckFinishUpdate(); // Update the screen with the image Tails 06-19-2001
+					I_OnLoopFinishUpdate(); // Update the screen with the image Tails 06-19-2001
 
 					if (moviemode) // make sure we save frames for the white hold too
 						M_SaveFrame();

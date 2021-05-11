@@ -160,7 +160,7 @@ void I_FinishUpdate(void);
 
 /**	\brief I_FinishUpdate(), but checks the rendering context
 */
-void I_CheckFinishUpdate(void);
+void I_OnLoopFinishUpdate(void);
 
 /**	\brief I_FinishUpdate(), but vsync disabled
 */
