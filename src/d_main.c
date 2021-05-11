@@ -258,7 +258,7 @@ static void D_Display(void)
 	static boolean wipe = false;
 	INT32 wipedefindex = 0;
 
-	if (dedicated)
+	if (I_AppOnBackground() || dedicated)
 		return;
 
 	if (nodrawers)

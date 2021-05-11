@@ -90,16 +90,6 @@ INT32 VID_SetMode(INT32 modenum);
 */
 void VID_GetNativeResolution(INT32 *width, INT32 *height);
 
-/**	\brief Creates a rendering context.
-	\return	1 if the context was changed, 0 if it was not
-*/
-INT32 VID_CreateContext(void);
-
-/**	\brief Destroys the current rendering context.
-	\return	1 if the context was destroyed, 0 if it was not
-*/
-INT32 VID_DestroyContext(void);
-
 /**	\brief Recreates the current rendering context.
 */
 void VID_RecreateContext(void);
@@ -175,6 +165,10 @@ void I_CheckFinishUpdate(void);
 /**	\brief I_FinishUpdate(), but vsync disabled
 */
 void I_UpdateNoVsync(void);
+
+/**	\brief Returns 1 if the app is on the background, and is not supposed to render.
+*/
+INT32 I_AppOnBackground(void);
 
 /**	\brief	Wait for vertical retrace or pause a bit.
 

@@ -266,6 +266,16 @@ EXPORT boolean HWRAPI(Init) (void)
 
 
 // -----------------+
+// RecreateContext  : Clears textures, buffer objects, and recompiles shaders.
+// Returns          :
+// -----------------+
+EXPORT void HWRAPI(RecreateContext) (void)
+{
+	return GLBackend_RecreateContext();
+}
+
+
+// -----------------+
 // ClearMipMapCache : Flush OpenGL textures from memory
 // -----------------+
 EXPORT void HWRAPI(ClearMipMapCache) (void)
@@ -802,6 +812,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	float scalex, scaley, scalez;
 
 	boolean useTinyFrames;
+	boolean useVBO = true;
 
 	FBITFIELD flags;
 	int i;
@@ -940,6 +951,15 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	if (useTinyFrames)
 		pglScalef(1 / 64.0f, 1 / 64.0f, 1 / 64.0f);
 
+	// Don't use the VBO if it does not have the correct texture coordinates.
+	// (Can happen when model uses a sprite as a texture and the sprite changes)
+	// Comparing floats with the != operator here should be okay because they
+	// are just copies of glpatches' max_s and max_t values.
+	// Instead of the != operator, memcmp is used to avoid a compiler warning.
+	if (memcmp(&(model->vbo_max_s), &(model->max_s), sizeof(model->max_s)) != 0 ||
+		memcmp(&(model->vbo_max_t), &(model->max_t), sizeof(model->max_t)) != 0)
+		useVBO = false;
+
 	pglEnableClientState(GL_NORMAL_ARRAY);
 
 	for (i = 0; i < model->numMeshes; i++)
@@ -956,13 +976,23 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 			if (!nextframe || fpclassify(pol) == FP_ZERO)
 			{
-				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-				pglVertexPointer(3, GL_SHORT, sizeof(vbotiny_t), BUFFER_OFFSET(0));
-				pglNormalPointer(GL_BYTE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
-				pglTexCoordPointer(2, GL_FLOAT, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
+				if (useVBO)
+				{
+					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+					pglVertexPointer(3, GL_SHORT, sizeof(vbotiny_t), BUFFER_OFFSET(0));
+					pglNormalPointer(GL_BYTE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
 
-				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
-				pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+				}
+				else
+				{
+					pglVertexPointer(3, GL_SHORT, 0, frame->vertices);
+					pglNormalPointer(GL_BYTE, 0, frame->normals);
+					pglTexCoordPointer(2, GL_FLOAT, 0, mesh->uvs);
+					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+				}
 			}
 			else
 			{
@@ -999,21 +1029,24 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 			if (!nextframe || fpclassify(pol) == FP_ZERO)
 			{
-				// Zoom! Take advantage of just shoving the entire arrays to the GPU.
-/*				pglVertexPointer(3, GL_FLOAT, 0, frame->vertices);
-				pglNormalPointer(GL_FLOAT, 0, frame->normals);
-				pglTexCoordPointer(2, GL_FLOAT, 0, mesh->uvs);
-				pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);*/
+				if (useVBO)
+				{
+					// Zoom! Take advantage of just shoving the entire arrays to the GPU.
+					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+					pglVertexPointer(3, GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(0));
+					pglNormalPointer(GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
 
-				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-				pglVertexPointer(3, GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(0));
-				pglNormalPointer(GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
-				pglTexCoordPointer(2, GL_FLOAT, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
-
-				pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
-				// No tinyframes, no mesh indices
-				//pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
-				pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+				}
+				else
+				{
+					pglVertexPointer(3, GL_FLOAT, 0, frame->vertices);
+					pglNormalPointer(GL_FLOAT, 0, frame->normals);
+					pglTexCoordPointer(2, GL_FLOAT, 0, mesh->uvs);
+					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+				}
 			}
 			else
 			{
@@ -1224,18 +1257,9 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglEnable(GL_BLEND);
 }
 
-// Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
-//			a new size
 EXPORT void HWRAPI(FlushScreenTextures) (void)
 {
-	pglDeleteTextures(1, &screentexture);
-	pglDeleteTextures(1, &startScreenWipe);
-	pglDeleteTextures(1, &endScreenWipe);
-	pglDeleteTextures(1, &finalScreenTexture);
-	screentexture = 0;
-	startScreenWipe = 0;
-	endScreenWipe = 0;
-	finalScreenTexture = 0;
+	GLTexture_FlushScreen();
 }
 
 // Create Screen to fade from

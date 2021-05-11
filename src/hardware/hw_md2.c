@@ -1428,7 +1428,6 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
 				// note down the max_s and max_t that end up in the VBO
 				md2->model->vbo_max_s = md2->model->max_s;
 				md2->model->vbo_max_t = md2->model->max_t;
-				HWD.pfnCreateModelVBOs(md2->model);
 			}
 			else
 			{
@@ -1436,6 +1435,12 @@ boolean HWR_DrawModel(gl_vissprite_t *spr)
 				md2->error = true; // prevent endless fail
 				return false;
 			}
+		}
+
+		if (!md2->model->hasVBOs)
+		{
+			HWD.pfnCreateModelVBOs(md2->model);
+			md2->model->hasVBOs = true;
 		}
 
 		finalscale = md2->scale;

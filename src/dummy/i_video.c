@@ -67,6 +67,11 @@ void I_CheckFinishUpdate(void){}
 
 void I_UpdateNoVsync(void) {}
 
+INT32 I_AppOnBackground(void)
+{
+	return 0;
+}
+
 void I_WaitVBL(INT32 count)
 {
 	(void)count;

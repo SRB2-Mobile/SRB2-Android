@@ -131,6 +131,7 @@ void Shader_LoadCustom(int number, char *code, size_t size, boolean isfragment);
 
 boolean Shader_Compile(void);
 void Shader_Clean(void);
+void Shader_CleanPrograms(void);
 
 void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
 void Shader_SetSampler(gluniform_t uniform, GLint value);

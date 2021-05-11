@@ -98,8 +98,7 @@ typedef struct model_s
 	int numTags;
 	tag_t *tags;
 
-	char *mdlFilename;
-	boolean unloaded;
+	boolean hasVBOs;
 
 	char *framenames;
 	boolean interpolate[256];

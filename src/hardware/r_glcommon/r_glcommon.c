@@ -53,8 +53,6 @@ GLint anisotropic_filter = 0;
 boolean alpha_test = false;
 float alpha_threshold = 0.0f;
 
-boolean model_lighting = false;
-
 // Linked list of all textures.
 FTextureInfo *TexCacheTail = NULL;
 FTextureInfo *TexCacheHead = NULL;
@@ -71,6 +69,12 @@ GLuint screentexture = 0;
 GLuint startScreenWipe = 0;
 GLuint endScreenWipe = 0;
 GLuint finalScreenTexture = 0;
+
+// Linked list of all models.
+static GLModelList *ModelListTail = NULL;
+static GLModelList *ModelListHead = NULL;
+
+boolean model_lighting = false;
 
 // ==========================================================================
 //                                                                 EXTENSIONS
@@ -605,6 +609,47 @@ void SetSurface(INT32 w, INT32 h)
 	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void GLBackend_RecreateContext(void)
+{
+	while (TexCacheHead)
+	{
+		FTextureInfo *pTexInfo = TexCacheHead;
+		GLMipmap_t *texture = pTexInfo->texture;
+
+		if (pTexInfo->downloaded)
+			pTexInfo->downloaded = 0;
+
+		if (texture)
+			texture->downloaded = 0;
+
+		TexCacheHead = pTexInfo->next;
+		free(pTexInfo);
+	}
+
+	TexCacheTail = TexCacheHead = NULL;
+
+	GLTexture_FlushScreen();
+	tex_downloaded = 0;
+
+	while (ModelListHead)
+	{
+		GLModelList *pModel = ModelListHead;
+
+		if (pModel->model && pModel->model->meshes)
+			GLModel_ClearVBOs(pModel->model);
+
+		ModelListHead = pModel->next;
+		free(pModel);
+	}
+
+	ModelListTail = ModelListHead = NULL;
+
+#ifdef GL_SHADERS
+	Shader_CleanPrograms();
+	Shader_Compile();
+#endif
+}
+
 static size_t lerpBufferSize = 0;
 float *vertBuffer = NULL;
 float *normBuffer = NULL;
@@ -764,14 +809,14 @@ static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
 
 void GLModel_GenerateVBOs(model_t *model)
 {
-	int i;
+	int i, j;
+
 	for (i = 0; i < model->numMeshes; i++)
 	{
 		mesh_t *mesh = &model->meshes[i];
 
 		if (mesh->frames)
 		{
-			int j;
 			for (j = 0; j < model->meshes[i].numFrames; j++)
 			{
 				mdlframe_t *frame = &mesh->frames[j];
@@ -783,7 +828,6 @@ void GLModel_GenerateVBOs(model_t *model)
 		}
 		else if (mesh->tinyframes)
 		{
-			int j;
 			for (j = 0; j < model->meshes[i].numFrames; j++)
 			{
 				tinyframe_t *frame = &mesh->tinyframes[j];
@@ -794,6 +838,46 @@ void GLModel_GenerateVBOs(model_t *model)
 			}
 		}
 	}
+
+	if (ModelListTail)
+	{
+		ModelListTail->next = calloc(1, sizeof(GLModelList));
+		ModelListTail = ModelListTail->next;
+	}
+	else
+		ModelListTail = ModelListHead = calloc(1, sizeof(GLModelList));
+
+	ModelListTail->model = model;
+	ModelListTail->next = NULL;
+}
+
+void GLModel_ClearVBOs(model_t *model)
+{
+	int i, j;
+
+	for (i = 0; i < model->numMeshes; i++)
+	{
+		mesh_t *mesh = &model->meshes[i];
+
+		if (mesh->frames)
+		{
+			for (j = 0; j < model->meshes[i].numFrames; j++)
+			{
+				mdlframe_t *frame = &mesh->frames[j];
+				frame->vboID = 0;
+			}
+		}
+		else if (mesh->tinyframes)
+		{
+			for (j = 0; j < model->meshes[i].numFrames; j++)
+			{
+				tinyframe_t *frame = &mesh->tinyframes[j];
+				frame->vboID = 0;
+			}
+		}
+	}
+
+	model->hasVBOs = false;
 }
 
 // -----------------+
@@ -825,6 +909,22 @@ void GLTexture_Flush(void)
 	TexCacheTail = TexCacheHead = NULL; //Hurdler: well, TexCacheHead is already NULL
 	tex_downloaded = 0;
 }
+
+
+// Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
+//			a new size
+void GLTexture_FlushScreen(void)
+{
+	pglDeleteTextures(1, &screentexture);
+	pglDeleteTextures(1, &startScreenWipe);
+	pglDeleteTextures(1, &endScreenWipe);
+	pglDeleteTextures(1, &finalScreenTexture);
+	screentexture = 0;
+	startScreenWipe = 0;
+	endScreenWipe = 0;
+	finalScreenTexture = 0;
+}
+
 
 // -----------------+
 // SetFilterMode    : Sets texture filtering mode

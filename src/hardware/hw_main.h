@@ -76,6 +76,8 @@ FBITFIELD HWR_GetBlendModeFlag(INT32 ast);
 FBITFIELD HWR_SurfaceBlend(INT32 style, INT32 transtablenum, FSurfaceInfo *pSurf);
 FBITFIELD HWR_TranstableToAlpha(INT32 transtablenum, FSurfaceInfo *pSurf);
 
+void HWR_RecreateContext(void);
+
 boolean HWR_CompileShaders(void);
 
 void HWR_LoadAllCustomShaders(void);

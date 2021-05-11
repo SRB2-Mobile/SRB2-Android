@@ -414,6 +414,20 @@ void Shader_Clean(void)
 	}
 }
 
+void Shader_CleanPrograms(void)
+{
+	INT32 i;
+
+	for (i = 0; i < HWR_MAXSHADERS; i++)
+	{
+		gl_shader_t *shader = &gl_shaders[i];
+		gl_shader_t *usershader = &gl_usershaders[i];
+
+		shader->program = 0;
+		usershader->program = 0;
+	}
+}
+
 #define Shader_ErrorMessage GL_MSG_Error
 
 static void Shader_CompileError(const char *message, GLuint program, INT32 shadernum)

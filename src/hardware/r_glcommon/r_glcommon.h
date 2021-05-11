@@ -369,15 +369,15 @@ extern PFNglBlendEquation pglBlendEquation;
 // ==========================================================================
 
 void GLModel_GenerateVBOs(model_t *model);
+void GLModel_ClearVBOs(model_t *model);
+
 void GLModel_AllocLerpBuffer(size_t size);
 void GLModel_AllocLerpTinyBuffer(size_t size);
 
 void  GLTexture_Flush(void);
+void  GLTexture_FlushScreen(void);
 void  GLTexture_SetFilterMode(INT32 mode);
 INT32 GLTexture_GetMemoryUsage(FTextureInfo *head);
-
-void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
-void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
 
 boolean GLBackend_Init(void);
 boolean GLBackend_LoadFunctions(void);
@@ -385,10 +385,14 @@ boolean GLBackend_LoadExtraFunctions(void);
 boolean GLBackend_LoadCommonFunctions(void);
 boolean GLBackend_LoadLegacyFunctions(void);
 void   *GLBackend_GetFunction(const char *proc);
+void    GLBackend_RecreateContext(void);
 
 INT32 GLBackend_GetShaderType(INT32 type);
 INT32 GLBackend_GetAlphaTestShader(INT32 type);
 INT32 GLBackend_InvertAlphaTestShader(INT32 type);
+
+void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
 
 boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start);
 
@@ -475,6 +479,13 @@ extern float NEAR_CLIPPING_PLANE;
 // ==========================================================================
 //                                                                    STRUCTS
 // ==========================================================================
+
+struct GLModelList
+{
+	model_t *model;
+	struct GLModelList *next;
+};
+typedef struct GLModelList GLModelList;
 
 struct GLRGBAFloat
 {

@@ -6780,6 +6780,14 @@ void HWR_DrawScreenFinalTexture(int width, int height)
     HWD.pfnDrawScreenFinalTexture(width, height);
 }
 
+void HWR_RecreateContext(void)
+{
+	HWR_ClearSkyDome();
+
+	if (vid.glstate == VID_GL_LIBRARY_LOADED)
+		HWD.pfnRecreateContext();
+}
+
 static inline UINT16 HWR_FindShaderDefs(UINT16 wadnum)
 {
 	UINT16 i;

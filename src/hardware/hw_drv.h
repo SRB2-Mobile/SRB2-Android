@@ -29,6 +29,7 @@ EXPORT boolean HWRAPI(Init) (void);
 #ifndef HAVE_SDL
 EXPORT void HWRAPI(Shutdown) (void);
 #endif
+EXPORT void HWRAPI(RecreateContext) (void);
 #ifdef _WINDOWS
 EXPORT void HWRAPI(GetModeList) (vmode_t **pvidmodes, INT32 *numvidmodes);
 #endif
@@ -85,6 +86,7 @@ struct hwdriver_s
 	Init                pfnInit;
 	SetPalette          pfnSetPalette;
 	FinishUpdate        pfnFinishUpdate;
+	RecreateContext     pfnRecreateContext;
 	Draw2DLine          pfnDraw2DLine;
 	DrawPolygon         pfnDrawPolygon;
 	DrawPolygonShader   pfnDrawPolygonShader;

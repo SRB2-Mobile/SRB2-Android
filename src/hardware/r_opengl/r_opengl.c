@@ -380,6 +380,16 @@ EXPORT boolean HWRAPI(Init) (void)
 
 
 // -----------------+
+// RecreateContext  : Clears textures, buffer objects, and recompiles shaders.
+// Returns          :
+// -----------------+
+EXPORT void HWRAPI(RecreateContext) (void)
+{
+	return GLBackend_RecreateContext();
+}
+
+
+// -----------------+
 // ClearMipMapCache : Flush OpenGL textures from memory
 // -----------------+
 EXPORT void HWRAPI(ClearMipMapCache) (void)
@@ -1040,7 +1050,6 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	float scalex, scaley, scalez;
 
 	boolean useTinyFrames;
-
 	boolean useVBO = true;
 
 	int i;
@@ -1494,18 +1503,9 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglEnable(GL_BLEND);
 }
 
-// Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
-//			a new size
 EXPORT void HWRAPI(FlushScreenTextures) (void)
 {
-	pglDeleteTextures(1, &screentexture);
-	pglDeleteTextures(1, &startScreenWipe);
-	pglDeleteTextures(1, &endScreenWipe);
-	pglDeleteTextures(1, &finalScreenTexture);
-	screentexture = 0;
-	startScreenWipe = 0;
-	endScreenWipe = 0;
-	finalScreenTexture = 0;
+	GLTexture_FlushScreen();
 }
 
 // Create Screen to fade from

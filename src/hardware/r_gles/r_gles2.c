@@ -302,6 +302,16 @@ EXPORT boolean HWRAPI(Init) (void)
 
 
 // -----------------+
+// RecreateContext  : Clears textures, buffer objects, and recompiles shaders.
+// Returns          :
+// -----------------+
+EXPORT void HWRAPI(RecreateContext) (void)
+{
+	return GLBackend_RecreateContext();
+}
+
+
+// -----------------+
 // ClearMipMapCache : Flush OpenGL textures from memory
 // -----------------+
 EXPORT void HWRAPI(ClearMipMapCache) (void)
@@ -877,6 +887,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	boolean useNormals;
 	boolean useTinyFrames;
+	boolean useVBO = true;
 
 	fvector3_t v_scale;
 	fvector3_t translate;
@@ -1005,6 +1016,15 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 		lzml_matrix4_scale(modelMatrix, v_scale);
 	}
 
+	// Don't use the VBO if it does not have the correct texture coordinates.
+	// (Can happen when model uses a sprite as a texture and the sprite changes)
+	// Comparing floats with the != operator here should be okay because they
+	// are just copies of glpatches' max_s and max_t values.
+	// Instead of the != operator, memcmp is used to avoid a compiler warning.
+	if (memcmp(&(model->vbo_max_s), &(model->max_s), sizeof(model->max_s)) != 0 ||
+		memcmp(&(model->vbo_max_t), &(model->max_t), sizeof(model->max_t)) != 0)
+		useVBO = false;
+
 	Shader_SetTransform();
 
 	for (i = 0; i < model->numMeshes; i++)
@@ -1021,16 +1041,29 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 			if (!nextframe || fpclassify(pol) == FP_ZERO)
 			{
-				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+				if (useVBO)
+				{
+					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
-				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
-					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
-				if (useNormals)
-					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
+					VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
+					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+						VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short) * 3 + sizeof(char) * 6));
+					if (useNormals)
+						VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
 
-				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
-				pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+				}
+				else
+				{
+					VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, 0, frame->vertices);
+					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+						VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+					if (useNormals)
+						VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, 0, frame->normals);
+
+					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+				}
 			}
 			else
 			{
@@ -1069,19 +1102,30 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 			if (!nextframe || fpclassify(pol) == FP_ZERO)
 			{
-				// Zoom! Take advantage of just shoving the entire arrays to the GPU.
-				pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+				if (useVBO)
+				{
+					// Zoom! Take advantage of just shoving the entire arrays to the GPU.
+					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
-				VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
-				if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
-					VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
-				if (useNormals)
-					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
+					VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
+					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+						VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 6));
+					if (useNormals)
+						VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
 
-				pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+				}
+				else
+				{
+					VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, frame->vertices);
+					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
+						VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, mesh->uvs);
+					if (useNormals)
+						VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, frame->normals);
 
-				// No tinyframes, no mesh indices
-				pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+				}
 			}
 			else
 			{
@@ -1316,18 +1360,9 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglEnable(GL_BLEND);
 }
 
-// Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
-//			a new size
 EXPORT void HWRAPI(FlushScreenTextures) (void)
 {
-	pglDeleteTextures(1, &screentexture);
-	pglDeleteTextures(1, &startScreenWipe);
-	pglDeleteTextures(1, &endScreenWipe);
-	pglDeleteTextures(1, &finalScreenTexture);
-	screentexture = 0;
-	startScreenWipe = 0;
-	endScreenWipe = 0;
-	finalScreenTexture = 0;
+	GLTexture_FlushScreen();
 }
 
 // Create Screen to fade from

@@ -82,6 +82,7 @@ void *hwSym(const char *funcName,void *handle)
 		funcPointer = &OglSdlSetPalette;
 
 	GETFUNC(Init);
+	GETFUNC(RecreateContext);
 	GETFUNC(Draw2DLine);
 	GETFUNC(DrawPolygon);
 	GETFUNC(DrawPolygonShader);
