@@ -1791,7 +1791,7 @@ static void CON_DrawBackpic(void)
 {
 	patch_t *con_backpic;
 	lumpnum_t piclump;
-	INT32 x, y, w, h;
+	INT32 x, y = 0, w, h = 0;
 
 	// Get the lumpnum for CONSBACK, STARTUP (Only during game startup) or fallback into MISSING.
 	if (con_startup)
