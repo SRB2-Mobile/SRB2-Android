@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 //
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 2014-2020 by Sonic Team Junior.
+// Copyright (C) 2014-2021 by Sonic Team Junior.
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -54,6 +54,10 @@ boolean GLBackend_Init(void)
 		CONS_Alert(CONS_ERROR, "Could not load OpenGL Library: %s\nFalling back to Software mode.\n", SDL_GetError());
 		return 0;
 	}
+
+	if (!GLBackend_InitContext())
+		return false;
+
 	return GLBackend_LoadFunctions();
 }
 
@@ -77,6 +81,8 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 	return true;
 }
 
+static boolean firstFramebuffer = false;
+
 /**	\brief	The OglSdlFinishUpdate function
 
 	\param	vidwait	wait for video sync
@@ -85,29 +91,43 @@ boolean OglSdlSurface(INT32 w, INT32 h)
 */
 void OglSdlFinishUpdate(boolean waitvbl)
 {
-	static boolean oldwaitvbl = false;
 	int sdlw, sdlh;
+
+	static boolean oldwaitvbl = false;
 	if (oldwaitvbl != waitvbl)
-	{
 		SDL_GL_SetSwapInterval(waitvbl ? 1 : 0);
-	}
 
 	oldwaitvbl = waitvbl;
 
 	SDL_GetWindowSize(window, &sdlw, &sdlh);
+	MakeFinalScreenTexture();
 
-	HWR_MakeScreenFinalTexture();
-	HWR_DrawScreenFinalTexture(sdlw, sdlh);
+	GLFramebuffer_Disable();
+	RenderToFramebuffer = FramebufferEnabled;
+
+	DrawFinalScreenTexture(sdlw, sdlh);
+
+	if (RenderToFramebuffer)
+	{
+		// I have no idea why I have to do this.
+		if (!firstFramebuffer)
+		{
+			SetBlend(PF_Translucent|PF_Occlude|PF_Masked);
+			firstFramebuffer = true;
+		}
+
+		GLFramebuffer_Enable();
+	}
+
 	SDL_GL_SwapWindow(window);
-
 	GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);
 
 	// Sryder:	We need to draw the final screen texture again into the other buffer in the original position so that
 	//			effects that want to take the old screen can do so after this
-	HWR_DrawScreenFinalTexture(realwidth, realheight);
+	DrawFinalScreenTexture(realwidth, realheight);
 }
 
-EXPORT void HWRAPI( OglSdlSetPalette) (RGBA_t *palette)
+EXPORT void HWRAPI(OglSdlSetPalette) (RGBA_t *palette)
 {
 	size_t palsize = (sizeof(RGBA_t) * 256);
 	// on a palette change, you have to reload all of the textures

@@ -161,6 +161,7 @@ boolean GLBackend_Init(void)
 	pwglDeleteContext = GLBackend_GetFunction("wglDeleteContext");
 	pwglMakeCurrent = GLBackend_GetFunction("wglMakeCurrent");
 #endif
+
 	return GLBackend_LoadFunctions();
 }
 

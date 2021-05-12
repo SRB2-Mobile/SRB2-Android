@@ -23,16 +23,10 @@ static const GLfloat white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 boolean GLBackend_LoadFunctions(void)
 {
-#define GETOPENGLFUNC(func) \
-	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
-	if (!(p ## gl ## func)) \
-	{ \
-		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
-		return false; \
-	}
+	GLExtension_multitexture = true;
+	GLExtension_vertex_buffer_object = true;
+	GLExtension_texture_filter_anisotropic = true;
 
-	if (!GLBackend_LoadCommonFunctions())
-		return false;
 	GLBackend_LoadExtraFunctions();
 
 	GETOPENGLFUNC(ClearDepthf)
@@ -58,15 +52,9 @@ boolean GLBackend_LoadFunctions(void)
 
 boolean GLBackend_LoadExtraFunctions(void)
 {
-	GETOPENGLFUNC(GenerateMipmap)
+	GETOPENGLFUNCTRY(GenerateMipmap)
 
-	GETOPENGLFUNC(ActiveTexture)
-	GETOPENGLFUNC(ClientActiveTexture)
-
-	GETOPENGLFUNC(GenBuffers)
-	GETOPENGLFUNC(BindBuffer)
-	GETOPENGLFUNC(BufferData)
-	GETOPENGLFUNC(DeleteBuffers)
+	GLExtension_LoadFunctions();
 
 	return true;
 }
@@ -150,8 +138,6 @@ static void GLPerspective(GLfloat fovy, GLfloat aspect)
 // -----------------+
 void SetModelView(GLint w, GLint h)
 {
-//	DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
-
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
 		FlushScreenTextures();
@@ -546,7 +532,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	else
 		SetClamp(GL_TEXTURE_WRAP_T);
 
-	if (maximumAnisotropy)
+	if (GLExtension_texture_filter_anisotropic)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
 }
 
@@ -688,13 +674,13 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	if (sky->rebuild)
 	{
 		// delete VBO when already exists
-		if (gl_ext_arb_vertex_buffer_object)
+		if (GLExtension_vertex_buffer_object)
 		{
 			if (sky->vbo)
 				pglDeleteBuffers(1, &sky->vbo);
 		}
 
-		if (gl_ext_arb_vertex_buffer_object)
+		if (GLExtension_vertex_buffer_object)
 		{
 			// generate a new VBO and get the associated ID
 			pglGenBuffers(1, &sky->vbo);
@@ -710,7 +696,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	}
 
 	// bind VBO in order to use
-	if (gl_ext_arb_vertex_buffer_object)
+	if (GLExtension_vertex_buffer_object)
 		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
@@ -755,7 +741,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglColor4f(white[0], white[1], white[2], white[3]);
 
 	// bind with 0, so, switch back to normal pointer operation
-	if (gl_ext_arb_vertex_buffer_object)
+	if (GLExtension_vertex_buffer_object)
 		pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	// deactivate color array
@@ -774,14 +760,24 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			GLTexture_SetFilterMode(Value);
-			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			if (!pglGenerateMipmap)
+			{
+				MipMap = GL_FALSE;
+				min_filter = GL_LINEAR;
+			}
+			else
+			{
+				GLTexture_SetFilterMode(Value);
+				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
-			anisotropic_filter = min(Value,maximumAnisotropy);
-			if (maximumAnisotropy)
+			if (GLExtension_texture_filter_anisotropic)
+			{
+				anisotropic_filter = min(Value, maximumAnisotropy);
 				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		case HWD_SET_DITHER:
@@ -1394,6 +1390,9 @@ static void DoWipe(void)
 		1.0f, 1.0f
 	};
 
+	if (!GLExtension_multitexture)
+		return;
+
 	// look for power of two that is large enough for the screen
 	while (texsize < screen_width || texsize < screen_height)
 		texsize <<= 1;
@@ -1498,7 +1497,7 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	tex_downloaded = screentexture;
 }
 
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
+EXPORT void HWRAPI(MakeFinalScreenTexture) (void)
 {
 	INT32 texsize = 512;
 	boolean firstTime = (finalScreenTexture == 0);
@@ -1526,7 +1525,7 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	tex_downloaded = finalScreenTexture;
 }
 
-EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
+EXPORT void HWRAPI(DrawFinalScreenTexture)(int width, int height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;

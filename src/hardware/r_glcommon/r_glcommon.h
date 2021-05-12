@@ -43,7 +43,6 @@
 	#endif
 #endif
 
-// For GL_ExtensionAvailable
 #ifdef HAVE_SDL
 #define _MATH_DEFINES_DEFINED
 #include "SDL.h"
@@ -86,6 +85,7 @@ extern FILE *gllogstream;
 #define pglGetFloatv glGetFloatv
 #define pglGetIntegerv glGetIntegerv
 #define pglGetString glGetString
+#define pglGetError glGetError
 #define pglClearColor glClearColor
 #define pglColorMask glColorMask
 #define pglAlphaFunc glAlphaFunc
@@ -123,9 +123,6 @@ extern FILE *gllogstream;
 /* Texture mapping */
 #define pglCopyTexImage2D glCopyTexImage2D
 #define pglCopyTexSubImage2D glCopyTexSubImage2D
-
-/* 1.3 functions for multitexturing */
-#define pglActiveTexture glActiveTexture
 #else
 /* Miscellaneous */
 typedef void (R_GL_APIENTRY * PFNglClear) (GLbitfield mask);
@@ -136,6 +133,8 @@ typedef void (R_GL_APIENTRY * PFNglGetIntegerv) (GLenum pname, GLint *params);
 extern PFNglGetIntegerv pglGetIntegerv;
 typedef const GLubyte * (R_GL_APIENTRY * PFNglGetString) (GLenum name);
 extern PFNglGetString pglGetString;
+typedef GLenum (R_GL_APIENTRY * PFNglGetError) (void);
+extern PFNglGetError pglGetError;
 typedef void (R_GL_APIENTRY * PFNglClearColor) (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 extern PFNglClearColor pglClearColor;
 typedef void (R_GL_APIENTRY * PFNglColorMask) (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
@@ -196,23 +195,21 @@ typedef void (R_GL_APIENTRY * PFNglCopyTexImage2D) (GLenum target, GLint level, 
 extern PFNglCopyTexImage2D pglCopyTexImage2D;
 typedef void (R_GL_APIENTRY * PFNglCopyTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 extern PFNglCopyTexSubImage2D pglCopyTexSubImage2D;
-
-/* 1.3 functions for multitexturing */
-typedef void (R_GL_APIENTRY * PFNglActiveTexture) (GLenum);
-extern PFNglActiveTexture pglActiveTexture;
 #endif
 
 //
-// Multi-texturing
+// Multitexturing
 //
 
-#ifndef HAVE_GLES2
-	#ifdef STATIC_OPENGL
-		#define pglClientActiveTexture glClientActiveTexture
-	#else
-		typedef void (R_GL_APIENTRY * PFNglClientActiveTexture) (GLenum);
-		extern PFNglClientActiveTexture pglClientActiveTexture;
-	#endif
+#ifdef STATIC_OPENGL
+	#define pglActiveTexture glActiveTexture
+	#define pglClientActiveTexture glClientActiveTexture
+#else
+	typedef void (R_GL_APIENTRY * PFNglActiveTexture) (GLenum);
+	extern PFNglActiveTexture pglActiveTexture;
+
+	typedef void (R_GL_APIENTRY * PFNglClientActiveTexture) (GLenum);
+	extern PFNglClientActiveTexture pglClientActiveTexture;
 #endif
 
 //
@@ -228,6 +225,7 @@ extern PFNglGenerateMipmap pglGenerateMipmap;
 //
 // Depth functions
 //
+
 #ifndef HAVE_GLES
 	#ifdef STATIC_OPENGL
 		#define pglClearDepth glClearDepth
@@ -364,9 +362,42 @@ extern PFNglDeleteBuffers pglDeleteBuffers;
 typedef void (R_GL_APIENTRY * PFNglBlendEquation) (GLenum mode);
 extern PFNglBlendEquation pglBlendEquation;
 
+/* 3.0 functions for framebuffers and renderbuffers */
+typedef void (R_GL_APIENTRY * PFNglGenFramebuffers) (GLsizei n, GLuint *ids);
+extern PFNglGenFramebuffers pglGenFramebuffers;
+typedef void (R_GL_APIENTRY * PFNglBindFramebuffer) (GLenum target, GLuint framebuffer);
+extern PFNglBindFramebuffer pglBindFramebuffer;
+typedef void (R_GL_APIENTRY * PFNglDeleteFramebuffers) (GLsizei n, GLuint *ids);
+extern PFNglDeleteFramebuffers pglDeleteFramebuffers;
+typedef void (R_GL_APIENTRY * PFNglFramebufferTexture2D) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+extern PFNglFramebufferTexture2D pglFramebufferTexture2D;
+typedef GLenum (R_GL_APIENTRY * PFNglCheckFramebufferStatus) (GLenum target);
+extern PFNglCheckFramebufferStatus pglCheckFramebufferStatus;
+typedef void (R_GL_APIENTRY * PFNglGenRenderbuffers) (GLsizei n, GLuint *renderbuffers);
+extern PFNglGenRenderbuffers pglGenRenderbuffers;
+typedef void (R_GL_APIENTRY * PFNglBindRenderbuffer) (GLenum target, GLuint renderbuffer);
+extern PFNglBindRenderbuffer pglBindRenderbuffer;
+typedef void (R_GL_APIENTRY * PFNglDeleteRenderbuffers) (GLsizei n, GLuint *renderbuffers);
+extern PFNglDeleteRenderbuffers pglDeleteRenderbuffers;
+typedef void (R_GL_APIENTRY * PFNglRenderbufferStorage) (GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+extern PFNglRenderbufferStorage pglRenderbufferStorage;
+typedef void (R_GL_APIENTRY * PFNglFramebufferRenderbuffer) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLenum renderbuffer);
+extern PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
+
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================
+
+void GLFramebuffer_Generate(void);
+void GLFramebuffer_Delete(void);
+
+void GLFramebuffer_GenerateAttachments(void);
+void GLFramebuffer_DeleteAttachments(void);
+
+void GLFramebuffer_Enable(void);
+void GLFramebuffer_Disable(void);
+
+void GLFramebuffer_SetDepth(INT32 depth);
 
 void GLModel_GenerateVBOs(model_t *model);
 void GLModel_ClearVBOs(model_t *model);
@@ -380,12 +411,27 @@ void  GLTexture_SetFilterMode(INT32 mode);
 INT32 GLTexture_GetMemoryUsage(FTextureInfo *head);
 
 boolean GLBackend_Init(void);
+boolean GLBackend_InitContext(void);
+void    GLBackend_RecreateContext(void);
+
 boolean GLBackend_LoadFunctions(void);
 boolean GLBackend_LoadExtraFunctions(void);
 boolean GLBackend_LoadCommonFunctions(void);
 boolean GLBackend_LoadLegacyFunctions(void);
 void   *GLBackend_GetFunction(const char *proc);
-void    GLBackend_RecreateContext(void);
+
+#define GETOPENGLFUNC(func) \
+	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
+	if (!(p ## gl ## func)) \
+	{ \
+		GL_MSG_Error("Failed to get OpenGL function %s\n", #func); \
+		return false; \
+	}
+
+#define GETOPENGLFUNCTRY(func) \
+	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
+	if (!(p ## gl ## func)) \
+		GL_DBG_Printf("Failed to get OpenGL function %s\n", #func);
 
 INT32 GLBackend_GetShaderType(INT32 type);
 INT32 GLBackend_GetAlphaTestShader(INT32 type);
@@ -394,7 +440,9 @@ INT32 GLBackend_InvertAlphaTestShader(INT32 type);
 void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
 void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
 
-boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start);
+void    GLExtension_Init(void);
+boolean GLExtension_Available(const char *extension);
+boolean GLExtension_LoadFunctions(void);
 
 void SetSurface(INT32 w, INT32 h);
 void SetModelView(GLint w, GLint h);
@@ -419,9 +467,9 @@ extern float NEAR_CLIPPING_PLANE;
 #define byte2float(x) (x / 255.0f)
 
 #define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
-#define sky_vbo_x (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
-#define sky_vbo_u (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
-#define sky_vbo_r (gl_ext_arb_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
+#define sky_vbo_x (GLExtension_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
+#define sky_vbo_u (GLExtension_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)
+#define sky_vbo_r (GLExtension_vertex_buffer_object ? &NULL_VBO_VERTEX->r : &sky->data[0].r)
 
 /* 1.2 Parms */
 /* GL_CLAMP_TO_EDGE_EXT */
@@ -444,17 +492,9 @@ extern float NEAR_CLIPPING_PLANE;
 #endif
 
 /* 1.5 Parms */
-#ifndef GL_ARRAY_BUFFER
-#define GL_ARRAY_BUFFER 0x8892
-#endif
 #ifndef GL_STATIC_DRAW
 #define GL_STATIC_DRAW 0x88E4
 #endif
-
-#ifndef GL_STATIC_DRAW
-#define GL_STATIC_DRAW 0x88E4
-#endif
-
 #ifndef GL_ARRAY_BUFFER
 #define GL_ARRAY_BUFFER 0x8892
 #endif
@@ -462,16 +502,38 @@ extern float NEAR_CLIPPING_PLANE;
 #ifndef GL_FUNC_ADD
 #define GL_FUNC_ADD 0x8006
 #endif
-
 #ifndef GL_FUNC_SUBTRACT
 #define GL_FUNC_SUBTRACT 0x800A
 #endif
-
 #ifndef GL_FUNC_REVERSE_SUBTRACT
 #define GL_FUNC_REVERSE_SUBTRACT 0x800B
 #endif
 
+#ifndef GL_DEPTH24_STENCIL8
+#define GL_DEPTH24_STENCIL8 0x88F0
+#endif
+#ifndef GL_DEPTH_COMPONENT16
+#define GL_DEPTH_COMPONENT16 0x81A5
+#endif
+#ifndef GL_DEPTH_COMPONENT24
+#define GL_DEPTH_COMPONENT24 0x81A6
+#endif
+#ifndef GL_DEPTH_COMPONENT32
+#define GL_DEPTH_COMPONENT32 0x81A7
+#endif
+#ifndef GL_DEPTH_COMPONENT32F
+#define GL_DEPTH_COMPONENT32F 0x8CAC
+#endif
+
+#ifndef GL_DEPTH_ATTACHMENT
+#define GL_DEPTH_ATTACHMENT 0x8D00
+#endif
+#ifndef GL_DEPTH_STENCIL_ATTACHMENT
+#define GL_DEPTH_STENCIL_ATTACHMENT 0x88F0
+#endif
+
 #ifndef GL_EXT_texture_filter_anisotropic
+#define GL_EXT_texture_filter_anisotropic 1
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 #endif
@@ -495,6 +557,13 @@ struct GLRGBAFloat
 	GLfloat alpha;
 };
 typedef struct GLRGBAFloat GLRGBAFloat;
+
+struct FExtensionList
+{
+	const char *name;
+	boolean *extension;
+};
+typedef struct FExtensionList FExtensionList;
 
 // ==========================================================================
 //                                                                    GLOBALS
@@ -534,6 +603,13 @@ extern GLuint startScreenWipe;
 extern GLuint endScreenWipe;
 extern GLuint finalScreenTexture;
 
+extern GLuint FramebufferObject, FramebufferTexture;
+extern GLuint RenderbufferObject, RenderbufferDepthBits;
+extern GLboolean FramebufferEnabled, RenderToFramebuffer;
+
+#define NumRenderbufferFormats 5
+extern GLenum RenderbufferFormats[NumRenderbufferFormats];
+
 extern float *vertBuffer;
 extern float *normBuffer;
 extern short *vertTinyBuffer;
@@ -553,6 +629,12 @@ extern fmatrix4_t modelMatrix;
 //                                                                 EXTENSIONS
 // ==========================================================================
 
-extern boolean gl_ext_arb_vertex_buffer_object;
+extern boolean GLExtension_multitexture;
+extern boolean GLExtension_vertex_buffer_object;
+extern boolean GLExtension_texture_filter_anisotropic;
+extern boolean GLExtension_vertex_program;
+extern boolean GLExtension_fragment_program;
+extern boolean GLExtension_framebuffer_object;
+extern boolean GLExtension_shaders;
 
 #endif // _R_GLCOMMON_H_

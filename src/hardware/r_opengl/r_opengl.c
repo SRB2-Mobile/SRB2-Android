@@ -46,17 +46,6 @@ static PFNgluBuild2DMipmaps pgluBuild2DMipmaps;
 boolean GLBackend_LoadFunctions(void)
 {
 #ifndef STATIC_OPENGL
-#define GETOPENGLFUNC(func) \
-	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
-	if (!(p ## gl ## func)) \
-	{ \
-		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
-		return false; \
-	} \
-
-	if (!GLBackend_LoadCommonFunctions())
-		return false;
-
 	GETOPENGLFUNC(ClearDepth)
 	GETOPENGLFUNC(DepthRange)
 
@@ -73,25 +62,20 @@ boolean GLBackend_LoadFunctions(void)
 
     if (!GLBackend_LoadLegacyFunctions())
 		return false;
-
 #endif
+
 	return true;
 }
 
 boolean GLBackend_LoadExtraFunctions(void)
 {
-	GETOPENGLFUNC(ActiveTexture)
-	GETOPENGLFUNC(ClientActiveTexture)
+	GLExtension_LoadFunctions();
 
-	GETOPENGLFUNC(GenBuffers)
-	GETOPENGLFUNC(BindBuffer)
-	GETOPENGLFUNC(BufferData)
-	GETOPENGLFUNC(DeleteBuffers)
-
-	GETOPENGLFUNC(BlendEquation)
+	GETOPENGLFUNCTRY(BlendEquation)
 
 #ifdef GL_SHADERS
-	Shader_LoadFunctions();
+	if (GLExtension_shaders)
+		Shader_LoadFunctions();
 #endif
 
 	// GLU
@@ -99,8 +83,6 @@ boolean GLBackend_LoadExtraFunctions(void)
 
 	return true;
 }
-
-#undef GETOPENGLFUNC
 
 EXPORT void HWRAPI(SetShader) (int type)
 {
@@ -246,14 +228,21 @@ static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
 // -----------------+
 void SetModelView(GLint w, GLint h)
 {
-//	GL_DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
-
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
+	{
 		FlushScreenTextures();
+		GLFramebuffer_DeleteAttachments();
+	}
 
 	screen_width = w;
 	screen_height = h;
+
+	RenderToFramebuffer = FramebufferEnabled;
+	GLFramebuffer_Disable();
+
+	if (RenderToFramebuffer)
+		GLFramebuffer_Enable();
 
 	pglViewport(0, 0, w, h);
 
@@ -717,7 +706,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	else
 		SetClamp(GL_TEXTURE_WRAP_T);
 
-	if (maximumAnisotropy)
+	if (GLExtension_texture_filter_anisotropic)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
 }
 
@@ -923,13 +912,13 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	if (sky->rebuild)
 	{
 		// delete VBO when already exists
-		if (gl_ext_arb_vertex_buffer_object)
+		if (GLExtension_vertex_buffer_object)
 		{
 			if (sky->vbo)
 				pglDeleteBuffers(1, &sky->vbo);
 		}
 
-		if (gl_ext_arb_vertex_buffer_object)
+		if (GLExtension_vertex_buffer_object)
 		{
 			// generate a new VBO and get the associated ID
 			pglGenBuffers(1, &sky->vbo);
@@ -945,7 +934,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	}
 
 	// bind VBO in order to use
-	if (gl_ext_arb_vertex_buffer_object)
+	if (GLExtension_vertex_buffer_object)
 		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
@@ -990,7 +979,7 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglColor4ubv(white);
 
 	// bind with 0, so, switch back to normal pointer operation
-	if (gl_ext_arb_vertex_buffer_object)
+	if (GLExtension_vertex_buffer_object)
 		pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	// deactivate color array
@@ -1004,6 +993,14 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 {
 	switch (IdState)
 	{
+		case HWD_SET_FRAMEBUFFER:
+			FramebufferEnabled = Value ? GL_TRUE : GL_FALSE;
+			break;
+
+		case HWD_SET_RENDERBUFFER_DEPTH:
+			GLFramebuffer_SetDepth(Value);
+			break;
+
 		case HWD_SET_MODEL_LIGHTING:
 			model_lighting = Value;
 			break;
@@ -1013,19 +1010,24 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			GLTexture_SetFilterMode(Value);
 			if (!pgluBuild2DMipmaps)
 			{
 				MipMap = GL_FALSE;
 				min_filter = GL_LINEAR;
 			}
-			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			else
+			{
+				GLTexture_SetFilterMode(Value);
+				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
-			anisotropic_filter = min(Value,maximumAnisotropy);
-			if (maximumAnisotropy)
+			if (GLExtension_texture_filter_anisotropic)
+			{
+				anisotropic_filter = min(Value, maximumAnisotropy);
 				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		default:
@@ -1419,7 +1421,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	INT32 x, y;
 	float float_x, float_y, float_nextx, float_nexty;
 	float xfix, yfix;
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 
 	const float blackBack[16] =
 	{
@@ -1429,11 +1431,9 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 		16.0f, -16.0f, 6.0f
 	};
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 1024)
-		texsize = 1024;
-	if(screen_width <= 512)
-		texsize = 512;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	// X/Y stretch fix for all resolutions(!)
 	xfix = (float)(texsize)/((float)((screen_width)/(float)(SCREENVERTS-1)));
@@ -1511,14 +1511,12 @@ EXPORT void HWRAPI(FlushScreenTextures) (void)
 // Create Screen to fade from
 EXPORT void HWRAPI(StartScreenWipe) (void)
 {
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 	boolean firstTime = (startScreenWipe == 0);
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 512)
-		texsize = 512;
-	else if(screen_width <= 1024)
-		texsize = 1024;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	// Create screen texture
 	if (firstTime)
@@ -1542,14 +1540,12 @@ EXPORT void HWRAPI(StartScreenWipe) (void)
 // Create Screen to fade to
 EXPORT void HWRAPI(EndScreenWipe)(void)
 {
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 	boolean firstTime = (endScreenWipe == 0);
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 512)
-		texsize = 512;
-	else if(screen_width <= 1024)
-		texsize = 1024;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	// Create screen texture
 	if (firstTime)
@@ -1574,8 +1570,8 @@ EXPORT void HWRAPI(EndScreenWipe)(void)
 // Draw the last scene under the intermission
 EXPORT void HWRAPI(DrawIntermissionBG)(void)
 {
+	INT32 texsize = 512;
 	float xfix, yfix;
-	INT32 texsize = 2048;
 
 	const float screenVerts[12] =
 	{
@@ -1587,10 +1583,9 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 
 	float fix[8];
 
-	if(screen_width <= 1024)
-		texsize = 1024;
-	if(screen_width <= 512)
-		texsize = 512;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	xfix = 1/((float)(texsize)/((float)((screen_width))));
 	yfix = 1/((float)(texsize)/((float)((screen_height))));
@@ -1622,7 +1617,7 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 // Do screen fades!
 static void DoWipe(void)
 {
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 	float xfix, yfix;
 
 	INT32 fademaskdownloaded = tex_downloaded; // the fade mask that has been set
@@ -1645,11 +1640,12 @@ static void DoWipe(void)
 		1.0f, 1.0f
 	};
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 1024)
-		texsize = 1024;
-	if(screen_width <= 512)
-		texsize = 512;
+	if (!GLExtension_multitexture)
+		return;
+
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	xfix = 1/((float)(texsize)/((float)((screen_width))));
 	yfix = 1/((float)(texsize)/((float)((screen_height))));
@@ -1725,14 +1721,12 @@ EXPORT void HWRAPI(DoTintedWipe)(boolean istowhite, boolean isfadingin)
 // Create a texture from the screen.
 EXPORT void HWRAPI(MakeScreenTexture) (void)
 {
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 	boolean firstTime = (screentexture == 0);
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 512)
-		texsize = 512;
-	else if(screen_width <= 1024)
-		texsize = 1024;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	// Create screen texture
 	if (firstTime)
@@ -1753,16 +1747,14 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	tex_downloaded = screentexture;
 }
 
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
+EXPORT void HWRAPI(MakeFinalScreenTexture) (void)
 {
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 	boolean firstTime = (finalScreenTexture == 0);
 
-	// Use a power of two texture, dammit
-	if(screen_width <= 512)
-		texsize = 512;
-	else if(screen_width <= 1024)
-		texsize = 1024;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	// Create screen texture
 	if (firstTime)
@@ -1783,21 +1775,20 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	tex_downloaded = finalScreenTexture;
 }
 
-EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
+EXPORT void HWRAPI(DrawFinalScreenTexture)(int width, int height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;
 	float xoff = 1, yoff = 1; // xoffset and yoffset for the polygon to have black bars around the screen
 	FRGBAFloat clearColour;
-	INT32 texsize = 2048;
+	INT32 texsize = 512;
 
 	float off[12];
 	float fix[8];
 
-	if(screen_width <= 1024)
-		texsize = 1024;
-	if(screen_width <= 512)
-		texsize = 512;
+	// look for power of two that is large enough for the screen
+	while (texsize < screen_width || texsize < screen_height)
+		texsize <<= 1;
 
 	xfix = 1/((float)(texsize)/((float)((screen_width))));
 	yfix = 1/((float)(texsize)/((float)((screen_height))));

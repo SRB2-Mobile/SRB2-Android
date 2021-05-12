@@ -49,7 +49,7 @@ static void VertexAttribPointerInternal(int attrib, GLint size, GLenum type, GLb
 {
 	int loc = Shader_AttribLoc(attrib);
 	if (loc == -1)
-		GL_MSG_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)", Shader_AttribLocName(attrib), function, line);
+		GL_MSG_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)\n", Shader_AttribLocName(attrib), function, line);
 	pglVertexAttribPointer(loc, size, type, normalized, stride, pointer);
 }
 
@@ -57,16 +57,10 @@ static void VertexAttribPointerInternal(int attrib, GLint size, GLenum type, GLb
 
 boolean GLBackend_LoadFunctions(void)
 {
-#define GETOPENGLFUNC(func) \
-	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
-	if (!(p ## gl ## func)) \
-	{ \
-		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
-		return false; \
-	}
-
-	if (!GLBackend_LoadCommonFunctions())
-		return false;
+	GLExtension_shaders = true;
+	GLExtension_multitexture = true;
+	GLExtension_vertex_buffer_object = true;
+	GLExtension_texture_filter_anisotropic = true;
 
 	GLBackend_LoadExtraFunctions();
 
@@ -74,27 +68,21 @@ boolean GLBackend_LoadFunctions(void)
 	GETOPENGLFUNC(DepthRangef)
 
 	Shader_LoadFunctions();
+
 	return Shader_Compile();
 }
 
 boolean GLBackend_LoadExtraFunctions(void)
 {
-	GETOPENGLFUNC(ActiveTexture)
+	GLExtension_LoadFunctions();
 
-	GETOPENGLFUNC(GenBuffers)
-	GETOPENGLFUNC(BindBuffer)
-	GETOPENGLFUNC(BufferData)
-	GETOPENGLFUNC(DeleteBuffers)
-
-	GETOPENGLFUNC(BlendEquation)
+	GETOPENGLFUNCTRY(BlendEquation)
 
 	GETOPENGLFUNC(VertexAttribPointer)
-	GETOPENGLFUNC(GenerateMipmap)
+	GETOPENGLFUNCTRY(GenerateMipmap)
 
 	return true;
 }
-
-#undef GETOPENGLFUNC
 
 EXPORT void HWRAPI(SetShader) (int type)
 {
@@ -201,15 +189,27 @@ static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
 // -----------------+
 void SetModelView(GLint w, GLint h)
 {
-//	GL_DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
-
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
+	{
 		FlushScreenTextures();
+		GLFramebuffer_DeleteAttachments();
+	}
 
 	screen_width = w;
 	screen_height = h;
 
+	RenderToFramebuffer = FramebufferEnabled;
+	GLFramebuffer_Disable();
+
+	if (RenderToFramebuffer)
+	{
+		pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		pglViewport(0, 0, w, h);
+		GLFramebuffer_Enable();
+	}
+
+	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	pglViewport(0, 0, w, h);
 
 	lzml_matrix4_identity(projMatrix);
@@ -577,7 +577,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	else
 		SetClamp(GL_TEXTURE_WRAP_T);
 
-	if (maximumAnisotropy)
+	if (GLExtension_texture_filter_anisotropic)
 		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
 
 	if (updatemipmap)
@@ -832,7 +832,6 @@ EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky)
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-
 // ==========================================================================
 //
 // ==========================================================================
@@ -840,6 +839,14 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 {
 	switch (IdState)
 	{
+		case HWD_SET_FRAMEBUFFER:
+			FramebufferEnabled = Value ? GL_TRUE : GL_FALSE;
+			break;
+
+		case HWD_SET_RENDERBUFFER_DEPTH:
+			GLFramebuffer_SetDepth(Value);
+			break;
+
 		case HWD_SET_MODEL_LIGHTING:
 			model_lighting = Value;
 			break;
@@ -849,14 +856,24 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			GLTexture_SetFilterMode(Value);
-			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			if (!pglGenerateMipmap)
+			{
+				MipMap = GL_FALSE;
+				min_filter = GL_LINEAR;
+			}
+			else
+			{
+				GLTexture_SetFilterMode(Value);
+				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
-			anisotropic_filter = min(Value,maximumAnisotropy);
-			if (maximumAnisotropy)
+			if (GLExtension_texture_filter_anisotropic)
+			{
+				anisotropic_filter = min(Value, maximumAnisotropy);
 				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
+			}
 			break;
 
 		case HWD_SET_DITHER:
@@ -1503,6 +1520,9 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	if (gl_shaderstate.current == NULL)
 		return;
 
+	if (!GLExtension_multitexture)
+		return;
+
 	// look for power of two that is large enough for the screen
 	while (texsize < screen_width || texsize < screen_height)
 		texsize <<= 1;
@@ -1601,7 +1621,7 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	tex_downloaded = screentexture;
 }
 
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
+EXPORT void HWRAPI(MakeFinalScreenTexture) (void)
 {
 	INT32 texsize = 512;
 	boolean firstTime = (finalScreenTexture == 0);
@@ -1629,7 +1649,7 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	tex_downloaded = finalScreenTexture;
 }
 
-EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
+EXPORT void HWRAPI(DrawFinalScreenTexture)(int width, int height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;

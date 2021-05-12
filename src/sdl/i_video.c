@@ -1733,8 +1733,6 @@ void VID_PrepareModeList(void)
 void VID_DisplayGLError(void)
 {
 #ifdef HWRENDER
-	CONS_Alert(CONS_ERROR, "OpenGL never loaded\n");
-
 	if (menuactive)
 	{
 		if (lastglerror)
@@ -1830,12 +1828,10 @@ INT32 VID_CheckRenderer(void)
 		}
 #endif
 
-#if defined(__ANDROID__)
-		if (!contextcreated && !modechanged)
-#else
-		if (!contextcreated)
-#endif
+#if !defined(__ANDROID__)
+		if (rendererchanged && !contextcreated)
 			Impl_RenderContextCreate();
+#endif
 
 		setrenderneeded = 0;
 	}
@@ -2352,8 +2348,8 @@ void VID_StartupOpenGL(void)
 		HWD.pfnDoTintedWipe     = hwSym("DoTintedWipe",NULL);
 		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
-		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);
-		HWD.pfnDrawScreenFinalTexture=hwSym("DrawScreenFinalTexture",NULL);
+		HWD.pfnMakeFinalScreenTexture=hwSym("MakeFinalScreenTexture",NULL);
+		HWD.pfnDrawFinalScreenTexture=hwSym("DrawFinalScreenTexture",NULL);
 
 		HWD.pfnCompileShaders   = hwSym("CompileShaders",NULL);
 		HWD.pfnCleanShaders     = hwSym("CleanShaders",NULL);

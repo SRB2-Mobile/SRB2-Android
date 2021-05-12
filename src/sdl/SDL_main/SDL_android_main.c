@@ -22,7 +22,16 @@ static void BlitSplashScreen(void)
 	SDL_Event ev;
 	SDL_PumpEvents();
 
-	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERBACKGROUND, SDL_APP_WILLENTERBACKGROUND));
+#define IgnoreEvent(evt) while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, evt, evt))
+
+	IgnoreEvent(SDL_FINGERMOTION);
+	IgnoreEvent(SDL_FINGERDOWN);
+	IgnoreEvent(SDL_FINGERUP);
+
+	IgnoreEvent(SDL_APP_WILLENTERBACKGROUND);
+
+#undef IgnoreEvent
+
 	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
 		VID_RecreateContext();
 

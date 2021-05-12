@@ -61,8 +61,8 @@ EXPORT void HWRAPI(DoScreenWipe) (void);
 EXPORT void HWRAPI(DoTintedWipe) (boolean isfadingin, boolean istowhite);
 EXPORT void HWRAPI(DrawIntermissionBG) (void);
 EXPORT void HWRAPI(MakeScreenTexture) (void);
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void);
-EXPORT void HWRAPI(DrawScreenFinalTexture) (int width, int height);
+EXPORT void HWRAPI(MakeFinalScreenTexture) (void);
+EXPORT void HWRAPI(DrawFinalScreenTexture) (int width, int height);
 
 #define SCREENVERTS 10
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
@@ -119,8 +119,8 @@ struct hwdriver_s
 	DoTintedWipe        pfnDoTintedWipe;
 	DrawIntermissionBG  pfnDrawIntermissionBG;
 	MakeScreenTexture   pfnMakeScreenTexture;
-	MakeScreenFinalTexture  pfnMakeScreenFinalTexture;
-	DrawScreenFinalTexture  pfnDrawScreenFinalTexture;
+	MakeFinalScreenTexture  pfnMakeFinalScreenTexture;
+	DrawFinalScreenTexture  pfnDrawFinalScreenTexture;
 
 	CompileShaders      pfnCompileShaders;
 	CleanShaders        pfnCleanShaders;

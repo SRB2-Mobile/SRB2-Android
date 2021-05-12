@@ -109,8 +109,8 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(DoTintedWipe);
 	GETFUNC(DrawIntermissionBG);
 	GETFUNC(MakeScreenTexture);
-	GETFUNC(MakeScreenFinalTexture);
-	GETFUNC(DrawScreenFinalTexture);
+	GETFUNC(MakeFinalScreenTexture);
+	GETFUNC(DrawFinalScreenTexture);
 
 	GETFUNC(CompileShaders);
 	GETFUNC(CleanShaders);

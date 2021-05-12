@@ -70,6 +70,21 @@ GLuint startScreenWipe = 0;
 GLuint endScreenWipe = 0;
 GLuint finalScreenTexture = 0;
 
+GLuint FramebufferObject, FramebufferTexture;
+GLuint RenderbufferObject, RenderbufferDepthBits;
+GLboolean FramebufferEnabled = GL_FALSE, RenderToFramebuffer = GL_FALSE;
+
+static GLuint LastRenderbufferDepthBits;
+
+GLenum RenderbufferFormats[NumRenderbufferFormats] =
+{
+	GL_DEPTH_COMPONENT,
+	GL_DEPTH_COMPONENT16,
+	GL_DEPTH_COMPONENT24,
+	GL_DEPTH_COMPONENT32,
+	GL_DEPTH_COMPONENT32F
+};
+
 // Linked list of all models.
 static GLModelList *ModelListTail = NULL;
 static GLModelList *ModelListHead = NULL;
@@ -80,7 +95,32 @@ boolean model_lighting = false;
 //                                                                 EXTENSIONS
 // ==========================================================================
 
-boolean gl_ext_arb_vertex_buffer_object = true;
+boolean GLExtension_multitexture;
+boolean GLExtension_vertex_buffer_object;
+boolean GLExtension_texture_filter_anisotropic;
+boolean GLExtension_vertex_program;
+boolean GLExtension_fragment_program;
+boolean GLExtension_framebuffer_object;
+boolean GLExtension_shaders; // Not an extension on its own, but it is set if multiple extensions are available.
+
+static FExtensionList const ExtensionList[] = {
+	{"GL_ARB_multitexture", &GLExtension_multitexture},
+
+	{"GL_ARB_vertex_buffer_object", &GLExtension_vertex_buffer_object},
+
+	{"GL_ARB_texture_filter_anisotropic", &GLExtension_texture_filter_anisotropic},
+	{"GL_EXT_texture_filter_anisotropic", &GLExtension_texture_filter_anisotropic},
+
+	{"GL_ARB_vertex_program", &GLExtension_vertex_program},
+	{"GL_ARB_fragment_program", &GLExtension_fragment_program},
+
+	{"GL_ARB_framebuffer_object", &GLExtension_framebuffer_object},
+	{"GL_OES_framebuffer_object", &GLExtension_framebuffer_object},
+
+	{NULL, NULL}
+};
+
+static void PrintExtensions(const GLubyte *extensions);
 
 // ==========================================================================
 //                                                           OPENGL FUNCTIONS
@@ -92,6 +132,7 @@ PFNglClear pglClear;
 PFNglGetFloatv pglGetFloatv;
 PFNglGetIntegerv pglGetIntegerv;
 PFNglGetString pglGetString;
+PFNglGetError pglGetError;
 PFNglClearColor pglClearColor;
 PFNglColorMask pglColorMask;
 PFNglAlphaFunc pglAlphaFunc;
@@ -129,19 +170,15 @@ PFNglBindTexture pglBindTexture;
 /* Texture mapping */
 PFNglCopyTexImage2D pglCopyTexImage2D;
 PFNglCopyTexSubImage2D pglCopyTexSubImage2D;
-
-/* 1.3 functions for multitexturing */
-PFNglActiveTexture pglActiveTexture;
 #endif
 
 //
-// Multi-texturing
+// Multitexturing
 //
 
-#ifndef HAVE_GLES2
 #ifndef STATIC_OPENGL
+PFNglActiveTexture pglActiveTexture;
 PFNglClientActiveTexture pglClientActiveTexture;
-#endif
 #endif
 
 //
@@ -155,6 +192,7 @@ PFNglGenerateMipmap pglGenerateMipmap;
 //
 // Depth functions
 //
+
 #ifndef HAVE_GLES
 	PFNglClearDepth pglClearDepth;
 	PFNglDepthRange pglDepthRange;
@@ -215,16 +253,20 @@ PFNglDeleteBuffers pglDeleteBuffers;
 /* 2.0 functions */
 PFNglBlendEquation pglBlendEquation;
 
+/* 3.0 functions for framebuffers and renderbuffers */
+PFNglGenFramebuffers pglGenFramebuffers;
+PFNglBindFramebuffer pglBindFramebuffer;
+PFNglDeleteFramebuffers pglDeleteFramebuffers;
+PFNglFramebufferTexture2D pglFramebufferTexture2D;
+PFNglCheckFramebufferStatus pglCheckFramebufferStatus;
+PFNglGenRenderbuffers pglGenRenderbuffers;
+PFNglBindRenderbuffer pglBindRenderbuffer;
+PFNglDeleteRenderbuffers pglDeleteRenderbuffers;
+PFNglRenderbufferStorage pglRenderbufferStorage;
+PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
+
 boolean GLBackend_LoadCommonFunctions(void)
 {
-#define GETOPENGLFUNC(func) \
-	p ## gl ## func = GLBackend_GetFunction("gl" #func); \
-	if (!(p ## gl ## func)) \
-	{ \
-		GL_MSG_Error("failed to get OpenGL function: %s", #func); \
-		return false; \
-	} \
-
 	GETOPENGLFUNC(ClearColor)
 
 	GETOPENGLFUNC(Clear)
@@ -238,6 +280,7 @@ boolean GLBackend_LoadCommonFunctions(void)
 	GETOPENGLFUNC(GetFloatv)
 	GETOPENGLFUNC(GetIntegerv)
 	GETOPENGLFUNC(GetString)
+	GETOPENGLFUNC(GetError)
 
 	GETOPENGLFUNC(DepthFunc)
 	GETOPENGLFUNC(DepthMask)
@@ -286,11 +329,34 @@ boolean GLBackend_LoadLegacyFunctions(void)
 	return true;
 }
 
-#undef GETOPENGLFUNC
-
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================
+
+static const char *GetGLError(GLenum error)
+{
+	if (error == GL_NO_ERROR)
+		return "GL_NO_ERROR";
+
+	switch (error)
+	{
+		case GL_INVALID_ENUM:                  return "GL_INVALID_ENUM";
+		case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
+		case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
+		case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
+		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+		default:                               return "unknown error";
+	}
+}
+
+#if 0
+static void CheckGLError(const char *from)
+{
+	GLenum error = pglGetError();
+	if (error != GL_NO_ERROR)
+		GL_DBG_Printf("%s: %s\n", from, GetGLError(error));
+}
+#endif
 
 static void SetBlendEquation(GLenum mode)
 {
@@ -566,14 +632,25 @@ INT32 GLBackend_GetShaderType(INT32 type)
 
 void SetSurface(INT32 w, INT32 h)
 {
+	SetModelView(w, h);
+	SetStates();
+
+	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+boolean GLBackend_InitContext(void)
+{
+	if (!GLBackend_LoadCommonFunctions())
+		return false;
+
 	if (gl_version == NULL || gl_renderer == NULL)
 	{
 		gl_version = pglGetString(GL_VERSION);
 		gl_renderer = pglGetString(GL_RENDERER);
 
 #if defined(__ANDROID__)
-		CONS_Printf("OpenGL version: %s\n", gl_version);
-		CONS_Printf("GPU: %s\n", gl_renderer);
+		I_OutputMsg("OpenGL version: %s\n", gl_version);
+		I_OutputMsg("GPU: %s\n", gl_renderer);
 #else
 		GL_DBG_Printf("OpenGL %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
@@ -593,20 +670,9 @@ void SetSurface(INT32 w, INT32 h)
 	}
 
 	if (gl_extensions == NULL)
-	{
-		gl_extensions = pglGetString(GL_EXTENSIONS);
-		GL_DBG_Printf("Extensions: %s\n", gl_extensions);
-	}
+		GLExtension_Init();
 
-	if (GL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
-		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
-	else
-		maximumAnisotropy = 1;
-
-	SetModelView(w, h);
-	SetStates();
-
-	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	return true;
 }
 
 void GLBackend_RecreateContext(void)
@@ -630,6 +696,16 @@ void GLBackend_RecreateContext(void)
 
 	GLTexture_FlushScreen();
 	tex_downloaded = 0;
+
+	if (GLExtension_framebuffer_object)
+	{
+		// Unbind the framebuffer and renderbuffer
+		pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+		pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		FramebufferObject = FramebufferTexture = 0;
+		RenderbufferObject = 0;
+	}
 
 	while (ModelListHead)
 	{
@@ -915,10 +991,15 @@ void GLTexture_Flush(void)
 //			a new size
 void GLTexture_FlushScreen(void)
 {
-	pglDeleteTextures(1, &screentexture);
-	pglDeleteTextures(1, &startScreenWipe);
-	pglDeleteTextures(1, &endScreenWipe);
-	pglDeleteTextures(1, &finalScreenTexture);
+	if (screentexture)
+		pglDeleteTextures(1, &screentexture);
+	if (startScreenWipe)
+		pglDeleteTextures(1, &startScreenWipe);
+	if (endScreenWipe)
+		pglDeleteTextures(1, &endScreenWipe);
+	if (finalScreenTexture)
+		pglDeleteTextures(1, &finalScreenTexture);
+
 	screentexture = 0;
 	startScreenWipe = 0;
 	endScreenWipe = 0;
@@ -993,6 +1074,186 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head)
 	}
 
 	return res;
+}
+
+void GLFramebuffer_Generate(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	// Generate the framebuffer
+	if (FramebufferObject == 0)
+		pglGenFramebuffers(1, &FramebufferObject);
+
+	if (pglCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+		GLFramebuffer_GenerateAttachments();
+}
+
+void GLFramebuffer_Delete(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	// Unbind the framebuffer and renderbuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	if (FramebufferObject)
+		pglDeleteFramebuffers(1, &FramebufferObject);
+
+	GLFramebuffer_DeleteAttachments();
+	FramebufferObject = 0;
+}
+
+static boolean CheckRenderbuffer(void)
+{
+	GLenum error = pglGetError();
+	INT32 i = ((INT32)RenderbufferDepthBits) + 1;
+	boolean test = (i < NumRenderbufferFormats);
+
+	if (error == GL_NO_ERROR)
+		return true;
+
+	GL_DBG_Printf("glRenderbufferStorage: %s\n", GetGLError(error));
+
+	if (test)
+	{
+		while (error != GL_NO_ERROR)
+		{
+			pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i++], screen_width, screen_height);
+			error = pglGetError();
+
+			if (i == NumRenderbufferFormats)
+			{
+				if (error != GL_NO_ERROR)
+					test = false;
+				break;
+			}
+		}
+	}
+
+	if (!test)
+	{
+		i = (NumRenderbufferFormats - 1);
+
+		while (error != GL_NO_ERROR)
+		{
+			pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i--], screen_width, screen_height);
+			error = pglGetError();
+
+			if (i < 0)
+				return false;
+		}
+	}
+
+	return true;
+}
+
+void GLFramebuffer_GenerateAttachments(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	// Bind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+
+	// Generate the framebuffer texture
+	if (FramebufferTexture == 0)
+	{
+		pglGenTextures(1, &FramebufferTexture);
+		pglBindTexture(GL_TEXTURE_2D, FramebufferTexture);
+		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		pglBindTexture(GL_TEXTURE_2D, 0);
+
+		// Attach the framebuffer texture to the framebuffer
+		pglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
+	}
+
+	// Generate the renderbuffer
+	if (RenderbufferObject == 0)
+	{
+		pglGenRenderbuffers(1, &RenderbufferObject);
+
+		pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+		pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[RenderbufferDepthBits], screen_width, screen_height);
+
+		if (CheckRenderbuffer())
+		{
+			// Attach the renderbuffer to the framebuffer
+			pglFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderbufferObject);
+
+			// Clear the renderbuffer
+			HWD.pfnClearBuffer(true, true, NULL);
+		}
+		else
+			RenderToFramebuffer = GL_FALSE;
+
+		pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+	}
+
+	// Unbind the framebuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GLFramebuffer_DeleteAttachments(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	// Unbind the framebuffer and renderbuffer
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	if (FramebufferTexture)
+		pglDeleteTextures(1, &FramebufferTexture);
+
+	if (RenderbufferObject)
+		pglDeleteRenderbuffers(1, &RenderbufferObject);
+
+	FramebufferTexture = 0;
+	RenderbufferObject = 0;
+}
+
+void GLFramebuffer_Enable(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	if (RenderbufferDepthBits != LastRenderbufferDepthBits)
+	{
+		if (RenderbufferObject)
+			pglDeleteRenderbuffers(1, &RenderbufferObject);
+
+		RenderbufferObject = 0;
+		LastRenderbufferDepthBits = RenderbufferDepthBits;
+	}
+
+	if (FramebufferObject == 0)
+		GLFramebuffer_Generate();
+	else if (FramebufferTexture == 0 || RenderbufferObject == 0)
+		GLFramebuffer_GenerateAttachments();
+
+	if (RenderToFramebuffer == GL_FALSE)
+		return;
+
+	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+	pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+}
+
+void GLFramebuffer_Disable(void)
+{
+	if (!GLExtension_framebuffer_object)
+		return;
+
+	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+
+void GLFramebuffer_SetDepth(INT32 depth)
+{
+	RenderbufferDepthBits = min(max(depth, 0), NumRenderbufferFormats-1);
 }
 
 void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data)
@@ -1075,23 +1336,66 @@ void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 d
 	free(row);
 }
 
-// -------------------+
-// ExtensionAvailable : Look if an OpenGL extension is available
-// Returns            : true if extension available
-// -------------------+
-boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start)
+void GLExtension_Init(void)
 {
-#if defined(HAVE_GLES) && defined(HAVE_SDL)
-	(void)start;
+	INT32 i = 0;
+
+	gl_extensions = pglGetString(GL_EXTENSIONS);
+
+	GL_DBG_Printf("Extensions: ");
+	PrintExtensions(gl_extensions);
+
+	while (ExtensionList[i].name)
+	{
+		const FExtensionList *ext = &ExtensionList[i++];
+		boolean *extension = ext->extension;
+
+		if (*extension)
+			continue;
+
+		if (GLExtension_Available(ext->name))
+		{
+			(*extension) = true;
+			GL_DBG_Printf("Extension %s is supported\n", ext->name);
+		}
+		else
+		{
+			(*extension) = false;
+			GL_DBG_Printf("Extension %s is unsupported\n", ext->name);
+		}
+	}
+
+#ifdef GL_SHADERS
+	if (GLExtension_vertex_program && GLExtension_fragment_program && GLBackend_GetFunction("glUseProgram"))
+		GLExtension_shaders = true;
+#endif
+
+	if (GLExtension_texture_filter_anisotropic)
+	{
+		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
+
+		if (!maximumAnisotropy)
+		{
+			GLExtension_texture_filter_anisotropic = false;
+			maximumAnisotropy = 1;
+		}
+	}
+	else
+		maximumAnisotropy = 1;
+}
+
+boolean GLExtension_Available(const char *extension)
+{
+#ifdef HAVE_SDL
 	return (SDL_GL_ExtensionSupported(extension) == SDL_TRUE ? true : false);
 #else
-	GLubyte         *where, *terminator;
-
-	if (!extension || !start) return 0;
+	const GLubyte *start = gl_extensions;
+	GLubyte       *where, *terminator;
+	if (!extension || !start)
+		return false;
 	where = (GLubyte *) strchr(extension, ' ');
 	if (where || *extension == '\0')
 		return false;
-
 	for (;;)
 	{
 		where = (GLubyte *) strstr((const char *) start, extension);
@@ -1107,6 +1411,142 @@ boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start)
 #endif
 }
 
+static boolean CheckFunctionList(const char **list)
+{
+	char *funcname = NULL;
+
+	INT32 i = 0;
+
+	while (list[i])
+	{
+		size_t len = strlen(list[i]) + 3;
+
+		funcname = realloc(funcname, len);
+		snprintf(funcname, len, "gl%s", list[i++]);
+
+		if (!GLBackend_GetFunction(funcname))
+		{
+			free(funcname);
+			return false;
+		}
+	}
+
+	if (funcname)
+		free(funcname);
+
+	return true;
+}
+
+#define EXTUNSUPPORTED(ext) { \
+	GL_DBG_Printf("%s is unsupported\n", #ext); \
+	ext = false; }
+
+boolean GLExtension_LoadFunctions(void)
+{
+	if (GLExtension_multitexture)
+	{
+		const char *list[] =
+		{
+			"ActiveTexture",
+#ifndef HAVE_GLES2
+			"ClientActiveTexture",
+#endif
+			NULL
+		};
+
+		if (CheckFunctionList(list))
+		{
+			GETOPENGLFUNC(ActiveTexture)
+#ifndef HAVE_GLES2
+			GETOPENGLFUNC(ClientActiveTexture)
+#endif
+		}
+		else
+			EXTUNSUPPORTED(GLExtension_multitexture);
+	}
+
+	if (GLExtension_vertex_buffer_object)
+	{
+		const char *list[] =
+		{
+			"GenBuffers",
+			"BindBuffer",
+			"BufferData",
+			"DeleteBuffers",
+			NULL
+		};
+
+		if (CheckFunctionList(list))
+		{
+			GETOPENGLFUNC(GenBuffers)
+			GETOPENGLFUNC(BindBuffer)
+			GETOPENGLFUNC(BufferData)
+			GETOPENGLFUNC(DeleteBuffers)
+		}
+		else
+			EXTUNSUPPORTED(GLExtension_vertex_buffer_object);
+	}
+
+	if (GLExtension_framebuffer_object)
+	{
+		const char *list[] =
+		{
+			"GenFramebuffers",
+			"BindFramebuffer",
+			"DeleteFramebuffers",
+			"FramebufferTexture2D",
+			"CheckFramebufferStatus",
+			"GenRenderbuffers",
+			"BindRenderbuffer",
+			"DeleteRenderbuffers",
+			"RenderbufferStorage",
+			"FramebufferRenderbuffer",
+			NULL
+		};
+
+		if (CheckFunctionList(list))
+		{
+			GETOPENGLFUNC(GenFramebuffers);
+			GETOPENGLFUNC(BindFramebuffer);
+			GETOPENGLFUNC(DeleteFramebuffers);
+			GETOPENGLFUNC(FramebufferTexture2D);
+			GETOPENGLFUNC(CheckFramebufferStatus);
+			GETOPENGLFUNC(GenRenderbuffers);
+			GETOPENGLFUNC(BindRenderbuffer);
+			GETOPENGLFUNC(DeleteRenderbuffers);
+			GETOPENGLFUNC(RenderbufferStorage);
+			GETOPENGLFUNC(FramebufferRenderbuffer);
+		}
+		else
+			EXTUNSUPPORTED(GLExtension_framebuffer_object);
+	}
+
+	return true;
+}
+
+#undef EXTUNSUPPORTED
+
+static void PrintExtensions(const GLubyte *extensions)
+{
+	size_t size = strlen((const char *)extensions) + 1;
+	char *tk, *ext = calloc(size, sizeof(char));
+
+	memcpy(ext, extensions, size);
+	tk = strtok(ext, " ");
+
+	while (tk)
+	{
+		GL_DBG_Printf("%s", tk);
+		tk = strtok(NULL, " ");
+		if (tk)
+			GL_DBG_Printf(" ", tk);
+	}
+
+	GL_DBG_Printf("\n");
+	free(ext);
+}
+
+
 // -----------------+
 // GL_DBG_Printf    : Output debug messages to debug log if DEBUG_TO_FILE is defined,
 //                  : else do nothing
@@ -1117,21 +1557,28 @@ boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start)
 FILE *gllogstream;
 #endif
 
+//#define DEBUG_TO_CONSOLE
+
 void GL_DBG_Printf(const char *format, ...)
 {
-#ifdef DEBUG_TO_FILE
+#if defined(DEBUG_TO_CONSOLE) || defined(DEBUG_TO_FILE)
 	char str[4096] = "";
 	va_list arglist;
-
-	if (!gllogstream)
-		gllogstream = fopen("ogllog.txt", "w");
 
 	va_start(arglist, format);
 	vsnprintf(str, 4096, format, arglist);
 	va_end(arglist);
 
+#ifdef DEBUG_TO_CONSOLE
+	I_OutputMsg("%s", str);
+#endif
+
+#ifdef DEBUG_TO_FILE
+	if (!gllogstream)
+		gllogstream = fopen("ogllog.txt", "w");
 	fwrite(str, strlen(str), 1, gllogstream);
-#else
+#endif
+#else // defined(DEBUG_TO_CONSOLE) || defined(DEBUG_TO_FILE)
 	(void)format;
 #endif
 }
@@ -1151,9 +1598,7 @@ void GL_MSG_Warning(const char *format, ...)
 	vsnprintf(str, 4096, format, arglist);
 	va_end(arglist);
 
-#ifdef HAVE_SDL
-	CONS_Alert(CONS_WARNING, "%s\n", str);
-#endif
+	CONS_Alert(CONS_WARNING, "%s", str);
 
 #ifdef DEBUG_TO_FILE
 	if (!gllogstream)
@@ -1179,9 +1624,7 @@ void GL_MSG_Error(const char *format, ...)
 	vsnprintf(str, 4096, format, arglist);
 	va_end(arglist);
 
-#ifdef HAVE_SDL
-	CONS_Alert(CONS_ERROR, "%s\n", str);
-#endif
+	CONS_Alert(CONS_ERROR, "%s", str);
 
 	if (lastglerror)
 		free(lastglerror);

@@ -290,7 +290,7 @@ void Shader_LoadCustom(int number, char *code, size_t size, boolean isfragment)
 {
 	shadersource_t *shader;
 
-	if (!pglUseProgram)
+	if (!GLExtension_shaders)
 		return;
 
 	if (number < 1 || number > HWR_MAXSHADERS)
@@ -380,7 +380,7 @@ void Shader_UnSet(void)
 	gl_shaderstate.type = 0;
 	gl_shaderstate.program = 0;
 
-	if (pglUseProgram)
+	if (GLExtension_shaders)
 		pglUseProgram(0);
 	gl_shadersenabled = false;
 #endif
@@ -443,7 +443,7 @@ static void Shader_CompileError(const char *message, GLuint program, INT32 shade
 		pglGetShaderInfoLog(program, logLength, NULL, infoLog);
 	}
 
-	Shader_ErrorMessage("Shader_CompileProgram: %s (%s)\n%s", message, HWR_GetShaderName(shadernum), (infoLog ? infoLog : ""));
+	Shader_ErrorMessage("Shader_CompileProgram: %s (%s)\n%s\n", message, HWR_GetShaderName(shadernum), (infoLog ? infoLog : ""));
 
 	if (infoLog)
 		free(infoLog);
@@ -579,7 +579,7 @@ boolean Shader_Compile(void)
 {
 	GLint i;
 
-	if (!pglUseProgram)
+	if (!GLExtension_shaders)
 		return false;
 
 	gl_customshaders[SHADER_DEFAULT].vertex = NULL;
@@ -673,7 +673,7 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 {
 	gl_shader_t *shader = gl_shaderstate.current;
 
-	if (gl_shadersenabled && (shader != NULL) && pglUseProgram)
+	if (gl_shadersenabled && (shader != NULL) && GLExtension_shaders)
 	{
 		if (!shader->program)
 		{

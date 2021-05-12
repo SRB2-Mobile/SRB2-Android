@@ -6352,11 +6352,14 @@ static CV_PossibleValue_t glshaders_cons_t[] = {{HWD_SHADEROPTION_OFF, "Off"}, {
 static CV_PossibleValue_t glmodelinterpolation_cons_t[] = {{0, "Off"}, {1, "Sometimes"}, {2, "Always"}, {0, NULL}};
 static CV_PossibleValue_t glfakecontrast_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Smooth"}, {0, NULL}};
 static CV_PossibleValue_t glshearing_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Third-person"}, {0, NULL}};
+CV_PossibleValue_t glrenderbufferdepth_cons_t[] = {{0, "Default"}, {1, "16 bits"}, {2, "24 bits"}, {3, "32 bits"}, {4, "Float"}, {0, NULL}};
 
+static void CV_glframebuffer_OnChange(void);
+static void CV_glrenderbufferdepth_OnChange(void);
 static void CV_glfiltermode_OnChange(void);
 static void CV_glanisotropic_OnChange(void);
 
-static CV_PossibleValue_t glfiltermode_cons_t[]= {{HWD_SET_TEXTUREFILTER_POINTSAMPLED, "Nearest"},
+static CV_PossibleValue_t glfiltermode_cons_t[] = {{HWD_SET_TEXTUREFILTER_POINTSAMPLED, "Nearest"},
 	{HWD_SET_TEXTUREFILTER_BILINEAR, "Bilinear"}, {HWD_SET_TEXTUREFILTER_TRILINEAR, "Trilinear"},
 	{HWD_SET_TEXTUREFILTER_MIXED1, "Linear_Nearest"},
 	{HWD_SET_TEXTUREFILTER_MIXED2, "Nearest_Linear"},
@@ -6391,6 +6394,21 @@ consvar_t cv_glanisotropicmode = CVAR_INIT ("gr_anisotropicmode", "1", CV_CALL, 
 consvar_t cv_glsolvetjoin = CVAR_INIT ("gr_solvetjoin", "On", 0, CV_OnOff, NULL);
 
 consvar_t cv_glbatching = CVAR_INIT ("gr_batching", "On", 0, CV_OnOff, NULL);
+
+consvar_t cv_glframebuffer = CVAR_INIT ("gr_framebuffer", "Off", CV_SAVE|CV_CALL, CV_OnOff, CV_glframebuffer_OnChange);
+consvar_t cv_glrenderbufferdepth = CVAR_INIT ("gr_renderbufferdepth", "Float", CV_SAVE|CV_CALL, glrenderbufferdepth_cons_t, CV_glrenderbufferdepth_OnChange);
+
+static void CV_glframebuffer_OnChange(void)
+{
+	if (rendermode == render_opengl)
+		HWD.pfnSetSpecialState(HWD_SET_FRAMEBUFFER, cv_glframebuffer.value);
+}
+
+static void CV_glrenderbufferdepth_OnChange(void)
+{
+	if (rendermode == render_opengl)
+		HWD.pfnSetSpecialState(HWD_SET_RENDERBUFFER_DEPTH, cv_glrenderbufferdepth.value);
+}
 
 static void CV_glfiltermode_OnChange(void)
 {
@@ -6431,6 +6449,8 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_glsolvetjoin);
 
 	CV_RegisterVar(&cv_glbatching);
+	CV_RegisterVar(&cv_glframebuffer);
+	CV_RegisterVar(&cv_glrenderbufferdepth);
 
 #ifndef NEWCLIP
 	CV_RegisterVar(&cv_glclipwalls);
@@ -6488,8 +6508,10 @@ void HWR_Switch(void)
 		HWR_AddSessionCommands();
 
 	// Set special states from CVARs
-	HWD.pfnSetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_glfiltermode.value);
-	HWD.pfnSetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_glanisotropicmode.value);
+	CV_glframebuffer_OnChange();
+	CV_glrenderbufferdepth_OnChange();
+	CV_glfiltermode_OnChange();
+	CV_glanisotropic_OnChange();
 
 	// Load textures
 	if (!gl_maptexturesloaded)
@@ -6768,16 +6790,6 @@ void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
 	// It does the same thing
 	HWR_DoWipe(wipenum, scrnnum);
 #endif
-}
-
-void HWR_MakeScreenFinalTexture(void)
-{
-    HWD.pfnMakeScreenFinalTexture();
-}
-
-void HWR_DrawScreenFinalTexture(int width, int height)
-{
-    HWD.pfnDrawScreenFinalTexture(width, height);
 }
 
 void HWR_RecreateContext(void)
