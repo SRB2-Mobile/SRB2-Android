@@ -437,8 +437,8 @@ INT32 GLBackend_GetShaderType(INT32 type);
 INT32 GLBackend_GetAlphaTestShader(INT32 type);
 INT32 GLBackend_InvertAlphaTestShader(INT32 type);
 
-void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
-void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
+void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, UINT32 *dst_data);
 
 void    GLExtension_Init(void);
 boolean GLExtension_Available(const char *extension);

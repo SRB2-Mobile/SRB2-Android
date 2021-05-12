@@ -1265,7 +1265,7 @@ void GLFramebuffer_SetDepth(INT32 depth)
 	RenderbufferDepthBits = min(max(depth, 0), NumRenderbufferFormats-1);
 }
 
-void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data)
+void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data)
 {
 	INT32 i;
 
@@ -1319,30 +1319,22 @@ void GLBackend_ReadRectRGB(INT32 x, INT32 y, INT32 width, INT32 height, INT32 ds
 	}
 }
 
-void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data)
+void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, UINT32 *dst_data)
 {
-	INT32 i;
+	INT32 i, row_width = (width * sizeof(UINT32));
+	UINT32 *src_data = malloc(row_width * height);
 
-	GLubyte *top = (GLvoid*)dst_data, *bottom = top + dst_stride * (height - 1);
-	GLubyte *row = malloc(dst_stride);
-
-	if (!row)
+	if (!src_data)
 		return;
 
 	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-	pglReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, dst_data);
+	pglReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (GLubyte *)src_data);
 	pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-	for(i = 0; i < height/2; i++)
-	{
-		memcpy(row, top, dst_stride);
-		memcpy(top, bottom, dst_stride);
-		memcpy(bottom, row, dst_stride);
-		top += dst_stride;
-		bottom -= dst_stride;
-	}
+	for (i = height-1; i >= 0; i--)
+		memcpy(&dst_data[i * width], &src_data[(height-i-1) * width], row_width);
 
-	free(row);
+	free(src_data);
 }
 
 void GLExtension_Init(void)

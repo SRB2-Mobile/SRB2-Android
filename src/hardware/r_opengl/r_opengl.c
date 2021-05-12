@@ -397,7 +397,7 @@ EXPORT void HWRAPI(ClearMipMapCache) (void)
 // -----------------+
 EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data)
 {
-	GLBackend_ReadRectRGB(x, y, width, height, dst_stride, (UINT16 *)dst_data);
+	GLBackend_ReadRect(x, y, width, height, dst_stride, (UINT16 *)dst_data);
 }
 
 
