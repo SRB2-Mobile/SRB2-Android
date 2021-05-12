@@ -53,6 +53,8 @@ boolean GLBackend_LoadFunctions(void)
 boolean GLBackend_LoadExtraFunctions(void)
 {
 	GETOPENGLFUNCTRY(GenerateMipmap)
+	if (pglGenerateMipmap)
+		MipmapSupported = GL_TRUE;
 
 	GLExtension_LoadFunctions();
 
@@ -519,7 +521,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	else
 		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 
-	if (MipMap)
+	if (MipmapEnabled)
 		pglGenerateMipmap(GL_TEXTURE_2D);
 
 	if (pTexInfo->flags & TF_WRAPX)
@@ -760,16 +762,8 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			if (!pglGenerateMipmap)
-			{
-				MipMap = GL_FALSE;
-				min_filter = GL_LINEAR;
-			}
-			else
-			{
-				GLTexture_SetFilterMode(Value);
-				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
-			}
+			GLTexture_SetFilterMode(Value);
+			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:

@@ -581,7 +581,8 @@ extern GLint  screen_height;
 extern GLbyte screen_depth;
 extern GLint  maximumAnisotropy;
 
-extern GLboolean MipMap;
+extern GLboolean MipmapEnabled;
+extern GLboolean MipmapSupported;
 extern GLint min_filter;
 extern GLint mag_filter;
 extern GLint anisotropic_filter;

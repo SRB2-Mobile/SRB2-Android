@@ -80,6 +80,8 @@ boolean GLBackend_LoadExtraFunctions(void)
 
 	// GLU
 	pgluBuild2DMipmaps = GLBackend_GetFunction("gluBuild2DMipmaps");
+	if (pgluBuild2DMipmaps)
+		MipmapSupported = GL_TRUE;
 
 	return true;
 }
@@ -636,7 +638,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	if (pTexInfo->format == GL_TEXFMT_ALPHA_INTENSITY_88)
 	{
 		//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		if (MipMap)
+		if (MipmapEnabled)
 		{
 			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
@@ -657,7 +659,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	else if (pTexInfo->format == GL_TEXFMT_ALPHA_8)
 	{
 		//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		if (MipMap)
+		if (MipmapEnabled)
 		{
 			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
@@ -677,7 +679,7 @@ EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *pTexInfo)
 	}
 	else
 	{
-		if (MipMap)
+		if (MipmapEnabled)
 		{
 			pgluBuild2DMipmaps(GL_TEXTURE_2D, textureformatGL, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 			// Control the mipmap level of detail
@@ -1010,16 +1012,8 @@ EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
 			break;
 
 		case HWD_SET_TEXTUREFILTERMODE:
-			if (!pgluBuild2DMipmaps)
-			{
-				MipMap = GL_FALSE;
-				min_filter = GL_LINEAR;
-			}
-			else
-			{
-				GLTexture_SetFilterMode(Value);
-				GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
-			}
+			GLTexture_SetFilterMode(Value);
+			GLTexture_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:

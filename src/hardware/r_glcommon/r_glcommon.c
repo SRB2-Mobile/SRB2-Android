@@ -45,7 +45,8 @@ GLbyte  screen_depth    = 0;
 GLint   textureformatGL = 0;
 GLint maximumAnisotropy = 0;
 
-GLboolean MipMap = GL_FALSE;
+GLboolean MipmapEnabled = GL_FALSE;
+GLboolean MipmapSupported = GL_FALSE;
 GLint min_filter = GL_LINEAR;
 GLint mag_filter = GL_LINEAR;
 GLint anisotropic_filter = 0;
@@ -1013,35 +1014,43 @@ void GLTexture_FlushScreen(void)
 // -----------------+
 void GLTexture_SetFilterMode(INT32 mode)
 {
+	MipmapEnabled = GL_FALSE;
+
 	switch (mode)
 	{
 		case HWD_SET_TEXTUREFILTER_TRILINEAR:
-			min_filter = GL_LINEAR_MIPMAP_LINEAR;
 			mag_filter = GL_LINEAR;
-			MipMap = GL_TRUE;
+			if (MipmapSupported)
+			{
+				min_filter = GL_LINEAR_MIPMAP_LINEAR;
+				MipmapEnabled = GL_TRUE;
+			}
+			else
+				min_filter = GL_LINEAR;
 			break;
 		case HWD_SET_TEXTUREFILTER_BILINEAR:
 			min_filter = mag_filter = GL_LINEAR;
-			MipMap = GL_FALSE;
 			break;
 		case HWD_SET_TEXTUREFILTER_POINTSAMPLED:
 			min_filter = mag_filter = GL_NEAREST;
-			MipMap = GL_FALSE;
 			break;
 		case HWD_SET_TEXTUREFILTER_MIXED1:
 			min_filter = GL_NEAREST;
 			mag_filter = GL_LINEAR;
-			MipMap = GL_FALSE;
 			break;
 		case HWD_SET_TEXTUREFILTER_MIXED2:
 			min_filter = GL_LINEAR;
 			mag_filter = GL_NEAREST;
-			MipMap = GL_FALSE;
 			break;
 		case HWD_SET_TEXTUREFILTER_MIXED3:
-			min_filter = GL_LINEAR_MIPMAP_LINEAR;
 			mag_filter = GL_NEAREST;
-			MipMap = GL_TRUE;
+			if (MipmapSupported)
+			{
+				min_filter = GL_LINEAR_MIPMAP_LINEAR;
+				MipmapEnabled = GL_TRUE;
+			}
+			else
+				min_filter = GL_LINEAR;
 			break;
 		default:
 			mag_filter = GL_LINEAR;
