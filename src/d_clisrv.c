@@ -2173,16 +2173,19 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 #ifndef NONET
 		if (client && cl_mode != CL_CONNECTED && cl_mode != CL_ABORTED)
 		{
-			if (!snake || (snake && cl_mode != CL_DOWNLOADFILES && cl_mode != CL_DOWNLOADSAVEGAME))
+			if (!I_AppOnBackground())
 			{
-				F_MenuPresTicker(true); // title sky
-				F_TitleScreenTicker(true);
-				F_TitleScreenDrawer();
+				if (!snake || (snake && cl_mode != CL_DOWNLOADFILES && cl_mode != CL_DOWNLOADSAVEGAME))
+				{
+					F_MenuPresTicker(true); // title sky
+					F_TitleScreenTicker(true);
+					F_TitleScreenDrawer();
+				}
+				CL_DrawConnectionStatus();
+				I_UpdateNoVsync(); // page flip or blit buffer
+				if (moviemode)
+					M_SaveFrame();
 			}
-			CL_DrawConnectionStatus();
-			I_UpdateNoVsync(); // page flip or blit buffer
-			if (moviemode)
-				M_SaveFrame();
 			S_UpdateSounds();
 			S_UpdateClosedCaptions();
 		}

@@ -601,9 +601,8 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 		}
 
 		I_OsPolling();
-		I_UpdateNoBlit();
 
-		if (drawMenu)
+		if (drawMenu && !I_AppOnBackground())
 		{
 #ifdef HAVE_THREADS
 			I_lock_mutex(&m_menu_mutex);
@@ -614,7 +613,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 #endif
 		}
 
-		I_OnLoopFinishUpdate(); // page flip or blit buffer
+		I_FinishUpdate(); // page flip or blit buffer
 
 skipframe:
 		if (moviemode)

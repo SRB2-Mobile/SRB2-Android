@@ -310,10 +310,6 @@ static void D_Display(void)
 		forcerefresh = true; // force background redraw
 	}
 
-	// draw buffered stuff to screen
-	// Used only by linux GGI version
-	I_UpdateNoBlit();
-
 	// save the current screen if about to wipe
 	wipe = (gamestate != wipegamestate);
 	if (wipe && wipetypepre != INT16_MAX)
@@ -465,6 +461,9 @@ static void D_Display(void)
 						R_RenderPlayerView(&players[displayplayer]);
 				}
 
+				if (I_AppOnBackground())
+					return;
+
 				// render the second screen
 				if (splitscreen && players[secondarydisplayplayer].mo)
 				{
@@ -486,6 +485,9 @@ static void D_Display(void)
 						M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
 					}
 				}
+
+				if (I_AppOnBackground())
+					return;
 
 				// Image postprocessing effect
 				if (rendermode == render_soft)

@@ -1563,11 +1563,10 @@ void CONS_Printf(const char *fmt, ...)
 	Unlock_state();
 
 	// if not in display loop, force screen update
-	if (refresh)
+	if (refresh && !I_AppOnBackground())
 	{
-		if (!I_AppOnBackground())
-			CON_Drawer(); // here we display the console text
-		I_OnLoopFinishUpdate(); // page flip or blit buffer
+		CON_Drawer(); // here we display the console text
+		I_FinishUpdate(); // page flip or blit buffer
 	}
 }
 

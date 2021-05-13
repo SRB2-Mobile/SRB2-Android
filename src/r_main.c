@@ -40,16 +40,6 @@
 #include "hardware/hw_main.h"
 #endif
 
-//profile stuff ---------------------------------------------------------
-//#define TIMING
-#ifdef TIMING
-#include "p5prof.h"
-INT64 mycount;
-INT64 mytotal = 0;
-//unsigned long  nombre = 100000;
-#endif
-//profile stuff ---------------------------------------------------------
-
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
 
@@ -1508,36 +1498,27 @@ void R_RenderPlayerView(player_t *player)
 	R_ClearSprites();
 	Portal_InitList();
 
-	// check for new console commands.
+	// Check for new console commands.
 	NetUpdate();
 
-	// The head node is the last node output.
+	if (I_AppOnBackground())
+		return;
 
+	// The head node is the last node output.
 	Mask_Pre(&masks[nummasks - 1]);
 	curdrawsegs = ds_p;
-//profile stuff ---------------------------------------------------------
-#ifdef TIMING
-	mytotal = 0;
-	ProfZeroTimer();
-#endif
+
 	ps_numbspcalls = ps_numpolyobjects = ps_numdrawnodes = 0;
 	ps_bsptime = I_GetPreciseTime();
 	R_RenderBSPNode((INT32)numnodes - 1);
 	ps_bsptime = I_GetPreciseTime() - ps_bsptime;
 	ps_numsprites = visspritecount;
-#ifdef TIMING
-	RDMSR(0x10, &mycount);
-	mytotal += mycount; // 64bit add
 
-	CONS_Debug(DBG_RENDER, "RenderBSPNode: 0x%d %d\n", *((INT32 *)&mytotal + 1), (INT32)mytotal);
-#endif
-//profile stuff ---------------------------------------------------------
 	Mask_Post(&masks[nummasks - 1]);
 
 	ps_sw_spritecliptime = I_GetPreciseTime();
 	R_ClipSprites(drawsegs, NULL);
 	ps_sw_spritecliptime = I_GetPreciseTime() - ps_sw_spritecliptime;
-
 
 	// Add skybox portals caused by sky visplanes.
 	if (cv_skybox.value && skyboxmo[0])

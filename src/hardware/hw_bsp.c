@@ -585,6 +585,8 @@ static void loading_status(void)
 	int x, y;
 
 	I_OsPolling();
+	if (I_AppOnBackground())
+		return;
 	CON_Drawer();
 	sprintf(s, "%d%%", (++ls_percent)<<1);
 	x = BASEVIDWIDTH/2;
@@ -838,7 +840,7 @@ static INT32 SolveTProblem(void)
 	if (!I_AppOnBackground())
 	{
 		CON_Drawer(); //let the user know what we are doing
-		I_OnLoopFinishUpdate(); // page flip or blit buffer
+		I_FinishUpdate(); // page flip or blit buffer
 	}
 #endif
 
@@ -969,7 +971,7 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 	{
 		ls_count = ls_percent = 0; // reset the loading status
 		CON_Drawer(); //let the user know what we are doing
-		I_OnLoopFinishUpdate(); // page flip or blit buffer
+		I_FinishUpdate(); // page flip or blit buffer
 	}
 #endif
 

@@ -1604,54 +1604,6 @@ void I_FinishUpdate(void)
 #endif
 }
 
-static void Impl_LoopCheckContext(void)
-{
-	SDL_Event ev;
-	SDL_bool enteredBG = SDL_FALSE, leftBG = SDL_FALSE;
-
-	SDL_PumpEvents();
-
-	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERBACKGROUND, SDL_APP_WILLENTERBACKGROUND))
-	{
-		if (enteredBG == SDL_FALSE)
-		{
-			Impl_AppWillEnterBackground();
-			Impl_Unfocused(true);
-			enteredBG = SDL_TRUE;
-		}
-	}
-
-	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
-	{
-		if (leftBG == SDL_FALSE)
-		{
-			Impl_AppWillEnterForeground();
-			Impl_RenderContextReset();
-			Impl_Unfocused(false);
-			leftBG = SDL_TRUE;
-		}
-	}
-}
-
-//
-// I_OnLoopFinishUpdate
-//
-void I_OnLoopFinishUpdate(void)
-{
-	if (rendermode == render_none)
-		return;
-
-#if defined(__ANDROID__)
-	if (appOnBackground == SDL_FALSE)
-		Impl_LoopCheckContext();
-#endif
-
-	if (appOnBackground == SDL_TRUE)
-		return;
-
-	I_FinishUpdate();
-}
-
 //
 // I_UpdateNoVsync
 //
@@ -2605,8 +2557,6 @@ void I_ReportProgress(int progress)
 
 	if (appOnBackground == SDL_TRUE)
 		return;
-
-	Impl_LoopCheckContext();
 
 	SDL_GetWindowSize(window, &scrw, &scrh);
 

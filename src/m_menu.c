@@ -15411,9 +15411,7 @@ static void M_Refresh(INT32 choice)
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Searching for servers...");
 	V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
 	I_OsPolling();
-	I_UpdateNoBlit();
-	if (rendermode == render_soft)
-		I_FinishUpdate(); // page flip or blit buffer
+	I_FinishUpdate(); // page flip or blit buffer
 
 	// note: this is the one case where 0 is a valid room number
 	// because it corresponds to "All"
@@ -15851,9 +15849,7 @@ static void M_RoomMenu(INT32 choice)
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Fetching room info...");
 	V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
 	I_OsPolling();
-	I_UpdateNoBlit();
-	if (rendermode == render_soft)
-		I_FinishUpdate(); // page flip or blit buffer
+	I_FinishUpdate(); // page flip or blit buffer
 
 	for (i = 1; i < NUM_LIST_ROOMS+1; ++i)
 		MP_RoomMenu[i].status = IT_DISABLED;
@@ -16159,9 +16155,7 @@ static void M_ConnectIP(INT32 choice)
 	M_DrawTextBox(56, BASEVIDHEIGHT/2-12, 24, 2);
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Connecting to server...");
 	I_OsPolling();
-	I_UpdateNoBlit();
-	if (rendermode == render_soft)
-		I_FinishUpdate(); // page flip or blit buffer
+	I_FinishUpdate(); // page flip or blit buffer
 }
 
 // Lactozilla: IPv4 textbox callback
