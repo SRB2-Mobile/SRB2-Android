@@ -1453,9 +1453,11 @@ boolean F_CreditResponder(event_t *event)
 				break;
 			case KEY_JOY1:
 			case KEY_JOY1 + 2:
+			case KEY_REMOTECENTER:
 				key = KEY_ENTER;
 				break;
 			case KEY_JOY1 + 1:
+			case KEY_REMOTEBACK:
 				key = KEY_BACKSPACE;
 				break;
 		}
@@ -3875,6 +3877,7 @@ boolean F_ContinueResponder(event_t *event)
 			case KEY_MOUSE1:
 			case KEY_JOY1:
 			case KEY_JOY1 + 2:
+			case KEY_REMOTECENTER:
 				break;
 			default:
 				return false;
