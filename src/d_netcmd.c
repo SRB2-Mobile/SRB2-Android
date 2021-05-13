@@ -383,6 +383,8 @@ consvar_t cv_runscripts = CVAR_INIT ("runscripts", "Yes", 0, CV_YesNo, NULL);
 consvar_t cv_pause = CVAR_INIT ("pausepermission", "Server", CV_SAVE|CV_NETVAR, pause_cons_t, NULL);
 consvar_t cv_mute = CVAR_INIT ("mute", "Off", CV_NETVAR|CV_CALL, CV_OnOff, Mute_OnChange);
 
+consvar_t cv_thinkless = CVAR_INIT("thinkless", "Off", CV_SAVE, CV_OnOff, NULL);
+
 consvar_t cv_sleep = CVAR_INIT ("cpusleep", "1", CV_SAVE, sleeping_cons_t, NULL);
 
 static CV_PossibleValue_t perfstats_cons_t[] = {
@@ -612,7 +614,7 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_showping);
 
 #ifdef MOBILE_PLATFORM
-	cv_thinkless.defaultvalue = "Aggressive";
+	cv_thinkless.defaultvalue = "On";
 #endif
 	CV_RegisterVar(&cv_thinkless);
 

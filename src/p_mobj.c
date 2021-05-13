@@ -9991,9 +9991,6 @@ static boolean P_FuseThink(mobj_t *mobj)
 	return !P_MobjWasRemoved(mobj);
 }
 
-static CV_PossibleValue_t thinkless_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "Aggressive"}, {0, NULL}};
-consvar_t cv_thinkless = CVAR_INIT("thinkless", "Off", CV_SAVE, thinkless_cons_t, NULL);
-
 #define reducedthinking (cv_thinkless.value && !(netgame || multiplayer) && !(demoplayback || modeattacking || marathonmode || metalrecording))
 
 static inline boolean P_MobjDistanceCheck(mobj_t *mobj)
@@ -10014,27 +10011,10 @@ static inline boolean P_MobjDistanceCheck(mobj_t *mobj)
 
 static inline boolean P_CanMobjThink(mobj_t *mobj)
 {
-	boolean check = (cv_thinkless.value == 2);
-
 	if (!reducedthinking)
 		return true;
 
 	if (mobj->player)
-		return true;
-
-	if (cv_thinkless.value == 1)
-	{
-		if (mobj->flags & MF_ENEMY)
-			check = true;
-
-		if (mobj->flags & MF_SCENERY && (!mobj->momx && !mobj->momy && !mobj->momz))
-			check = true;
-
-		if (P_CanZMove(mobj))
-			check = true;
-	}
-
-	if (!check)
 		return true;
 
 	if (!P_MobjDistanceCheck(mobj))
@@ -10048,7 +10028,6 @@ static inline boolean P_CanMobjThink(mobj_t *mobj)
 			case MT_FIREBARPOINT:
 			case MT_CUSTOMMACEPOINT:
 			case MT_HIDDEN_SLING:
-			case MT_OVERLAY:
 				// Always update movedir to prevent desyncing (in the traditional sense, not the netplay sense).
 				mobj->movedir = (mobj->movedir + mobj->lastlook) & FINEMASK;
 				/* FALLTHRU */
