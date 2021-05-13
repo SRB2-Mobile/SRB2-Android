@@ -489,8 +489,18 @@ void CONS_Debug(INT32 debugflags, const char *fmt, ...) FUNCDEBUG;
 
 // Things that used to be in dstrings.h
 #define SAVEGAMENAME "srb2sav"
-extern char savegamename[256];
-extern char liveeventbackup[256];
+#define SAVEGAMENAMELEN 256
+
+extern char savegamename[2][SAVEGAMENAMELEN];
+extern char liveeventbackup[2][SAVEGAMENAMELEN];
+
+extern char *cursavegamename;
+extern char *curliveeventbackup;
+
+#if defined(__ANDROID__)
+#define USE_GAMEDATA_PATHS
+#define USE_SAVEGAME_PATHS
+#endif
 
 // m_misc.h
 #ifdef GETTEXT
@@ -626,14 +636,6 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 ///	Who put weights on my recycler?  ... Inuyasha did.
 ///	\note	XMOD port.
 //#define WEIGHTEDRECYCLER
-
-///	Allow loading of savegames between different versions of the game.
-///	\note	XMOD port.
-///	    	Most modifications should probably enable this.
-//#define SAVEGAME_OTHERVERSIONS
-
-///	Shuffle's incomplete OpenGL sorting code.
-#define SHUFFLE // This has nothing to do with sorting, why was it disabled?
 
 /// Splash screen
 #ifdef MOBILE_PLATFORM

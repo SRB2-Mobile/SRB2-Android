@@ -167,11 +167,13 @@ boolean G_IsTitleCardAvailable(void);
 // Can be called by the startup code or M_Responder, calls P_LoadLevel.
 void G_LoadGame(UINT32 slot, INT16 mapoverride);
 
+void G_SaveGame(UINT32 slot, INT16 mapnum);
+void G_SaveGameOver(UINT32 slot, boolean modifylives);
 void G_SaveGameData(void);
 
-void G_SaveGame(UINT32 slot, INT16 mapnum);
+size_t G_ReadSaveGameSlot(char *savename, UINT8 **buffer, UINT32 slot);
 
-void G_SaveGameOver(UINT32 slot, boolean modifylives);
+char *G_LiveEventHasBackup(void);
 
 extern UINT32 gametypedefaultrules[NUMGAMETYPES];
 extern UINT32 gametypetol[NUMGAMETYPES];

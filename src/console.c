@@ -721,6 +721,11 @@ boolean CON_Ready(void)
 	return ready;
 }
 
+boolean CON_Allowed(void)
+{
+	return (!modeattacking && !metalrecording && !marathonmode && !chat_on);
+}
+
 void CON_Toggle(void)
 {
 	consoletoggle = true;
@@ -742,8 +747,8 @@ void CON_Ticker(void)
 	con_tick &= 7;
 
 #ifdef ONSCREENKEYBOARD
-	// Close the console, if the screen keyboard is not visible
-	if (con_destlines > 0 && (!I_KeyboardOnScreen()))
+	// Close the console if the screen keyboard is not visible
+	if (con_destlines > 0 && !I_KeyboardOnScreen())
 		consoletoggle = true;
 #endif
 

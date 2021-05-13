@@ -505,16 +505,15 @@ static void DrawNavigationButton(INT32 nav)
 	fixed_t dupy = vid.dupy*FRACUNIT;
 
 	INT32 x, y, w, h;
+	INT32 ix, iy, iw, ih;
 	INT32 col, offs;
-	patch_t *font;
-	char symb;
 
 	if (!control->defined)
 		return;
 
 	SCALEMENUBUTTON(control);
 
-	if (strlen(control->patch))
+	if (control->patch && strlen(control->patch))
 	{
 		patch_t *patch = W_CachePatchLongName(control->patch, PU_PATCH);
 
@@ -569,10 +568,10 @@ static void DrawNavigationButton(INT32 nav)
 		return;
 	}
 
-	x /= FRACUNIT;
-	y /= FRACUNIT;
-	w /= FRACUNIT;
-	h /= FRACUNIT;
+	ix = x / FRACUNIT;
+	iy = y / FRACUNIT;
+	iw = w / FRACUNIT;
+	ih = h / FRACUNIT;
 
 	if (control->down)
 	{
@@ -584,37 +583,82 @@ static void DrawNavigationButton(INT32 nav)
 		col = control->color;
 		offs = 0;
 		if (alphalevel >= 10)
-			V_DrawFill(x, y + h, w, shadow, 29|flags);
+			V_DrawFill(ix, iy + ih, iw, shadow, 29|flags);
 	}
 
-	drawfill(x, y + offs, w, h, col, flags);
+	drawfill(ix, iy + offs, iw, ih, col, flags);
 
-	symb = control->name[0];
-	if (!symb)
-		return;
-
-	font = hu_font[toupper(symb) - HU_FONTSTART];
-	if (!font)
-		return;
-
-	if (!control->dontscaletext)
+	// Draw the button name
+	if (strlen(control->name) > 1)
 	{
-		xscale = FixedDiv(control->w, 24 * FRACUNIT);
-		yscale = FixedDiv(control->h, 24 * FRACUNIT);
+		INT32 strflags = (flags | V_ALLOWLOWERCASE);
+		INT32 snapflags = control->snapflags;
+
+		fixed_t strx = x, stry = y;
+		fixed_t strwidth = V_StringWidth(control->name, strflags) * FRACUNIT;
+		fixed_t strheight = FixedMul(8 * FRACUNIT, vid.fdupy);
+		fixed_t hcorner = FixedMul(4 * FRACUNIT, vid.fdupx);
+		fixed_t vcorner = FixedMul(4 * FRACUNIT, vid.fdupy);
+
+		if (snapflags & V_SNAPTOLEFT)
+			strx += hcorner;
+		else if (snapflags & V_SNAPTORIGHT)
+		{
+			strx += w;
+			strx -= (strwidth + hcorner);
+		}
+		else
+		{
+			strx += w / 2;
+			strx -= (strwidth / 2);
+		}
+
+		if (snapflags & V_SNAPTOTOP)
+			stry += vcorner;
+		else if (snapflags & V_SNAPTOBOTTOM)
+		{
+			stry += h;
+			stry -= (strheight + vcorner);
+		}
+		else
+		{
+			stry += h / 2;
+			stry -= (strheight / 2);
+		}
+
+		stry += (offs * FRACUNIT);
+
+		V_DrawScaledString(strx, stry, FRACUNIT, strflags, control->name);
 	}
 	else
-		xscale = yscale = FRACUNIT;
+	{
+		patch_t *font;
 
-	cx = (x + (w / 2)) * FRACUNIT;
-	cx -= (font->width * vid.dupx * xscale) / 2;
-	if (symb == '\x1C')
-		x += 2*xscale;
+		char symb = control->name[0];
+		if (!symb)
+			return;
 
-	cy = (y + (h / 2)) * FRACUNIT;
-	cy -= (font->height * vid.dupy * yscale) / 2;
-	cy += (offs * FRACUNIT);
+		font = hu_font[toupper(symb) - HU_FONTSTART];
+		if (!font)
+			return;
 
-	V_DrawStretchyFixedPatch(cx, cy, xscale, yscale, flags, font, NULL);
+		if (!control->dontscaletext)
+		{
+			xscale = FixedDiv(control->w, 24 * FRACUNIT);
+			yscale = FixedDiv(control->h, 24 * FRACUNIT);
+		}
+		else
+			xscale = yscale = FRACUNIT;
+
+		cx = x + (w / 2);
+		cx -= (font->width * vid.dupx * xscale) / 2;
+
+		cy = y + (h / 2);
+		cy -= (font->height * vid.dupy * yscale) / 2;
+		cy += (offs * FRACUNIT);
+
+		V_DrawStretchyFixedPatch(cx, cy, xscale, yscale, flags, font, NULL);
+	}
 }
 
 void TS_DrawNavigation(void)
@@ -628,6 +672,7 @@ void TS_DrawNavigation(void)
 	DrawNavigationButton(TOUCHNAV_BACK);
 	DrawNavigationButton(TOUCHNAV_CONFIRM);
 	DrawNavigationButton(TOUCHNAV_CONSOLE);
+	DrawNavigationButton(TOUCHNAV_DELETE);
 }
 
 #undef drawfill

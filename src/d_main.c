@@ -146,8 +146,11 @@ INT32 debugload = 0;
 UINT16 numskincolors;
 menucolor_t *menucolorhead, *menucolortail;
 
-char savegamename[256];
-char liveeventbackup[256];
+char savegamename[2][SAVEGAMENAMELEN];
+char liveeventbackup[2][SAVEGAMENAMELEN];
+
+char *cursavegamename = savegamename[0];
+char *curliveeventbackup = liveeventbackup[0];
 
 char srb2home[256] = ".";
 char srb2path[256] = ".";
@@ -882,6 +885,10 @@ void D_StartTitle(void)
 	// empty maptol so mario/etc sounds don't play in sound test when they shouldn't
 	maptol = 0;
 
+	// reset savegame names
+	cursavegamename = savegamename[0];
+	curliveeventbackup = liveeventbackup[0];
+
 	gameaction = ga_nothing;
 	displayplayer = consoleplayer = 0;
 	G_SetGametype(GT_COOP);
@@ -1010,9 +1017,7 @@ static void IdentifyVersion(void)
 	srb2waddir = I_LocateWad();
 #endif
 
-#if defined(__ANDROID__)
-	strlcpy(srb2path, I_AppStorageLocation(), sizeof(srb2path));
-#else
+#if !defined(__ANDROID__)
 	// get the current directory (possible problem on NT with "." as current dir)
 	if (srb2waddir)
 	{
@@ -1673,6 +1678,35 @@ const char *D_Home(void)
 	else return NULL;
 }
 
+// default savegame
+void D_DefaultSaveGameName(const char *name)
+{
+	strlcpy(savegamename[0], name, sizeof(savegamename[0]));
+#ifdef USE_SAVEGAME_PATHS
+	strlcpy(savegamename[1], name, sizeof(savegamename[1]));
+#endif
+}
+
+void D_DefaultLiveEventName(const char *name)
+{
+	strlcpy(liveeventbackup[0], name, sizeof(liveeventbackup[0]));
+#ifdef USE_SAVEGAME_PATHS
+	strlcpy(liveeventbackup[1], name, sizeof(liveeventbackup[1]));
+#endif
+}
+
+void D_MakeSaveGamePaths(const char *home)
+{
+	// can't use snprintf since there is %u in savegamename
+	strcatbf(savegamename[0], home, PATHSEP);
+	strcatbf(liveeventbackup[0], home, PATHSEP);
+
+#ifdef USE_SAVEGAME_PATHS
+	strcatbf(savegamename[1], srb2path, PATHSEP);
+	strcatbf(liveeventbackup[1], srb2path, PATHSEP);
+#endif
+}
+
 #if defined(__ANDROID__)
 static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, const char **homelist, char *defpath)
 {
@@ -1694,10 +1728,6 @@ static void D_AndroidSetupHome(const char *userhome)
 	INT32 next = 0;
 
 	strlcpy(srb2home, userhome, sizeof(srb2home));
-
-	// can't use sprintf since there is %u in savegamename
-	strcatbf(savegamename, srb2home, PATHSEP);
-	strcatbf(liveeventbackup, srb2home, PATHSEP);
 
 #define ListAdd(path) \
 	homelist[next] = path; \
@@ -1731,9 +1761,12 @@ void D_SetupHome(void)
 {
 	const char *userhome = D_Home(); //Alam: path to home
 
-	// default savegame
-	strcpy(savegamename, SAVEGAMENAME"%u.ssg");
-	strcpy(liveeventbackup, "live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
+#if defined(__ANDROID__)
+	strlcpy(srb2path, I_AppStorageLocation(), sizeof(srb2path));
+#endif
+
+	D_DefaultSaveGameName(SAVEGAMENAME"%u.ssg");
+	D_DefaultLiveEventName("live"SAVEGAMENAME".bkp"); // intentionally not ending with .ssg
 
 	if (!userhome)
 	{
@@ -1759,10 +1792,6 @@ void D_SetupHome(void)
 		else
 			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, srb2home);
 
-		// can't use sprintf since there is %u in savegamename
-		strcatbf(savegamename, srb2home, PATHSEP);
-		strcatbf(liveeventbackup, srb2home, PATHSEP);
-
 #ifdef TOUCHINPUTS
 		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", srb2home);
 #endif
@@ -1776,16 +1805,14 @@ void D_SetupHome(void)
 		else
 			snprintf(configfile, sizeof configfile, "%s" PATHSEP CONFIGFILENAME, userhome);
 
-		// can't use sprintf since there is %u in savegamename
-		strcatbf(savegamename, userhome, PATHSEP);
-		strcatbf(liveeventbackup, userhome, PATHSEP);
-
 #ifdef TOUCHINPUTS
 		snprintf(touchlayoutfolder, sizeof touchlayoutfolder, "%s" PATHSEP "touchlayouts", userhome);
 #endif
 
 		snprintf(luafiledir, sizeof luafiledir, "%s" PATHSEP "luafiles", userhome);
 #endif // DEFAULTDIR
+
+		D_MakeSaveGamePaths(srb2home);
 	}
 
 	configfile[sizeof configfile - 1] = '\0';

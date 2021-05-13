@@ -422,6 +422,8 @@ boolean M_TSNav_CanShowBack(void);
 boolean M_TSNav_CanShowConfirm(void);
 boolean M_TSNav_CanShowConsole(void);
 
+INT32 M_TSNav_DeleteButtonAction(void);
+
 boolean M_TSNav_OnMainMenu(void);
 boolean M_TSNav_OnMessage(void);
 
@@ -430,10 +432,11 @@ INT32 M_TSNav_BackCorner(void);
 void M_TSNav_SetBackVisible(boolean set);
 void M_TSNav_SetConfirmVisible(boolean set);
 void M_TSNav_SetConsoleVisible(boolean set);
+void M_TSNav_SetDeleteVisible(boolean set);
 
 void M_TSNav_ShowAll(void);
 void M_TSNav_HideAll(void);
-void M_TSNav_ShowAllExceptConsole(void);
+void M_TSNav_ShowDefaultScheme(void);
 
 boolean M_IsOnTouchOptions(void);
 boolean M_IsCustomizingTouchControls(void);

@@ -168,7 +168,8 @@ static UINT32 serverlistpage;
 #endif
 
 static UINT8 numsaves = 0;
-static saveinfo_t* savegameinfo = NULL; // Extra info about the save games.
+static saveinfo_t *savegameinfo = NULL; // Extra info about the save games.
+static char savegamepaths[MAXSAVEGAMES-1][SAVEGAMENAMELEN];
 static patch_t *savselp[7];
 
 INT16 startmap; // Mario, NiGHTS, or just a plain old normal game?
@@ -636,8 +637,6 @@ static void M_SaveSelectConfirm(void);
 static void M_ResetSaveSelectFX(void);
 
 static void M_GetSaveSelectSlotPosition(INT32 i, INT32 *retx, INT32 *rety);
-
-static void M_CacheLoadGameData(void);
 
 // ================
 // CHARACTER SELECT
@@ -3777,6 +3776,8 @@ static const char *M_GetModeAttackExitString(void)
 		return va(M_GetText("Push %s to exit"), G_KeynumToString(UserAction_GetESCButton(INPUTMETHOD_JOYSTICK)));
 	else if (inputmethod == INPUTMETHOD_TVREMOTE)
 		return M_GetText("Push Back to exit");
+	else if (inputmethod == INPUTMETHOD_MOUSE)
+		return M_GetText("Click right to exit");
 	else
 		return M_GetText("Press ESC to exit");
 }
@@ -3808,6 +3809,7 @@ void M_ShowESCMessage(const char *message)
 static boolean tsnav_showback    = true;
 static boolean tsnav_showconfirm = true;
 static boolean tsnav_showconsole = true;
+static boolean tsnav_showdelete  = false;
 
 boolean M_TSNav_CanShowBack(void)
 {
@@ -3841,6 +3843,25 @@ boolean M_TSNav_CanShowConsole(void)
 		return true;
 
 	return tsnav_showconsole;
+}
+
+INT32 M_TSNav_DeleteButtonAction(void)
+{
+	if (currentMenu == &SP_LoadDef)
+	{
+		if (saveSlotSelected == NOSAVESLOT)
+			return KEY_NULL;
+
+		if (savegameinfo[saveSlotSelected-1].lives == -42)
+			return KEY_NULL;
+
+		return KEY_BACKSPACE;
+	}
+
+	if (tsnav_showdelete)
+		return KEY_DEL;
+
+	return KEY_NULL;
 }
 
 static boolean M_TSNav_OnTextField(void)
@@ -3900,6 +3921,11 @@ void M_TSNav_SetConsoleVisible(boolean set)
 	tsnav_showconsole = set;
 }
 
+void M_TSNav_SetDeleteVisible(boolean set)
+{
+	tsnav_showdelete = set;
+}
+
 void M_TSNav_ShowAll(void)
 {
 	M_TSNav_SetBackVisible(true);
@@ -3914,10 +3940,11 @@ void M_TSNav_HideAll(void)
 	M_TSNav_SetConsoleVisible(false);
 }
 
-void M_TSNav_ShowAllExceptConsole(void)
+void M_TSNav_ShowDefaultScheme(void)
 {
 	M_TSNav_ShowAll();
 	M_TSNav_SetConsoleVisible(false);
+	M_TSNav_SetDeleteVisible(false);
 }
 
 void M_TSNav_Update(void)
@@ -5775,7 +5802,7 @@ boolean M_MouseNeeded(void)
 
 static void M_DetectInputMethod(INT32 key)
 {
-#ifdef TOUCHINPUTS
+#ifdef ONSCREENKEYBOARD
 	if (menuactive && I_KeyboardOnScreen())
 		return;
 #endif
@@ -5820,7 +5847,6 @@ boolean M_Responder(event_t *ev)
 	if (noFurtherInput)
 	{
 		// Ignore input after enter/escape/other buttons
-		// (but still allow shift keyup so caps doesn't get stuck)
 		return false;
 	}
 	else if (menuactive)
@@ -6055,7 +6081,7 @@ boolean M_Responder(event_t *ev)
 	}
 
 #ifdef TOUCHINPUTS
-	if (ch == KEY_CONSOLE)
+	if (inputmethod == INPUTMETHOD_TOUCH && ch == KEY_CONSOLE && CON_Allowed())
 	{
 		CON_Toggle();
 		return true;
@@ -6505,7 +6531,7 @@ void M_StartControlPanel(void)
 
 #ifdef TOUCHINPUTS
 	// Update touch screen navigation
-	M_TSNav_ShowAllExceptConsole();
+	M_TSNav_ShowDefaultScheme();
 	M_TSNav_Update();
 #endif
 
@@ -6651,7 +6677,7 @@ void M_SetupNextMenu(menu_t *menudef)
 	lastItemOn = itemOn - 1;
 
 #ifdef TOUCHINPUTS
-	M_TSNav_ShowAllExceptConsole();
+	M_TSNav_ShowDefaultScheme();
 	M_TSNav_Update();
 #endif
 }
@@ -9364,7 +9390,7 @@ void M_StartMessage(const char *string, void *routine,
 	if (M_TSNav_OnMessage())
 		M_TSNav_HideAll();
 	else
-		M_TSNav_ShowAllExceptConsole();
+		M_TSNav_ShowDefaultScheme();
 
 	M_TSNav_Update();
 #endif
@@ -12176,17 +12202,6 @@ static void M_StartTutorial(INT32 choice)
 // LOAD GAME MENU
 // ==============
 
-static void M_CacheLoadGameData(void)
-{
-	savselp[0] = W_CachePatchName("SAVEBACK", PU_PATCH);
-	savselp[1] = W_CachePatchName("SAVENONE", PU_PATCH);
-	savselp[2] = W_CachePatchName("ULTIMATE", PU_PATCH);
-
-	savselp[3] = W_CachePatchName("GAMEDONE", PU_PATCH);
-	savselp[4] = W_CachePatchName("BLACXLVL", PU_PATCH);
-	savselp[5] = W_CachePatchName("BLANKLVL", PU_PATCH);
-}
-
 static void M_DrawLoadGameData(void)
 {
 	INT32 i, prev_i = 1, savetodraw, x, y, hsep = 90;
@@ -12501,14 +12516,17 @@ static void M_LoadSelect(INT32 choice)
 {
 	(void)choice;
 
-	if (saveSlotSelected == NOSAVESLOT) //last slot is play without saving
+	cursavegamename = savegamename[0];
+	curliveeventbackup = liveeventbackup[0];
+
+	if (saveSlotSelected == NOSAVESLOT) // first slot is play without saving
 	{
 		M_NewGame();
 		cursaveslot = 0;
 		return;
 	}
 
-	if (!FIL_ReadFileOK(va(savegamename, saveSlotSelected)) || !I_StoragePermission())
+	if (!FIL_ReadFileOK(savegamepaths[saveSlotSelected-1]) || !I_StoragePermission())
 	{
 		// This slot is empty, so start a new game here.
 		M_NewGame();
@@ -12529,7 +12547,7 @@ static void M_LoadSelect(INT32 choice)
 static void M_ReadSavegameInfo(UINT32 slot)
 {
 	size_t length;
-	char savename[255];
+	char savename[SAVEGAMENAMELEN];
 	UINT8 *savebuffer;
 	UINT8 *end_p; // buffer end point, don't read past here
 	UINT8 *save_p;
@@ -12537,11 +12555,8 @@ static void M_ReadSavegameInfo(UINT32 slot)
 	char temp[sizeof(timeattackfolder)];
 	char vcheck[VERSIONSIZE];
 
-	sprintf(savename, savegamename, slot);
-
+	length = G_ReadSaveGameSlot(savename, &savebuffer, slot);
 	slot--;
-
-	length = FIL_ReadFile(savename, &savebuffer);
 	if (length == 0)
 	{
 		savegameinfo[slot].lives = -42;
@@ -12642,16 +12657,44 @@ static void M_ReadSavegameInfo(UINT32 slot)
 #undef CHECKPOS
 #undef BADSAVE
 
-//
-// M_ReadSaveStrings
-//  read the strings from the savegame files
-//  and put it in savegamestrings global variable
-//
-static void M_ReadSaveStrings(void)
+static boolean M_OpenSaveFileName(char *name)
 {
-	FILE *handle;
-	SINT8 i;
-	char name[256];
+	FILE *handle = fopen(name, "rb");
+	if (handle == NULL)
+		return false;
+
+	fclose(handle);
+	return true;
+}
+
+static boolean M_OpenSaveFileSlot(SINT8 slot)
+{
+	char *name = savegamepaths[slot-1];
+
+	snprintf(name, SAVEGAMENAMELEN, savegamename[0], slot);
+	name[SAVEGAMENAMELEN - 1] = '\0';
+
+	if (M_OpenSaveFileName(name))
+		return true;
+
+#ifdef USE_SAVEGAME_PATHS
+	snprintf(name, SAVEGAMENAMELEN, savegamename[1], slot);
+	name[SAVEGAMENAMELEN - 1] = '\0';
+
+	if (M_OpenSaveFileName(name))
+		return true;
+#endif
+
+	return false;
+}
+
+//
+// M_ReadSaveFiles
+// read the data from the savegame files
+//
+static void M_ReadSaveFiles(void)
+{
+	SINT8 i = 1; // slot 0 is no save
 	boolean nofile[MAXSAVEGAMES-1];
 	SINT8 tolerance = 3; // empty slots at any time
 	UINT8 lastseen = 0;
@@ -12661,20 +12704,23 @@ static void M_ReadSaveStrings(void)
 #endif
 	loadgameoffset = 14;
 
-	for (i = 1; (i < MAXSAVEGAMES); i++) // slot 0 is no save
+	if (I_StoragePermission())
 	{
-		if (I_StoragePermission())
+		for (; (i < MAXSAVEGAMES); i++)
 		{
-			snprintf(name, sizeof name, savegamename, i);
-			name[sizeof name - 1] = '\0';
-
-			handle = fopen(name, "rb");
-			if ((nofile[i-1] = (handle == NULL)))
+			if (!M_OpenSaveFileSlot(i))
+			{
+				nofile[i-1] = true;
 				continue;
-			fclose(handle);
+			}
+
+			nofile[i-1] = false;
 			lastseen = i;
 		}
-		else
+	}
+	else
+	{
+		for (; (i < MAXSAVEGAMES); i++)
 			nofile[i-1] = true;
 	}
 
@@ -12711,7 +12757,13 @@ static void M_ReadSaveStrings(void)
 		M_ReadSavegameInfo(i);
 	}
 
-	M_CacheLoadGameData();
+	savselp[0] = W_CachePatchName("SAVEBACK", PU_PATCH);
+	savselp[1] = W_CachePatchName("SAVENONE", PU_PATCH);
+	savselp[2] = W_CachePatchName("ULTIMATE", PU_PATCH);
+
+	savselp[3] = W_CachePatchName("GAMEDONE", PU_PATCH);
+	savselp[4] = W_CachePatchName("BLACXLVL", PU_PATCH);
+	savselp[5] = W_CachePatchName("BLANKLVL", PU_PATCH);
 }
 
 //
@@ -12719,18 +12771,14 @@ static void M_ReadSaveStrings(void)
 //
 static void M_SaveGameDeleteResponse(INT32 ch)
 {
-	char name[256];
-
 	if (ch != 'y' && ch != KEY_ENTER)
 		return;
 
 	// delete savegame
-	snprintf(name, sizeof name, savegamename, saveSlotSelected);
-	name[sizeof name - 1] = '\0';
-	remove(name);
+	remove(savegamepaths[saveSlotSelected-1]);
 
 	BwehHehHe();
-	M_ReadSaveStrings(); // reload the menu
+	M_ReadSaveFiles(); // reload the menu
 }
 
 static void M_SaveGameUltimateResponse(INT32 ch)
@@ -13005,7 +13053,7 @@ TSNAVHANDLER(SaveSelect)
 static void M_LoadGame(INT32 choice)
 {
 	(void)choice;
-	M_ReadSaveStrings();
+	M_ReadSaveFiles();
 	M_NavigationAdvance(&SP_LoadDef);
 }
 
@@ -14835,7 +14883,7 @@ static void M_ModeAttackEndGame(INT32 choice)
 	}
 
 #ifdef TOUCHINPUTS
-	M_TSNav_ShowAllExceptConsole();
+	M_TSNav_ShowDefaultScheme();
 	M_TSNav_Update();
 #endif
 
@@ -14863,8 +14911,8 @@ static void M_MarathonLiveEventBackup(INT32 choice)
 
 	if (choice == KEY_DEL)
 	{
-		if (FIL_FileExists(liveeventbackup)) // just in case someone deleted it while we weren't looking.
-			remove(liveeventbackup);
+		if (FIL_FileExists(curliveeventbackup)) // just in case someone deleted it while we weren't looking.
+			remove(curliveeventbackup);
 		BwehHehHe();
 		M_StartMessage("Live event backup erased.\n",M_Marathon,MM_NOTHING);
 		return;
@@ -14876,19 +14924,50 @@ static void M_MarathonLiveEventBackup(INT32 choice)
 // Going to Marathon menu...
 static void M_Marathon(INT32 choice)
 {
+	char *eventsave = G_LiveEventHasBackup();
 	UINT8 skinset;
 	INT32 mapnum = 0;
 
-	if (choice != -1 && FIL_FileExists(liveeventbackup))
+	if (eventsave)
+		curliveeventbackup = eventsave;
+	else
+		curliveeventbackup = liveeventbackup[0];
+
+	if (choice != -1 && eventsave)
 	{
-		M_StartMessage(\
+		const char *instructions = NULL;
+
+		if (inputmethod == INPUTMETHOD_TOUCH)
+		{
+			instructions =\
+			"Tap 'Confirm' to resume, tap\n\
+			'Del' to delete, or tap 'Back'\n\
+			to continue to Marathon Run.";
+		}
+		else if (inputmethod == INPUTMETHOD_TVREMOTE)
+		{
+			instructions =\
+			"Push 'Center' to resume, or push\n\
+			'Back' to continue to Marathon Run.";
+		}
+		else
+		{
+			instructions =\
+			"Press 'Y' or 'Enter' to resume,\n\
+			'Del' to delete, or any other\n\
+			key to continue to Marathon Run.";
+		}
+
+		M_StartMessage(va(
 			"\x82Live event backup detected.\n\x80\
 			Do you want to resurrect the last run?\n\
 			(Fs in chat if we crashed on stream.)\n\
-			\n\
-			Press 'Y' or 'Enter' to resume,\n\
-			'Del' to delete, or any other\n\
-			key to continue to Marathon Run.",M_MarathonLiveEventBackup,MM_YESNO);
+			\n%s", instructions), M_MarathonLiveEventBackup, MM_YESNO);
+
+#ifdef TOUCHINPUTS
+		M_TSNav_SetDeleteVisible(true);
+#endif
+
 		return;
 	}
 

@@ -3836,6 +3836,7 @@ void readmaincfg(MYFILE *f)
 			else if (fastcmp(word, "GAMEDATA"))
 			{
 				size_t filenamelen;
+				char savegame[SAVEGAMENAMELEN];
 
 				// Check the data filename so that mods
 				// can't write arbitrary files.
@@ -3852,13 +3853,13 @@ void readmaincfg(MYFILE *f)
 				strncpy(timeattackfolder, gamedatafilename, min(filenamelen, sizeof (timeattackfolder)));
 				timeattackfolder[min(filenamelen, sizeof (timeattackfolder) - 1)] = '\0';
 
-				strcpy(savegamename, timeattackfolder);
-				strlcat(savegamename, "%u.ssg", sizeof(savegamename));
-				// can't use sprintf since there is %u in savegamename
-				strcatbf(savegamename, srb2home, PATHSEP);
+				strlcpy(savegame, timeattackfolder, sizeof(savegame));
+				strlcat(savegame, "%u.ssg", sizeof(savegame));
 
-				strcpy(liveeventbackup, va("live%s.bkp", timeattackfolder));
-				strcatbf(liveeventbackup, srb2home, PATHSEP);
+				D_DefaultSaveGameName(savegame);
+				D_DefaultLiveEventName(va("live%s.bkp", timeattackfolder)); // intentionally not ending with .ssg
+
+				D_MakeSaveGamePaths(srb2home);
 
 				gamedataadded = true;
 				titlechanged = true;

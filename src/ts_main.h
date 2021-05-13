@@ -102,6 +102,7 @@ typedef struct
 	const char *patch; // patch
 	UINT8 color, pressedcolor; // colors
 	boolean shadow; // display a shadow beneath the button
+	UINT32 snapflags; // text snap flags
 
 	boolean down; // is down
 	tic_t tics; // time held down
@@ -119,6 +120,7 @@ enum
 	TOUCHNAV_BACK,
 	TOUCHNAV_CONFIRM,
 	TOUCHNAV_CONSOLE,
+	TOUCHNAV_DELETE,
 	NUMTOUCHNAV
 };
 
@@ -215,7 +217,9 @@ typedef struct
 
 	boolean canreturn; // M_TSNav_CanShowBack
 	boolean canconfirm; // M_TSNav_CanShowConfirm
-	boolean canopenconsole; // (!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole()
+	boolean canopenconsole; // M_TSNav_CanShowConsole
+	INT32 showdelete; // M_TSNav_DeleteButtonAction
+
 	boolean customizingcontrols; // TS_IsCustomizingControls
 	boolean layoutsubmenuopen; // TS_IsCustomizationSubmenuOpen
 	INT32 returncorner; // M_TSNav_BackCorner

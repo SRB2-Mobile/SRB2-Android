@@ -2200,7 +2200,7 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 static void CL_QuitConnectionScreen(void)
 {
 #ifdef TOUCHINPUTS
-	M_TSNav_ShowAll();
+	M_TSNav_ShowDefaultScheme();
 	TS_ClearFingers();
 	TS_ClearNavigation();
 	TS_PositionNavigation();

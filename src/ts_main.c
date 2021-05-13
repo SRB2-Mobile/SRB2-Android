@@ -1529,6 +1529,7 @@ void TS_PositionNavigation(void)
 	touchnavbutton_t *back = &nav[TOUCHNAV_BACK];
 	touchnavbutton_t *confirm = &nav[TOUCHNAV_CONFIRM];
 	touchnavbutton_t *con = &nav[TOUCHNAV_CONSOLE];
+	touchnavbutton_t *del = &nav[TOUCHNAV_DELETE];
 
 	if (vid.width != BASEVIDWIDTH * vid.dupx)
 	{
@@ -1554,13 +1555,13 @@ void TS_PositionNavigation(void)
 	back->shadow = false;
 	back->dontscaletext = (btnsize == basebtnsize);
 	back->defined = true;
+	back->patch = NULL;
 
 	if (!status->canreturn)
 		back->defined = false;
 	else if (status->customizingcontrols)
 	{
 		back->name = "\x1C";
-		back->patch = "";
 		back->w = 16 * FRACUNIT;
 		back->h = 16 * FRACUNIT;
 		back->color = 35;
@@ -1596,13 +1597,13 @@ void TS_PositionNavigation(void)
 	confirm->shadow = false;
 	confirm->dontscaletext = (btnsize == basebtnsize);
 	confirm->defined = true;
+	confirm->patch = NULL;
 
 	if (status->layoutsubmenuopen || !status->canconfirm)
 		confirm->defined = false;
 	else if (status->customizingcontrols)
 	{
 		confirm->name = "+";
-		confirm->patch = "";
 		confirm->w = 32 * FRACUNIT;
 		confirm->h = 16 * FRACUNIT;
 		confirm->x = (((vid.width / (vid.dupx * 2)) * FRACUNIT) - (confirm->w / 2));
@@ -1621,7 +1622,7 @@ void TS_PositionNavigation(void)
 
 	// Console
 	con->key = KEY_CONSOLE;
-	con->defined = (status->canopenconsole);
+	con->defined = status->canopenconsole;
 
 	if (con->defined)
 	{
@@ -1642,6 +1643,34 @@ void TS_PositionNavigation(void)
 			con->patch = "NAV_CONSOLE_SHORT";
 			con->w = con->h;
 		}
+	}
+
+	// Delete
+	del->key = status->showdelete;
+	del->defined = (del->key != KEY_NULL);
+	del->snapflags = 0;
+
+	if (del->defined)
+	{
+		del->w = 32 * FRACUNIT;
+		del->h = 24 * FRACUNIT;
+
+		if (currentMenu == &SP_LoadDef)
+		{
+			del->name = "DELETE";
+			del->w += 24 * FRACUNIT;
+		}
+		else
+		{
+			del->name = "DEL";
+			del->snapflags |= V_SNAPTOBOTTOM;
+		}
+
+		del->x = hcorner;
+		del->y = (((vid.height / vid.dupy) * FRACUNIT) - del->h) - vcorner;
+
+		del->color = 35;
+		del->pressedcolor = del->color + 3;
 	}
 
 	// Normalize all buttons
@@ -1742,8 +1771,13 @@ void TS_DefineNavigationButtons(void)
 	navstatus.layoutsubmenuopen = TS_IsCustomizationSubmenuOpen();
 	navstatus.canreturn = M_TSNav_CanShowBack();
 	navstatus.canconfirm = M_TSNav_CanShowConfirm();
-	navstatus.canopenconsole = ((!(modeattacking || metalrecording) && !navstatus.customizingcontrols) && M_TSNav_CanShowConsole());
+	navstatus.showdelete = M_TSNav_DeleteButtonAction();
 	navstatus.returncorner = M_TSNav_BackCorner();
+
+	if (modeattacking || metalrecording || marathonmode || navstatus.customizingcontrols)
+		navstatus.canopenconsole = false;
+	else
+		navstatus.canopenconsole = M_TSNav_CanShowConsole();
 
 	if (memcmp(&navstatus, &touchnavigationstatus, size))
 	{

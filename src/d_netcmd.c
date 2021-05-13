@@ -3666,6 +3666,7 @@ static void Command_Playintro_f(void)
 	if (dirmenu)
 		closefilemenu(true);
 
+	M_ClearMenus(false);
 	F_StartIntro();
 }
 
