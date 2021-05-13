@@ -4205,11 +4205,12 @@ void G_LoadGameSettings(void)
 	S_InitRuntimeSounds();
 }
 
+static boolean gamedatainpath = false;
+
 // G_LoadGameData
 // Loads the main data file, which stores information such as emblems found, etc.
 void G_LoadGameData(void)
 {
-	size_t length;
 	INT32 i, j;
 	UINT8 modded = false;
 	UINT8 rtemp;
@@ -4233,6 +4234,7 @@ void G_LoadGameData(void)
 
 	// Allow saving of gamedata beyond this point
 	gamedataloaded = true;
+	gamedatainpath = false;
 
 	if (M_CheckParm("-gamedata") && M_IsNextParm())
 	{
@@ -4242,9 +4244,15 @@ void G_LoadGameData(void)
 	if (M_CheckParm("-resetdata"))
 		return; // Don't load (essentially, reset).
 
-	length = FIL_ReadFile(va(pandf, srb2home, gamedatafilename), &savebuffer);
-	if (!length) // Aw, no game data. Their loss!
-		return;
+	if (!FIL_ReadFile(va(pandf, srb2home, gamedatafilename), &savebuffer))
+	{
+#if defined(__ANDROID__)
+		if (FIL_ReadFile(va(pandf, srb2path, gamedatafilename), &savebuffer))
+			gamedatainpath = true;
+		else
+#endif
+			return;
+	}
 
 	save_p = savebuffer;
 
@@ -4489,6 +4497,11 @@ void G_SaveGameData(void)
 
 	length = save_p - savebuffer;
 
+#if defined(__ANDROID__)
+	if (gamedatainpath)
+		FIL_WriteFile(va(pandf, srb2path, gamedatafilename), savebuffer, length);
+	else
+#endif
 	FIL_WriteFile(va(pandf, srb2home, gamedatafilename), savebuffer, length);
 	free(savebuffer);
 	save_p = savebuffer = NULL;
