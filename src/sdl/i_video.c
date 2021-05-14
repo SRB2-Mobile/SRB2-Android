@@ -684,6 +684,9 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	static SDL_bool mousefocus = SDL_TRUE;
 	static SDL_bool kbfocus = SDL_TRUE;
 
+	static Sint32 windowWidth = 0;
+	static Sint32 windowHeight = 0;
+
 	switch (evt.event)
 	{
 		case SDL_WINDOWEVENT_ENTER:
@@ -704,17 +707,27 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 #if defined(__ANDROID__)
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
-			if (appWindowWidth != evt.data1 || appWindowHeight != evt.data2)
+			if (windowWidth != evt.data1 || windowHeight != evt.data2)
 			{
+				boolean changed = false;
+
+				windowWidth = evt.data1;
+				windowHeight = evt.data2;
+
 				if (JNI_IsInMultiWindowMode())
 				{
-					appWindowWidth = evt.data1;
-					appWindowHeight = evt.data2;
+					appWindowWidth = windowWidth;
+					appWindowHeight = windowHeight;
+					changed = (appWindowWidth != vid.width || appWindowHeight != vid.height);
 				}
 				else
+				{
+					if (appWindowWidth || appWindowHeight)
+						changed = true;
 					appWindowWidth = appWindowHeight = 0;
+				}
 
-				if (cv_nativeres.value)
+				if (cv_nativeres.value && changed)
 				{
 					SCR_CheckNativeMode();
 					setmodeneeded = vid.modenum + 1;
