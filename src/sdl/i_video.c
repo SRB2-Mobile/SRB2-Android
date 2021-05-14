@@ -686,6 +686,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	static Sint32 windowWidth = 0;
 	static Sint32 windowHeight = 0;
 
+#ifdef NATIVESCREENRES
+	boolean changed = false;
+#endif
+
 	switch (evt.event)
 	{
 		case SDL_WINDOWEVENT_ENTER:
@@ -705,50 +709,43 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
-			if (windowWidth != evt.data1 || windowHeight != evt.data2)
-			{
-#ifdef NATIVESCREENRES
-				boolean changed = false;
-#endif
-
-				windowWidth = evt.data1;
-				windowHeight = evt.data2;
+			windowWidth = evt.data1;
+			windowHeight = evt.data2;
 
 #if defined(__ANDROID__)
-				if (JNI_IsInMultiWindowMode())
-				{
-					appWindowWidth = windowWidth;
-					appWindowHeight = windowHeight;
+			if (JNI_IsInMultiWindowMode())
+			{
+				appWindowWidth = windowWidth;
+				appWindowHeight = windowHeight;
 #ifdef NATIVESCREENRES
-					changed = (appWindowWidth != vid.width || appWindowHeight != vid.height);
-#endif
-				}
-				else
-#endif // defined(__ANDROID__)
-				{
-#ifdef NATIVESCREENRES
-					if (appWindowWidth || appWindowHeight)
-						changed = true;
-#endif
-					appWindowWidth = appWindowHeight = 0;
-				}
-
-#ifdef NATIVESCREENRES
-				if (cv_nativeres.value && changed)
-				{
-					SCR_CheckNativeMode();
-					setmodeneeded = vid.modenum + 1;
-
-					// Stealth change current resolution divider variable
-					if (cv_nativeresauto.value)
-					{
-						char f[16];
-						snprintf(f, sizeof(f), "%.6f", scr_resdiv);
-						CV_StealthSet(&cv_nativeresdiv, f);
-					}
-				}
+				changed = (windowWidth != vid.width || windowHeight != vid.height);
 #endif
 			}
+			else
+#endif // defined(__ANDROID__)
+			{
+#ifdef NATIVESCREENRES
+				if (appWindowWidth || appWindowHeight)
+					changed = true;
+#endif
+				appWindowWidth = appWindowHeight = 0;
+			}
+
+#ifdef NATIVESCREENRES
+			if (cv_nativeres.value && changed)
+			{
+				SCR_CheckNativeMode();
+				setmodeneeded = vid.modenum + 1;
+
+				// Stealth change current resolution divider variable
+				if (cv_nativeresauto.value)
+				{
+					char f[16];
+					snprintf(f, sizeof(f), "%.6f", scr_resdiv);
+					CV_StealthSet(&cv_nativeresdiv, f);
+				}
+			}
+#endif
 			break;
 	}
 
