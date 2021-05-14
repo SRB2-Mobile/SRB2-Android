@@ -32,7 +32,7 @@
 #include "SDL.h"
 
 #if defined(__ANDROID__)
-#include "SDL_rwops.h"
+#include <jni_android.h>
 #endif
 
 #ifdef _MSC_VER
@@ -100,6 +100,10 @@
 	#include "../r_picformats.h" // zlib defines and png.h include
 	#ifdef PNG_READ_SUPPORTED
 		#define SPLASH_SCREEN_SUPPORTED
+
+		#if defined(__ANDROID__)
+			#include "SDL_rwops.h"
+		#endif
 
 		static void SplashScreen_FreeImage(void);
 	#endif
@@ -698,13 +702,17 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
-//#if defined(__ANDROID__)
-#if 0
+#if defined(__ANDROID__)
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 			if (appWindowWidth != evt.data1 || appWindowHeight != evt.data2)
 			{
-				appWindowWidth = evt.data1;
-				appWindowHeight = evt.data2;
+				if (JNI_IsInMultiWindowMode())
+				{
+					appWindowWidth = evt.data1;
+					appWindowHeight = evt.data2;
+				}
+				else
+					appWindowWidth = appWindowHeight = 0;
 
 				if (cv_nativeres.value)
 				{

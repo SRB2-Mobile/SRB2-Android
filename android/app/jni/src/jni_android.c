@@ -374,7 +374,7 @@ boolean JNI_CheckPermission(const char *permission)
 	jstring permissionString = (*env)->NewStringUTF(env, permission);
 	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "checkPermission", "(Ljava/lang/String;)Z");
 	jboolean granted = (*env)->CallStaticBooleanMethod(env, activityClass, method, permissionString);
-	return (granted != JNI_FALSE);
+	return (granted == JNI_TRUE);
 }
 
 boolean JNI_CheckStoragePermission(void)
@@ -395,4 +395,12 @@ const char *JNI_GetWriteExternalStoragePermission(void)
 void JNI_DisplayToast(const char *text)
 {
 	SDL_AndroidShowToast(text, 1, -1, 0, 0);
+}
+
+boolean JNI_IsInMultiWindowMode(void)
+{
+	JNIEnv *env = JNI_GetEnv();
+	jmethodID method = (*env)->GetStaticMethodID(env, activityClass, "inMultiWindowMode", "()Z");
+	jboolean multiwindow = (*env)->CallStaticBooleanMethod(env, activityClass, method);
+	return (multiwindow == JNI_TRUE);
 }
