@@ -16,7 +16,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //-----------------------------------------------------------------------------
-/// \file
+/// \file i_video.c
 /// \brief SRB2 graphics stuff for SDL
 
 #include <stdlib.h>
@@ -79,6 +79,7 @@
 #include "../command.h"
 #include "../r_main.h"
 #include "../lua_hook.h"
+
 #include "sdlmain.h"
 
 #ifdef HWRENDER
@@ -157,6 +158,9 @@ static       SDL_bool    wrapmouseok = SDL_FALSE;
 static       SDL_bool    renderinit = SDL_FALSE;
 static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
+
+static       Sint32      appWindowWidth = 0;
+static       Sint32      appWindowHeight = 0;
 static       SDL_bool    appOnBackground = SDL_FALSE;
 
 Uint16      realwidth = BASEVIDWIDTH;
@@ -258,7 +262,7 @@ static void Impl_RenderContextDestroy(void)
 	renderer = NULL;
 }
 
-static void Impl_RenderContextReset(void)
+void Impl_RenderContextReset(void)
 {
 	int w = realwidth;
 	int h = realheight;
@@ -407,11 +411,6 @@ static SDL_bool SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_b
 	}
 
 	return SDL_TRUE;
-}
-
-void VID_RecreateContext(void)
-{
-	Impl_RenderContextReset();
 }
 
 #if defined(__ANDROID__)
@@ -640,16 +639,6 @@ static void VID_Command_Mode_f (void)
 	}
 }
 
-static void Impl_AppWillEnterBackground(void)
-{
-	appOnBackground = SDL_TRUE;
-}
-
-static void Impl_AppWillEnterForeground(void)
-{
-	appOnBackground = SDL_FALSE;
-}
-
 static void Impl_Unfocused(boolean unfocused)
 {
 	window_notinfocus = unfocused;
@@ -666,6 +655,23 @@ static void Impl_Unfocused(boolean unfocused)
 	}
 	else if (!paused)
 		S_ResumeAudio();
+}
+
+static void Impl_AppWillEnterBackground(void)
+{
+	appOnBackground = SDL_TRUE;
+#if defined(__ANDROID__)
+	Impl_Unfocused(true);
+#endif
+}
+
+static void Impl_AppWillEnterForeground(void)
+{
+	appOnBackground = SDL_FALSE;
+#if defined(__ANDROID__)
+	Impl_AppEnteredForeground();
+	Impl_Unfocused(false);
+#endif
 }
 
 static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
@@ -692,6 +698,30 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
+//#if defined(__ANDROID__)
+#if 0
+		case SDL_WINDOWEVENT_SIZE_CHANGED:
+			if (appWindowWidth != evt.data1 || appWindowHeight != evt.data2)
+			{
+				appWindowWidth = evt.data1;
+				appWindowHeight = evt.data2;
+
+				if (cv_nativeres.value)
+				{
+					SCR_CheckNativeMode();
+					setmodeneeded = vid.modenum + 1;
+
+					// Stealth change current resolution divider variable
+					if (cv_nativeresauto.value)
+					{
+						char f[16];
+						snprintf(f, sizeof(f), "%.6f", scr_resdiv);
+						CV_StealthSet(&cv_nativeresdiv, f);
+					}
+				}
+			}
+			break;
+#endif
 	}
 
 	if (mousefocus && kbfocus)
@@ -1226,16 +1256,9 @@ void I_GetEvent(void)
 				break;
 			case SDL_APP_WILLENTERBACKGROUND:
 				Impl_AppWillEnterBackground();
-#if defined(__ANDROID__)
-				Impl_Unfocused(true);
-#endif
 				break;
 			case SDL_APP_WILLENTERFOREGROUND:
 				Impl_AppWillEnterForeground();
-#if defined(__ANDROID__)
-				Impl_AppEnteredForeground();
-				Impl_Unfocused(false);
-#endif
 				break;
 			case SDL_KEYUP:
 			case SDL_KEYDOWN:
@@ -1592,7 +1615,7 @@ void I_FinishUpdate(void)
 		if (!bufSurface) // Double-check
 			Impl_VideoSetupSDLBuffer();
 
-		VID_BlitSurfaceRegion(0, 0, realwidth, realheight);
+		Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
 
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -1827,22 +1850,48 @@ INT32 VID_CheckRenderer(void)
 	return rendererchanged;
 }
 
+static void Impl_GetCurrentDisplayMode(INT32 *width, INT32 *height)
+{
+	int i = SDL_GetWindowDisplayIndex(window);
+	SDL_DisplayMode resolution;
+
+	if (i < 0)
+		return;
+
+	if (!SDL_GetCurrentDisplayMode(i, &resolution))
+	{
+		if ((*width) == 0)
+			(*width) = (INT32)(resolution.w);
+		if ((*height) == 0)
+			(*height) = (INT32)(resolution.h);
+	}
+}
+
 void VID_GetNativeResolution(INT32 *width, INT32 *height)
 {
-	SDL_DisplayMode resolution;
-	int i;
+	INT32 w = 0, h = 0;
 
-	for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
+#if defined(__ANDROID__)
+	if (appWindowWidth && appWindowHeight)
 	{
-		if (!SDL_GetCurrentDisplayMode(i, &resolution))
-		{
-			if (width)
-				*width = (INT32)(resolution.w);
-			if (height)
-				*height = (INT32)(resolution.h);
-			return;
-		}
+		w = appWindowWidth;
+		h = appWindowHeight;
 	}
+#endif
+
+	if (M_CheckParm("-nativewidth") && M_IsNextParm())
+		w = atoi(M_GetNextParm());
+	if (M_CheckParm("-nativeheight") && M_IsNextParm())
+		h = atoi(M_GetNextParm());
+
+	if (!w || !h)
+		Impl_GetCurrentDisplayMode(&w, &h);
+
+	if (!w) w = BASEVIDWIDTH;
+	if (!h) h = BASEVIDHEIGHT;
+
+	if (width) *width = w;
+	if (height) *height = h;
 }
 
 INT32 VID_SetMode(INT32 modeNum)
@@ -1857,7 +1906,7 @@ INT32 VID_SetMode(INT32 modeNum)
 	{
 		INT32 w = 0, h = 0;
 
-		SCR_GetNativeResolution(&w, &h);
+		VID_GetNativeResolution(&w, &h);
 
 		vid.width = (INT32)((float)w / scr_resdiv);
 		vid.height = (INT32)((float)h / scr_resdiv);
@@ -1891,7 +1940,7 @@ INT32 VID_SetMode(INT32 modeNum)
 	return SDL_TRUE;
 }
 
-void VID_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h)
+void Impl_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h)
 {
 	SDL_Rect rect;
 
@@ -1905,22 +1954,6 @@ void VID_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h)
 	SDL_LockSurface(vidSurface);
 	SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
 	SDL_UnlockSurface(vidSurface);
-}
-
-void VID_ClearTexture(void)
-{
-	if (renderer)
-		SDL_RenderClear(renderer);
-}
-
-void VID_PresentTexture(void)
-{
-	if (renderer)
-	{
-		if (texture)
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-		SDL_RenderPresent(renderer);
-	}
 }
 
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
@@ -2203,13 +2236,8 @@ void I_StartupGraphics(void)
 			window = NULL;
 		}
 #endif
-
-		Impl_RenderContextReset();
-		SDL_RenderClear(renderer);
-		SCR_Recalc();
 	}
 
-	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	VID_Command_ModeList_f();
 
 #ifdef HWRENDER
@@ -2448,7 +2476,7 @@ static void SplashScreen_FreeImage(void)
 }
 #endif // SPLASH_SCREEN_SUPPORTED
 
-INT32 VID_LoadSplashScreen(void)
+SDL_bool Impl_LoadSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
 	struct SDL_RWops *file;
@@ -2466,26 +2494,26 @@ INT32 VID_LoadSplashScreen(void)
 	if (!file) // not found?
 	{
 		CONS_Alert(CONS_ERROR, "splash screen image not found\n");
-		return 0;
+		return SDL_FALSE;
 	}
 
 	filesize = SDL_RWsize(file);
 	if (filesize < 0) // wut?
 	{
 		CONS_Alert(CONS_ERROR, "error getting the file size of the splash screen image\n");
-		return 0;
+		return SDL_FALSE;
 	}
 	else if (filesize == 0)
 	{
 		CONS_Alert(CONS_ERROR, "the splash screen image is empty\n");
-		return 0;
+		return SDL_FALSE;
 	}
 
 	filedata = malloc((size_t)filesize);
 	if (!filedata) // somehow couldn't malloc
 	{
 		CONS_Alert(CONS_ERROR, "could not find free memory for the splash screen image\n");
-		return 0;
+		return SDL_FALSE;
 	}
 
 	SDL_RWread(file, filedata, 1, filesize);
@@ -2497,7 +2525,7 @@ INT32 VID_LoadSplashScreen(void)
 	if (splashScreen.image == NULL)
 	{
 		CONS_Alert(CONS_ERROR, "failed to read the splash screen image");
-		return 0;
+		return SDL_FALSE;
 	}
 
 	// create the window
@@ -2506,7 +2534,7 @@ INT32 VID_LoadSplashScreen(void)
 	rendermode = render_soft;
 
 	if (SDLSetMode(swidth, sheight, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
-		return 0;
+		return SDL_FALSE;
 
 	// create a surface from the image
 	bufSurface = SDL_CreateRGBSurfaceFrom(splashScreen.image, swidth, sheight, 32, (swidth * 4), 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
@@ -2514,32 +2542,28 @@ INT32 VID_LoadSplashScreen(void)
 	{
 		CONS_Alert(CONS_ERROR, "could not create a surface for the splash screen image\n");
 		SplashScreen_FreeImage();
-		return 0;
+		return SDL_FALSE;
 	}
 
 	splashScreen.displaying = SDL_TRUE;
 
-	return 1;
+	return SDL_TRUE;
 #else // SPLASH_SCREEN_SUPPORTED
-	return 0;
+	return SDL_FALSE;
 #endif
 }
 
-void VID_BlitSplashScreen(void)
+void Impl_PresentSplashScreen(void)
 {
 #ifdef SPLASH_SCREEN_SUPPORTED
-	if (splashScreen.displaying == SDL_TRUE)
-		VID_BlitSurfaceRegion(0, 0, realwidth, realheight);
-#endif
-}
-
-void VID_PresentSplashScreen(void)
-{
-#ifdef SPLASH_SCREEN_SUPPORTED
-	if (splashScreen.displaying == SDL_TRUE)
+	if (splashScreen.displaying == SDL_TRUE && renderer)
 	{
-		VID_ClearTexture();
-		VID_PresentTexture();
+		Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
+
+		SDL_RenderClear(renderer);
+		if (texture)
+			SDL_RenderCopy(renderer, texture, NULL, NULL);
+		SDL_RenderPresent(renderer);
 	}
 #endif
 }
@@ -2555,9 +2579,7 @@ void I_ReportProgress(int progress)
 	float aspect[2];
 	float x = 0.0f;
 
-	if (appOnBackground == SDL_TRUE)
-		return;
-
+	Impl_PumpEvents();
 	SDL_GetWindowSize(window, &scrw, &scrh);
 
 	aspect[0] = ((float)scrw) / scrh;
@@ -2577,7 +2599,7 @@ void I_ReportProgress(int progress)
 
 	if (rendermode == render_soft || splashScreen.displaying == SDL_TRUE)
 	{
-		VID_BlitSurfaceRegion(0, 0, realwidth, realheight);
+		Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 	}
 
@@ -2614,6 +2636,36 @@ void I_ReportProgress(int progress)
 
 	// makes the border black
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+}
+
+void Impl_PumpEvents(void)
+{
+	SDL_Event ev;
+
+#if defined(__ANDROID__)
+	SDL_bool focused = SDL_FALSE;
+#endif
+
+	SDL_PumpEvents();
+
+#define IgnoreEvent(evt) while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, evt, evt))
+
+	IgnoreEvent(SDL_FINGERMOTION);
+	IgnoreEvent(SDL_FINGERDOWN);
+	IgnoreEvent(SDL_FINGERUP);
+
+	IgnoreEvent(SDL_APP_WILLENTERBACKGROUND);
+
+#undef IgnoreEvent
+
+#if defined(__ANDROID__)
+	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
+	{
+		if (focused == SDL_FALSE)
+			Impl_RenderContextReset();
+		focused = SDL_TRUE;
+	}
+#endif
 }
 
 void I_ShutdownGraphics(void)

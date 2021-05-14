@@ -90,10 +90,6 @@ INT32 VID_SetMode(INT32 modenum);
 */
 void VID_GetNativeResolution(INT32 *width, INT32 *height);
 
-/**	\brief Recreates the current rendering context.
-*/
-void VID_RecreateContext(void);
-
 /**	\brief Checks the render state
 	\return	1 if the renderer changed, 0 if it did not
 */
@@ -102,14 +98,6 @@ INT32 VID_CheckRenderer(void);
 /**	\brief Blits a region of the current framebuffer surface into the texture (does not present it.)
 */
 void VID_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h);
-
-/**	\brief Clears the current texture.
-*/
-void VID_ClearTexture(void);
-
-/**	\brief Copies the current texture into the context and presents it.
-*/
-void VID_PresentTexture(void);
 
 /**	\brief Load OpenGL mode
 */
@@ -122,19 +110,6 @@ void VID_CheckGLLoaded(rendermode_t oldrender);
 /**	\brief Displays an error if OpenGL failed to load
 */
 void VID_DisplayGLError(void);
-
-/**	\brief Loads the splash screen
-	\return	1 if the splash screen was successfully loaded, 0 if it was not
-*/
-INT32 VID_LoadSplashScreen(void);
-
-/**	\brief Blits the splash screen (does not present it.)
-*/
-void VID_BlitSplashScreen(void);
-
-/**	\brief Presents the splash screen.
-*/
-void VID_PresentSplashScreen(void);
 
 /**	\brief	The VID_GetModeName function
 

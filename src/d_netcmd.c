@@ -906,7 +906,7 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_scr_height);
 
 #ifdef NATIVESCREENRES
-	SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider());
+	SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider(0, 0));
 
 	CV_RegisterVar(&cv_nativeres);
 	CV_RegisterVar(&cv_nativeresdiv);

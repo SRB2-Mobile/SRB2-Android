@@ -13,23 +13,25 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //-----------------------------------------------------------------------------
-/// \file
+/// \file sdlmain.h
 /// \brief System specific interface stuff.
 
 #ifndef __sdlmain__
 #define __sdlmain__
 
+#include "../m_fixed.h"
+
+extern SDL_Window *window;
+
 extern SDL_bool consolevent;
 extern SDL_bool framebuffer;
 
-#include "../m_fixed.h"
+void Impl_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h);
+void Impl_RenderContextReset(void);
+void Impl_PumpEvents(void);
 
-// SDL2 stub macro
-#ifdef _MSC_VER
-#define SDL2STUB() CONS_Printf("SDL2: stubbed: %s:%d\n", __FUNCTION__, __LINE__)
-#else
-#define SDL2STUB() CONS_Printf("SDL2: stubbed: %s:%d\n", __func__, __LINE__)
-#endif
+SDL_bool Impl_LoadSplashScreen(void);
+void Impl_PresentSplashScreen(void);
 
 // So m_menu knows whether to store cv_usejoystick value or string
 #define JOYSTICK_HOTPLUG
@@ -56,7 +58,6 @@ typedef struct SDLJoyInfo_s
 	int hats;
 	/// number of balls
 	int balls;
-
 } SDLJoyInfo_t;
 
 /**	\brief SDL info about joystick 1
@@ -90,8 +91,5 @@ INT32 I_GetJoystickDeviceIndex(SDL_Joystick *dev);
 void I_GetConsoleEvents(void);
 
 void SDLforceUngrabMouse(void);
-
-// Needed for some WIN32 functions
-extern SDL_Window *window;
 
 #endif

@@ -121,7 +121,6 @@ UINT8 *scr_borderpatch; // flat used to fill the reduced view borders set at ST_
 
 #ifdef NATIVESCREENRES
 float scr_resdiv = 1.0f;
-INT32 scr_nativewidth, scr_nativeheight;
 #endif
 
 // =========================================================================
@@ -401,17 +400,7 @@ void SCR_CheckDefaultMode(void)
 
 #ifdef NATIVESCREENRES
 	if (cv_nativeres.value)
-	{
-		SCR_GetNativeResolution(&scr_nativewidth, &scr_nativeheight);
-
-		if (scr_nativewidth || scr_nativeheight)
-			SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider());
-
-		if (cv_nativeresauto.value)
-			scr_resdiv = SCR_GetNativeResDivider(scr_nativewidth, scr_nativeheight);
-		else
-			scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
-	}
+		SCR_CheckNativeMode();
 #endif
 
 	if (scr_forcex && scr_forcey)
@@ -520,33 +509,19 @@ boolean SCR_IsAspectCorrect(INT32 width, INT32 height)
 }
 
 #ifdef NATIVESCREENRES
-void SCR_GetNativeResolution(INT32 *width, INT32 *height)
+void SCR_CheckNativeMode(void)
 {
-	INT32 w = 0, h = 0;
+	INT32 w, h;
 
 	VID_GetNativeResolution(&w, &h);
 
-	if (M_CheckParm("-nativewidth") && M_IsNextParm())
-		w = atoi(M_GetNextParm());
+	if (w || h)
+		SCR_SetMaxNativeResDivider(SCR_GetMaxNativeResDivider(w, h));
 
-	if (M_CheckParm("-nativeheight") && M_IsNextParm())
-		h = atoi(M_GetNextParm());
-
-	if (width)
-	{
-		if (scr_nativewidth)
-			*width = scr_nativewidth;
-		else
-			*width = w;
-	}
-
-	if (height)
-	{
-		if (scr_nativeheight)
-			*height = scr_nativeheight;
-		else
-			*height = h;
-	}
+	if (cv_nativeresauto.value)
+		scr_resdiv = SCR_GetNativeResDivider(w, h);
+	else
+		scr_resdiv = FixedToFloat(cv_nativeresdiv.value);
 }
 
 void SCR_ResetNativeResDivider(void)
@@ -585,10 +560,10 @@ static void SCR_NativeResAutoChanged(void)
 	if (cv_nativeresauto.value)
 	{
 		INT32 w = 0, h = 0;
-		char f[9];
+		char f[16];
 
 		// Set for next resolution change
-		SCR_GetNativeResolution(&w, &h);
+		VID_GetNativeResolution(&w, &h);
 		scr_resdiv = SCR_GetNativeResDivider(w, h);
 
 		// Stealth change current resolution divider variable
@@ -653,13 +628,14 @@ float SCR_GetNativeResDivider(INT32 width, INT32 height)
 	return FixedToFloat(cv_nativeresdiv.value);
 }
 
-float SCR_GetMaxNativeResDivider(void)
+float SCR_GetMaxNativeResDivider(INT32 nw, INT32 nh)
 {
-	INT32 nw = 0, nh = 0;
 	float w, h;
 	float div = 1.0f;
 
-	SCR_GetNativeResolution(&nw, &nh);
+	if (!nw || !nh)
+		VID_GetNativeResolution(&nw, &nh);
+
 	w = (float)nw;
 	h = (float)nh;
 

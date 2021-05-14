@@ -2,6 +2,8 @@
 #include "SDL_main.h"
 #include "SDL_config.h"
 
+#include "../sdlmain.h"
+
 #include "../../doomdef.h"
 #include "../../d_main.h"
 #include "../../m_argv.h"
@@ -15,35 +17,19 @@
 #include <jni_android.h>
 
 #ifdef SPLASH_SCREEN
-static INT32 displayingSplash = 0;
+static SDL_bool displayingSplash = SDL_FALSE;
 
 static void BlitSplashScreen(void)
 {
-	SDL_Event ev;
-	SDL_PumpEvents();
-
-#define IgnoreEvent(evt) while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, evt, evt))
-
-	IgnoreEvent(SDL_FINGERMOTION);
-	IgnoreEvent(SDL_FINGERDOWN);
-	IgnoreEvent(SDL_FINGERUP);
-
-	IgnoreEvent(SDL_APP_WILLENTERBACKGROUND);
-
-#undef IgnoreEvent
-
-	while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_APP_WILLENTERFOREGROUND, SDL_APP_WILLENTERFOREGROUND))
-		VID_RecreateContext();
-
-	VID_BlitSplashScreen();
-	VID_PresentSplashScreen();
+	Impl_PumpEvents();
+	Impl_PresentSplashScreen();
 }
 
 static void ShowSplashScreen(void)
 {
-	displayingSplash = VID_LoadSplashScreen();
+	displayingSplash = Impl_LoadSplashScreen();
 
-	if (displayingSplash)
+	if (displayingSplash == SDL_TRUE)
 	{
 		// Present it for two seconds.
 		UINT32 delay = SDL_GetTicks() + 2000;
@@ -136,7 +122,7 @@ int main(int argc, char* argv[])
 #endif
 
 #ifdef SPLASH_SCREEN
-	if (displayingSplash)
+	if (displayingSplash == SDL_TRUE)
 		BlitSplashScreen();
 #endif
 
