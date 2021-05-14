@@ -646,7 +646,6 @@ static void VID_Command_Mode_f (void)
 static void Impl_Unfocused(boolean unfocused)
 {
 	window_notinfocus = unfocused;
-	CON_FocusChanged();
 
 	if (window_notinfocus)
 	{
@@ -705,28 +704,36 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 			break;
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
-#if defined(__ANDROID__)
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 			if (windowWidth != evt.data1 || windowHeight != evt.data2)
 			{
+#ifdef NATIVESCREENRES
 				boolean changed = false;
+#endif
 
 				windowWidth = evt.data1;
 				windowHeight = evt.data2;
 
+#if defined(__ANDROID__)
 				if (JNI_IsInMultiWindowMode())
 				{
 					appWindowWidth = windowWidth;
 					appWindowHeight = windowHeight;
+#ifdef NATIVESCREENRES
 					changed = (appWindowWidth != vid.width || appWindowHeight != vid.height);
+#endif
 				}
 				else
+#endif // defined(__ANDROID__)
 				{
+#ifdef NATIVESCREENRES
 					if (appWindowWidth || appWindowHeight)
 						changed = true;
+#endif
 					appWindowWidth = appWindowHeight = 0;
 				}
 
+#ifdef NATIVESCREENRES
 				if (cv_nativeres.value && changed)
 				{
 					SCR_CheckNativeMode();
@@ -740,9 +747,9 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 						CV_StealthSet(&cv_nativeresdiv, f);
 					}
 				}
+#endif
 			}
 			break;
-#endif
 	}
 
 	if (mousefocus && kbfocus)
@@ -2274,22 +2281,33 @@ void I_StartupGraphics(void)
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
 
-	// Default size for startup
-#if defined(__ANDROID__)
-	vid.width = 1280;
-	vid.height = 720;
-#else
-	vid.width = BASEVIDWIDTH;
-	vid.height = BASEVIDHEIGHT;
-#endif
-
-	// Create window
-	VID_SetMode(VID_GetModeForSize(vid.width, vid.height));
-
 	vid.recalc = true;
 	vid.direct = NULL;
 	vid.bpp = 1;
 	vid.WndParent = NULL;
+
+	// Create window
+#if defined(__ANDROID__)
+	VID_GetNativeResolution(&vid.width, &vid.height);
+
+	if (vid.width > MAXVIDWIDTH)
+		vid.width = MAXVIDWIDTH;
+	else if (vid.width < BASEVIDWIDTH)
+		vid.width = BASEVIDWIDTH;
+
+	if (vid.height > MAXVIDHEIGHT)
+		vid.height = MAXVIDHEIGHT;
+	else if (vid.height < BASEVIDHEIGHT)
+		vid.height = BASEVIDHEIGHT;
+
+	VID_CheckRenderer();
+#else
+	// Default size for startup
+	vid.width = BASEVIDWIDTH;
+	vid.height = BASEVIDHEIGHT;
+
+	VID_SetMode(VID_GetModeForSize(vid.width, vid.height));
+#endif
 
 #ifdef HAVE_TTF
 	I_ShutdownTTF();

@@ -1377,14 +1377,6 @@ boolean CON_Responder(event_t *ev)
 	return true;
 }
 
-void CON_FocusChanged(void)
-{
-#ifdef ONSCREENKEYBOARD
-	if (con_destlines > 0)
-		CON_ToggleOff();
-#endif
-}
-
 // Insert a new line in the console text buffer
 //
 static void CON_Linefeed(void)

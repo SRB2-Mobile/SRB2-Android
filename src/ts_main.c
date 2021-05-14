@@ -1626,15 +1626,30 @@ void TS_PositionNavigation(void)
 
 	if (con->defined)
 	{
+		fixed_t y = vcorner;
+
 		con->patch = "NAV_CONSOLE";
 		con->x = hcorner;
 
-		if (back->defined)
-			con->y = back->y + back->h + (8 * FRACUNIT);
-		else
-			con->y = vcorner;
-
 		con->h = max(24 * FRACUNIT, btnsize / 2);
+
+		if (back->defined)
+			y = back->y + back->h + (8 * FRACUNIT);
+
+		if (vid.height > vid.width)
+		{
+			fixed_t test = 0;
+
+			if (vid.height != BASEVIDHEIGHT * dupz)
+				test = (BASEVIDHEIGHT * dupz) * FRACUNIT;
+
+			if (test > 0 && con->h < test)
+				con->y = (((vid.height / vid.dupy) * FRACUNIT) - con->h) - (vcorner * 4);
+			else
+				con->y = y;
+		}
+		else
+			con->y = y;
 
 		if (M_TSNav_OnMainMenu())
 			con->w = FixedMul(con->h, FixedDiv(32 * FRACUNIT, 24 * FRACUNIT));

@@ -488,7 +488,6 @@ static void LUA_ClearState(void)
 	gL = NULL;
 
 	CONS_Printf(M_GetText("Pardon me while I initialize the Lua scripting interface...\n"));
-	CV_SetValue(&cv_thinkless, 0);
 
 	// allocate state
 	L = lua_newstate(LUA_Alloc, NULL);

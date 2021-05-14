@@ -672,6 +672,10 @@ void D_SRB2Loop(void)
 	tic_t oldentertics = 0, entertic = 0, realtics = 0, rendertimeout = INFTICS;
 	static lumpnum_t gstartuplumpnum;
 
+#if defined(__ANDROID__)
+	boolean firstframe = false;
+#endif
+
 	if (dedicated)
 		server = true;
 
@@ -714,8 +718,10 @@ void D_SRB2Loop(void)
 	"                            ...wait. =P\n"
 	"===========================================================================\n");
 
+#if !defined(__ANDROID__)
 	// hack to start on a nice clear console screen.
 	COM_ImmedExecute("cls;version");
+#endif
 
 	I_FinishUpdate(); // page flip or blit buffer
 	/*
@@ -723,7 +729,7 @@ void D_SRB2Loop(void)
 	because I_FinishUpdate was called afterward
 	*/
 	/* Smells like a hack... Don't fade Sonic's ass into the title screen. */
-	if (gamestate != GS_TITLESCREEN)
+	if (!I_AppOnBackground() && gamestate != GS_TITLESCREEN)
 	{
 		gstartuplumpnum = W_CheckNumForName("STARTUP");
 		if (gstartuplumpnum == LUMPERROR)
@@ -814,6 +820,15 @@ void D_SRB2Loop(void)
 #endif
 
 		LUA_Step();
+
+#if defined(__ANDROID__)
+		if (!firstframe)
+		{
+			COM_ImmedExecute("cls;version"); // hack to start on a nice clear console screen.
+			CON_ClearHUD();
+			firstframe = true;
+		}
+#endif
 	}
 }
 
