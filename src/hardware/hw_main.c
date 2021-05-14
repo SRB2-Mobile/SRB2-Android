@@ -4690,6 +4690,13 @@ static int CompareDrawNodePlanes(const void *p1, const void *p2)
 	return ABS(sortnode[n2].plane->fixedheight - viewz) - ABS(sortnode[n1].plane->fixedheight - viewz);
 }
 
+static void HWR_ClearDrawNodes(void)
+{
+	numwalls = 0;
+	numplanes = 0;
+	numpolyplanes = 0;
+}
+
 //
 // HWR_CreateDrawNodes
 // Creates and sorts a list of drawnodes for the scene being rendered.
@@ -4806,9 +4813,7 @@ static void HWR_CreateDrawNodes(void)
 
 	ps_hw_nodedrawtime = I_GetPreciseTime() - ps_hw_nodedrawtime;
 
-	numwalls = 0;
-	numplanes = 0;
-	numpolyplanes = 0;
+	HWR_ClearDrawNodes();
 
 	// No mem leaks, please.
 	Z_Free(sortnode);
@@ -6067,7 +6072,10 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 	NetUpdate();
 
 	if (I_AppOnBackground())
+	{
+		HWR_ClearDrawNodes();
 		return;
+	}
 
 #ifdef ALAM_LIGHTING
 	//14/11/99: Hurdler: moved here because it doesn't work with
@@ -6136,6 +6144,9 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
 		HWR_RenderSkyboxView(viewnumber, player); // This is drawn before everything else so it is placed behind
 	ps_hw_skyboxtime = I_GetPreciseTime() - ps_hw_skyboxtime;
+
+	if (I_AppOnBackground())
+		return;
 
 	{
 		// do we really need to save player (is it not the same)?
@@ -6297,7 +6308,10 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	NetUpdate();
 
 	if (I_AppOnBackground())
+	{
+		HWR_ClearDrawNodes();
 		return;
+	}
 
 #ifdef ALAM_LIGHTING
 	//14/11/99: Hurdler: moved here because it doesn't work with
