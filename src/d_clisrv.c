@@ -1994,18 +1994,25 @@ static void M_ConfirmConnect(event_t *ev)
 			}
 			else
 				cl_mode = CL_LOADFILES;
-
-#ifdef TOUCHINPUTS
-			M_TSNav_SetConfirmVisible(false);
-#endif
-			M_ClearMenus(true);
 			break;
 		case -1:
 			cl_mode = CL_ABORTED;
-			M_ClearMenus(true);
 			break;
 		default:
 			break;
+	}
+
+	if (result != 0)
+	{
+		M_ClearMenus(true);
+
+#ifdef TOUCHINPUTS
+		M_TSNav_SetBackVisible(true);
+		TS_DefineNavigationButtons();
+		TS_HideNavigationButtons();
+
+		touchnavigation[TOUCHNAV_BACK].defined = true;
+#endif
 	}
 #else
 	(void)ev;
