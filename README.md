@@ -4,7 +4,7 @@
 
 ## Compiling
 
-Please refer to [the wiki](https://github.com/Lactozilla/SRB2-Android/wiki).
+Please refer to the wiki.
 
 ### Requirements
 - Gradle

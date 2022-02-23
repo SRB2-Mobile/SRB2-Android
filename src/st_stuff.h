@@ -131,7 +131,7 @@ extern hudinfo_t hudinfo[NUMHUDITEMS];
 hudinfo_t *ST_GetLivesHUDInfo(void);
 boolean ST_AltLivesHUDEnabled(void);
 
-extern boolean demoinputdrawn;
+extern INT16 demoinputdrawn;
 
 extern UINT16 objectsdrawn;
 

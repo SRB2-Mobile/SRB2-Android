@@ -42,6 +42,7 @@
 #include "console.h"
 
 #include "lua_hud.h"
+#include "lua_hook.h"
 
 // Stage of animation:
 // 0 = text, 1 = art screen
@@ -847,7 +848,7 @@ static void F_IntroDrawScene(void)
 		if (input == INPUTMETHOD_TOUCH)
 			skiptext = "\x82""Tap anywhere""\x86"" to skip...";
 		else if (input == INPUTMETHOD_JOYSTICK)
-			skiptext = va("\x86""Push ""\x82""%s""\x86"" to skip...", G_KeynumToString(KEY_JOY1));
+			skiptext = va("\x86""Push ""\x82""%s""\x86"" to skip...", G_KeyNumToName(KEY_JOY1));
 		else if (input == INPUTMETHOD_TVREMOTE)
 			skiptext = "\x86""Push ""\x82""Center""\x86"" to skip...";
 		else
@@ -1099,7 +1100,7 @@ boolean F_IntroResponder(event_t *event)
 //  CREDITS
 // =========
 static const char *credits[] = {
-	"\1Sonic Robo Blast II",
+	"\1Sonic Robo Blast 2",
 	"\1Credits",
 	"",
 	"\1Game Design",
@@ -1125,19 +1126,19 @@ static const char *credits[] = {
 	"\"Hannu_Hanhi\"", // For many OpenGL performance improvements!
 	"Kepa \"Nev3r\" Iceta",
 	"Thomas \"Shadow Hog\" Igoe",
-	"\"james\"",
 	"Iestyn \"Monster Iestyn\" Jealous",
-	"\"Jimita\"",
 	"\"Kaito Sinclaire\"",
 	"\"Kalaron\"", // Coded some of Sryder13's collection of OpenGL fixes, especially fog
 	"Ronald \"Furyhunter\" Kinard", // The SDL2 port
 	"\"Lat'\"", // SRB2-CHAT, the chat window from Kart
+	"\"LZA\"",
 	"Matthew \"Shuffle\" Marsalko",
 	"Steven \"StroggOnMeth\" McGranahan",
 	"\"Morph\"", // For SRB2Morphed stuff
 	"Louis-Antoine \"LJ Sonic\" de Moulins", // de Rochefort doesn't quite fit on the screen sorry lol
 	"John \"JTE\" Muniz",
 	"Colin \"Sonict\" Pfaff",
+	"James \"james\" Robert Roman",
 	"Sean \"Sryder13\" Ryder",
 	"Ehab \"Wolfy\" Saeed",
 	"Tasos \"tatokis\" Sahanidis", // Corrected C FixedMul, making 64-bit builds netplay compatible
@@ -1202,9 +1203,8 @@ static const char *credits[] = {
 	"Alexander \"DrTapeworm\" Moench-Ford",
 	"Stefan \"Stuf\" Rimalia",
 	"Shane Mychal Sexton",
-	"\"Spazzo\"",
-	"David \"Big Wave Dave\" Spencer Sr.",
-	"David \"Instant Sonic\" Spencer Jr.",
+	"Dave \"Big Wave Dave\" Spencer",
+	"David \"instantSonic\" Spencer",
 	"\"SSNTails\"",
 	"",
 	"\1Level Design",
@@ -1227,7 +1227,6 @@ static const char *credits[] = {
 	"\"Revan\"",
 	"Anna \"QueenDelta\" Sandlin",
 	"Wessel \"sphere\" Smit",
-	"\"Spazzo\"",
 	"\"SSNTails\"",
 	"Rob Tisdell",
 	"\"Torgo\"",
@@ -1256,7 +1255,7 @@ static const char *credits[] = {
 	"Bill \"Tets\" Reed",
 	"",
 	"\1Special Thanks",
-	"iD Software",
+	"id Software",
 	"Doom Legacy Project",
 	"FreeDoom Project", // Used some of the mancubus and rocket launcher sprites for Brak
 	"Kart Krew",
@@ -3456,7 +3455,7 @@ void F_TitleScreenDrawer(void)
 	}
 
 luahook:
-	LUAh_TitleHUD();
+	LUA_HUDHOOK(title);
 }
 
 // separate animation timer for backgrounds, since we also count

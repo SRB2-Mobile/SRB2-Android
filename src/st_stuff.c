@@ -48,8 +48,9 @@
 #endif
 
 #include "lua_hud.h"
+#include "lua_hook.h"
 
-boolean demoinputdrawn = false;
+INT16 demoinputdrawn = 0;
 
 UINT16 objectsdrawn = 0;
 
@@ -172,9 +173,19 @@ hudinfo_t hudinfo[NUMHUDITEMS] =
 // STATUS BAR CODE
 //
 
+static boolean ST_UseAltLivesHUD(void)
+{
+#ifdef TOUCHINPUTS
+	if (cv_liveshudpos.value == 2)
+		return TS_CanDrawButtons();
+#endif
+
+	return cv_liveshudpos.value == 1;
+}
+
 hudinfo_t *ST_GetLivesHUDInfo(void)
 {
-	if (cv_liveshudpos.value == 1)
+	if (ST_UseAltLivesHUD())
 		return &hudinfo[HUD_LIVESALT];
 	else
 		return &hudinfo[HUD_LIVES];
@@ -182,7 +193,7 @@ hudinfo_t *ST_GetLivesHUDInfo(void)
 
 boolean ST_AltLivesHUDEnabled(void)
 {
-	return (cv_liveshudpos.value == 1 && !modeattacking);
+	return ST_UseAltLivesHUD() && !modeattacking;
 }
 
 boolean ST_SameTeam(player_t *a, player_t *b)
@@ -988,7 +999,7 @@ static void ST_drawLivesArea(void)
 	{
 		INT32 workx = hudinfo[HUD_LIVES].x+1, j;
 
-		if (cv_liveshudpos.value == 1)
+		if (ST_UseAltLivesHUD())
 		{
 			y = hudinfo[HUD_LIVES].y + 10;
 			f = hudinfo[HUD_LIVES].f;
@@ -1029,7 +1040,7 @@ static void ST_drawInput(void)
 
 	INT32 x, y, f;
 
-	if (cv_liveshudpos.value == 1)
+	if (ST_UseAltLivesHUD())
 	{
 		x = hudinfo[HUD_LIVES].x;
 		y = hudinfo[HUD_LIVES].y;
@@ -1227,7 +1238,17 @@ static void ST_drawInput(void)
 			break;
 
 		case CS_SIMPLE:
-			V_DrawThinString(x, y, f, "SIMPLE");
+			V_DrawThinString(x, y, f, "AUTOMATIC");
+			y -= 8;
+			break;
+
+		case CS_STANDARD:
+			V_DrawThinString(x, y, f, "MANUAL");
+			y -= 8;
+			break;
+
+		case CS_LEGACY:
+			V_DrawThinString(x, y, f, "STRAFE");
 			y -= 8;
 			break;
 
@@ -1237,9 +1258,12 @@ static void ST_drawInput(void)
 	}
 
 	if (!demosynced) // should always be last, so it doesn't push anything else around
+	{
 		V_DrawThinString(x, y, f|((leveltime & 4) ? V_YELLOWMAP : V_REDMAP), "BAD DEMO!!");
+		y -= 8;
+	}
 
-	demoinputdrawn = true;
+	demoinputdrawn = y;
 }
 
 static patch_t *lt_patches[3];
@@ -1422,7 +1446,7 @@ void ST_drawTitleCard(void)
 		zzticker = lt_ticker;
 		V_DrawMappedPatch(FixedInt(lt_zigzag), (-zzticker) % zigzag->height, V_SNAPTOTOP|V_SNAPTOLEFT, zigzag, colormap);
 		V_DrawMappedPatch(FixedInt(lt_zigzag), (zigzag->height-zzticker) % zigzag->height, V_SNAPTOTOP|V_SNAPTOLEFT, zigzag, colormap);
-		V_DrawMappedPatch(FixedInt(lt_zigzag), (-zigzag->height+zzticker) % zztext->height, V_SNAPTOTOP|V_SNAPTOLEFT, zztext, colormap);
+		V_DrawMappedPatch(FixedInt(lt_zigzag), (-zztext->height+zzticker) % zztext->height, V_SNAPTOTOP|V_SNAPTOLEFT, zztext, colormap);
 		V_DrawMappedPatch(FixedInt(lt_zigzag), (zzticker) % zztext->height, V_SNAPTOTOP|V_SNAPTOLEFT, zztext, colormap);
 	}
 
@@ -1446,7 +1470,7 @@ void ST_drawTitleCard(void)
 	lt_lasttic = lt_ticker;
 
 luahook:
-	LUAh_TitleCardHUD(stplyr);
+	LUA_HUDHOOK(titlecard);
 }
 
 //
@@ -2091,9 +2115,8 @@ static void ST_drawNiGHTSHUD(void)
 		else
 			numbersize = 48/2;
 
-		if ((oldspecialstage && leveltime & 2)
-			&& (stplyr->mo->eflags & (MFE_TOUCHWATER|MFE_UNDERWATER))
-			&& !(stplyr->powers[pw_shield] & SH_PROTECTWATER))
+		if ((oldspecialstage && leveltime & 2) &&
+			(stplyr->mo->eflags & (MFE_TOUCHWATER|MFE_UNDERWATER) && !(stplyr->powers[pw_shield] & ((stplyr->mo->eflags & MFE_TOUCHLAVA) ? SH_PROTECTFIRE : SH_PROTECTWATER))))
 			col = SKINCOLOR_ORANGE;
 
 		ST_DrawNightsOverlayNum((160 + numbersize)<<FRACBITS, 14<<FRACBITS, FRACUNIT, V_PERPLAYER|V_SNAPTOTOP, realnightstime, nightsnum, col);
@@ -2242,7 +2265,7 @@ static void ST_drawMatchHUD(void)
 		{
 			sprintf(penaltystr, "-%d", stplyr->ammoremoval);
 			V_DrawString(offset + 8 + stplyr->ammoremovalweapon * 20, y,
-				V_REDMAP|V_SNAPTOBOTTOM, penaltystr);
+				V_REDMAP|V_SNAPTOBOTTOM|V_PERPLAYER, penaltystr);
 		}
 
 	}
@@ -2346,7 +2369,7 @@ static void ST_drawTextHUD(void)
 
 			for (i = 0; i < MAXPLAYERS; i++)
 			{
-				if (!playeringame[i] || players[i].spectator)
+				if (!playeringame[i] || players[i].spectator || players[i].bot)
 					continue;
 				if (players[i].lives <= 0)
 					continue;
@@ -2797,7 +2820,7 @@ static void ST_overlayDrawer(void)
 		ST_drawPowerupHUD(); // same as it ever was...
 
 	if (!(netgame || multiplayer) || !hu_showscores)
-		LUAh_GameHUD(stplyr);
+		LUA_HUDHOOK(game);
 
 	// draw level title Tails
 	if (stagetitle && (!WipeInAction) && (!WipeStageTitle))
@@ -2806,7 +2829,7 @@ static void ST_overlayDrawer(void)
 	if (!hu_showscores && (netgame || multiplayer) && LUA_HudEnabled(hud_textspectator))
 		ST_drawTextHUD();
 
-	demoinputdrawn = false;
+	demoinputdrawn = 0;
 
 #ifdef TOUCHINPUTS
 	if (demoplayback || promptblockcontrols)

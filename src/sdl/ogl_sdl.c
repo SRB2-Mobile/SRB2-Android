@@ -61,12 +61,6 @@ typedef int (*PFNGLXSWAPINTERVALPROC) (int);
 PFNGLXSWAPINTERVALPROC glXSwapIntervalSGIEXT = NULL;
 #endif
 
-#ifndef STATIC_OPENGL
-PFNglClear pglClear;
-PFNglGetIntegerv pglGetIntegerv;
-PFNglGetString pglGetString;
-#endif
-
 /**	\brief SDL video display surface
 */
 void *GLUhandle = NULL;

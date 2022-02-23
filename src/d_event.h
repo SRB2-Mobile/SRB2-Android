@@ -37,8 +37,10 @@ typedef enum
 typedef struct
 {
 	evtype_t type;
-	INT32 key; // keyboard key, mouse button, joystick button, finger id
-	INT32 x, y;
+	INT32 key; // keys/mouse/joystick buttons
+	INT32 x; // mouse/joystick x move
+	INT32 y; // mouse/joystick y move
+	boolean repeated; // key repeat
 } event_t;
 
 // Touch event structure (event processing doesn't need to know about it.)

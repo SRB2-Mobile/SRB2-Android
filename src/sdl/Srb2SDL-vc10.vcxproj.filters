@@ -135,6 +135,16 @@
     <ClInclude Include="..\dehacked.h">
       <Filter>D_Doom</Filter>
     </ClInclude>
+    <ClInclude Include="..\deh_lua.h">
+      <Filter>D_Doom</Filter>
+    </ClInclude>
+    <ClInclude Include="..\deh_soc.h">
+      <Filter>D_Doom</Filter>
+    </ClInclude>
+    <ClInclude Include="..\deh_tables.h">
+      <Filter>D_Doom</Filter>
+    </ClInclude>
+
     <ClInclude Include="..\doomdata.h">
       <Filter>D_Doom</Filter>
     </ClInclude>
@@ -291,6 +301,9 @@
     <ClInclude Include="..\i_tcp.h">
       <Filter>I_Interface</Filter>
     </ClInclude>
+    <ClInclude Include="..\i_threads.h">
+      <Filter>I_Interface</Filter>
+    </ClInclude>
     <ClInclude Include="..\i_video.h">
       <Filter>I_Interface</Filter>
     </ClInclude>
@@ -404,6 +417,12 @@
     </ClInclude>
     <ClInclude Include="..\tables.h">
       <Filter>P_Play</Filter>
+    </ClInclude>
+    <ClInclude Include="..\taglist.h">
+      <Filter>P_Play</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libdivide.h">
+      <Filter>R_Rend</Filter>
     </ClInclude>
     <ClInclude Include="..\r_bsp.h">
       <Filter>R_Rend</Filter>
@@ -600,6 +619,16 @@
     <ClCompile Include="..\dehacked.c">
       <Filter>D_Doom</Filter>
     </ClCompile>
+    <ClCompile Include="..\deh_lua.c">
+      <Filter>D_Doom</Filter>
+    </ClCompile>
+    <ClCompile Include="..\deh_soc.c">
+      <Filter>D_Doom</Filter>
+    </ClCompile>
+    <ClCompile Include="..\deh_tables.c">
+      <Filter>D_Doom</Filter>
+    </ClCompile>
+
     <ClCompile Include="..\d_clisrv.c">
       <Filter>D_Doom</Filter>
     </ClCompile>
@@ -726,6 +755,9 @@
     <ClCompile Include="..\lua_infolib.c">
       <Filter>LUA</Filter>
     </ClCompile>
+    <ClCompile Include="..\lua_inputlib.c">
+      <Filter>LUA</Filter>
+    </ClCompile>
     <ClCompile Include="..\lua_maplib.c">
       <Filter>LUA</Filter>
     </ClCompile>
@@ -745,6 +777,9 @@
       <Filter>LUA</Filter>
     </ClCompile>
     <ClCompile Include="..\lua_skinlib.c">
+      <Filter>LUA</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lua_taglib.c">
       <Filter>LUA</Filter>
     </ClCompile>
     <ClCompile Include="..\lua_thinkerlib.c">
@@ -790,6 +825,9 @@
       <Filter>M_Misc</Filter>
     </ClCompile>
     <ClCompile Include="..\string.c">
+      <Filter>M_Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\strcasestr.c">
       <Filter>M_Misc</Filter>
     </ClCompile>
     <ClCompile Include="..\comptime.c">
@@ -850,6 +888,9 @@
       <Filter>P_Play</Filter>
     </ClCompile>
     <ClCompile Include="..\tables.c">
+      <Filter>P_Play</Filter>
+    </ClCompile>
+    <ClCompile Include="..\taglist.c">
       <Filter>P_Play</Filter>
     </ClCompile>
     <ClCompile Include="..\t_facon.c">

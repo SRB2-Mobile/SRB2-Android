@@ -17,6 +17,7 @@
 /// \file
 /// \brief Main program, simply calls D_SRB2Main and D_SRB2Loop, the high level loop.
 
+#if !defined(__ANDROID__)
 #include "../doomdef.h"
 #include "../m_argv.h"
 #include "../d_main.h"
@@ -171,4 +172,5 @@ int main(int argc, char **argv)
 	// return to OS
 	return 0;
 }
+#endif
 #endif

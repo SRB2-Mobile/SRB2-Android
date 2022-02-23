@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -40,7 +40,7 @@
 #include "console.h" // CON_Ready()
 
 #ifdef TOUCHINPUTS
-static touchcust_buttonstatus_t touchcustbuttons[num_gamecontrols];
+static touchcust_buttonstatus_t touchcustbuttons[NUM_GAMECONTROLS];
 
 static touchcust_submenu_e touchcust_submenu = touchcust_submenu_none;
 static touchcust_submenu_button_t touchcust_submenu_buttons[TOUCHCUST_SUBMENU_MAXBUTTONS];
@@ -130,7 +130,7 @@ void TS_SetupCustomization(void)
 	ClearAllSelections();
 	CloseSubmenu();
 
-	for (i = 0; i < num_gamecontrols; i++)
+	for (i = 0; i < NUM_GAMECONTROLS; i++)
 	{
 		touchcust_buttonstatus_t *btnstatus = &touchcustbuttons[i];
 		btnstatus->snaptogrid = true;
@@ -139,7 +139,7 @@ void TS_SetupCustomization(void)
 
 boolean TS_ExitCustomization(void)
 {
-	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+	size_t layoutsize = (sizeof(touchconfig_t) * NUM_GAMECONTROLS);
 
 	if (touchcust_submenu != touchcust_submenu_none)
 	{
@@ -368,7 +368,7 @@ static void ResetAllConfigButtons(touchconfig_t *config)
 {
 	INT32 i;
 
-	for (i = 0; i < num_gamecontrols; i++, config++)
+	for (i = 0; i < NUM_GAMECONTROLS; i++, config++)
 	{
 		config->hidden = false; // reset hidden value so that all buttons are properly populated
 		config->w = config->h = 0;
@@ -383,7 +383,7 @@ void TS_ClearLayout(touchlayout_t *layout)
 
 void TS_ClearCurrentLayout(boolean setdefaults)
 {
-	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+	size_t layoutsize = sizeof(touchconfig_t) * NUM_GAMECONTROLS;
 
 	if (setdefaults)
 	{
@@ -430,7 +430,7 @@ void TS_DefaultControlLayout(boolean makelayout)
 
 	if (usertouchcontrols == NULL)
 	{
-		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * NUM_GAMECONTROLS, PU_STATIC, NULL);
 		usertouchlayout->config = usertouchcontrols;
 		TS_BuildLayoutFromPreset(usertouchlayout);
 	}
@@ -485,7 +485,7 @@ void TS_DeleteLayout(INT32 layoutnum)
 
 void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from)
 {
-	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+	size_t layoutsize = sizeof(touchconfig_t) * NUM_GAMECONTROLS;
 
 	if (!to->config)
 		to->config = Z_Malloc(layoutsize, PU_STATIC, NULL);
@@ -497,7 +497,7 @@ void TS_CopyConfigTo(touchlayout_t *to, touchconfig_t *from)
 
 void TS_CopyLayoutTo(touchlayout_t *to, touchlayout_t *from)
 {
-	size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+	size_t layoutsize = sizeof(touchconfig_t) * NUM_GAMECONTROLS;
 
 	if (!to->config)
 		to->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
@@ -536,7 +536,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 
 	FILE *f;
 	char filename[MAXTOUCHLAYOUTFILENAME+5];
-	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+	size_t layoutsize = (sizeof(touchconfig_t) * NUM_GAMECONTROLS);
 
 	float x, y, w, h;
 	char gc[65];
@@ -570,7 +570,7 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 		layout->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
 
 	memset(layout->config, 0x00, layoutsize);
-	for (igc = 0; igc < num_gamecontrols; igc++)
+	for (igc = 0; igc < NUM_GAMECONTROLS; igc++)
 	{
 		button = &(layout->config[igc]);
 		button->hidden = true;
@@ -578,13 +578,13 @@ boolean TS_LoadSingleLayout(INT32 ilayout)
 
 	while (fscanf(f, BUTTONLOADFORMAT, gc, &x, &y, &w, &h) == 5)
 	{
-		for (igc = 0; igc < num_gamecontrols; igc++)
+		for (igc = 0; igc < NUM_GAMECONTROLS; igc++)
 		{
 			if (!strcmp(gc, gamecontrolname[igc]))
 				break;
 		}
 
-		if (igc == gc_null || (igc >= gc_wepslot1 && igc <= gc_wepslot10) || igc == num_gamecontrols)
+		if (igc == GC_NULL || (igc >= GC_WEPSLOT1 && igc <= GC_WEPSLOT10) || igc == NUM_GAMECONTROLS)
 			continue;
 
 		button = &(layout->config[igc]);
@@ -650,11 +650,11 @@ boolean TS_SaveSingleLayout(INT32 ilayout)
 		return false;
 	}
 
-	for (gc = (gc_null+1); gc < num_gamecontrols; gc++)
+	for (gc = (GC_NULL+1); gc < NUM_GAMECONTROLS; gc++)
 	{
 		touchconfig_t *button = &(layout->config[gc]);
 
-		if (button->hidden || (gc >= gc_wepslot1 && gc <= gc_wepslot10))
+		if (button->hidden || (gc >= GC_WEPSLOT1 && gc <= GC_WEPSLOT10))
 			continue;
 
 		line = va(BUTTONSAVEFORMAT,
@@ -776,7 +776,7 @@ static void CreateAndSetupNewLayout(boolean setupnew)
 	// Copy or create config
 	if (setupnew)
 	{
-		size_t layoutsize = sizeof(touchconfig_t) * num_gamecontrols;
+		size_t layoutsize = sizeof(touchconfig_t) * NUM_GAMECONTROLS;
 
 		newlayout->config = Z_Calloc(layoutsize, PU_STATIC, NULL);
 		TS_BuildLayoutFromPreset(usertouchlayout);
@@ -828,7 +828,7 @@ static void Submenu_LayoutList_New(INT32 x, INT32 y, touchfinger_t *finger, even
 
 static boolean LoadLayoutAtIndex(INT32 idx)
 {
-	size_t layoutsize = (sizeof(touchconfig_t) * num_gamecontrols);
+	size_t layoutsize = (sizeof(touchconfig_t) * NUM_GAMECONTROLS);
 
 	if (!TS_LoadSingleLayout(idx))
 		return false;
@@ -840,7 +840,7 @@ static boolean LoadLayoutAtIndex(INT32 idx)
 	TS_SynchronizeLayoutCvarsFromSettings(usertouchlayout);
 
 	if (usertouchcontrols == NULL)
-		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * num_gamecontrols, PU_STATIC, NULL);
+		usertouchcontrols = Z_Calloc(sizeof(touchconfig_t) * NUM_GAMECONTROLS, PU_STATIC, NULL);
 
 	M_Memcpy(usertouchcontrols, usertouchlayout->config, layoutsize);
 	M_Memcpy(&touchcontrols, usertouchcontrols, layoutsize);
@@ -1152,8 +1152,8 @@ static void Submenu_LayoutList_Rename(INT32 x, INT32 y, touchfinger_t *finger, e
 	layout = (touchlayouts + touchcust_submenu_selection);
 	touchcust_layoutlist_renaming = layout;
 
-#ifdef ONSCREENKEYBOARD
-	I_RaiseScreenKeyboard(layout->name, MAXTOUCHLAYOUTNAME);
+#ifdef VIRTUAL_KEYBOARD
+	I_ShowVirtualKeyboard(layout->name, MAXTOUCHLAYOUTNAME);
 #endif
 }
 
@@ -1586,7 +1586,7 @@ static void MoveButtonTo(touchconfig_t *btn, INT32 x, INT32 y)
 
 	CalcButtonFixedSupposedPos(btn);
 
-	if (btn == &usertouchcontrols[gc_joystick])
+	if (btn == &usertouchcontrols[GC_JOYSTICK])
 		UpdateJoystickBase(btn);
 }
 
@@ -1618,7 +1618,7 @@ static void OffsetButtonBy(touchconfig_t *btn, float offsx, float offsy)
 
 	CalcButtonFixedSupposedPos(btn);
 
-	if (btn == &usertouchcontrols[gc_joystick])
+	if (btn == &usertouchcontrols[GC_JOYSTICK])
 		UpdateJoystickBase(btn);
 }
 
@@ -1684,7 +1684,7 @@ static void SnapButtonToGrid(touchconfig_t *btn)
 	btn->w = TS_RoundSnapWCoord(btn->w);
 	btn->h = TS_RoundSnapHCoord(btn->h);
 
-	if (btn == &usertouchcontrols[gc_joystick])
+	if (btn == &usertouchcontrols[GC_JOYSTICK])
 		UpdateJoystickBase(btn);
 
 	TS_NormalizeButton(btn);
@@ -1820,7 +1820,7 @@ static void NormalizeDPad(void)
 {
 	INT32 i;
 
-	for (i = 0; i < num_gamecontrols; i++)
+	for (i = 0; i < NUM_GAMECONTROLS; i++)
 	{
 		if (TS_IsDPadButton(i))
 			TS_NormalizeButton(&usertouchcontrols[i]);
@@ -1842,7 +1842,7 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 
 	memset(btn, 0x00, sizeof(touchconfig_t));
 
-	if (gc == gc_joystick)
+	if (gc == GC_JOYSTICK)
 	{
 		fixed_t w, h;
 		TS_GetJoystick(NULL, NULL, &w, &h, false);
@@ -1863,7 +1863,7 @@ static INT32 AddButton(INT32 x, INT32 y, touchfinger_t *finger, event_t *event)
 
 	MoveButtonTo(btn, touchcust_addbutton_x, touchcust_addbutton_y);
 
-	if (btn == &usertouchcontrols[gc_joystick])
+	if (btn == &usertouchcontrols[GC_JOYSTICK])
 	{
 		TS_DenormalizeCoords(&btn->x, &btn->y);
 		UpdateJoystickBase(btn);
@@ -1903,7 +1903,7 @@ static void ClearSelection(touchcust_buttonstatus_t *selection)
 	{
 		touchconfig_t *btn = &usertouchcontrols[selection->finger->u.gamecontrol];
 		MoveButtonToSupposedLocation(btn);
-		selection->finger->u.gamecontrol = gc_null;
+		selection->finger->u.gamecontrol = GC_NULL;
 	}
 
 	selection->finger = NULL;
@@ -1915,7 +1915,7 @@ static void ClearSelection(touchcust_buttonstatus_t *selection)
 static void ClearAllSelections(void)
 {
 	INT32 i;
-	for (i = 0; i < num_gamecontrols; i++)
+	for (i = 0; i < NUM_GAMECONTROLS; i++)
 	{
 		if (touchcustbuttons[i].selected)
 			ClearSelection(&touchcustbuttons[i]);
@@ -2658,7 +2658,7 @@ static boolean HandleResizePointSelection(INT32 x, INT32 y, touchfinger_t *finge
 				break;
 		}
 
-		if (btn == &usertouchcontrols[gc_joystick])
+		if (btn == &usertouchcontrols[GC_JOYSTICK])
 			UpdateJoystickBase(btn);
 
 		return true;
@@ -2747,32 +2747,32 @@ struct {
 	const char *name;
 	gamecontrols_e gc;
 } const touchcust_buttonlist[] = {
-	{"Joystick / D-Pad",     gc_joystick},
-	{"Jump",                 gc_jump},
-	{"Spin",                 gc_spin},
-	{"Look Up",              gc_lookup},
-	{"Look Down",            gc_lookdown},
-	{"Center View",          gc_centerview},
-	{"Toggle Mouselook",     gc_mouseaiming},
-	{"Toggle Third-Person",  gc_camtoggle},
-	{"Reset Camera",         gc_camreset},
-	{"Game Status",          gc_scores},
-	{"Pause / Run Retry",    gc_pause},
-	{"Screenshot",           gc_screenshot},
-	{"Toggle GIF Recording", gc_recordgif},
-	{"Open/Close Menu",      gc_systemmenu},
-	{"Change Viewpoint",     gc_viewpoint},
-	{"Talk",                 gc_talkkey},
-	{"Talk (Team only)",     gc_teamkey},
-	{"Fire",                 gc_fire},
-	{"Fire Normal",          gc_firenormal},
-	{"Toss Flag",            gc_tossflag},
-	{"Next Weapon",          gc_weaponnext},
-	{"Prev Weapon",          gc_weaponprev},
-	{"Custom Action 1",      gc_custom1},
-	{"Custom Action 2",      gc_custom2},
-	{"Custom Action 3",      gc_custom3},
-	{NULL,                   gc_null},
+	{"Joystick / D-Pad",     GC_JOYSTICK},
+	{"Jump",                 GC_JUMP},
+	{"Spin",                 GC_SPIN},
+	{"Look Up",              GC_LOOKUP},
+	{"Look Down",            GC_LOOKDOWN},
+	{"Center View",          GC_CENTERVIEW},
+	{"Toggle Mouselook",     GC_MOUSEAIMING},
+	{"Toggle Third-Person",  GC_CAMTOGGLE},
+	{"Reset Camera",         GC_CAMRESET},
+	{"Game Status",          GC_SCORES},
+	{"Pause / Run Retry",    GC_PAUSE},
+	{"Screenshot",           GC_SCREENSHOT},
+	{"Toggle GIF Recording", GC_RECORDGIF},
+	{"Open/Close Menu",      GC_SYSTEMMENU},
+	{"Change Viewpoint",     GC_VIEWPOINT},
+	{"Talk",                 GC_TALKKEY},
+	{"Talk (Team only)",     GC_TEAMKEY},
+	{"Fire",                 GC_FIRE},
+	{"Fire Normal",          GC_FIRENORMAL},
+	{"Toss Flag",            GC_TOSSFLAG},
+	{"Next Weapon",          GC_WEAPONNEXT},
+	{"Prev Weapon",          GC_WEAPONPREV},
+	{"Custom Action 1",      GC_CUSTOM1},
+	{"Custom Action 2",      GC_CUSTOM2},
+	{"Custom Action 3",      GC_CUSTOM3},
+	{NULL,                   GC_NULL},
 };
 
 static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
@@ -2816,7 +2816,7 @@ static boolean SetupNewButtonSubmenu(touchfinger_t *finger)
 	touchcust_submenu_scroll = 0;
 	memset(&touchcust_submenu_scrollbar, 0x00, sizeof(touchcust_submenu_scrollbar_t) * NUMTOUCHFINGERS);
 
-	for (i = 0; (touchcust_buttonlist[i].gc != gc_null); i++)
+	for (i = 0; (touchcust_buttonlist[i].gc != GC_NULL); i++)
 	{
 		INT32 gc = touchcust_buttonlist[i].gc;
 		touchconfig_t *ubtn = &usertouchcontrols[gc];
@@ -2971,14 +2971,14 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			if (CON_Ready())
 				break;
 
-			if (finger->u.gamecontrol != gc_null)
+			if (finger->u.gamecontrol != GC_NULL)
 			{
 				btn = &usertouchcontrols[finger->u.gamecontrol];
 				btnstatus = &touchcustbuttons[finger->u.gamecontrol];
 				optionsarea = IsFingerTouchingButtonOptions(x, y, finger, btn, btnstatus);
 			}
 
-			for (i = (num_gamecontrols - 1); i >= 0; i--)
+			for (i = (NUM_GAMECONTROLS - 1); i >= 0; i--)
 			{
 				btn = &usertouchcontrols[i];
 				btnstatus = &touchcustbuttons[i];
@@ -3076,7 +3076,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 			// Let go of this finger.
 			gc = finger->u.gamecontrol;
 
-			if (gc > gc_null)
+			if (gc > GC_NULL)
 			{
 				btn = &usertouchcontrols[gc];
 				btnstatus = &touchcustbuttons[gc];
@@ -3093,7 +3093,7 @@ boolean TS_HandleCustomization(INT32 x, INT32 y, touchfinger_t *finger, event_t 
 				{
 					btnstatus->finger = NULL;
 					ClearSelection(btnstatus);
-					finger->u.gamecontrol = gc_null;
+					finger->u.gamecontrol = GC_NULL;
 				}
 				// Stop moving button
 				else
@@ -3197,7 +3197,7 @@ void TS_DrawCustomization(void)
 	DrawGrid();
 	TS_DrawControls(usertouchcontrols, true, 10);
 
-	for (i = 0; i < num_gamecontrols; i++)
+	for (i = 0; i < NUM_GAMECONTROLS; i++)
 	{
 		touchconfig_t *btn = &usertouchcontrols[i];
 		touchcust_buttonstatus_t *btnstatus = &touchcustbuttons[i];

@@ -1,3 +1,14 @@
+// SONIC ROBO BLAST 2
+//-----------------------------------------------------------------------------
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
+//
+// This program is free software distributed under the
+// terms of the GNU General Public License, version 2.
+// See the 'LICENSE' file for more details.
+//-----------------------------------------------------------------------------
+/// \file  SDL_android_main.c
+/// \brief Android entry point
+
 #include "SDL.h"
 #include "SDL_main.h"
 #include "SDL_config.h"
@@ -86,7 +97,7 @@ static boolean StorageCheckPermission(void)
 int main(int argc, char* argv[])
 {
 #ifdef LOGMESSAGES
-	boolean logging = (!M_CheckParm("-nolog"));
+	boolean logging = !M_CheckParm("-nolog");
 #endif
 
 	myargc = argc;

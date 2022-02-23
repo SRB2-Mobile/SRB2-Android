@@ -96,8 +96,11 @@ android {
         if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
             commandLine 'cmd', '/c', comptimeScript + '.bat', 'src/'
         } else {
-            commandLine 'sh', comptimeScript + '.sh', 'src/'
+            commandLine './' + comptimeScript + '.sh', 'src/'
         }
+    }
+    lint {
+        abortOnError false
     }
     preBuild.dependsOn generateCompTime
 
@@ -112,10 +115,7 @@ android {
         }
        
     }
-    lintOptions {
-        abortOnError false
-    }
-    
+
     if (buildAsLibrary) {
         libraryVariants.all { variant ->
             variant.outputs.each { output ->

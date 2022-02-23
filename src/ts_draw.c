@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -152,15 +152,15 @@ static void DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	fixed_t dupy = vid.dupy * FRACUNIT;
 	fixed_t xscale, yscale;
 
-	touchconfig_t *tleft = &config[gc_strafeleft];
-	touchconfig_t *tright = &config[gc_straferight];
-	touchconfig_t *tup = &config[gc_forward];
-	touchconfig_t *tdown = &config[gc_backward];
+	touchconfig_t *tleft = &config[GC_STRAFELEFT];
+	touchconfig_t *tright = &config[GC_STRAFERIGHT];
+	touchconfig_t *tup = &config[GC_FORWARD];
+	touchconfig_t *tdown = &config[GC_BACKWARD];
 
-	touchconfig_t *tul = &config[gc_dpadul];
-	touchconfig_t *tur = &config[gc_dpadur];
-	touchconfig_t *tdl = &config[gc_dpaddl];
-	touchconfig_t *tdr = &config[gc_dpaddr];
+	touchconfig_t *tul = &config[GC_DPADUL];
+	touchconfig_t *tur = &config[GC_DPADUR];
+	touchconfig_t *tdl = &config[GC_DPADDL];
+	touchconfig_t *tdr = &config[GC_DPADDR];
 
 	patch_t *up = W_CachePatchLongName("DPAD_UP", PU_PATCH);
 	patch_t *down = W_CachePatchLongName("DPAD_DOWN", PU_PATCH);
@@ -172,15 +172,15 @@ static void DrawDPad(fixed_t dpadx, fixed_t dpady, fixed_t dpadw, fixed_t dpadh,
 	patch_t *dl = W_CachePatchLongName("DPAD_DL", PU_PATCH);
 	patch_t *dr = W_CachePatchLongName("DPAD_DR", PU_PATCH);
 
-	boolean moveleft = touchcontroldown[gc_strafeleft];
-	boolean moveright = touchcontroldown[gc_straferight];
-	boolean moveup = touchcontroldown[gc_forward];
-	boolean movedown = touchcontroldown[gc_backward];
+	boolean moveleft = touchcontroldown[GC_STRAFELEFT];
+	boolean moveright = touchcontroldown[GC_STRAFERIGHT];
+	boolean moveup = touchcontroldown[GC_FORWARD];
+	boolean movedown = touchcontroldown[GC_BACKWARD];
 
-	boolean moveul = touchcontroldown[gc_dpadul];
-	boolean moveur = touchcontroldown[gc_dpadur];
-	boolean movedl = touchcontroldown[gc_dpaddl];
-	boolean movedr = touchcontroldown[gc_dpaddr];
+	boolean moveul = touchcontroldown[GC_DPADUL];
+	boolean moveur = touchcontroldown[GC_DPADUR];
+	boolean movedl = touchcontroldown[GC_DPADDL];
+	boolean movedr = touchcontroldown[GC_DPADDR];
 
 	// generate colormap
 	static UINT8 *colormap = NULL;
@@ -420,7 +420,7 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = GetInputAccent();
 
-	const INT32 noncontrolbtns[] = {gc_systemmenu, gc_viewpoint, gc_screenshot, gc_talkkey, gc_scores, gc_camtoggle, gc_camreset};
+	const INT32 noncontrolbtns[] = {GC_SYSTEMMENU, GC_VIEWPOINT, GC_SCREENSHOT, GC_TALKKEY, GC_SCORES, GC_CAMTOGGLE, GC_CAMRESET};
 	const INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
 
 	INT32 i;
@@ -429,7 +429,7 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 		return;
 
 	// Draw movement control
-	if (drawgamecontrols && (!config[gc_joystick].hidden))
+	if (drawgamecontrols && (!config[GC_JOYSTICK].hidden))
 	{
 		// Draw the d-pad
 		if (touch_movementstyle == tms_dpad)
@@ -445,7 +445,7 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 
 	if (drawgamecontrols)
 	{
-		for (i = 0; i < num_gamecontrols; i++)
+		for (i = 0; i < NUM_GAMECONTROLS; i++)
 		{
 			if (TS_ButtonIsPlayerControl(i) && (!config[i].hidden))
 				drawbtn(i);
@@ -463,13 +463,13 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	}
 
 	// Pause
-	drawbtnname(gc_pause, (paused ? "\x1D" : "II"));
+	drawbtnname(GC_PAUSE, (paused ? "\x1D" : "II"));
 
 	// Movie mode
-	drawcolbtn(gc_recordgif, (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
+	drawcolbtn(GC_RECORDGIF, (moviemode ? ((leveltime & 16) ? 36 : 43) : 36));
 
 	// Team talk key
-	drawcolbtn(gc_teamkey, accent);
+	drawcolbtn(GC_TEAMKEY, accent);
 
 #undef drawcolbtn
 #undef drawbtnname
@@ -589,7 +589,7 @@ static void DrawNavigationButton(INT32 nav)
 	drawfill(ix, iy + offs, iw, ih, col, flags);
 
 	// Draw the button name
-	if (strlen(control->name) > 1)
+	if (control->name && strlen(control->name) > 1)
 	{
 		INT32 strflags = (flags | V_ALLOWLOWERCASE);
 		INT32 snapflags = control->snapflags;
@@ -663,6 +663,9 @@ static void DrawNavigationButton(INT32 nav)
 
 void TS_DrawNavigation(void)
 {
+	if (!TS_Ready())
+		return;
+
 	if (!touchscreenavailable || inputmethod != INPUTMETHOD_TOUCH || !cv_touchmenutrans.value)
 		return;
 
@@ -680,10 +683,13 @@ void TS_DrawNavigation(void)
 
 boolean TS_CanDrawButtons(void)
 {
+	if (demoplayback)
+		return false;
+
 	if (takescreenshot && !cv_touchscreenshots.value)
 		return false;
 
-	return (G_InGameInput() && touchscreenavailable && controlmethod == INPUTMETHOD_TOUCH);
+	return G_InGameInput() && touchscreenavailable && controlmethod == INPUTMETHOD_TOUCH;
 }
 
 void TS_DrawFingers(void)

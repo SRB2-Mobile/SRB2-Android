@@ -104,7 +104,7 @@ typedef LPVOID (WINAPI *p_MapViewOfFile) (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
 #endif
 #endif
 
-#if ((defined (__unix__) && !defined (_MSDOS)) || defined (UNIXCOMMON)) && !(defined(__APPLE__) || defined(__ANDROID__))
+#if (defined (__unix__) || defined (UNIXCOMMON)) && !(defined(__APPLE__) || defined(__ANDROID__))
 #include <errno.h>
 #include <sys/wait.h>
 #define NEWSIGNALHANDLER
@@ -360,9 +360,10 @@ static void I_ReportSignal(int num, int coredumped)
 	NDKCrashHandler_ReportSignal(sigmsg);
 #endif
 
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-		"Process killed by signal",
-		sigmsg, NULL);
+	if (!M_CheckParm("-dedicated"))
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+			"Process killed by signal",
+			sigmsg, NULL);
 }
 
 #ifndef NEWSIGNALHANDLER
@@ -582,7 +583,7 @@ static void I_StartupConsole(void)
 void I_GetConsoleEvents(void)
 {
 	// we use this when sending back commands
-	event_t ev = {0,0,0,0};
+	event_t ev = {0};
 	char key = 0;
 	ssize_t d;
 
@@ -1145,6 +1146,7 @@ void I_ShutdownJoystick(void)
 	INT32 i;
 	event_t event;
 	event.type = ev_keyup;
+
 	event.x = 0;
 	event.y = 0;
 
@@ -1181,6 +1183,7 @@ void I_ShutdownJoystick(void)
 void I_GetJoystickEvents(void)
 {
 	static event_t event;
+
 	INT32 i = 0;
 	UINT64 joyhats = 0;
 
@@ -1269,10 +1272,11 @@ void I_ShutdownJoystick2(void)
 void I_GetJoystick2Events(void)
 {
 	static event_t event;
+
 	INT32 i = 0;
 	UINT64 joyhats = 0;
 
-	if (!joystick2_started || !JoyInfo2.dev)
+	if (!JoyInfo2.dev)
 		return;
 
 	for (i = JoyInfo2.hats - 1; i >= 0; i--)
@@ -1375,12 +1379,12 @@ void I_ChangeJoystick2(void)
 		SDL_JoystickClose(newjoy);
 }
 
-#ifdef TOUCHINPUTS
 //
 // I_InitTouchScreen
 //
 void I_InitTouchScreen(void)
 {
+#ifdef TOUCHINPUTS
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
 
@@ -1400,10 +1404,10 @@ void I_InitTouchScreen(void)
 		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == -1)
 			CONS_Printf(M_GetText("Couldn't initialize the touch screen: %s\n"), SDL_GetError());
 	}
+#endif
 }
 
 void I_TouchScreenAvailable(void) {}
-#endif
 
 static void I_ShutdownInput(void)
 {
@@ -1824,7 +1828,7 @@ void I_GetMouseEvents(void)
 		event.key = 0;
 //		event.key = buttons; // not needed
 		event.x = handlermouse2x << 1;
-		event.y = -handlermouse2y << 1;
+		event.y = handlermouse2y << 1;
 		handlermouse2x = 0;
 		handlermouse2y = 0;
 
@@ -2018,7 +2022,13 @@ precise_t I_GetPreciseTime(void)
 
 int I_PreciseToMicros(precise_t d)
 {
-	return (int)(d / (timer_frequency / 1000000.0));
+	// d is going to be converted into a double. So remove the highest bits
+	// to avoid loss of precision in the lower bits, for the (probably rare) case
+	// that the higher bits are actually used.
+	d &= ((precise_t)1 << 53) - 1; // The mantissa of a double can handle 53 bits at most.
+	// The resulting double from the calculation is converted first to UINT64 to avoid overflow,
+	// which is undefined behaviour when converting floating point values to integers.
+	return (int)(UINT64)(d / (timer_frequency / 1000000.0));
 }
 
 //
@@ -2051,9 +2061,10 @@ static void newsignalhandler_Warn(const char *pr)
 
 	I_OutputMsg("%s\n", text);
 
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-		"Startup error",
-		text, NULL);
+	if (!M_CheckParm("-dedicated"))
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+			"Startup error",
+			text, NULL);
 
 	I_ShutdownConsole();
 	exit(-1);
@@ -2260,9 +2271,10 @@ void I_Error(const char *error, ...)
 			// Implement message box with SDL_ShowSimpleMessageBox,
 			// which should fail gracefully if it can't put a message box up
 			// on the target system
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-				"SRB2 "VERSIONSTRING" Recursive Error",
-				buffer, NULL);
+			if (!M_CheckParm("-dedicated"))
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+					"SRB2 "VERSIONSTRING" Recursive Error",
+					buffer, NULL);
 
 			W_Shutdown();
 			exit(-1); // recursive errors detected
@@ -2306,9 +2318,10 @@ void I_Error(const char *error, ...)
 	// Implement message box with SDL_ShowSimpleMessageBox,
 	// which should fail gracefully if it can't put a message box up
 	// on the target system
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-		"SRB2 "VERSIONSTRING" Error",
-		buffer, NULL);
+	if (!M_CheckParm("-dedicated"))
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+			"SRB2 "VERSIONSTRING" Error",
+			buffer, NULL);
 	// Note that SDL_ShowSimpleMessageBox does *not* require SDL to be
 	// initialized at the time, so calling it after SDL_Quit() is
 	// perfectly okay! In addition, we do this on purpose so the

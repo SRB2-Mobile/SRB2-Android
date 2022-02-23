@@ -38,6 +38,9 @@ float NEAR_CLIPPING_PLANE = NZCLIP_PLANE;
 //                                                                    GLOBALS
 // ==========================================================================
 
+RGBA_t *TextureBuffer = NULL;
+static size_t TextureBufferSize = 0;
+
 RGBA_t  myPaletteData[256];
 GLint   screen_width    = 0;
 GLint   screen_height   = 0;
@@ -957,6 +960,18 @@ void GLModel_ClearVBOs(model_t *model)
 	model->hasVBOs = false;
 }
 
+void GLTexture_AllocBuffer(GLMipmap_t *pTexInfo)
+{
+	size_t size = pTexInfo->width * pTexInfo->height;
+	if (size > TextureBufferSize)
+	{
+		TextureBuffer = realloc(TextureBuffer, size * sizeof(RGBA_t));
+		if (TextureBuffer == NULL)
+			I_Error("GLTexture_AllocBuffer: out of memory allocating %s bytes", sizeu1(size * sizeof(RGBA_t)));
+		TextureBufferSize = size;
+	}
+}
+
 // -----------------+
 // Flush            : Flush OpenGL textures
 //                  : Clear list of downloaded mipmaps
@@ -985,6 +1000,10 @@ void GLTexture_Flush(void)
 
 	TexCacheTail = TexCacheHead = NULL; //Hurdler: well, TexCacheHead is already NULL
 	tex_downloaded = 0;
+
+	free(TextureBuffer);
+	TextureBuffer = NULL;
+	TextureBufferSize = 0;
 }
 
 

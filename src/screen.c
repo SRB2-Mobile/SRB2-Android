@@ -259,11 +259,6 @@ void SCR_SetMode(void)
 
 	V_SetPalette(0);
 
-#ifdef TOUCHMENUS
-	if (M_OnMobileMenu())
-		M_CheckMobileMenuHeight();
-#endif
-
 	SCR_SetDrawFuncs();
 
 	// set the apprpriate drawer for the sky (tall or INT16)

@@ -78,6 +78,8 @@
 #include "../console.h"
 #include "../command.h"
 #include "../r_main.h"
+#include "../lua_script.h"
+#include "../lua_libs.h"
 #include "../lua_hook.h"
 
 #include "sdlmain.h"
@@ -97,7 +99,20 @@
 #endif
 
 #if defined(SPLASH_SCREEN) && defined(HAVE_PNG)
-	#include "../r_picformats.h" // zlib defines and png.h include
+	#ifndef _LARGEFILE64_SOURCE
+	#define _LARGEFILE64_SOURCE
+	#endif
+
+	#ifndef _LFS64_LARGEFILE
+	#define _LFS64_LARGEFILE
+	#endif
+
+	#ifndef _FILE_OFFSET_BITS
+	#define _FILE_OFFSET_BITS 0
+	#endif
+
+	#include "png.h"
+
 	#ifdef PNG_READ_SUPPORTED
 		#define SPLASH_SCREEN_SUPPORTED
 
@@ -538,6 +553,8 @@ static boolean IgnoreMouse(void)
 	if (gamestate != GS_LEVEL && gamestate != GS_INTERMISSION &&
 			gamestate != GS_CONTINUING && gamestate != GS_CUTSCENE)
 		return true;
+	if (!mousegrabbedbylua)
+		return true;
 	return false;
 }
 
@@ -569,6 +586,14 @@ void I_UpdateMouseGrab(void)
 	&& SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window
 	&& USE_MOUSEINPUT && !IgnoreMouse())
 		SDLdoGrabMouse();
+}
+
+void I_SetMouseGrab(boolean grab)
+{
+	if (grab)
+		SDLdoGrabMouse();
+	else
+		SDLdoUngrabMouse();
 }
 
 static void VID_Command_NumModes_f (void)
@@ -683,8 +708,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 	static SDL_bool mousefocus = SDL_TRUE;
 	static SDL_bool kbfocus = SDL_TRUE;
 
+#if defined(__ANDROID__)
 	static Sint32 windowWidth = 0;
 	static Sint32 windowHeight = 0;
+#endif
 
 #ifdef NATIVESCREENRES
 	boolean changed = false;
@@ -709,10 +736,10 @@ static void Impl_HandleWindowEvent(SDL_WindowEvent evt)
 		case SDL_WINDOWEVENT_MAXIMIZED:
 			break;
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
+#if defined(__ANDROID__)
 			windowWidth = evt.data1;
 			windowHeight = evt.data2;
 
-#if defined(__ANDROID__)
 			if (JNI_IsInMultiWindowMode())
 			{
 				appWindowWidth = windowWidth;
@@ -789,6 +816,9 @@ static void Impl_HandleKeyboardEvent(SDL_KeyboardEvent evt, Uint32 type)
 		return;
 	}
 	event.key = Impl_SDL_Scancode_To_Keycode(evt.keysym.scancode);
+
+	event.repeated = (evt.repeat != 0);
+
 	if (event.key) D_PostEvent(&event);
 }
 
@@ -810,12 +840,10 @@ static void Impl_HandleMouseMotionEvent(SDL_MouseMotionEvent evt)
 		if (SDL_GetRelativeMouseMode())
 		{
 			if (SDL_GetMouseFocus() == window && SDL_GetKeyboardFocus() == window)
-			{
+			{	
 				mousemovex +=  evt.xrel;
 				mousemovey += -evt.yrel;
-#if !defined(__ANDROID__)
 				SDL_SetWindowGrab(window, SDL_TRUE);
-#endif
 			}
 			firstmove = false;
 			return;
@@ -930,14 +958,7 @@ static INT32 SDLJoyAxis(const Sint16 axis, evtype_t which)
 			raxis = 0;
 	}
 	else
-	{
 		raxis = JoyInfo_p->scale!=1?((raxis/JoyInfo_p->scale)*JoyInfo_p->scale):raxis;
-
-#ifdef SDL_JDEADZONE
-		if (-SDL_JDEADZONE <= raxis && raxis <= SDL_JDEADZONE)
-			raxis = 0;
-#endif
-	}
 
 	return raxis;
 }
@@ -1096,22 +1117,22 @@ static void Impl_HandleJoystickButtonEvent(SDL_JoyButtonEvent evt, Uint32 type)
 		}
 		else return;
 
+		if (type == SDL_JOYBUTTONUP)
+		{
+			event.type = ev_keyup;
+		}
+		else if (type == SDL_JOYBUTTONDOWN)
+		{
+			event.type = ev_keydown;
+		}
+		else return;
+
 		if (evt.button < JOYBUTTONS)
 		{
 			event.key += evt.button;
 		}
 		else return;
 	}
-
-	if (type == SDL_JOYBUTTONUP)
-	{
-		event.type = ev_keyup;
-	}
-	else if (type == SDL_JOYBUTTONDOWN)
-	{
-		event.type = ev_keydown;
-	}
-	else return;
 
 	D_PostEvent(&event);
 }
@@ -1215,8 +1236,9 @@ static void Impl_HandleTouchEvent(SDL_TouchFingerEvent evt)
 		I_TouchScreenAvailable();
 	}
 }
+#endif
 
-// On-screen keyboard text input
+#ifdef VIRTUAL_KEYBOARD
 static char *textinputbuffer = NULL;
 static size_t textbufferlength = 0;
 static void (*textinputcallback)(char *, size_t);
@@ -1310,12 +1332,14 @@ void I_GetEvent(void)
 			case SDL_FINGERUP:
 				Impl_HandleTouchEvent(evt.tfinger);
 				break;
+#endif
+#ifdef VIRTUAL_KEYBOARD
 			case SDL_TEXTINPUT:
 				// If user pressed the console button, don't type the
 				// character into the console buffer.
 				if (evt.text.text[0] && !evt.text.text[1]
-					&& evt.text.text[0] != gamecontrol[gc_console][0]
-					&& evt.text.text[0] != gamecontrol[gc_console][1])
+					&& evt.text.text[0] != gamecontrol[GC_CONSOLE][0]
+					&& evt.text.text[0] != gamecontrol[GC_CONSOLE][1])
 					Impl_HandleTextInput(evt.text);
 				break;
 #endif
@@ -1488,7 +1512,7 @@ void I_GetEvent(void)
 #if defined(__ANDROID__)
 			case SDL_APP_TERMINATING:
 #endif
-				LUAh_GameQuit(true);
+				LUA_HookBool(true, HOOK(GameQuit));
 				I_Quit();
 				break;
 		}
@@ -1537,33 +1561,46 @@ void I_StartupMouse(void)
 		SDLdoUngrabMouse();
 }
 
-#ifdef TOUCHINPUTS
-void I_RaiseScreenKeyboard(char *buffer, size_t length)
+void I_ShowVirtualKeyboard(char *buffer, size_t length)
 {
+#ifdef VIRTUAL_KEYBOARD
 	textinputbuffer = buffer;
 	textbufferlength = length;
 	textinputcallback = NULL;
 	SDL_StartTextInput();
+#else
+	(void)buffer;
+	(void)length;
+#endif
 }
 
-void I_ScreenKeyboardCallback(void (*callback)(char *, size_t))
+void I_SetVirtualKeyboardCallback(void (*callback)(char *, size_t))
 {
+#ifdef VIRTUAL_KEYBOARD
 	textinputcallback = callback;
+#else
+	(void)callback;
+#endif
 }
 
 boolean I_KeyboardOnScreen(void)
 {
-	return ((SDL_IsTextInputActive() == SDL_TRUE) ? true : false);
+#ifdef VIRTUAL_KEYBOARD
+	return (SDL_IsTextInputActive() == SDL_TRUE) ? true : false;
+#else
+	return false;
+#endif
 }
 
 void I_CloseScreenKeyboard(void)
 {
+#ifdef VIRTUAL_KEYBOARD
 	textinputbuffer = NULL;
 	textbufferlength = 0;
 	textinputcallback = NULL;
 	SDL_StopTextInput();
-}
 #endif
+}
 
 //
 // I_OsPolling
@@ -2399,6 +2436,15 @@ void VID_StartupOpenGL(void)
 //
 
 #ifdef SPLASH_SCREEN_SUPPORTED
+static void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length)
+{
+	png_io_t *f = png_get_io_ptr(png_ptr);
+	if (length > (f->size - f->position))
+		png_error(png_ptr, "PNG_IOReader: buffer overrun");
+	memcpy(data, f->buffer + f->position, length);
+	f->position += length;
+}
+
 static UINT32 *SplashScreen_LoadImage(const UINT8 *source, size_t source_size, UINT32 *dest_w, UINT32 *dest_h)
 {
 	png_structp png_ptr;
@@ -2746,3 +2792,8 @@ void I_ShutdownGraphics(void)
 	framebuffer = SDL_FALSE;
 }
 #endif
+
+void I_GetCursorPosition(INT32 *x, INT32 *y)
+{
+	SDL_GetMouseState(x, y);
+}

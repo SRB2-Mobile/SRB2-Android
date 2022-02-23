@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -29,10 +29,10 @@ char *Android_strchr(const char *str, int character)
 	return NULL;
 }
 
-static unsigned char extsyms[1024];
+static unsigned char extsyms[8192];
 static size_t numsyms;
 static size_t appliedsyms;
-static char symformat[1024];
+static char symformat[8192];
 
 static void resetsyms(void)
 {
@@ -42,9 +42,9 @@ static void resetsyms(void)
 
 static void getsyms(char *str, const char *format)
 {
-	unsigned char *c;
-	strncpy(symformat, format, 1024);
-	for (c = (unsigned char *)symformat; *c; c++)
+	strncpy(symformat, format, sizeof symformat);
+
+	for (unsigned char *c = (unsigned char *)symformat; *c; c++)
 	{
 		if (*c == 0x01 || *c >= 0x80)
 		{
@@ -57,8 +57,7 @@ static void getsyms(char *str, const char *format)
 
 static void applysyms(char *str)
 {
-	unsigned char *c;
-	for (c = (unsigned char *)str; *c; c++)
+	for (unsigned char *c = (unsigned char *)str; *c; c++)
 	{
 		if (*c == 0x01)
 		{

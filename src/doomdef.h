@@ -100,7 +100,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#if defined (_WIN32) || defined (__DJGPP__)
+#ifdef _WIN32
 #include <io.h>
 #endif
 
@@ -112,7 +112,7 @@
 //#define PARANOIA // do some tests that never fail but maybe
 // turn this on by make etc.. DEBUGMODE = 1 or use the Debug profile in the VC++ projects
 //#endif
-#if (defined (_WIN32) || (defined (__unix__) && !defined (MSDOS)) || defined(__APPLE__) || defined (UNIXCOMMON) || defined (macintosh))
+#if defined (_WIN32) || defined (__unix__) || defined(__APPLE__) || defined (UNIXCOMMON) || defined (macintosh)
 #define LOGMESSAGES // write message in log.txt
 #endif
 
@@ -133,9 +133,15 @@ extern char logfilename[1024];
 #define MOBILE_PLATFORM
 #endif
 
+// TV support
+#if defined(__ANDROID__) || defined(__TVOS__)
+#define TV_PLATFORM
+#endif
+
 //#define DEVELOP // Disable this for release builds to remove excessive cheat commands and enable MD5 checking and stuff, all in one go. :3
 #ifdef DEVELOP
 #define VERSIONSTRING "Development EXE"
+#define VERSIONSTRING_RC "Development EXE" "\0"
 // most interface strings are ignored in development mode.
 // we use comprevision and compbranch instead.
 // VERSIONSTRING_RC is for the resource-definition script used by windows builds
@@ -164,7 +170,6 @@ extern char logfilename[1024];
 #if defined(__ANDROID__)
 #define UNPACK_FILES
 #define USE_ANDROID_PK3
-#define DESCRIPTIVE_FILE_LOAD_ERROR
 #endif
 
 #ifdef USE_ANDROID_PK3
@@ -173,8 +178,11 @@ extern char logfilename[1024];
 
 // Virtual keyboard
 #if defined(MOBILE_PLATFORM) && defined(TOUCHINPUTS)
-#define ONSCREENKEYBOARD
+#define VIRTUAL_KEYBOARD
 #endif
+
+// Enforce a limit of loaded WAD files.
+//#define ENFORCE_WAD_LIMIT
 
 // Use .kart extension addons
 //#define USE_KART
@@ -439,12 +447,14 @@ enum {
 };
 
 // Name of local directory for config files and savegames
-#if defined(__ANDROID__)
-#define SHAREDSTORAGEFOLDER "Sonic Robo Blast 2"
-#elif (((defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON)) && !defined (__CYGWIN__)) && !defined (__APPLE__)
+#if (defined (__unix__) || defined (UNIXCOMMON)) && !defined (__CYGWIN__) && !defined (__APPLE__)
 #define DEFAULTDIR ".srb2"
 #else
 #define DEFAULTDIR "srb2"
+#endif
+
+#if defined(__ANDROID__)
+#define SHAREDSTORAGEFOLDER "Sonic Robo Blast 2"
 #endif
 
 #include "g_state.h"
@@ -655,10 +665,6 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 
 /// Experimental tweaks to analog mode. (Needs a lot of work before it's ready for primetime.)
 //#define REDSANALOG
-
-/// Backwards compatibility with musicslots.
-/// \note	You should leave this enabled unless you're working with a future SRB2 version.
-#define MUSICSLOT_COMPATIBILITY
 
 /// Experimental attempts at preventing MF_PAPERCOLLISION objects from getting stuck in walls.
 //#define PAPER_COLLISIONCORRECTION

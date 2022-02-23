@@ -156,9 +156,7 @@ typedef enum
 	MENUSTYLE_PLAYSTYLE,
 	MENUSTYLE_VIDEOMODES,
 	MENUSTYLE_ADDONS,
-	MENUSTYLE_SOUNDTEST,
-
-	MENUSTYLE_MOBILE    = 0x100,
+	MENUSTYLE_SOUNDTEST
 } menustyle_t;
 
 typedef struct
@@ -405,13 +403,6 @@ void M_ClearMenus(boolean callexitmenufunc);
 void M_NavigationAdvance(menu_t *menudef);
 void M_NavigationReturn(menu_t *menudef);
 
-boolean M_OnMobileMenu(void);
-boolean M_IsMobileMenu(menu_t *menudef);
-
-#ifdef TOUCHMENUS
-void M_CheckMobileMenuHeight(void);
-#endif
-
 #define MOBILEMENU_CONST_OPTHORZSHIFT 12
 #define MOBILEMENU_CONST_OPTANIMSPEED 2
 
@@ -628,19 +619,6 @@ void M_FreePlayerSetupColors(void);
 	source,\
 	M_DrawCenteredMenu,\
 	BASEVIDWIDTH/2, y,\
-	0,\
-	NULL,NULL\
-}
-
-#define MOBILEMENUSTYLE(id, header, source, prev, x, y)\
-{\
-	id,MENUSTYLE_MOBILE,\
-	header,\
-	sizeof(source)/sizeof(menuitem_t),\
-	prev,\
-	source,\
-	M_DrawMobileMenu,\
-	x, y,\
 	0,\
 	NULL,NULL\
 }

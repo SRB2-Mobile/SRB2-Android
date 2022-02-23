@@ -70,7 +70,7 @@ tic_t I_GetTime(void);
   */
 precise_t I_GetPreciseTime(void);
 
-/**	\brief	Returns the difference between precise times as microseconds.
+/**	\brief	Converts a precise_t to microseconds and casts it to a 32 bit integer.
   */
 int I_PreciseToMicros(precise_t);
 
@@ -226,7 +226,6 @@ INT32 I_JoystickIsTVRemote(INT32 joyindex);
 */
 INT32 I_JoystickIsAccelerometer(INT32 joyindex);
 
-#ifdef TOUCHINPUTS
 /**	\brief to startup the touch screen
 */
 void I_InitTouchScreen(void);
@@ -237,11 +236,11 @@ void I_TouchScreenAvailable(void);
 
 /**	\brief show the on-screen keyboard
 */
-void I_RaiseScreenKeyboard(char *buffer, size_t length);
+void I_ShowVirtualKeyboard(char *buffer, size_t length);
 
 /**	\brief set a callback for text input events
 */
-void I_ScreenKeyboardCallback(void (*callback)(char *, size_t));
+void I_SetVirtualKeyboardCallback(void (*callback)(char *, size_t));
 
 /**	\brief returns the status of the on-screen keyboard
 */
@@ -250,7 +249,6 @@ boolean I_KeyboardOnScreen(void);
 /**	\brief close the on-screen keyboard
 */
 void I_CloseScreenKeyboard(void);
-#endif
 
 #ifndef NOMUMBLE
 #include "p_mobj.h" // mobj_t
@@ -442,5 +440,13 @@ INT32 I_ClipboardCopy(const char *data, size_t size);
 const char *I_ClipboardPaste(void);
 
 void I_RegisterSysCommands(void);
+
+/** \brief Return the position of the cursor relative to the top-left window corner.
+*/
+void I_GetCursorPosition(INT32 *x, INT32 *y);
+
+/** \brief Sets whether the mouse is grabbed
+*/
+void I_SetMouseGrab(boolean grab);
 
 #endif

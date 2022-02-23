@@ -64,11 +64,6 @@ typedef struct SDLJoyInfo_s
 */
 extern SDLJoyInfo_t JoyInfo;
 
-/**	\brief joystick axis deadzone
-*/
-#define SDL_JDEADZONE 153
-#undef SDL_JDEADZONE
-
 /**	\brief SDL info about joystick 2
 */
 extern SDLJoyInfo_t JoyInfo2;

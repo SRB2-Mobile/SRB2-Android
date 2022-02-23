@@ -1,7 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
-// Copyright (C) 2018-2021 by Jaime "Lactozilla" Passos.
+// Copyright (C) 2018-2022 by Jaime Ita Passos.
 // Copyright (C) 2019-2021 by Sonic Team Junior.
 //
 // This program is free software distributed under the
@@ -116,25 +116,6 @@ void *Picture_PNGConvert(
 	size_t insize, size_t *outsize,
 	pictureflags_t flags);
 boolean Picture_PNGDimensions(UINT8 *png, INT32 *width, INT32 *height, INT16 *topoffset, INT16 *leftoffset, size_t size);
-#endif
-
-#ifdef HAVE_PNG
-
-#ifndef _MSC_VER
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-#endif
-
-#ifndef _LFS64_LARGEFILE
-#define _LFS64_LARGEFILE
-#endif
-
-#ifndef _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 0
-#endif
-
-#include "png.h"
 
 typedef struct
 {
@@ -143,10 +124,8 @@ typedef struct
 	UINT32 position;
 } png_io_t;
 
-void PNG_IOReader(png_structp png_ptr, png_bytep data, png_size_t length);
-#endif
-
 #define PICTURE_PNG_USELOOKUP
+#endif
 
 // SpriteInfo
 extern spriteinfo_t spriteinfo[NUMSPRITES];

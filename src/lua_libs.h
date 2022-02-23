@@ -12,6 +12,8 @@
 
 extern lua_State *gL;
 
+extern boolean mousegrabbedbylua;
+
 #define MUTABLE_TAGS
 
 #define LREG_VALID "VALID_USERDATA"
@@ -88,6 +90,9 @@ extern lua_State *gL;
 
 #define META_LUABANKS "LUABANKS[]*"
 
+#define META_KEYEVENT "KEYEVENT_T*"
+#define META_MOUSE "MOUSE_T*"
+
 boolean luaL_checkboolean(lua_State *L, int narg);
 
 int LUA_EnumLib(lua_State *L);
@@ -106,3 +111,4 @@ int LUA_TagLib(lua_State *L);
 int LUA_PolyObjLib(lua_State *L);
 int LUA_BlockmapLib(lua_State *L);
 int LUA_HudLib(lua_State *L);
+int LUA_InputLib(lua_State *L);

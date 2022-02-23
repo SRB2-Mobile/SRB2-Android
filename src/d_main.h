@@ -39,7 +39,6 @@ void D_SRB2Main(void);
 
 // Called by IO functions when input is detected.
 void D_PostEvent(const event_t *ev);
-
 void D_ProcessEvents(void);
 
 const char *D_Home(void);

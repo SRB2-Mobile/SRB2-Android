@@ -405,6 +405,7 @@ void GLModel_ClearVBOs(model_t *model);
 void GLModel_AllocLerpBuffer(size_t size);
 void GLModel_AllocLerpTinyBuffer(size_t size);
 
+void  GLTexture_AllocBuffer(GLMipmap_t *pTexInfo);
 void  GLTexture_Flush(void);
 void  GLTexture_FlushScreen(void);
 void  GLTexture_SetFilterMode(INT32 mode);
@@ -572,6 +573,8 @@ typedef struct FExtensionList FExtensionList;
 extern const GLubyte *gl_version;
 extern const GLubyte *gl_renderer;
 extern const GLubyte *gl_extensions;
+
+extern RGBA_t *TextureBuffer;
 
 extern RGBA_t myPaletteData[256];
 extern GLint  textureformatGL;

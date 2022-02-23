@@ -1,6 +1,6 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -111,7 +111,7 @@ typedef struct
 } touchnavbutton_t;
 
 // Control buttons
-extern touchconfig_t touchcontrols[num_gamecontrols];
+extern touchconfig_t touchcontrols[NUM_GAMECONTROLS];
 extern touchconfig_t *usertouchcontrols;
 
 // Navigation buttons

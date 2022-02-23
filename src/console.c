@@ -113,7 +113,7 @@ static void CON_DrawBackpic(void);
 static void CONS_hudlines_Change(void);
 static void CONS_backcolor_Change(void);
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 static void CON_ScreenKeyboardInput(char *text, size_t length);
 #endif
 
@@ -225,7 +225,7 @@ static void CONS_Bind_f(void)
 		for (key = 0; key < NUMINPUTS; key++)
 			if (bindtable[key])
 			{
-				CONS_Printf("%s : \"%s\"\n", G_KeynumToString(key), bindtable[key]);
+				CONS_Printf("%s : \"%s\"\n", G_KeyNumToName(key), bindtable[key]);
 				na = 1;
 			}
 		if (!na)
@@ -233,7 +233,7 @@ static void CONS_Bind_f(void)
 		return;
 	}
 
-	key = G_KeyStringtoNum(COM_Argv(1));
+	key = G_KeyNameToNum(COM_Argv(1));
 	if (key <= 0 || key >= NUMINPUTS)
 	{
 		CONS_Alert(CONS_NOTICE, M_GetText("Invalid key name\n"));
@@ -492,6 +492,19 @@ void CON_Init(void)
 		Unlock_state();
 	}
 }
+
+void CON_StartRefresh(void)
+{
+	if (con_startup)
+		con_refresh = true;
+}
+
+void CON_StopRefresh(void)
+{
+	if (con_startup)
+		con_refresh = false;
+}
+
 // Console input initialization
 //
 static void CON_InputInit(void)
@@ -683,7 +696,7 @@ void CON_ClearHUD(void)
 }
 
 // Force console to move out immediately
-// note: con_ticker will set consoleready false
+// Now sets consoleready to false
 void CON_ToggleOff(void)
 {
 	Lock_state();
@@ -700,9 +713,11 @@ void CON_ToggleOff(void)
 	con_forcepic = 0;
 	con_clipviewtop = -1; // remove console clipping of view
 
+	consoleready = false;
+
 	I_UpdateMouseGrab();
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 	if (I_KeyboardOnScreen())
 		I_CloseScreenKeyboard();
 #endif
@@ -746,7 +761,7 @@ void CON_Ticker(void)
 	con_tick++;
 	con_tick &= 7;
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 	// Close the console if the screen keyboard is not visible
 	if (con_destlines > 0 && !I_KeyboardOnScreen())
 		consoletoggle = true;
@@ -763,7 +778,7 @@ void CON_Ticker(void)
 			con_destlines = 0;
 			CON_ClearHUD();
 			I_UpdateMouseGrab();
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 			if (I_KeyboardOnScreen())
 				I_CloseScreenKeyboard();
 #endif
@@ -771,7 +786,7 @@ void CON_Ticker(void)
 		else
 			CON_ChangeHeight();
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 		con_scrollup = 0;
 #endif
 	}
@@ -795,11 +810,11 @@ void CON_Ticker(void)
 	// check if console ready for prompt
 	if (con_destlines >= minheight)
 	{
-#ifdef ONSCREENKEYBOARD
-		if (!(consoleready && I_KeyboardOnScreen())) // Raise the screen keyboard
+#ifdef VIRTUAL_KEYBOARD
+		if (!(consoleready && I_KeyboardOnScreen())) // Show the virtual keyboard
 		{
-			I_RaiseScreenKeyboard(NULL, 0);
-			I_ScreenKeyboardCallback(CON_ScreenKeyboardInput);
+			I_ShowVirtualKeyboard(NULL, 0);
+			I_SetVirtualKeyboardCallback(CON_ScreenKeyboardInput);
 		}
 #endif
 		consoleready = true;
@@ -931,7 +946,7 @@ static void CON_InputDelChar(void)
 	Unlock_state();
 }
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 static void CON_ScreenKeyboardInput(char *text, size_t length)
 {
 	(void)length;
@@ -967,14 +982,7 @@ boolean CON_Responder(event_t *ev)
 	// let go keyup events, don't eat them
 	if (ev->type != ev_keydown && ev->type != ev_console)
 	{
-#ifdef TOUCHINPUTS
-		if (consoleready && ev->type == ev_touchup)
-		{
-			consoletoggle = true;
-			return true;
-		}
-#endif
-		if (ev->key == gamecontrol[gc_console][0] || ev->key == gamecontrol[gc_console][1])
+		if (ev->key == gamecontrol[GC_CONSOLE][0] || ev->key == gamecontrol[GC_CONSOLE][1])
 			consdown = false;
 		return false;
 	}
@@ -987,7 +995,7 @@ boolean CON_Responder(event_t *ev)
 		if (modeattacking || metalrecording || marathonmode)
 			return false;
 
-		if (key == gamecontrol[gc_console][0] || key == gamecontrol[gc_console][1])
+		if (key == gamecontrol[GC_CONSOLE][0] || key == gamecontrol[GC_CONSOLE][1])
 		{
 			if (consdown) // ignore repeat
 				return true;
@@ -1290,7 +1298,13 @@ boolean CON_Responder(event_t *ev)
 	if (key == KEY_ENTER)
 	{
 		if (!input_len)
+		{
+#ifdef VIRTUAL_KEYBOARD
+			if (I_KeyboardOnScreen())
+				CON_Toggle();
+#endif
 			return true;
+		}
 
 		// push the command
 		COM_BufAddText(inputlines[inputline]);
@@ -1339,7 +1353,7 @@ boolean CON_Responder(event_t *ev)
 		return true;
 	}
 
-#ifdef ONSCREENKEYBOARD
+#ifdef VIRTUAL_KEYBOARD
 	// Inputs handled elsewhere
 	if (I_KeyboardOnScreen())
 		return true;
@@ -1764,7 +1778,10 @@ static void CON_DrawHudlines(void)
 			{
 				charflags = (*p & 0x7f) << V_CHARCOLORSHIFT;
 				p++;
+				c++;
 			}
+			if (c >= con_width)
+				break;
 			if (*p < HU_FONTSTART)
 				;//charwidth = 4 * con_scalefactor;
 			else
@@ -1834,17 +1851,14 @@ static void CON_DrawBackpic(void)
 	// Draw the patch.
 	if (con_startup)
 	{
-		V_DrawCroppedPatch(x << FRACBITS, y << FRACBITS, FRACUNIT, V_NOSCALESTART, con_backpic,
-				0, 0, BASEVIDWIDTH, BASEVIDHEIGHT);
+		V_DrawCroppedPatch(x << FRACBITS, y << FRACBITS, FRACUNIT, FRACUNIT, V_NOSCALESTART, con_backpic, NULL,
+			0, 0, BASEVIDWIDTH << FRACBITS, BASEVIDHEIGHT << FRACBITS);
 	}
 	else
 	{
-		V_DrawCroppedPatch(x << FRACBITS, 0, FRACUNIT, V_NOSCALESTART, con_backpic,
-				0, ( BASEVIDHEIGHT - h ), BASEVIDWIDTH, h);
+		V_DrawCroppedPatch(x << FRACBITS, 0, FRACUNIT, FRACUNIT, V_NOSCALESTART, con_backpic, NULL,
+			0, (BASEVIDHEIGHT - h) << FRACBITS, BASEVIDWIDTH << FRACBITS, h << FRACBITS);
 	}
-
-	// Unlock the cached patch.
-	W_UnlockCachedPatch(con_backpic);
 }
 
 // draw the console background, text, and prompt if enough place
@@ -1902,7 +1916,10 @@ static void CON_DrawConsole(void)
 			{
 				charflags = (*p & 0x7f) << V_CHARCOLORSHIFT;
 				p++;
+				c++;
 			}
+			if (c >= con_width)
+				break;
 			V_DrawCharacter(x, y, (INT32)(*p) | charflags | cv_constextsize.value | V_NOSCALESTART, true);
 		}
 	}

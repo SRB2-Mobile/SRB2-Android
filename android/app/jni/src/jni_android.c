@@ -1,7 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
-// Copyright (C) 1997-2020 by Sam "Slouken" Lantinga.
+// Copyright (C) 2020-2022 by Jaime Ita Passos.
+// Copyright (C) 1997-2022 by Sam "Slouken" Lantinga.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -110,8 +110,8 @@ static JNIEnv *JNI_GetEnv(void)
 	context = (*env)->CallStaticObjectMethod(env, activityClass, method); \
 }
 
-// Lactozilla: I looked at SDL2's SDL_android.c for reference.
-// https://hg.libsdl.org/SDL/file/tip/src/core/android/SDL_android.c
+// Lactozilla: Portions from SDL2
+// https://github.com/libsdl-org/SDL/blob/main/src/core/android/SDL_android.c
 
 static int s_active = 0;
 struct LocalReferenceHolder

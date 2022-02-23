@@ -71,6 +71,7 @@ typedef struct
 	char name[9];           // filelump_t name[] e.g. "LongEntr"
 	char *longname;         //                   e.g. "LongEntryName"
 	char *fullname;         //                   e.g. "Folder/Subfolder/LongEntryName.extension"
+	char *diskpath;         // path to the file  e.g. "/usr/games/srb2/Addon/Folder/Subfolder/LongEntryName.extension"
 	size_t size;            // real (uncompressed) size
 	compmethod compression; // lump compression method
 } lumpinfo_t;
@@ -98,17 +99,15 @@ virtlump_t* vres_Find(const virtres_t*, const char*);
 //                         DYNAMIC WAD LOADING
 // =========================================================================
 
-#define MAX_WADPATH 512
-
-// maximum of wad files used at the same time
-// (there is a max of simultaneous open files anyway, and this should be plenty)
-#define MAXRESOURCES 48
-
-#ifdef USE_ANDROID_PK3
-#define MAX_WADFILES (MAXRESOURCES+1) // One more
+// Maximum of files that can be loaded
+// (there is a max of simultaneous open files anyway)
+#ifdef ENFORCE_WAD_LIMIT
+#define MAX_WADFILES 2048 // This cannot be any higher than UINT16_MAX.
 #else
-#define MAX_WADFILES MAXRESOURCES
+#define MAX_WADFILES UINT16_MAX
 #endif
+
+#define MAX_WADPATH 512
 
 #define lumpcache_t void *
 
@@ -119,17 +118,19 @@ typedef enum restype
 	RET_SOC,
 	RET_LUA,
 	RET_PK3,
+	RET_FOLDER,
 	RET_UNKNOWN,
 } restype_t;
 
 typedef struct wadfile_s
 {
-	char *filename;
+	char *filename, *path;
 	restype_t type;
 	lumpinfo_t *lumpinfo;
 	lumpcache_t *lumpcache;
 	lumpcache_t *patchcache;
 	UINT16 numlumps; // this wad's number of resources
+	UINT16 foldercount; // folder count
 	void *handle;
 	UINT32 filesize; // for network
 	UINT8 md5sum[16];
@@ -137,11 +138,18 @@ typedef struct wadfile_s
 	boolean important; // also network - !W_VerifyNMUSlumps
 } wadfile_t;
 
-#define WADFILENUM(lumpnum) (UINT16)((lumpnum)>>16) // wad flumpnum>>16) // wad file number in upper word
+#define WADFILENUM(lumpnum) (UINT16)((lumpnum)>>16) // wad file number in upper word
 #define LUMPNUM(lumpnum) (UINT16)((lumpnum)&0xFFFF) // lump number for this pwad
 
 extern UINT16 numwadfiles;
-extern wadfile_t *wadfiles[MAX_WADFILES];
+extern wadfile_t **wadfiles;
+
+typedef struct
+{
+	size_t numfiles;
+	char **files;
+	const char **hashes;
+} addfilelist_t;
 
 // =========================================================================
 
@@ -153,21 +161,23 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
 UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfile, boolean startup);
 
+// Adds a folder as a file
+UINT16 W_InitFolder(const char *path, boolean mainfile, boolean startup);
+
 // W_InitMultipleFiles exits if a file was not found, but not if all is okay.
-void W_InitMultipleFiles(char **filenames, fhandletype_t handletype);
+void W_InitMultipleFiles(addfilelist_t *list, fhandletype_t handletype);
+
+#define W_FileHasFolders(wadfile) ((wadfile)->type == RET_PK3 || (wadfile)->type == RET_FOLDER)
 
 // Prints an error in the console if something goes wrong while adding a file.
 // If it's an exit-worthy error, W_InitFileError will display such error message.
 void W_FileLoadError(const char *fmt, ...);
 
+INT32 W_IsPathToFolderValid(const char *path);
+char *W_GetFullFolderPath(const char *path);
+
 // File unpacking
 #ifdef UNPACK_FILES
-
-typedef struct
-{
-    char **filenames;
-    char **hashes;
-} unpacklist_t;
 
 // Unpacks a file into user storage.
 boolean W_UnpackFile(const char *filename, void *handle);
@@ -175,11 +185,8 @@ boolean W_UnpackFile(const char *filename, void *handle);
 // Checks if a file can be unpacked.
 boolean W_CanUnpackFile(const char *filename, const char *hash, size_t *filesize);
 
-// Count the total number of files to unpack
-boolean W_CheckUnpacking(unpacklist_t *list, UINT16 filecount);
-
 // Unpack the main files needed at startup.
-void W_UnpackMultipleFiles(char **filenames, char **hashes);
+void W_UnpackMultipleFiles(addfilelist_t *list, boolean checkhash);
 void W_UnpackBaseFiles(void);
 
 #define UNPACK_BUFFER_SIZE 4096
