@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 2018-2022 by Jaime Ita Passos.
-// Copyright (C) 2019-2021 by Sonic Team Junior.
+// Copyright (C) 2019-2022 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
