@@ -28,13 +28,6 @@ const GLubyte *gl_renderer = NULL;
 const GLubyte *gl_extensions = NULL;
 
 // ==========================================================================
-//                                                                  CONSTANTS
-// ==========================================================================
-
-GLuint NOTEXTURE_NUM = 0;
-float NEAR_CLIPPING_PLANE = NZCLIP_PLANE;
-
-// ==========================================================================
 //                                                                    GLOBALS
 // ==========================================================================
 
@@ -57,6 +50,8 @@ GLint anisotropic_filter = 0;
 boolean alpha_test = false;
 float alpha_threshold = 0.0f;
 
+float near_clipping_plane = NZCLIP_PLANE;
+
 // Linked list of all textures.
 FTextureInfo *TexCacheTail = NULL;
 FTextureInfo *TexCacheHead = NULL;
@@ -65,15 +60,14 @@ GLuint      tex_downloaded  = 0;
 GLfloat     fov             = 90.0f;
 FBITFIELD   CurrentPolyFlags;
 
-// Sryder:	NextTexAvail is broken for these because palette changes or changes to the texture filter or antialiasing
-//			flush all of the stored textures, leaving them unavailable at times such as between levels
-//			These need to start at 0 and be set to their number, and be reset to 0 when deleted so that intel GPUs
-//			can know when the textures aren't there, as textures are always considered resident in their virtual memory
 GLuint screentexture = 0;
 GLuint startScreenWipe = 0;
 GLuint endScreenWipe = 0;
 GLuint finalScreenTexture = 0;
 
+static GLuint blank_texture_num = 0;
+
+#ifdef HAVE_GL_FRAMEBUFFER
 GLuint FramebufferObject, FramebufferTexture;
 GLuint RenderbufferObject, RenderbufferDepthBits;
 GLboolean FramebufferEnabled = GL_FALSE, RenderToFramebuffer = GL_FALSE;
@@ -88,6 +82,7 @@ GLenum RenderbufferFormats[NumRenderbufferFormats] =
 	GL_DEPTH_COMPONENT32,
 	GL_DEPTH_COMPONENT32F
 };
+#endif
 
 // Linked list of all models.
 static GLModelList *ModelListTail = NULL;
@@ -104,7 +99,9 @@ boolean GLExtension_vertex_buffer_object;
 boolean GLExtension_texture_filter_anisotropic;
 boolean GLExtension_vertex_program;
 boolean GLExtension_fragment_program;
+#ifdef HAVE_GL_FRAMEBUFFER
 boolean GLExtension_framebuffer_object;
+#endif
 boolean GLExtension_shaders; // Not an extension on its own, but it is set if multiple extensions are available.
 
 static FExtensionList const ExtensionList[] = {
@@ -118,8 +115,10 @@ static FExtensionList const ExtensionList[] = {
 	{"GL_ARB_vertex_program", &GLExtension_vertex_program},
 	{"GL_ARB_fragment_program", &GLExtension_fragment_program},
 
+#ifdef HAVE_GL_FRAMEBUFFER
 	{"GL_ARB_framebuffer_object", &GLExtension_framebuffer_object},
 	{"GL_OES_framebuffer_object", &GLExtension_framebuffer_object},
+#endif
 
 	{NULL, NULL}
 };
@@ -257,6 +256,7 @@ PFNglDeleteBuffers pglDeleteBuffers;
 /* 2.0 functions */
 PFNglBlendEquation pglBlendEquation;
 
+#ifdef HAVE_GL_FRAMEBUFFER
 /* 3.0 functions for framebuffers and renderbuffers */
 PFNglGenFramebuffers pglGenFramebuffers;
 PFNglBindFramebuffer pglBindFramebuffer;
@@ -268,6 +268,7 @@ PFNglBindRenderbuffer pglBindRenderbuffer;
 PFNglDeleteRenderbuffers pglDeleteRenderbuffers;
 PFNglRenderbufferStorage pglRenderbufferStorage;
 PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
+#endif
 
 boolean GLBackend_LoadCommonFunctions(void)
 {
@@ -348,7 +349,9 @@ static const char *GetGLError(GLenum error)
 		case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
 		case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
 		case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
+#ifdef HAVE_GL_FRAMEBUFFER
 		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+#endif
 		default:                               return "unknown error";
 	}
 }
@@ -462,7 +465,7 @@ static void SetBlendMode(FBITFIELD flags)
 // PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
 //             is it faster when pixels are discarded ?
 
-void SetBlendingStates(FBITFIELD PolyFlags)
+void GLBackend_SetBlend(FBITFIELD PolyFlags)
 {
 	FBITFIELD Xor = CurrentPolyFlags^PolyFlags;
 
@@ -500,7 +503,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 		if (Xor & PF_RemoveYWrap)
 		{
 			if (PolyFlags & PF_RemoveYWrap)
-				SetClamp(GL_TEXTURE_WRAP_T);
+				GPU->SetClamp(GL_TEXTURE_WRAP_T);
 		}
 
 		if (Xor & PF_ForceWrapX)
@@ -552,9 +555,7 @@ void SetBlendingStates(FBITFIELD PolyFlags)
 			}
 		}
 		if (PolyFlags & PF_NoTexture)
-		{
-			SetNoTexture();
-		}
+			GPU->SetNoTexture();
 	}
 
 	CurrentPolyFlags = PolyFlags;
@@ -634,31 +635,30 @@ INT32 GLBackend_GetShaderType(INT32 type)
 	return type;
 }
 
-void SetSurface(INT32 w, INT32 h)
+void GLBackend_SetSurface(INT32 w, INT32 h)
 {
-	SetModelView(w, h);
-	SetStates();
+	GPU->SetModelView(w, h);
+	GPU->SetStates();
 
 	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+
+static boolean version_checked = false;
 
 boolean GLBackend_InitContext(void)
 {
 	if (!GLBackend_LoadCommonFunctions())
 		return false;
 
-	if (gl_version == NULL || gl_renderer == NULL)
+	if (!version_checked)
 	{
 		gl_version = pglGetString(GL_VERSION);
 		gl_renderer = pglGetString(GL_RENDERER);
 
-#if defined(__ANDROID__)
-		I_OutputMsg("OpenGL version: %s\n", gl_version);
-		I_OutputMsg("GPU: %s\n", gl_renderer);
-#else
-		GL_DBG_Printf("OpenGL %s\n", gl_version);
+		GL_DBG_Printf("OpenGL version: %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
 
+#if !defined(__ANDROID__)
 		if (strcmp((const char*)gl_renderer, "GDI Generic") == 0 &&
 			strcmp((const char*)gl_version, "1.1.0") == 0)
 		{
@@ -668,9 +668,13 @@ boolean GLBackend_InitContext(void)
 			// Also set the renderer variable back to software so the next launch won't
 			// repeat this error.
 			CV_StealthSet(&cv_renderer, "Software");
-			I_Error("OpenGL Error: Failed to access the GPU. There may be an issue with your graphics drivers.");
+			I_Error("OpenGL Error: Failed to access the GPU. Possible reasons include:\n"
+					"- GPU vendor has dropped OpenGL support on your GPU and OS. (Old GPU?)\n"
+					"- GPU drivers are missing or broken. You may need to update your drivers.");
 		}
 #endif
+
+		version_checked = true;
 	}
 
 	if (gl_extensions == NULL)
@@ -687,7 +691,10 @@ void GLBackend_RecreateContext(void)
 		GLMipmap_t *texture = pTexInfo->texture;
 
 		if (pTexInfo->downloaded)
+		{
+			pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
 			pTexInfo->downloaded = 0;
+		}
 
 		if (texture)
 			texture->downloaded = 0;
@@ -699,8 +706,11 @@ void GLBackend_RecreateContext(void)
 	TexCacheTail = TexCacheHead = NULL;
 
 	GLTexture_FlushScreen();
+	pglDeleteTextures(1, &blank_texture_num);
+	blank_texture_num = 0;
 	tex_downloaded = 0;
 
+#ifdef HAVE_GL_FRAMEBUFFER
 	if (GLExtension_framebuffer_object)
 	{
 		// Unbind the framebuffer and renderbuffer
@@ -710,6 +720,7 @@ void GLBackend_RecreateContext(void)
 		FramebufferObject = FramebufferTexture = 0;
 		RenderbufferObject = 0;
 	}
+#endif
 
 	while (ModelListHead)
 	{
@@ -728,6 +739,18 @@ void GLBackend_RecreateContext(void)
 	Shader_CleanPrograms();
 	Shader_Compile();
 #endif
+}
+
+void GLBackend_SetPalette(RGBA_t *palette)
+{
+	size_t palsize = sizeof(RGBA_t) * 256;
+
+	// on a palette change, you have to reload all of the textures
+	if (memcmp(&myPaletteData, palette, palsize))
+	{
+		memcpy(&myPaletteData, palette, palsize);
+		GLTexture_Flush();
+	}
 }
 
 static size_t lerpBufferSize = 0;
@@ -972,14 +995,31 @@ void GLTexture_AllocBuffer(GLMipmap_t *pTexInfo)
 	}
 }
 
+void GLTexture_Disable(void)
+{
+	if (tex_downloaded == blank_texture_num)
+		return;
+
+	if (blank_texture_num == 0)
+	{
+		// Generate a 1x1 white pixel as the blank texture
+		UINT8 whitepixel[4] = {255, 255, 255, 255};
+		pglGenTextures(1, &blank_texture_num);
+		pglBindTexture(GL_TEXTURE_2D, blank_texture_num);
+		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitepixel);
+	}
+	else
+		pglBindTexture(GL_TEXTURE_2D, blank_texture_num);
+
+	tex_downloaded = blank_texture_num;
+}
+
 // -----------------+
 // Flush            : Flush OpenGL textures
 //                  : Clear list of downloaded mipmaps
 // -----------------+
 void GLTexture_Flush(void)
 {
-	//GL_DBG_Printf ("GLTexture_Flush()\n");
-
 	while (TexCacheHead)
 	{
 		FTextureInfo *pTexInfo = TexCacheHead;
@@ -1104,6 +1144,7 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head)
 	return res;
 }
 
+#ifdef HAVE_GL_FRAMEBUFFER
 void GLFramebuffer_Generate(void)
 {
 	if (!GLExtension_framebuffer_object)
@@ -1213,7 +1254,7 @@ void GLFramebuffer_GenerateAttachments(void)
 			pglFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderbufferObject);
 
 			// Clear the renderbuffer
-			HWD.pfnClearBuffer(true, true, NULL);
+			GPU->ClearBuffer(true, true, NULL);
 		}
 		else
 			RenderToFramebuffer = GL_FALSE;
@@ -1283,6 +1324,7 @@ void GLFramebuffer_SetDepth(INT32 depth)
 {
 	RenderbufferDepthBits = min(max(depth, 0), NumRenderbufferFormats-1);
 }
+#endif
 
 void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data)
 {
@@ -1402,12 +1444,14 @@ void GLExtension_Init(void)
 	}
 	else
 		maximumAnisotropy = 1;
+
+	glanisotropicmode_cons_t[1].value = maximumAnisotropy;
 }
 
 boolean GLExtension_Available(const char *extension)
 {
 #ifdef HAVE_SDL
-	return (SDL_GL_ExtensionSupported(extension) == SDL_TRUE ? true : false);
+	return SDL_GL_ExtensionSupported(extension) == SDL_TRUE ? true : false;
 #else
 	const GLubyte *start = gl_extensions;
 	GLubyte       *where, *terminator;
@@ -1507,6 +1551,7 @@ boolean GLExtension_LoadFunctions(void)
 			EXTUNSUPPORTED(GLExtension_vertex_buffer_object);
 	}
 
+#ifdef HAVE_GL_FRAMEBUFFER
 	if (GLExtension_framebuffer_object)
 	{
 		const char *list[] =
@@ -1540,6 +1585,7 @@ boolean GLExtension_LoadFunctions(void)
 		else
 			EXTUNSUPPORTED(GLExtension_framebuffer_object);
 	}
+#endif
 
 	return true;
 }

@@ -38,28 +38,12 @@
 #endif
 #endif
 
-#define  _CREATE_DLL_  // necessary for Unix AND Windows
 #include "../../doomdef.h"
 #include "../hw_drv.h"
 
 // ==========================================================================
 //                                                                DEFINITIONS
 // ==========================================================================
-
-#define MIN(x,y) (((x)<(y)) ? (x) : (y))
-#define MAX(x,y) (((x)>(y)) ? (x) : (y))
-
-#undef DEBUG_TO_FILE            // maybe defined in previous *.h
-#define DEBUG_TO_FILE           // output debugging msgs to ogllog.txt
-
-// todo: find some way of getting SDL to log to ogllog.txt, without
-// interfering with r_opengl.dll
-#ifdef HAVE_SDL
-#undef DEBUG_TO_FILE
-#endif
-//#if defined(HAVE_SDL) && !defined(_DEBUG)
-//#undef DEBUG_TO_FILE
-//#endif
 
 #include "../r_glcommon/r_glcommon.h"
 

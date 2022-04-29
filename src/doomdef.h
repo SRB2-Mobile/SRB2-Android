@@ -138,6 +138,10 @@ extern char logfilename[1024];
 #define TV_PLATFORM
 #endif
 
+#if defined(HAVE_GLES2) || !defined(HAVE_GLES)
+#define HAVE_GL_FRAMEBUFFER
+#endif
+
 //#define DEVELOP // Disable this for release builds to remove excessive cheat commands and enable MD5 checking and stuff, all in one go. :3
 #ifdef DEVELOP
 #define VERSIONSTRING "Development EXE"

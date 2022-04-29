@@ -65,23 +65,19 @@ boolean GLBackend_Init(void)
 
 	\param	w	width
 	\param	h	height
-	\param	isFullscreen	if true, go fullscreen
 
 	\return	if true, changed video mode
 */
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
-	SetSurface(w, h);
-
-	glanisotropicmode_cons_t[1].value = maximumAnisotropy;
-	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-
-	HWR_Startup();
-
+	// Lactozilla: Does exactly just that in ES :D
+	GLBackend_SetSurface(w, h);
 	return true;
 }
 
+#ifdef HAVE_GL_FRAMEBUFFER
 static boolean firstFramebuffer = false;
+#endif
 
 /**	\brief	The OglSdlFinishUpdate function
 
@@ -100,42 +96,35 @@ void OglSdlFinishUpdate(boolean waitvbl)
 	oldwaitvbl = waitvbl;
 
 	SDL_GetWindowSize(window, &sdlw, &sdlh);
-	MakeFinalScreenTexture();
+	GPU->MakeFinalScreenTexture();
 
+#ifdef HAVE_GL_FRAMEBUFFER
 	GLFramebuffer_Disable();
 	RenderToFramebuffer = FramebufferEnabled;
+#endif
 
-	DrawFinalScreenTexture(sdlw, sdlh);
+	GPU->DrawFinalScreenTexture(sdlw, sdlh);
 
+#ifdef HAVE_GL_FRAMEBUFFER
 	if (RenderToFramebuffer)
 	{
 		// I have no idea why I have to do this.
 		if (!firstFramebuffer)
 		{
-			SetBlend(PF_Translucent|PF_Occlude|PF_Masked);
+			GPU->SetBlend(PF_Translucent|PF_Occlude|PF_Masked);
 			firstFramebuffer = true;
 		}
 
 		GLFramebuffer_Enable();
 	}
+#endif
 
 	SDL_GL_SwapWindow(window);
-	GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);
+	GPU->GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);
 
 	// Sryder:	We need to draw the final screen texture again into the other buffer in the original position so that
 	//			effects that want to take the old screen can do so after this
-	DrawFinalScreenTexture(realwidth, realheight);
-}
-
-EXPORT void HWRAPI(OglSdlSetPalette) (RGBA_t *palette)
-{
-	size_t palsize = (sizeof(RGBA_t) * 256);
-	// on a palette change, you have to reload all of the textures
-	if (memcmp(&myPaletteData, palette, palsize))
-	{
-		memcpy(&myPaletteData, palette, palsize);
-		GLTexture_Flush();
-	}
+	GPU->DrawFinalScreenTexture(realwidth, realheight);
 }
 
 #endif //HWRENDER

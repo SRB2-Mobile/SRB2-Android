@@ -890,7 +890,7 @@ void HWR_WallLighting(FOutVector *wlVerts)
 		if (dynlights->mo[j]->state->nextstate == S_NULL)
 			Surf.PolyColor.s.alpha = (UINT8)(((float)dynlights->mo[j]->tics/(float)dynlights->mo[j]->state->tics)*Surf.PolyColor.s.alpha);
 
-		HWD.pfnDrawPolygon (&Surf, wlVerts, 4, LIGHTMAPFLAGS);
+		GPU->DrawPolygon (&Surf, wlVerts, 4, LIGHTMAPFLAGS);
 
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
@@ -959,7 +959,7 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 		if ((dynlights->mo[j]->state->nextstate == S_NULL))
 			Surf.PolyColor.s.alpha = (unsigned char)(((float)dynlights->mo[j]->tics/(float)dynlights->mo[j]->state->tics)*Surf.PolyColor.s.alpha);
 
-		HWD.pfnDrawPolygon (&Surf, clVerts, nrClipVerts, LIGHTMAPFLAGS);
+		GPU->DrawPolygon (&Surf, clVerts, nrClipVerts, LIGHTMAPFLAGS);
 
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
@@ -1056,7 +1056,7 @@ void HWR_DoCoronasLighting(FOutVector *outVerts, gl_vissprite_t *spr)
 
 		HWR_GetPic(coronalumpnum);  /// \todo use different coronas
 
-		HWD.pfnDrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_Corona | PF_NoDepthTest);
+		GPU->DrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_Corona | PF_NoDepthTest);
 	}
 }
 #endif
@@ -1144,7 +1144,7 @@ void HWR_DrawCoronas(void)
 		light[3].y = cy+size*1.33f;
 		light[3].s = 0.0f;   light[3].t = 1.0f;
 
-		HWD.pfnDrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_NoDepthTest | PF_Corona);
+		GPU->DrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_NoDepthTest | PF_Corona);
 	}
 }
 #endif
@@ -1253,7 +1253,7 @@ static void HWR_SetLight(void)
 		lightmappatch.mipmap->height = 128;
 		lightmappatch.mipmap->flags = 0; //TF_WRAPXY; // DEBUG: view the overdraw !
 	}
-	HWD.pfnSetTexture(lightmappatch.mipmap);
+	GPU->SetTexture(lightmappatch.mipmap);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(lightmappatch.mipmap->data, PU_HWRCACHE_UNLOCKED);

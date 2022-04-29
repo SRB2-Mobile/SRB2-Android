@@ -1127,9 +1127,7 @@ static void IdentifyVersion(void)
 
 #if defined(__ANDROID__)
 	fhandletype_t handletype = FILEHANDLE_SDL;
-	D_SetupHome();
 #else
-	char *srb2wad;
 	fhandletype_t handletype = FILEHANDLE_STANDARD;
 #endif
 
@@ -1170,7 +1168,7 @@ static void IdentifyVersion(void)
 	configfile[sizeof configfile - 1] = '\0';
 
 	// Commercial.
-	srb2wad = malloc(strlen(srb2waddir)+1+8+1);
+	char *srb2wad = malloc(strlen(srb2waddir)+1+strlen(basepk3)+1);
 	if (srb2wad == NULL)
 		I_Error("No more free memory to look in %s", srb2waddir);
 	else
@@ -1290,6 +1288,10 @@ void D_SRB2Main(void)
 	ChangeDirForUrlHandler();
 #endif
 
+#if defined(__ANDROID__)
+	D_SetupHome();
+#endif
+
 	// identify the main IWAD file to use
 	IdentifyVersion();
 
@@ -1387,6 +1389,10 @@ void D_SRB2Main(void)
 	// Setup character tables
 	// Have to be done here before files are loaded
 	M_InitCharacterTables();
+
+#ifdef SPLASH_SCREEN
+	I_ShowSplashScreen();
+#endif
 
 	mainwads = 3; // doesn't include music.dta
 #ifdef USE_PATCH_DTA
@@ -1573,6 +1579,10 @@ void D_SRB2Main(void)
 		GetMODVersion_Console();
 #endif
 	}
+
+#ifdef SPLASH_SCREEN
+	I_HideSplashScreen();
+#endif
 
 	// init all NETWORK
 	CONS_Printf("D_CheckNetGame(): Checking network game status.\n");

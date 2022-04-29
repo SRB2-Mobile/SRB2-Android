@@ -68,11 +68,11 @@ extern FILE *gllogstream;
 #endif
 
 #ifndef R_GL_APIENTRY
-	#if defined(_WIN32)
-		#define R_GL_APIENTRY APIENTRY
-	#else
-		#define R_GL_APIENTRY
-	#endif
+#if defined(_WIN32)
+#define R_GL_APIENTRY APIENTRY
+#else
+#define R_GL_APIENTRY
+#endif
 #endif
 
 // ==========================================================================
@@ -362,6 +362,7 @@ extern PFNglDeleteBuffers pglDeleteBuffers;
 typedef void (R_GL_APIENTRY * PFNglBlendEquation) (GLenum mode);
 extern PFNglBlendEquation pglBlendEquation;
 
+#ifdef HAVE_GL_FRAMEBUFFER
 /* 3.0 functions for framebuffers and renderbuffers */
 typedef void (R_GL_APIENTRY * PFNglGenFramebuffers) (GLsizei n, GLuint *ids);
 extern PFNglGenFramebuffers pglGenFramebuffers;
@@ -383,11 +384,13 @@ typedef void (R_GL_APIENTRY * PFNglRenderbufferStorage) (GLenum target, GLenum i
 extern PFNglRenderbufferStorage pglRenderbufferStorage;
 typedef void (R_GL_APIENTRY * PFNglFramebufferRenderbuffer) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLenum renderbuffer);
 extern PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
+#endif
 
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================
 
+#ifdef HAVE_GL_FRAMEBUFFER
 void GLFramebuffer_Generate(void);
 void GLFramebuffer_Delete(void);
 
@@ -398,6 +401,7 @@ void GLFramebuffer_Enable(void);
 void GLFramebuffer_Disable(void);
 
 void GLFramebuffer_SetDepth(INT32 depth);
+#endif
 
 void GLModel_GenerateVBOs(model_t *model);
 void GLModel_ClearVBOs(model_t *model);
@@ -406,6 +410,7 @@ void GLModel_AllocLerpBuffer(size_t size);
 void GLModel_AllocLerpTinyBuffer(size_t size);
 
 void  GLTexture_AllocBuffer(GLMipmap_t *pTexInfo);
+void  GLTexture_Disable(void);
 void  GLTexture_Flush(void);
 void  GLTexture_FlushScreen(void);
 void  GLTexture_SetFilterMode(INT32 mode);
@@ -414,6 +419,7 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head);
 boolean GLBackend_Init(void);
 boolean GLBackend_InitContext(void);
 void    GLBackend_RecreateContext(void);
+void    GLBackend_SetPalette(RGBA_t *palette);
 
 boolean GLBackend_LoadFunctions(void);
 boolean GLBackend_LoadExtraFunctions(void);
@@ -441,28 +447,21 @@ INT32 GLBackend_InvertAlphaTestShader(INT32 type);
 void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
 void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, UINT32 *dst_data);
 
+void GLBackend_SetSurface(INT32 w, INT32 h);
+void GLBackend_SetBlend(FBITFIELD PolyFlags);
+
 void    GLExtension_Init(void);
 boolean GLExtension_Available(const char *extension);
 boolean GLExtension_LoadFunctions(void);
-
-void SetSurface(INT32 w, INT32 h);
-void SetModelView(GLint w, GLint h);
-void SetStates(void);
-void SetBlendingStates(FBITFIELD PolyFlags);
-void SetNoTexture(void);
-void SetClamp(GLenum pname);
 
 // ==========================================================================
 //                                                                  CONSTANTS
 // ==========================================================================
 
-extern GLuint NOTEXTURE_NUM;
-
 #define N_PI_DEMI               (M_PIl/2.0f)
 #define ASPECT_RATIO            (1.0f)
 
 #define FAR_CLIPPING_PLANE      32768.0f // Draw further! Tails 01-21-2001
-extern float NEAR_CLIPPING_PLANE;
 
 // shortcut for ((float)1/i)
 #define byte2float(x) (x / 255.0f)
@@ -595,6 +594,8 @@ extern float alpha_threshold;
 
 extern boolean model_lighting;
 
+extern float near_clipping_plane;
+
 extern FTextureInfo *TexCacheTail;
 extern FTextureInfo *TexCacheHead;
 
@@ -607,12 +608,14 @@ extern GLuint startScreenWipe;
 extern GLuint endScreenWipe;
 extern GLuint finalScreenTexture;
 
+#ifdef HAVE_GL_FRAMEBUFFER
 extern GLuint FramebufferObject, FramebufferTexture;
 extern GLuint RenderbufferObject, RenderbufferDepthBits;
 extern GLboolean FramebufferEnabled, RenderToFramebuffer;
 
 #define NumRenderbufferFormats 5
 extern GLenum RenderbufferFormats[NumRenderbufferFormats];
+#endif
 
 extern float *vertBuffer;
 extern float *normBuffer;
@@ -638,7 +641,9 @@ extern boolean GLExtension_vertex_buffer_object;
 extern boolean GLExtension_texture_filter_anisotropic;
 extern boolean GLExtension_vertex_program;
 extern boolean GLExtension_fragment_program;
+#ifdef HAVE_GL_FRAMEBUFFER
 extern boolean GLExtension_framebuffer_object;
+#endif
 extern boolean GLExtension_shaders;
 
 #endif // _R_GLCOMMON_H_

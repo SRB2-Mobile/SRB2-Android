@@ -27,7 +27,6 @@
 #define DRIVER_STRING "OpenGL ES 2.0"
 #endif
 
-#define _CREATE_DLL_
 #undef DEBUG_TO_FILE
 
 #include "../../doomdef.h"

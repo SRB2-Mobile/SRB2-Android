@@ -230,10 +230,6 @@ INT32 I_JoystickIsAccelerometer(INT32 joyindex);
 */
 void I_InitTouchScreen(void);
 
-/**	\brief the touch screen was made available (exists)
-*/
-void I_TouchScreenAvailable(void);
-
 /**	\brief show the on-screen keyboard
 */
 void I_ShowVirtualKeyboard(char *buffer, size_t length);

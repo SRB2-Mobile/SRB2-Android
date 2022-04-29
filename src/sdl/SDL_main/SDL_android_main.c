@@ -27,30 +27,6 @@
 
 #include <jni_android.h>
 
-#ifdef SPLASH_SCREEN
-static SDL_bool displayingSplash = SDL_FALSE;
-
-static void BlitSplashScreen(void)
-{
-	Impl_PumpEvents();
-	Impl_PresentSplashScreen();
-}
-
-static void ShowSplashScreen(void)
-{
-	displayingSplash = Impl_LoadSplashScreen();
-
-	if (displayingSplash == SDL_TRUE)
-	{
-		// Present it for two seconds.
-		UINT32 delay = SDL_GetTicks() + 2000;
-
-		while (SDL_GetTicks() < delay)
-			BlitSplashScreen();
-	}
-}
-#endif
-
 #define REQUEST_STORAGE_PERMISSION
 
 #define REQUEST_MESSAGE_TITLE "Permission required"
@@ -64,7 +40,7 @@ static void PermissionRequestMessage(void)
 static boolean StorageInit(void)
 {
 	JNI_SharedStorage = I_SharedStorageLocation();
-	return (JNI_SharedStorage != NULL);
+	return JNI_SharedStorage != NULL;
 }
 
 static void StorageGrantedPermission(void)
@@ -103,24 +79,25 @@ int main(int argc, char* argv[])
 	myargc = argc;
 	myargv = argv;
 
-	// Obtain the activity class before doing anything else.
+	// Obtain the activity class before doing anything else
 	JNI_Startup();
 
-	// Start up the main system.
+	// Starts threads, setups signal handlers, and initializes SDL
 	I_OutputMsg("I_StartupSystem()...\n");
 	I_StartupSystem();
 
-#ifdef SPLASH_SCREEN
-	// Load the splash screen, and display it.
-	ShowSplashScreen();
-#endif
+	// Initialize video early
+	Impl_InitVideoSubSystem();
 
-	// Init shared storage.
+	// Add an event filter, since SDL_APP_* events need one.
+	SDL_SetEventFilter(Android_EventFilter, NULL);
+
+	// Init shared storage
 	if (StorageInit())
-		StorageCheckPermission(); // Check storage permissions.
+		StorageCheckPermission(); // Check storage permissions
 
 #ifdef LOGMESSAGES
-	// Start logging.
+	// Start logging
 	if (logging && I_StoragePermission())
 		I_InitLogging();
 #endif
@@ -132,12 +109,7 @@ int main(int argc, char* argv[])
 		CONS_Printf("Logfile: %s\n", logfilename);
 #endif
 
-#ifdef SPLASH_SCREEN
-	if (displayingSplash == SDL_TRUE)
-		BlitSplashScreen();
-#endif
-
-	// Begin the normal game setup and loop.
+	// Begin the normal game setup and loop
 	CONS_Printf("Setting up SRB2...\n");
 	D_SRB2Main();
 

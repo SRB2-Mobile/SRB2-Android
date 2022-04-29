@@ -41,29 +41,6 @@
 #include "SDL_loadso.h"
 #endif
 
-#define  _CREATE_DLL_  // necessary for Unix AND Windows
-
-#ifdef HWRENDER
-#include "../hardware/hw_drv.h"
-#include "ogl_sdl.h"
-#ifdef STATIC_OPENGL
-#if defined(__ANDROID__)
-#include "../hardware/r_gles/r_gles.h"
-#else
-#include "../hardware/r_opengl/r_opengl.h"
-#endif
-#endif
-#endif
-
-#ifdef HW3SOUND
-#include "../hardware/hw3dsdrv.h"
-#endif
-
-#define GETFUNC(func) \
-	else if (0 == strcmp(#func, funcName)) \
-		funcPointer = &func \
-//
-//
 /**	\brief	The *hwSym function
 
 	Stupid function to return function addresses
@@ -73,82 +50,13 @@
 
 	\return	void
 */
-//
 void *hwSym(const char *funcName,void *handle)
 {
 	void *funcPointer = NULL;
-#ifdef HWRENDER
-	if (0 == strcmp("SetPalette", funcName))
-		funcPointer = &OglSdlSetPalette;
-
-	GETFUNC(Init);
-	GETFUNC(RecreateContext);
-	GETFUNC(Draw2DLine);
-	GETFUNC(DrawPolygon);
-	GETFUNC(DrawPolygonShader);
-	GETFUNC(DrawIndexedTriangles);
-	GETFUNC(RenderSkyDome);
-	GETFUNC(SetBlend);
-	GETFUNC(ClearBuffer);
-	GETFUNC(SetTexture);
-	GETFUNC(UpdateTexture);
-	GETFUNC(DeleteTexture);
-	GETFUNC(ReadRect);
-	GETFUNC(GClipRect);
-	GETFUNC(ClearMipMapCache);
-	GETFUNC(SetSpecialState);
-	GETFUNC(GetTextureUsed);
-	GETFUNC(DrawModel);
-	GETFUNC(CreateModelVBOs);
-	GETFUNC(SetTransform);
-	GETFUNC(PostImgRedraw);
-	GETFUNC(FlushScreenTextures);
-	GETFUNC(StartScreenWipe);
-	GETFUNC(EndScreenWipe);
-	GETFUNC(DoScreenWipe);
-	GETFUNC(DoTintedWipe);
-	GETFUNC(DrawIntermissionBG);
-	GETFUNC(MakeScreenTexture);
-	GETFUNC(MakeFinalScreenTexture);
-	GETFUNC(DrawFinalScreenTexture);
-
-	GETFUNC(CompileShaders);
-	GETFUNC(CleanShaders);
-	GETFUNC(SetShader);
-	GETFUNC(UnSetShader);
-
-	GETFUNC(SetShaderInfo);
-	GETFUNC(LoadCustomShader);
-
-#else //HWRENDER
-	if (0 == strcmp("FinishUpdate", funcName))
-		return funcPointer; //&FinishUpdate;
-#endif //!HWRENDER
-#ifdef STATIC3DS
-	GETFUNC(Startup);
-	GETFUNC(AddSfx);
-	GETFUNC(AddSource);
-	GETFUNC(StartSource);
-	GETFUNC(StopSource);
-	GETFUNC(GetHW3DSVersion);
-	GETFUNC(BeginFrameUpdate);
-	GETFUNC(EndFrameUpdate);
-	GETFUNC(IsPlaying);
-	GETFUNC(UpdateListener);
-	GETFUNC(UpdateSourceParms);
-	GETFUNC(SetGlobalSfxVolume);
-	GETFUNC(SetCone);
-	GETFUNC(Update3DSource);
-	GETFUNC(ReloadSource);
-	GETFUNC(KillSource);
-	GETFUNC(Shutdown);
-	GETFUNC(GetHW3DSTitle);
-#endif
 #ifdef NOLOADSO
-	else
-		funcPointer = handle;
+	funcPointer = handle;
 #else
-	else if (handle)
+	if (handle)
 		funcPointer = SDL_LoadFunction(handle,funcName);
 #endif
 	if (!funcPointer)

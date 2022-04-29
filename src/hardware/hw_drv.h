@@ -19,123 +19,123 @@
 #include "hw_defs.h"
 #include "hw_md2.h"
 
-#include "hw_dll.h"
-
 // ==========================================================================
 //                                                       STANDARD DLL EXPORTS
 // ==========================================================================
 
-EXPORT boolean HWRAPI(Init) (void);
-#ifndef HAVE_SDL
-EXPORT void HWRAPI(Shutdown) (void);
-#endif
-EXPORT void HWRAPI(RecreateContext) (void);
-#ifdef _WINDOWS
-EXPORT void HWRAPI(GetModeList) (vmode_t **pvidmodes, INT32 *numvidmodes);
-#endif
-EXPORT void HWRAPI(SetPalette) (RGBA_t *ppal);
-EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl);
-EXPORT void HWRAPI(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
-EXPORT void HWRAPI(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader);
-EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray);
-EXPORT void HWRAPI(RenderSkyDome) (gl_sky_t *sky);
-EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
-EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
-EXPORT void HWRAPI(SetTexture) (GLMipmap_t *TexInfo);
-EXPORT void HWRAPI(UpdateTexture) (GLMipmap_t *TexInfo);
-EXPORT void HWRAPI(DeleteTexture) (GLMipmap_t *TexInfo);
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
-EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
-EXPORT void HWRAPI(ClearMipMapCache) (void);
-EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
-EXPORT void HWRAPI(CreateModelVBOs) (model_t *model);
-EXPORT void HWRAPI(SetTransform) (FTransform *ptransform);
-EXPORT INT32 HWRAPI(GetTextureUsed) (void);
+#define API(fn) (*HWR_APIDef_ ## fn)
 
-EXPORT void HWRAPI(FlushScreenTextures) (void);
-EXPORT void HWRAPI(StartScreenWipe) (void);
-EXPORT void HWRAPI(EndScreenWipe) (void);
-EXPORT void HWRAPI(DoScreenWipe) (void);
-EXPORT void HWRAPI(DoTintedWipe) (boolean isfadingin, boolean istowhite);
-EXPORT void HWRAPI(DrawIntermissionBG) (void);
-EXPORT void HWRAPI(MakeScreenTexture) (void);
-EXPORT void HWRAPI(MakeFinalScreenTexture) (void);
-EXPORT void HWRAPI(DrawFinalScreenTexture) (int width, int height);
+typedef boolean API(Init) (void);
+typedef void API(RecreateContext) (void);
+typedef void API(SetPalette) (RGBA_t *ppal);
+typedef void API(FinishUpdate) (INT32 waitvbl);
+typedef void API(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
+typedef void API(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
+typedef void API(DrawPolygonShader) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, INT32 shader);
+typedef void API(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray);
+typedef void API(RenderSkyDome) (gl_sky_t *sky);
+typedef void API(SetModelView) (INT32 w, INT32 h);
+typedef void API(SetStates) (void);
+typedef void API(SetBlend) (FBITFIELD PolyFlags);
+typedef void API(SetNoTexture) (void);
+typedef void API(SetClamp) (UINT32 clamp);
+typedef void API(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
+typedef void API(SetTexture) (GLMipmap_t *TexInfo);
+typedef void API(UpdateTexture) (GLMipmap_t *TexInfo);
+typedef void API(DeleteTexture) (GLMipmap_t *TexInfo);
+typedef void API(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT32 *dst_data);
+typedef void API(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
+typedef void API(ClearMipMapCache) (void);
+typedef void API(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
+typedef void API(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
+typedef void API(CreateModelVBOs) (model_t *model);
+typedef void API(SetTransform) (FTransform *ptransform);
+typedef INT32 API(GetTextureUsed) (void);
+
+typedef void API(FlushScreenTextures) (void);
+typedef void API(StartScreenWipe) (void);
+typedef void API(EndScreenWipe) (void);
+typedef void API(DoScreenWipe) (void);
+typedef void API(DoTintedWipe) (boolean isfadingin, boolean istowhite);
+typedef void API(DrawIntermissionBG) (void);
+typedef void API(MakeScreenTexture) (void);
+typedef void API(MakeFinalScreenTexture) (void);
+typedef void API(DrawFinalScreenTexture) (int width, int height);
 
 #define SCREENVERTS 10
-EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
+typedef void API(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
 
-EXPORT boolean HWRAPI(CompileShaders) (void);
-EXPORT void HWRAPI(CleanShaders) (void);
-EXPORT void HWRAPI(SetShader) (int type);
-EXPORT void HWRAPI(UnSetShader) (void);
+typedef boolean API(CompileShaders) (void);
+typedef void API(CleanShaders) (void);
+typedef void API(SetShader) (int type);
+typedef void API(UnSetShader) (void);
 
-EXPORT void HWRAPI(SetShaderInfo) (hwdshaderinfo_t info, INT32 value);
-EXPORT void HWRAPI(LoadCustomShader) (int number, char *code, size_t size, boolean isfragment);
+typedef void API(SetShaderInfo) (hwdshaderinfo_t info, INT32 value);
+typedef void API(LoadCustomShader) (int number, char *code, size_t size, boolean isfragment);
 
 // ==========================================================================
 //                                      HWR DRIVER OBJECT, FOR CLIENT PROGRAM
 // ==========================================================================
 
-#if !defined (_CREATE_DLL_)
+#undef API
 
-struct hwdriver_s
-{
-	Init                pfnInit;
-	SetPalette          pfnSetPalette;
-	FinishUpdate        pfnFinishUpdate;
-	RecreateContext     pfnRecreateContext;
-	Draw2DLine          pfnDraw2DLine;
-	DrawPolygon         pfnDrawPolygon;
-	DrawPolygonShader   pfnDrawPolygonShader;
-	DrawIndexedTriangles    pfnDrawIndexedTriangles;
-	RenderSkyDome       pfnRenderSkyDome;
-	SetBlend            pfnSetBlend;
-	ClearBuffer         pfnClearBuffer;
-	SetTexture          pfnSetTexture;
-	UpdateTexture       pfnUpdateTexture;
-	DeleteTexture       pfnDeleteTexture;
-	ReadRect            pfnReadRect;
-	GClipRect           pfnGClipRect;
-	ClearMipMapCache    pfnClearMipMapCache;
-	SetSpecialState     pfnSetSpecialState;
-	DrawModel           pfnDrawModel;
-	CreateModelVBOs     pfnCreateModelVBOs;
-	SetTransform        pfnSetTransform;
-	GetTextureUsed      pfnGetTextureUsed;
-#ifdef _WINDOWS
-	GetModeList         pfnGetModeList;
-#endif
-#ifndef HAVE_SDL
-	Shutdown            pfnShutdown;
-#endif
-	PostImgRedraw       pfnPostImgRedraw;
-	FlushScreenTextures pfnFlushScreenTextures;
-	StartScreenWipe     pfnStartScreenWipe;
-	EndScreenWipe       pfnEndScreenWipe;
-	DoScreenWipe        pfnDoScreenWipe;
-	DoTintedWipe        pfnDoTintedWipe;
-	DrawIntermissionBG  pfnDrawIntermissionBG;
-	MakeScreenTexture   pfnMakeScreenTexture;
-	MakeFinalScreenTexture  pfnMakeFinalScreenTexture;
-	DrawFinalScreenTexture  pfnDrawFinalScreenTexture;
+#define HWR_API_FUNCTIONS(X)\
+	X(Init)\
+	X(RecreateContext)\
+	X(SetPalette)\
+	X(Draw2DLine)\
+	X(DrawPolygon)\
+	X(DrawPolygonShader)\
+	X(DrawIndexedTriangles)\
+	X(RenderSkyDome)\
+	X(SetModelView)\
+	X(SetStates)\
+	X(SetBlend)\
+	X(SetNoTexture)\
+	X(SetClamp)\
+	X(ClearBuffer)\
+	X(SetTexture)\
+	X(UpdateTexture)\
+	X(DeleteTexture)\
+	X(ReadRect)\
+	X(GClipRect)\
+	X(ClearMipMapCache)\
+	X(SetSpecialState)\
+	X(GetTextureUsed)\
+	X(DrawModel)\
+	X(CreateModelVBOs)\
+	X(SetTransform)\
+	X(PostImgRedraw)\
+	X(FlushScreenTextures)\
+	X(StartScreenWipe)\
+	X(EndScreenWipe)\
+	X(DoScreenWipe)\
+	X(DoTintedWipe)\
+	X(DrawIntermissionBG)\
+	X(MakeScreenTexture)\
+	X(MakeFinalScreenTexture)\
+	X(DrawFinalScreenTexture)\
+	X(CompileShaders)\
+	X(CleanShaders)\
+	X(SetShader)\
+	X(UnSetShader)\
+	X(SetShaderInfo)\
+	X(LoadCustomShader)
 
-	CompileShaders      pfnCompileShaders;
-	CleanShaders        pfnCleanShaders;
-	SetShader           pfnSetShader;
-	UnSetShader         pfnUnSetShader;
+#define HWD_FUNCS(func) HWR_APIDef_ ## func func;
 
-	SetShaderInfo       pfnSetShaderInfo;
-	LoadCustomShader    pfnLoadCustomShader;
+struct hwdriver_s {
+	HWR_API_FUNCTIONS(HWD_FUNCS)
 };
 
-extern struct hwdriver_s hwdriver;
+#undef HWD_FUNCS
 
-#define HWD hwdriver
+extern struct hwdriver_s *hwdriver;
 
-#endif //not defined _CREATE_DLL_
+extern struct hwdriver_s GPU_API_OpenGL;
+extern struct hwdriver_s GPU_API_OpenGLES;
+
+#define GPU hwdriver
 
 #endif //__HWR_DRV_H__
 

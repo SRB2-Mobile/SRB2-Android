@@ -1388,7 +1388,11 @@ void I_InitTouchScreen(void)
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
 
+	// Don't generate mouse events as touch events
+	SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+
 #if !defined(__ANDROID__)
+	// Unless you want that to happen, I guess...
 	if (M_CheckParm("-mouseastouchscreen"))
 		SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "1");
 #endif
@@ -1406,8 +1410,6 @@ void I_InitTouchScreen(void)
 	}
 #endif
 }
-
-void I_TouchScreenAvailable(void) {}
 
 static void I_ShutdownInput(void)
 {
@@ -2141,7 +2143,7 @@ INT32 I_StartupSystem(void)
 	SDL_version SDLlinked;
 	SDL_VERSION(&SDLcompiled)
 	SDL_GetVersion(&SDLlinked);
-#if defined(HAVE_THREADS) && !defined(__ANDROID__)
+#ifdef HAVE_THREADS
 	I_start_threads();
 	I_AddExitFunc(I_stop_threads);
 #endif

@@ -99,7 +99,9 @@ extern consvar_t cv_glshaders, cv_glallowshaders;
 extern consvar_t cv_glmodels;
 extern consvar_t cv_glmodelinterpolation;
 extern consvar_t cv_glmodellighting;
+#ifdef HAVE_GL_FRAMEBUFFER
 extern consvar_t cv_glframebuffer, cv_glrenderbufferdepth;
+#endif
 extern consvar_t cv_glfiltermode;
 extern consvar_t cv_glanisotropicmode;
 extern consvar_t cv_fovchange;

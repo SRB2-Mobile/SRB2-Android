@@ -1568,12 +1568,14 @@ void CONS_Printf(const char *fmt, ...)
 
 	Unlock_state();
 
+#if !defined(__ANDROID__)
 	// if not in display loop, force screen update
 	if (refresh && !I_AppOnBackground())
 	{
 		CON_Drawer(); // here we display the console text
 		I_FinishUpdate(); // page flip or blit buffer
 	}
+#endif
 }
 
 void CONS_Alert(alerttype_t level, const char *fmt, ...)
