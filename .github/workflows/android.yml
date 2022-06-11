@@ -22,7 +22,7 @@ jobs:
     - name: cd to android
       run: cd android;ls
     - name: Build with Gradle
-      run: ./gradlew build
+      run: android//gradlew build
     - uses: actions/upload-artifact@v3
       with:
         name: srb2
