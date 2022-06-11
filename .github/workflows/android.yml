@@ -20,8 +20,8 @@ jobs:
         distribution: 'temurin'
         cache: gradle
     - name: Build with Gradle
-      run: cd android && ./gradlew build
+      run: cd android && ./gradlew build gameNoAssets
     - uses: actions/upload-artifact@v3
       with:
         name: srb2
-        path: android/app/build/outputs/apk/gameFull/
+        path: android/app/build/outputs/apk/gameNoAssets/
