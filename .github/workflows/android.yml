@@ -21,8 +21,6 @@ jobs:
         cache: gradle
     - name: cd to android
       run: cd android;ls
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./gradlew
     - name: Build with Gradle
       run: ./gradlew build
     - uses: actions/upload-artifact@v3
