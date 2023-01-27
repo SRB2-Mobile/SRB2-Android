@@ -409,7 +409,7 @@ static void Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color)
 	GLfloat dx, dy;
 	GLfloat angle;
 
-	GLRGBAFloat fcolor = {byte2float(Color.s.red), byte2float(Color.s.green), byte2float(Color.s.blue), byte2float(Color.s.alpha)};
+	GLRGBAFloat fcolor = {Color.s.red/255.0f, Color.s.green/255.0f, Color.s.blue/255.0f, Color.s.alpha/255.0f};
 
 	if (gl_shaderstate.current == NULL)
 		return;
@@ -878,7 +878,7 @@ static void CreateModelVBOs(model_t *model)
 // -----------------+
 // HWRAPI DrawModel : Draw a model
 // -----------------+
-static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
+static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
 	static GLRGBAFloat poly = {1.0f, 1.0f, 1.0f, 1.0f};
 	static GLRGBAFloat tint = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -909,11 +909,11 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 	scale *= 0.5f;
 	v_scale[0] = v_scale[1] = v_scale[2] = scale;
 
-	if (duration != 0 && duration != -1 && tics != -1) // don't interpolate if instantaneous or infinite in length
+	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
-		UINT32 newtime = (duration - tics); // + 1;
+		float newtime = (duration - tics); // + 1;
 
-		pol = (newtime)/(float)duration;
+		pol = newtime / duration;
 
 		if (pol > 1.0f)
 			pol = 1.0f;
@@ -922,20 +922,20 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 			pol = 0.0f;
 	}
 
-	poly.red   = byte2float(Surface->PolyColor.s.red);
-	poly.green = byte2float(Surface->PolyColor.s.green);
-	poly.blue  = byte2float(Surface->PolyColor.s.blue);
-	poly.alpha = byte2float(Surface->PolyColor.s.alpha);
+	poly.red   = (Surface->PolyColor.s.red/255.0f);
+	poly.green = (Surface->PolyColor.s.green/255.0f);
+	poly.blue  = (Surface->PolyColor.s.blue/255.0f);
+	poly.alpha = (Surface->PolyColor.s.alpha/255.0f);
 
-	tint.red   = byte2float(Surface->TintColor.s.red);
-	tint.green = byte2float(Surface->TintColor.s.green);
-	tint.blue  = byte2float(Surface->TintColor.s.blue);
-	tint.alpha = byte2float(Surface->TintColor.s.alpha);
+	tint.red   = (Surface->TintColor.s.red/255.0f);
+	tint.green = (Surface->TintColor.s.green/255.0f);
+	tint.blue  = (Surface->TintColor.s.blue/255.0f);
+	tint.alpha = (Surface->TintColor.s.alpha/255.0f);
 
-	fade.red   = byte2float(Surface->FadeColor.s.red);
-	fade.green = byte2float(Surface->FadeColor.s.green);
-	fade.blue  = byte2float(Surface->FadeColor.s.blue);
-	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
+	fade.red   = (Surface->FadeColor.s.red/255.0f);
+	fade.green = (Surface->FadeColor.s.green/255.0f);
+	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
+	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
 
 	useNormals = model_lighting && (Shader_AttribLoc(LOC_NORMAL) != -1);
 	if (useNormals)
@@ -1234,7 +1234,6 @@ static void SetTransform(FTransform *stransform)
 
 	if (stransform)
 	{
-		// jimita 14042019
 		// Simulate Software's y-shearing
 		// https://zdoom.org/wiki/Y-shearing
 		if (shearing)
@@ -1247,7 +1246,7 @@ static void SetTransform(FTransform *stransform)
 
 		if (special_splitscreen)
 		{
-			used_fov = atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI;
+			used_fov = (float)(atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI);
 			GLPerspective(used_fov, 2*ASPECT_RATIO);
 		}
 		else

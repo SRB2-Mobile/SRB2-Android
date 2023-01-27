@@ -694,7 +694,8 @@ void readskincolor(MYFILE *f, INT32 num)
 			if (fastcmp(word, "NAME"))
 			{
 				size_t namesize = sizeof(skincolors[num].name);
-				char truncword[namesize];
+				char *truncword = malloc(namesize); // Follow C standard - SSNTails
+
 				UINT16 dupecheck;
 
 				deh_strlcpy(truncword, word2, namesize, va("Skincolor %d: name", num)); // truncate here to check for dupes
@@ -702,7 +703,7 @@ void readskincolor(MYFILE *f, INT32 num)
 				if (truncword[0] != '\0' && (!stricmp(truncword, skincolors[SKINCOLOR_NONE].name) || (dupecheck && dupecheck != num)))
 				{
 					size_t lastchar = strlen(truncword);
-					char oldword[lastchar+1];
+					char *oldword = malloc(lastchar + 1); // Follow C standard - SSNTails
 					char dupenum = '1';
 
 					strlcpy(oldword, truncword, lastchar+1);
@@ -727,9 +728,12 @@ void readskincolor(MYFILE *f, INT32 num)
 					}
 
 					deh_warning("Skincolor %d: name %s is a duplicate of another skincolor's name - renamed to %s", num, oldword, truncword);
+					free(oldword);
 				}
 
 				strlcpy(skincolors[num].name, truncword, namesize); // already truncated
+
+				free(truncword);
 			}
 			else if (fastcmp(word, "RAMP"))
 			{
@@ -2688,10 +2692,10 @@ void readhuditem(MYFILE *f, INT32 num)
 			}
 			else if (fastcmp(word, "F"))
 			{
-				hudinfo[num].f = i;
+				hudinfo[num].f = get_number(word2);
 			}
 			else
-				deh_warning("Level header %d: unknown word '%s'", num, word);
+				deh_warning("HUD item %d: unknown word '%s'", num, word);
 		}
 	} while (!myfeof(f)); // finish when the line is empty
 
@@ -2760,13 +2764,13 @@ void readframe(MYFILE *f, INT32 num)
 			{
 				size_t z;
 				boolean found = false;
-				char actiontocompare[32];
+				size_t actionlen = strlen(word2) + 1;
+				char *actiontocompare = calloc(actionlen, 1);
 
-				memset(actiontocompare, 0x00, sizeof(actiontocompare));
-				strlcpy(actiontocompare, word2, sizeof (actiontocompare));
+				strcpy(actiontocompare, word2);
 				strupr(actiontocompare);
 
-				for (z = 0; z < 32; z++)
+				for (z = 0; z < actionlen; z++)
 				{
 					if (actiontocompare[z] == '\n' || actiontocompare[z] == '\r')
 					{
@@ -2799,6 +2803,8 @@ void readframe(MYFILE *f, INT32 num)
 
 				if (!found)
 					deh_warning("Unknown action %s", actiontocompare);
+
+				free(actiontocompare);
 			}
 			else
 				deh_warning("Frame %d: unknown word '%s'", num, word1);
@@ -3308,7 +3314,7 @@ static void readcondition(UINT8 set, UINT32 id, char *word2)
 		else
 			re = atoi(params[1]);
 
-		if (re < 0 || re >= NUMMAPS)
+		if (re <= 0 || re > NUMMAPS)
 		{
 			deh_warning("Level number %d out of range (1 - %d)", re, NUMMAPS);
 			return;
@@ -3328,7 +3334,7 @@ static void readcondition(UINT8 set, UINT32 id, char *word2)
 		else
 			x1 = (INT16)atoi(params[1]);
 
-		if (x1 < 0 || x1 >= NUMMAPS)
+		if (x1 <= 0 || x1 > NUMMAPS)
 		{
 			deh_warning("Level number %d out of range (1 - %d)", re, NUMMAPS);
 			return;
@@ -3363,7 +3369,7 @@ static void readcondition(UINT8 set, UINT32 id, char *word2)
 		else
 			x1 = (INT16)atoi(params[1]);
 
-		if (x1 < 0 || x1 >= NUMMAPS)
+		if (x1 <= 0 || x1 > NUMMAPS)
 		{
 			deh_warning("Level number %d out of range (1 - %d)", re, NUMMAPS);
 			return;

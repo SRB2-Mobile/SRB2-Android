@@ -762,6 +762,7 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 //				return;
 			{
 				UINT8 flagteam = (special->type == MT_REDFLAG) ? 1 : 2;
+				sectorspecialflags_t specialflag = (special->type == MT_REDFLAG) ? SSF_REDTEAMBASE : SSF_BLUETEAMBASE;
 				const char *flagtext;
 				char flagcolor;
 				char plname[MAXPLAYERNAME+4];
@@ -791,7 +792,7 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 						special->fuse = 1;
 						special->flags2 |= MF2_JUSTATTACKED;
 
-						if (!P_PlayerTouchingSectorSpecial(player, 4, 2 + flagteam))
+						if (!P_PlayerTouchingSectorSpecialFlag(player, specialflag))
 						{
 							CONS_Printf(M_GetText("%s returned the %c%s%c to base.\n"), plname, flagcolor, flagtext, 0x80);
 
@@ -1380,19 +1381,14 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 			return;
 		case MT_AXE:
 			{
-				line_t junk;
 				thinker_t  *th;
 				mobj_t *mo2;
 
 				if (player->bot && player->bot != BOT_MPAI)
 					return;
 
-				// Initialize my junk
-				junk.tags.tags = NULL;
-				junk.tags.count = 0;
-
-				Tag_FSet(&junk.tags, LE_AXE);
-				EV_DoElevator(&junk, bridgeFall, false);
+				if (special->spawnpoint)
+					EV_DoElevator(special->spawnpoint->args[0], NULL, bridgeFall);
 
 				// scan the remaining thinkers to find koopa
 				for (th = thlist[THINK_MOBJ].next; th != &thlist[THINK_MOBJ]; th = th->next)
@@ -1441,7 +1437,7 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher, boolean heightcheck)
 // Misc touchables //
 // *************** //
 		case MT_STARPOST:
-			P_TouchStarPost(special, player, special->spawnpoint && (special->spawnpoint->options & MTF_OBJECTSPECIAL));
+			P_TouchStarPost(special, player, special->spawnpoint && special->spawnpoint->args[1]);
 			return;
 
 		case MT_FAKEMOBILE:
@@ -2775,7 +2771,7 @@ void P_KillMobj(mobj_t *target, mobj_t *inflictor, mobj_t *source, UINT8 damaget
 
 		case MT_BLASTEXECUTOR:
 			if (target->spawnpoint)
-				P_LinedefExecute(target->spawnpoint->angle, (source ? source : inflictor), target->subsector->sector);
+				P_LinedefExecute(target->spawnpoint->args[0], (source ? source : inflictor), target->subsector->sector);
 			break;
 
 		case MT_SPINBOBERT:
@@ -3887,7 +3883,10 @@ void P_PlayerRingBurst(player_t *player, INT32 num_rings)
 				P_SetObjectMomZ(mo, ns, true);
 		}
 		if (player->mo->eflags & MFE_VERTICALFLIP)
+		{
 			mo->momz *= -1;
+			mo->flags2 |= MF2_OBJECTFLIP;
+		}
 	}
 
 	player->losstime += 10*TICRATE;
@@ -4111,6 +4110,8 @@ void P_PlayerWeaponPanelOrAmmoBurst(player_t *player)
 		P_SetObjectMomZ(mo, 4*FRACUNIT, false); \
 		if (i & 1) \
 			P_SetObjectMomZ(mo, 4*FRACUNIT, true); \
+		if (player->mo->eflags & MFE_VERTICALFLIP) \
+			mo->flags2 |= MF2_OBJECTFLIP; \
 		++i; \
 	} \
 	else if (player->powers[power] > 0) \
@@ -4130,6 +4131,8 @@ void P_PlayerWeaponPanelOrAmmoBurst(player_t *player)
 		P_SetObjectMomZ(mo, 3*FRACUNIT, false); \
 		if (i & 1) \
 			P_SetObjectMomZ(mo, 3*FRACUNIT, true); \
+		if (player->mo->eflags & MFE_VERTICALFLIP) \
+			mo->flags2 |= MF2_OBJECTFLIP; \
 		player->powers[power] = 0; \
 		++i; \
 	}
@@ -4270,7 +4273,10 @@ void P_PlayerEmeraldBurst(player_t *player, boolean toss)
 			P_SetObjectMomZ(mo, 3*FRACUNIT, false);
 
 			if (player->mo->eflags & MFE_VERTICALFLIP)
+			{
 				mo->momz = -mo->momz;
+				mo->flags2 |= MF2_OBJECTFLIP;
+			}
 
 			if (toss)
 				player->tossdelay = 2*TICRATE;
@@ -4299,7 +4305,10 @@ void P_PlayerFlagBurst(player_t *player, boolean toss)
 	flag = P_SpawnMobj(player->mo->x, player->mo->y, player->mo->z, type);
 
 	if (player->mo->eflags & MFE_VERTICALFLIP)
+	{
 		flag->z += player->mo->height - flag->height;
+		flag->flags2 |= MF2_OBJECTFLIP;
+	}
 
 	if (toss)
 		P_InstaThrust(flag, player->mo->angle, FixedMul(6*FRACUNIT, player->mo->scale));

@@ -32,7 +32,7 @@
 #include "m_misc.h" // M_MapNumber
 #include "b_bot.h" // B_UpdateBotleader
 #include "d_clisrv.h" // CL_RemovePlayer
-#include "i_system.h" // I_GetPreciseTime, I_PreciseToMicros
+#include "i_system.h" // I_GetPreciseTime, I_GetPrecisePrecision
 
 #include "lua_script.h"
 #include "lua_libs.h"
@@ -1302,6 +1302,17 @@ static int lib_pInQuicksand(lua_State *L)
 	return 1;
 }
 
+static int lib_pInJumpFlipSector(lua_State *L)
+{
+	mobj_t *mo = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
+	//HUDSAFE
+	INLEVEL
+	if (!mo)
+		return LUA_ErrInvalid(L, "mobj_t");
+	lua_pushboolean(L, P_InJumpFlipSector(mo));
+	return 1;
+}
+
 static int lib_pSetObjectMomZ(lua_State *L)
 {
 	mobj_t *mo = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
@@ -1784,7 +1795,42 @@ static int lib_pTeleportMove(lua_State *L)
 	INLEVEL
 	if (!thing)
 		return LUA_ErrInvalid(L, "mobj_t");
-	lua_pushboolean(L, P_TeleportMove(thing, x, y, z));
+	LUA_Deprecated(L, "P_TeleportMove", "P_SetOrigin\" or \"P_MoveOrigin");
+	lua_pushboolean(L, P_MoveOrigin(thing, x, y, z));
+	LUA_PushUserdata(L, tmthing, META_MOBJ);
+	P_SetTarget(&tmthing, ptmthing);
+	return 2;
+}
+
+static int lib_pSetOrigin(lua_State *L)
+{
+	mobj_t *ptmthing = tmthing;
+	mobj_t *thing = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
+	fixed_t x = luaL_checkfixed(L, 2);
+	fixed_t y = luaL_checkfixed(L, 3);
+	fixed_t z = luaL_checkfixed(L, 4);
+	NOHUD
+	INLEVEL
+	if (!thing)
+		return LUA_ErrInvalid(L, "mobj_t");
+	lua_pushboolean(L, P_SetOrigin(thing, x, y, z));
+	LUA_PushUserdata(L, tmthing, META_MOBJ);
+	P_SetTarget(&tmthing, ptmthing);
+	return 2;
+}
+
+static int lib_pMoveOrigin(lua_State *L)
+{
+	mobj_t *ptmthing = tmthing;
+	mobj_t *thing = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
+	fixed_t x = luaL_checkfixed(L, 2);
+	fixed_t y = luaL_checkfixed(L, 3);
+	fixed_t z = luaL_checkfixed(L, 4);
+	NOHUD
+	INLEVEL
+	if (!thing)
+		return LUA_ErrInvalid(L, "mobj_t");
+	lua_pushboolean(L, P_MoveOrigin(thing, x, y, z));
 	LUA_PushUserdata(L, tmthing, META_MOBJ);
 	P_SetTarget(&tmthing, ptmthing);
 	return 2;
@@ -2203,6 +2249,31 @@ static int lib_pExplodeMissile(lua_State *L)
 	return 0;
 }
 
+static int lib_pMobjTouchingSectorSpecial(lua_State *L)
+{
+	mobj_t *mo = *((mobj_t**)luaL_checkudata(L, 1, META_MOBJ));
+	INT32 section = (INT32)luaL_checkinteger(L, 2);
+	INT32 number = (INT32)luaL_checkinteger(L, 3);
+	//HUDSAFE
+	INLEVEL
+	if (!mo)
+		return LUA_ErrInvalid(L, "mobj_t");
+	LUA_PushUserdata(L, P_MobjTouchingSectorSpecial(mo, section, number), META_SECTOR);
+	return 1;
+}
+
+static int lib_pMobjTouchingSectorSpecialFlag(lua_State *L)
+{
+	mobj_t *mo = *((mobj_t**)luaL_checkudata(L, 1, META_MOBJ));
+	sectorspecialflags_t flag = (INT32)luaL_checkinteger(L, 2);
+	//HUDSAFE
+	INLEVEL
+	if (!mo)
+		return LUA_ErrInvalid(L, "mobj_t");
+	LUA_PushUserdata(L, P_MobjTouchingSectorSpecialFlag(mo, flag), META_SECTOR);
+	return 1;
+}
+
 static int lib_pPlayerTouchingSectorSpecial(lua_State *L)
 {
 	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
@@ -2213,6 +2284,18 @@ static int lib_pPlayerTouchingSectorSpecial(lua_State *L)
 	if (!player)
 		return LUA_ErrInvalid(L, "player_t");
 	LUA_PushUserdata(L, P_PlayerTouchingSectorSpecial(player, section, number), META_SECTOR);
+	return 1;
+}
+
+static int lib_pPlayerTouchingSectorSpecialFlag(lua_State *L)
+{
+	player_t *player = *((player_t **)luaL_checkudata(L, 1, META_PLAYER));
+	sectorspecialflags_t flag = (INT32)luaL_checkinteger(L, 2);
+	//HUDSAFE
+	INLEVEL
+	if (!player)
+		return LUA_ErrInvalid(L, "player_t");
+	LUA_PushUserdata(L, P_PlayerTouchingSectorSpecialFlag(player, flag), META_SECTOR);
 	return 1;
 }
 
@@ -2347,21 +2430,11 @@ static int lib_pFadeLight(lua_State *L)
 	INT32 speed = (INT32)luaL_checkinteger(L, 3);
 	boolean ticbased = lua_optboolean(L, 4);
 	boolean force = lua_optboolean(L, 5);
+	boolean relative = lua_optboolean(L, 6);
 	NOHUD
 	INLEVEL
-	P_FadeLight(tag, destvalue, speed, ticbased, force);
+	P_FadeLight(tag, destvalue, speed, ticbased, force, relative);
 	return 0;
-}
-
-static int lib_pThingOnSpecial3DFloor(lua_State *L)
-{
-	mobj_t *mo = *((mobj_t **)luaL_checkudata(L, 1, META_MOBJ));
-	NOHUD
-	INLEVEL
-	if (!mo)
-		return LUA_ErrInvalid(L, "mobj_t");
-	LUA_PushUserdata(L, P_ThingOnSpecial3DFloor(mo), META_SECTOR);
-	return 1;
 }
 
 static int lib_pIsFlagAtBase(lua_State *L)
@@ -3883,7 +3956,7 @@ static int lib_gTicsToMilliseconds(lua_State *L)
 
 static int lib_getTimeMicros(lua_State *L)
 {
-	lua_pushinteger(L, I_PreciseToMicros(I_GetPreciseTime()));
+	lua_pushinteger(L, I_GetPreciseTime() / (I_GetPrecisePrecision() / 1000000));
 	return 1;
 }
 
@@ -3983,6 +4056,7 @@ static luaL_Reg lib[] = {
 	{"P_IsObjectOnGround",lib_pIsObjectOnGround},
 	{"P_InSpaceSector",lib_pInSpaceSector},
 	{"P_InQuicksand",lib_pInQuicksand},
+	{"P_InJumpFlipSector",lib_pInJumpFlipSector},
 	{"P_SetObjectMomZ",lib_pSetObjectMomZ},
 	{"P_PlayJingle",lib_pPlayJingle},
 	{"P_PlayJingleMusic",lib_pPlayJingleMusic},
@@ -4022,6 +4096,8 @@ static luaL_Reg lib[] = {
 	{"P_TryMove",lib_pTryMove},
 	{"P_Move",lib_pMove},
 	{"P_TeleportMove",lib_pTeleportMove},
+	{"P_SetOrigin",lib_pSetOrigin},
+	{"P_MoveOrigin",lib_pMoveOrigin},
 	{"P_SlideMove",lib_pSlideMove},
 	{"P_BounceMove",lib_pBounceMove},
 	{"P_CheckSight", lib_pCheckSight},
@@ -4056,7 +4132,10 @@ static luaL_Reg lib[] = {
 	{"P_SetMobjStateNF",lib_pSetMobjStateNF},
 	{"P_DoSuperTransformation",lib_pDoSuperTransformation},
 	{"P_ExplodeMissile",lib_pExplodeMissile},
+	{"P_MobjTouchingSectorSpecial",lib_pMobjTouchingSectorSpecial},
+	{"P_MobjTouchingSectorSpecialFlag",lib_pMobjTouchingSectorSpecialFlag},
 	{"P_PlayerTouchingSectorSpecial",lib_pPlayerTouchingSectorSpecial},
+	{"P_PlayerTouchingSectorSpecialFlag",lib_pPlayerTouchingSectorSpecialFlag},
 	{"P_FindLowestFloorSurrounding",lib_pFindLowestFloorSurrounding},
 	{"P_FindHighestFloorSurrounding",lib_pFindHighestFloorSurrounding},
 	{"P_FindNextHighestFloor",lib_pFindNextHighestFloor},
@@ -4068,7 +4147,6 @@ static luaL_Reg lib[] = {
 	{"P_LinedefExecute",lib_pLinedefExecute},
 	{"P_SpawnLightningFlash",lib_pSpawnLightningFlash},
 	{"P_FadeLight",lib_pFadeLight},
-	{"P_ThingOnSpecial3DFloor",lib_pThingOnSpecial3DFloor},
 	{"P_IsFlagAtBase",lib_pIsFlagAtBase},
 	{"P_SetupLevelSky",lib_pSetupLevelSky},
 	{"P_SetSkyboxMobj",lib_pSetSkyboxMobj},

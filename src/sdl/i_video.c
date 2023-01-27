@@ -1,3 +1,4 @@
+
 // Emacs style mode select   -*- C++ -*-
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
@@ -195,7 +196,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
 static void Impl_VideoSetupSurfaces(int width, int height);
 static void Impl_VideoSetupBuffer(void);
 
-static void Impl_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h);
+static void Impl_BlitSurfaceRegion(void);
 
 static void Impl_InitOpenGL(void);
 static void Impl_SetGLContext(void);
@@ -254,8 +255,15 @@ static SDL_bool Impl_RenderContextCreate(void)
 
 		if (usesdl2soft)
 			flags |= SDL_RENDERER_SOFTWARE;
+#if 0
+		// This shit is BROKEN.
+		// - The version of SDL we're using cannot toggle VSync at runtime. We'll need a new SDL version implemented to have this work properly.
+		// - cv_vidwait is initialized before config is loaded, so it's forced to default value at runtime, and forced off when switching. The config loading code would need restructured.
+		// - With both this & frame interpolation on, I_FinishUpdate takes x10 longer. At this point, it is simpler to use a standard FPS cap.
+		// So you can probably guess why I'm kinda over this, I'm just disabling it.
 		else if (cv_vidwait.value)
 			flags |= SDL_RENDERER_PRESENTVSYNC;
+#endif
 
 		if (!renderer)
 			renderer = SDL_CreateRenderer(window, -1, flags);
@@ -1549,7 +1557,7 @@ void I_GetEvent(void)
 				// update the menu
 				if (currentMenu == &OP_JoystickSetDef)
 					M_SetupJoystickMenu(0);
-			 	break;
+				break;
 			case SDL_QUIT:
 				LUA_HookBool(true, HOOK(GameQuit));
 				I_Quit();
@@ -1685,10 +1693,14 @@ void I_UpdateNoBlit(void)
 //
 // I_FinishUpdate
 //
+static SDL_Rect src_rect = { 0, 0, 0, 0 };
+
 void I_FinishUpdate(void)
 {
 	if (rendermode == render_none)
 		return; //Alam: No software or OpenGl surface
+
+	SCR_CalculateFPS();
 
 	if (appOnBackground == SDL_TRUE)
 		return;
@@ -1716,10 +1728,10 @@ void I_FinishUpdate(void)
 		if (!bufSurface) // Double-check
 			Impl_VideoSetupBuffer();
 
-		Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
+		Impl_BlitSurfaceRegion();
 
 		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
+		SDL_RenderCopy(renderer, texture, &src_rect, NULL);
 		SDL_RenderPresent(renderer);
 	}
 #ifdef HWRENDER
@@ -2025,6 +2037,27 @@ void VID_GetNativeResolution(INT32 *width, INT32 *height)
 	if (height) *height = h;
 }
 
+static UINT32 refresh_rate;
+static UINT32 VID_GetRefreshRate(void)
+{
+	int index = SDL_GetWindowDisplayIndex(window);
+	SDL_DisplayMode m;
+
+	if (SDL_WasInit(SDL_INIT_VIDEO) == 0)
+	{
+		// Video not init yet.
+		return 0;
+	}
+
+	if (SDL_GetCurrentDisplayMode(index, &m) != 0)
+	{
+		// Error has occurred.
+		return 0;
+	}
+
+	return m.refresh_rate;
+}
+
 INT32 VID_SetMode(INT32 modeNum)
 {
 	SDLdoUngrabMouse();
@@ -2067,23 +2100,21 @@ INT32 VID_SetMode(INT32 modeNum)
 		vid.modenum = modeNum;
 	}
 
+	src_rect.w = vid.width;
+	src_rect.h = vid.height;
+
+	refresh_rate = VID_GetRefreshRate();
+
 	VID_CheckRenderer();
 	return SDL_TRUE;
 }
 
-static void Impl_BlitSurfaceRegion(INT32 x, INT32 y, INT32 w, INT32 h)
+static void Impl_BlitSurfaceRegion(void)
 {
-	SDL_Rect rect;
-
-	rect.x = x;
-	rect.y = y;
-	rect.w = w;
-	rect.h = h;
-
-	SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
+	SDL_BlitSurface(bufSurface, &src_rect, vidSurface, &src_rect);
 	// Fury -- there's no way around UpdateTexture, the GL backend uses it anyway
 	SDL_LockSurface(vidSurface);
-	SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
+	SDL_UpdateTexture(texture, &src_rect, vidSurface->pixels, vidSurface->pitch);
 	SDL_UnlockSurface(vidSurface);
 }
 
@@ -2105,6 +2136,11 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	if (vid.glstate == VID_GL_LIBRARY_LOADED)
 #endif
 		flags |= SDL_WINDOW_OPENGL;
+
+	// Without a 24-bit depth buffer many visuals are ruined by z-fighting.
+	// Some GPU drivers may give us a 16-bit depth buffer since the
+	// default value for SDL_GL_DEPTH_SIZE is 16.
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 #endif
 
 #if defined(__ANDROID__)
@@ -2621,6 +2657,9 @@ static void Impl_LoadSplashScreen(void)
 	vid.height = sheight;
 	rendermode = render_none;
 
+	src_rect.w = vid.width;
+	src_rect.h = vid.height;
+
 	if (SDLSetMode(swidth, sheight, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
 		return;
 
@@ -2650,7 +2689,7 @@ void I_ShowSplashScreen(void)
 	UINT32 delay = SDL_GetTicks() + 500;
 
 	do {
-		Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
+		Impl_BlitSurfaceRegion();
 
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -2701,7 +2740,7 @@ void I_ReportProgress(int progress)
 	base.w = realwidth;
 	base.h = realheight;
 
-	Impl_BlitSurfaceRegion(0, 0, realwidth, realheight);
+	Impl_BlitSurfaceRegion();
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 
 	// dim screen
@@ -2792,4 +2831,14 @@ void I_ShutdownGraphics(void)
 void I_GetCursorPosition(INT32 *x, INT32 *y)
 {
 	SDL_GetMouseState(x, y);
+}
+
+UINT32 I_GetRefreshRate(void)
+{
+	// Moved to VID_GetRefreshRate.
+	// Precalculating it like that won't work as
+	// well for windowed mode since you can drag
+	// the window around, but very slow PCs might have
+	// trouble querying mode over and over again.
+	return refresh_rate;
 }

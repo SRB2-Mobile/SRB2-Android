@@ -160,7 +160,15 @@ enum
 	SPANDRAWFUNC_WATER,
 	SPANDRAWFUNC_TILTEDWATER,
 
+	SPANDRAWFUNC_SOLID,
+	SPANDRAWFUNC_TRANSSOLID,
+	SPANDRAWFUNC_TILTEDSOLID,
+	SPANDRAWFUNC_TILTEDTRANSSOLID,
+	SPANDRAWFUNC_WATERSOLID,
+	SPANDRAWFUNC_TILTEDWATERSOLID,
+
 	SPANDRAWFUNC_FOG,
+	SPANDRAWFUNC_TILTEDFOG,
 
 	SPANDRAWFUNC_MAX
 };
@@ -187,6 +195,8 @@ extern viddef_t vid;
 extern INT32 setmodeneeded; // mode number to set if needed, or 0
 extern UINT8 setrenderneeded;
 extern UINT8 renderswitcherror;
+
+extern double averageFPS;
 
 void SCR_ChangeRenderer(void);
 
@@ -215,6 +225,7 @@ extern float scr_resdiv;
 
 // wait for page flipping to end or not
 extern consvar_t cv_vidwait;
+extern consvar_t cv_timescale;
 
 // Initialize the screen
 void SCR_Startup(void);
@@ -234,6 +245,8 @@ void SCR_CheckDefaultMode(void);
 void SCR_SetDefaultMode(void);
 // Set the mode number based on the resolution saved in the config
 void SCR_SetModeFromConfig(void);
+
+void SCR_CalculateFPS(void);
 
 FUNCMATH boolean SCR_IsAspectCorrect(INT32 width, INT32 height);
 

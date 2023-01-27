@@ -110,7 +110,7 @@ static void GLPerspective(GLfloat fovy, GLfloat aspect)
 	const GLfloat zNear = near_clipping_plane;
 	const GLfloat zFar = FAR_CLIPPING_PLANE;
 	const GLfloat radians = (GLfloat)(fovy / 2.0f * M_PIl / 180.0f);
-	const GLfloat sine = sinf(radians);
+	const GLfloat sine = (GLfloat)sin(radians);
 	const GLfloat deltaZ = zFar - zNear;
 	GLfloat cotangent;
 
@@ -783,7 +783,7 @@ static void CreateModelVBOs(model_t *model)
 // -----------------+
 // HWRAPI DrawModel : Draw a model
 // -----------------+
-static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
+static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
 	static GLRGBAFloat poly = {0,0,0,0};
 	static GLRGBAFloat tint = {0,0,0,0};
@@ -811,11 +811,11 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 	scaley = scale;
 	scalez = scale;
 
-	if (duration != 0 && duration != -1 && tics != -1) // don't interpolate if instantaneous or infinite in length
+	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
-		UINT32 newtime = (duration - tics); // + 1;
+		float newtime = (duration - tics); // + 1;
 
-		pol = (newtime)/(float)duration;
+		pol = newtime / duration;
 
 		if (pol > 1.0f)
 			pol = 1.0f;
@@ -1114,7 +1114,6 @@ static void SetTransform(FTransform *stransform)
 	pglMatrixMode(GL_PROJECTION);
 	pglLoadIdentity();
 
-	// jimita 14042019
 	// Simulate Software's y-shearing
 	// https://zdoom.org/wiki/Y-shearing
 	if (shearing)
@@ -1125,7 +1124,7 @@ static void SetTransform(FTransform *stransform)
 
 	if (special_splitscreen)
 	{
-		used_fov = atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI;
+		used_fov = (float)(atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI);
 		GLPerspective(used_fov, 2*ASPECT_RATIO);
 	}
 	else

@@ -15,6 +15,7 @@
 #include <unistd.h> //for unlink
 #endif
 
+#include "i_time.h"
 #include "i_net.h"
 #include "i_system.h"
 #include "i_video.h"
@@ -51,6 +52,9 @@
 #include "ts_main.h"
 #include "ts_draw.h"
 #endif
+
+// aaaaaa
+#include "i_joy.h"
 
 #ifndef NONET
 // cl loading screen
@@ -118,6 +122,9 @@ static INT16 consistancy[BACKUPTICS];
 
 static UINT8 player_joining = false;
 UINT8 hu_redownloadinggamestate = 0;
+
+// true when a player is connecting or disconnecting so that the gameplay has stopped in its tracks
+boolean hu_stopped = false;
 
 UINT8 adminpassmd5[16];
 boolean adminpasswordset = false;
@@ -555,10 +562,10 @@ static UINT16 cl_lastcheckedfilecount = 0;	// used for full file list
 #define SNAKE_BOTTOM_Y (BASEVIDHEIGHT - 48)
 #define SNAKE_TOP_Y (SNAKE_BOTTOM_Y - SNAKE_MAP_HEIGHT - SNAKE_BORDER_SIZE * 2 + 1)
 
-#define SNAKE_INPUT_UP (gamekeydown[KEY_UPARROW] || gamekeydown[KEY_REMOTEUP])
-#define SNAKE_INPUT_DOWN (gamekeydown[KEY_DOWNARROW] || gamekeydown[KEY_REMOTEDOWN])
-#define SNAKE_INPUT_LEFT (gamekeydown[KEY_LEFTARROW] || gamekeydown[KEY_REMOTELEFT])
-#define SNAKE_INPUT_RIGHT (gamekeydown[KEY_RIGHTARROW] || gamekeydown[KEY_REMOTERIGHT])
+#define SNAKE_INPUT_UP (PLAYER1INPUTDOWN(GC_FORWARD) || gamekeydown[KEY_UPARROW] || gamekeydown[KEY_REMOTEUP])
+#define SNAKE_INPUT_DOWN (PLAYER1INPUTDOWN(GC_BACKWARD) || gamekeydown[KEY_DOWNARROW] || gamekeydown[KEY_REMOTEDOWN])
+#define SNAKE_INPUT_LEFT (PLAYER1INPUTDOWN(GC_STRAFELEFT) || gamekeydown[KEY_LEFTARROW] || gamekeydown[KEY_REMOTELEFT])
+#define SNAKE_INPUT_RIGHT (PLAYER1INPUTDOWN(GC_STRAFERIGHT) || gamekeydown[KEY_RIGHTARROW] || gamekeydown[KEY_REMOTERIGHT])
 #define SNAKE_INPUT_ENTER (gamekeydown[KEY_ENTER] || gamekeydown[KEY_REMOTECENTER])
 
 enum snake_bonustype_s {
@@ -667,6 +674,16 @@ static UINT8 Snake_GetOppositeDir(UINT8 dir)
 		return 12 + 5 - dir;
 }
 
+event_t *snakejoyevents[MAXEVENTS];
+UINT16 joyeventcount = 0;
+
+// I'm screaming the hack is clean - ashi
+static void Snake_Joy_Grabber(event_t *ev)
+{
+	snakejoyevents[joyeventcount] = ev;
+	joyeventcount++;
+}
+
 static void Snake_FindFreeSlot(UINT8 *freex, UINT8 *freey, UINT8 headx, UINT8 heady)
 {
 	UINT8 x, y;
@@ -693,6 +710,9 @@ static void Snake_Handle(void)
 	UINT8 x, y;
 	UINT8 oldx, oldy;
 	UINT16 i;
+	UINT16 j;
+	UINT16 joystate = 0;
+	static INT32 pjoyx = 0, pjoyy = 0;
 
 	// Handle retry
 	if (snake->gameover && (PLAYER1INPUTDOWN(GC_JUMP) || SNAKE_INPUT_ENTER))
@@ -721,23 +741,58 @@ static void Snake_Handle(void)
 	oldx = snake->snakex[1];
 	oldy = snake->snakey[1];
 
+	// process the input events in here dear lord
+	for (j = 0; j < joyeventcount; j++)
+	{
+		event_t *ev = snakejoyevents[j];
+		const INT32 jdeadzone = (JOYAXISRANGE * cv_digitaldeadzone.value) / FRACUNIT;
+		if (ev->y != INT32_MAX)
+		{
+			if (Joystick.bGamepadStyle || abs(ev->y) > jdeadzone)
+			{
+				if (ev->y < 0 && pjoyy >= 0)
+					joystate = 1;
+				else if (ev->y > 0 && pjoyy <= 0)
+					joystate = 2;
+				pjoyy = ev->y;
+			}
+			else
+				pjoyy = 0;
+		}
+
+		if (ev->x != INT32_MAX)
+		{
+			if (Joystick.bGamepadStyle || abs(ev->x) > jdeadzone)
+			{
+				if (ev->x < 0 && pjoyx >= 0)
+					joystate = 3;
+				else if (ev->x > 0 && pjoyx <= 0)
+					joystate = 4;
+				pjoyx = ev->x;
+			}
+			else
+				pjoyx = 0;
+		}
+	}
+	joyeventcount = 0;
+
 	// Update direction
-	if (SNAKE_INPUT_LEFT)
+	if (SNAKE_INPUT_LEFT || joystate == 3)
 	{
 		if (snake->snakelength < 2 || x <= oldx)
 			snake->snakedir[0] = 1;
 	}
-	else if (SNAKE_INPUT_RIGHT)
+	else if (SNAKE_INPUT_RIGHT || joystate == 4)
 	{
 		if (snake->snakelength < 2 || x >= oldx)
 			snake->snakedir[0] = 2;
 	}
-	else if (SNAKE_INPUT_UP)
+	else if (SNAKE_INPUT_UP || joystate == 1)
 	{
 		if (snake->snakelength < 2 || y <= oldy)
 			snake->snakedir[0] = 3;
 	}
-	else if (SNAKE_INPUT_DOWN)
+	else if (SNAKE_INPUT_DOWN || joystate == 2)
 	{
 		if (snake->snakelength < 2 || y >= oldy)
 			snake->snakedir[0] = 4;
@@ -1069,6 +1124,7 @@ static void CL_DrawConnectionStatusBox(const char *abortstring)
 static void CL_DrawConnectionStatus(void)
 {
 	const char *abortstring = NULL;
+	char abortstringbuf[256];
 	INT32 ccstime = I_GetTime();
 
 	// Draw background fade
@@ -1080,7 +1136,10 @@ static void CL_DrawConnectionStatus(void)
 	else
 #endif
 	if (inputmethod == INPUTMETHOD_JOYSTICK)
-		abortstring = va("Push %s to abort", G_KeyNumToName(KEY_JOY1+1));
+	{
+		snprintf(abortstringbuf, sizeof(abortstringbuf), "Push %s to abort", G_KeyNumToName(KEY_JOY1+1));
+		abortstring = abortstringbuf;
+	}
 	else if (inputmethod == INPUTMETHOD_TVREMOTE)
 		abortstring = "Push Back to abort";
 	else
@@ -1972,9 +2031,9 @@ static void M_ConfirmConnect(event_t *ev)
 
 	if (result == 0 && ev->type == ev_keydown)
 	{
-		if (ev->key == ' ' || ev->key == 'y')
+		if (ev->key == ' ' || ev->key == 'y' || ev->key == KEY_ENTER || ev->key == KEY_JOY1)
 			result = 1;
-		else if (ev->key == 'n')
+		else if (ev->key == 'n' || ev->key == KEY_ESCAPE || ev->key == KEY_JOY1 + 3)
 			result = -1;
 	}
 
@@ -2331,10 +2390,7 @@ static INT32 CL_ServerConnectionEventHandler(event_t *ev)
 		inputmethod = INPUTMETHOD_TOUCH;
 	else
 #endif
-	{
-		G_DetectInputMethod(ev->key);
 		G_MapEventsToControls(ev);
-	}
 
 	if (ev->type == ev_keydown)
 	{
@@ -2342,6 +2398,12 @@ static INT32 CL_ServerConnectionEventHandler(event_t *ev)
 			result = 1;
 		else if (ev->key == KEY_ESCAPE || ev->key == KEY_JOY1+1 || ev->key == KEY_REMOTEBACK)
 			result = -1;
+		G_DetectInputMethod(ev->key);
+	}
+	else if (ev->type == ev_joystick  && ev->key == 0)
+	{
+		Snake_Joy_Grabber(ev);
+		inputmethod = INPUTMETHOD_JOYSTICK;
 	}
 #ifdef TOUCHINPUTS
 	else if (touchscreenavailable)
@@ -2614,7 +2676,10 @@ static boolean CL_ServerConnectionTicker(const char *tmpsave, tic_t *oldtic, tic
 #endif
 	}
 	else
-		I_Sleep();
+	{
+		I_Sleep(cv_sleep.value);
+		I_UpdateTime(cv_timescale.value);
+	}
 
 	return true;
 }
@@ -3656,7 +3721,7 @@ consvar_t cv_resynchattempts = CVAR_INIT ("resynchattempts", "10", CV_SAVE|CV_NE
 consvar_t cv_blamecfail = CVAR_INIT ("blamecfail", "Off", CV_SAVE|CV_NETVAR, CV_OnOff, NULL);
 
 // max file size to send to a player (in kilobytes)
-static CV_PossibleValue_t maxsend_cons_t[] = {{0, "MIN"}, {51200, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t maxsend_cons_t[] = {{0, "MIN"}, {204800, "MAX"}, {0, NULL}};
 consvar_t cv_maxsend = CVAR_INIT ("maxsend", "4096", CV_SAVE|CV_NETVAR, maxsend_cons_t, NULL);
 consvar_t cv_noticedownload = CVAR_INIT ("noticedownload", "Off", CV_SAVE|CV_NETVAR, CV_OnOff, NULL);
 
@@ -5419,8 +5484,10 @@ static void SV_Maketic(void)
 	maketic++;
 }
 
-void TryRunTics(tic_t realtics)
+boolean TryRunTics(tic_t realtics)
 {
+	boolean ticking;
+
 	// the machine has lagged but it is not so bad
 	if (realtics > TICRATE/7) // FIXME: consistency failure!!
 	{
@@ -5444,7 +5511,7 @@ void TryRunTics(tic_t realtics)
 
 	if (demoplayback)
 	{
-		neededtic = gametic + (realtics * cv_playbackspeed.value);
+		neededtic = gametic + realtics;
 		// start a game after a demo
 		maketic += realtics;
 		firstticstosend = maketic;
@@ -5464,10 +5531,22 @@ void TryRunTics(tic_t realtics)
 	}
 #endif
 
-	if (player_joining)
-		return;
+	ticking = neededtic > gametic;
 
-	if (neededtic > gametic)
+	if (ticking)
+	{
+		if (realtics)
+			hu_stopped = false;
+	}
+
+	if (player_joining)
+	{
+		if (realtics)
+			hu_stopped = true;
+		return false;
+	}
+
+	if (ticking)
 	{
 		if (advancedemo)
 		{
@@ -5503,6 +5582,13 @@ void TryRunTics(tic_t realtics)
 					break;
 			}
 	}
+	else
+	{
+		if (realtics)
+			hu_stopped = true;
+	}
+
+	return ticking;
 }
 
 /*

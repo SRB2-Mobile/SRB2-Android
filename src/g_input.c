@@ -356,51 +356,6 @@ boolean G_CanRetryModeAttack(void)
 	return (modeattacking && !demoplayback && (gamestate == GS_LEVEL));
 }
 
-// Handles the viewpoint switch key being pressed.
-boolean G_DoViewpointSwitch(void)
-{
-	// ViewpointSwitch Lua hook.
-	UINT8 canSwitchView = 0;
-
-	if (splitscreen || !netgame)
-		displayplayer = consoleplayer;
-	else
-	{
-		do
-		{
-			displayplayer++;
-			if (displayplayer == MAXPLAYERS)
-				displayplayer = 0;
-
-			if (!playeringame[displayplayer])
-				continue;
-
-			// Call ViewpointSwitch hooks here.
-			canSwitchView = LUA_HookViewpointSwitch(&players[consoleplayer], &players[displayplayer], false);
-			if (canSwitchView == 1) // Set viewpoint to this player
-				break;
-			else if (canSwitchView == 2) // Skip this player
-				continue;
-
-			if (!G_CanViewpointSwitchToPlayer(&players[displayplayer]))
-				continue;
-
-			break;
-		} while (displayplayer != consoleplayer);
-
-		// change statusbar also if playing back demo
-		if (singledemo)
-			ST_changeDemoView();
-
-		// tell who's the view
-		CONS_Printf(M_GetText("Viewpoint: %s\n"), player_names[displayplayer]);
-
-		return true;
-	}
-
-	return false;
-}
-
 // Handles the camera toggle key being pressed.
 boolean G_ToggleChaseCam(void)
 {
@@ -794,7 +749,8 @@ const char *gamecontrolname[NUM_GAMECONTROLS] =
 	"systemmenu",
 	"screenshot",
 	"recordgif",
-	"viewpoint",
+	"viewpoint", // Rename this to "viewpointnext" for the next major version
+	"viewpointprev",
 	"custom1",
 	"custom2",
 	"custom3",
@@ -914,45 +870,45 @@ void G_DefineDefaultControls(void)
 
 	for (i = 1; i < num_gamecontrolschemes; i++) // skip gcs_custom (0)
 	{
-		gamecontroldefault[i][GC_WEAPONNEXT ][0] = KEY_MOUSEWHEELUP+0;
-		gamecontroldefault[i][GC_WEAPONPREV ][0] = KEY_MOUSEWHEELDOWN+0;
-		gamecontroldefault[i][GC_WEPSLOT1   ][0] = '1';
-		gamecontroldefault[i][GC_WEPSLOT2   ][0] = '2';
-		gamecontroldefault[i][GC_WEPSLOT3   ][0] = '3';
-		gamecontroldefault[i][GC_WEPSLOT4   ][0] = '4';
-		gamecontroldefault[i][GC_WEPSLOT5   ][0] = '5';
-		gamecontroldefault[i][GC_WEPSLOT6   ][0] = '6';
-		gamecontroldefault[i][GC_WEPSLOT7   ][0] = '7';
-		gamecontroldefault[i][GC_WEPSLOT8   ][0] = '8';
-		gamecontroldefault[i][GC_WEPSLOT9   ][0] = '9';
-		gamecontroldefault[i][GC_WEPSLOT10  ][0] = '0';
-		gamecontroldefault[i][GC_TOSSFLAG   ][0] = '\'';
-		gamecontroldefault[i][GC_CAMTOGGLE  ][0] = 'v';
-		gamecontroldefault[i][GC_CAMRESET   ][0] = 'r';
-		gamecontroldefault[i][GC_TALKKEY    ][0] = 't';
-		gamecontroldefault[i][GC_TEAMKEY    ][0] = 'y';
-		gamecontroldefault[i][GC_SCORES     ][0] = KEY_TAB;
-		gamecontroldefault[i][GC_CONSOLE    ][0] = KEY_CONSOLE;
-		gamecontroldefault[i][GC_PAUSE      ][0] = 'p';
-		gamecontroldefault[i][GC_SCREENSHOT ][0] = KEY_F8;
-		gamecontroldefault[i][GC_RECORDGIF  ][0] = KEY_F9;
-		gamecontroldefault[i][GC_VIEWPOINT  ][0] = KEY_F12;
+		gamecontroldefault[i][GC_WEAPONNEXT   ][0] = KEY_MOUSEWHEELUP+0;
+		gamecontroldefault[i][GC_WEAPONPREV   ][0] = KEY_MOUSEWHEELDOWN+0;
+		gamecontroldefault[i][GC_WEPSLOT1     ][0] = '1';
+		gamecontroldefault[i][GC_WEPSLOT2     ][0] = '2';
+		gamecontroldefault[i][GC_WEPSLOT3     ][0] = '3';
+		gamecontroldefault[i][GC_WEPSLOT4     ][0] = '4';
+		gamecontroldefault[i][GC_WEPSLOT5     ][0] = '5';
+		gamecontroldefault[i][GC_WEPSLOT6     ][0] = '6';
+		gamecontroldefault[i][GC_WEPSLOT7     ][0] = '7';
+		gamecontroldefault[i][GC_WEPSLOT8     ][0] = '8';
+		gamecontroldefault[i][GC_WEPSLOT9     ][0] = '9';
+		gamecontroldefault[i][GC_WEPSLOT10    ][0] = '0';
+		gamecontroldefault[i][GC_TOSSFLAG     ][0] = '\'';
+		gamecontroldefault[i][GC_CAMTOGGLE    ][0] = 'v';
+		gamecontroldefault[i][GC_CAMRESET     ][0] = 'r';
+		gamecontroldefault[i][GC_TALKKEY      ][0] = 't';
+		gamecontroldefault[i][GC_TEAMKEY      ][0] = 'y';
+		gamecontroldefault[i][GC_SCORES       ][0] = KEY_TAB;
+		gamecontroldefault[i][GC_CONSOLE      ][0] = KEY_CONSOLE;
+		gamecontroldefault[i][GC_PAUSE        ][0] = 'p';
+		gamecontroldefault[i][GC_SCREENSHOT   ][0] = KEY_F8;
+		gamecontroldefault[i][GC_RECORDGIF    ][0] = KEY_F9;
+		gamecontroldefault[i][GC_VIEWPOINTNEXT][0] = KEY_F12;
 
 		// Gamepad controls -- same for both schemes
-		gamecontroldefault[i][GC_JUMP       ][1] = KEY_JOY1+0; // A
-		gamecontroldefault[i][GC_SPIN       ][1] = KEY_JOY1+2; // X
-		gamecontroldefault[i][GC_CUSTOM1    ][1] = KEY_JOY1+1; // B
-		gamecontroldefault[i][GC_CUSTOM2    ][1] = KEY_JOY1+3; // Y
-		gamecontroldefault[i][GC_CUSTOM3    ][1] = KEY_JOY1+8; // Left Stick
-		gamecontroldefault[i][GC_CENTERVIEW ][1] = KEY_JOY1+9; // Right Stick
-		gamecontroldefault[i][GC_WEAPONPREV ][1] = KEY_JOY1+4; // LB
-		gamecontroldefault[i][GC_WEAPONNEXT ][1] = KEY_JOY1+5; // RB
-		gamecontroldefault[i][GC_SCREENSHOT ][1] = KEY_JOY1+6; // Back
-		gamecontroldefault[i][GC_SYSTEMMENU ][0] = KEY_JOY1+7; // Start
-		gamecontroldefault[i][GC_CAMTOGGLE  ][1] = KEY_HAT1+0; // D-Pad Up
-		gamecontroldefault[i][GC_VIEWPOINT  ][1] = KEY_HAT1+1; // D-Pad Down
-		gamecontroldefault[i][GC_TOSSFLAG   ][1] = KEY_HAT1+2; // D-Pad Left
-		gamecontroldefault[i][GC_SCORES     ][1] = KEY_HAT1+3; // D-Pad Right
+		gamecontroldefault[i][GC_JUMP         ][1] = KEY_JOY1+0; // A
+		gamecontroldefault[i][GC_SPIN         ][1] = KEY_JOY1+2; // X
+		gamecontroldefault[i][GC_CUSTOM1      ][1] = KEY_JOY1+1; // B
+		gamecontroldefault[i][GC_CUSTOM2      ][1] = KEY_JOY1+3; // Y
+		gamecontroldefault[i][GC_CUSTOM3      ][1] = KEY_JOY1+8; // Left Stick
+		gamecontroldefault[i][GC_CENTERVIEW   ][1] = KEY_JOY1+9; // Right Stick
+		gamecontroldefault[i][GC_WEAPONPREV   ][1] = KEY_JOY1+4; // LB
+		gamecontroldefault[i][GC_WEAPONNEXT   ][1] = KEY_JOY1+5; // RB
+		gamecontroldefault[i][GC_SCREENSHOT   ][1] = KEY_JOY1+6; // Back
+		gamecontroldefault[i][GC_SYSTEMMENU   ][0] = KEY_JOY1+7; // Start
+		gamecontroldefault[i][GC_CAMTOGGLE    ][1] = KEY_HAT1+0; // D-Pad Up
+		gamecontroldefault[i][GC_VIEWPOINTNEXT][1] = KEY_HAT1+1; // D-Pad Down
+		gamecontroldefault[i][GC_TOSSFLAG     ][1] = KEY_HAT1+2; // D-Pad Left
+		gamecontroldefault[i][GC_SCORES       ][1] = KEY_HAT1+3; // D-Pad Right
 
 #ifdef TV_PLATFORM
 		// Basic TV remote controls
@@ -964,20 +920,20 @@ void G_DefineDefaultControls(void)
 #endif
 
 		// Second player controls only have joypad defaults
-		gamecontrolbisdefault[i][GC_JUMP       ][1] = KEY_2JOY1+0; // A
-		gamecontrolbisdefault[i][GC_SPIN       ][1] = KEY_2JOY1+2; // X
-		gamecontrolbisdefault[i][GC_CUSTOM1    ][1] = KEY_2JOY1+1; // B
-		gamecontrolbisdefault[i][GC_CUSTOM2    ][1] = KEY_2JOY1+3; // Y
-		gamecontrolbisdefault[i][GC_CUSTOM3    ][1] = KEY_2JOY1+8; // Left Stick
-		gamecontrolbisdefault[i][GC_CENTERVIEW ][1] = KEY_2JOY1+9; // Right Stick
-		gamecontrolbisdefault[i][GC_WEAPONPREV ][1] = KEY_2JOY1+4; // LB
-		gamecontrolbisdefault[i][GC_WEAPONNEXT ][1] = KEY_2JOY1+5; // RB
-		gamecontrolbisdefault[i][GC_SCREENSHOT ][1] = KEY_2JOY1+6; // Back
-		//gamecontrolbisdefault[i][GC_SYSTEMMENU ][0] = KEY_2JOY1+7; // Start
-		gamecontrolbisdefault[i][GC_CAMTOGGLE  ][1] = KEY_2HAT1+0; // D-Pad Up
-		gamecontrolbisdefault[i][GC_VIEWPOINT  ][1] = KEY_2HAT1+1; // D-Pad Down
-		gamecontrolbisdefault[i][GC_TOSSFLAG   ][1] = KEY_2HAT1+2; // D-Pad Left
-		//gamecontrolbisdefault[i][GC_SCORES     ][1] = KEY_2HAT1+3; // D-Pad Right
+		gamecontrolbisdefault[i][GC_JUMP        ][1] = KEY_2JOY1+0; // A
+		gamecontrolbisdefault[i][GC_SPIN        ][1] = KEY_2JOY1+2; // X
+		gamecontrolbisdefault[i][GC_CUSTOM1     ][1] = KEY_2JOY1+1; // B
+		gamecontrolbisdefault[i][GC_CUSTOM2     ][1] = KEY_2JOY1+3; // Y
+		gamecontrolbisdefault[i][GC_CUSTOM3     ][1] = KEY_2JOY1+8; // Left Stick
+		gamecontrolbisdefault[i][GC_CENTERVIEW  ][1] = KEY_2JOY1+9; // Right Stick
+		gamecontrolbisdefault[i][GC_WEAPONPREV  ][1] = KEY_2JOY1+4; // LB
+		gamecontrolbisdefault[i][GC_WEAPONNEXT  ][1] = KEY_2JOY1+5; // RB
+		gamecontrolbisdefault[i][GC_SCREENSHOT  ][1] = KEY_2JOY1+6; // Back
+		//gamecontrolbisdefault[i][GC_SYSTEMMENU   ][0] = KEY_2JOY1+7; // Start
+		gamecontrolbisdefault[i][GC_CAMTOGGLE    ][1] = KEY_2HAT1+0; // D-Pad Up
+		gamecontrolbisdefault[i][GC_VIEWPOINTNEXT][1] = KEY_2HAT1+1; // D-Pad Down
+		gamecontrolbisdefault[i][GC_TOSSFLAG     ][1] = KEY_2HAT1+2; // D-Pad Left
+		//gamecontrolbisdefault[i][GC_SCORES       ][1] = KEY_2HAT1+3; // D-Pad Right
 	}
 
 #ifdef TOUCHINPUTS

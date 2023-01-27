@@ -660,7 +660,7 @@ static void COM_ExecuteString(char *ptext)
 	// check cvars
 	// Hurdler: added at Ebola's request ;)
 	// (don't flood the console in software mode with bad gl_xxx command)
-	if (!CV_Command() && con_destlines)
+	if (!CV_Command() && (con_destlines || dedicated))
 		CONS_Printf(M_GetText("Unknown command '%s'\n"), COM_Argv(0));
 }
 
@@ -1725,9 +1725,13 @@ void CV_SaveVars(UINT8 **p, boolean in_demo)
 		if ((cvar->flags & CV_NETVAR) && !CV_IsSetToDefault(cvar))
 		{
 			if (in_demo)
+			{
 				WRITESTRING(*p, cvar->name);
+			}
 			else
+			{
 				WRITEUINT16(*p, cvar->netid);
+			}
 			WRITESTRING(*p, cvar->string);
 			WRITEUINT8(*p, false);
 			++count;
@@ -2076,9 +2080,10 @@ void CV_AddValue(consvar_t *var, INT32 increment)
 					{
 						increment = 0;
 						currentindice = max;
+						break; // The value we definitely want, stop here.
 					}
 					else if (var->PossibleValue[max].value == var->value)
-						currentindice = max;
+						currentindice = max; // The value we maybe want.
 				}
 
 				if (increment)

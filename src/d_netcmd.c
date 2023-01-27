@@ -16,6 +16,7 @@
 
 #include "console.h"
 #include "command.h"
+#include "i_time.h"
 #include "i_system.h"
 #include "g_game.h"
 #include "hu_stuff.h"
@@ -48,6 +49,7 @@
 #include "m_anigif.h"
 #include "md5.h"
 #include "m_perfstats.h"
+#include "hardware/u_list.h" // TODO: this should be a standard utility class
 
 #ifdef NETGAME_DEVMODE
 #define CV_RESTRICT CV_NETVAR
@@ -192,7 +194,7 @@ static CV_PossibleValue_t joyport_cons_t[] = {{1, "/dev/js0"}, {2, "/dev/js1"}, 
 static CV_PossibleValue_t teamscramble_cons_t[] = {{0, "Off"}, {1, "Random"}, {2, "Points"}, {0, NULL}};
 
 static CV_PossibleValue_t startingliveslimit_cons_t[] = {{1, "MIN"}, {99, "MAX"}, {0, NULL}};
-static CV_PossibleValue_t sleeping_cons_t[] = {{-1, "MIN"}, {1000/TICRATE, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t sleeping_cons_t[] = {{0, "MIN"}, {1000/TICRATE, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t competitionboxes_cons_t[] = {{0, "Normal"}, {1, "Mystery"}, //{2, "Teleport"},
 	{3, "None"}, {0, NULL}};
 
@@ -922,7 +924,7 @@ void D_RegisterClientCommands(void)
 
 	// ingame object placing
 	COM_AddCommand("objectplace", Command_ObjectPlace_f);
-	COM_AddCommand("writethings", Command_Writethings_f);
+	//COM_AddCommand("writethings", Command_Writethings_f);
 	CV_RegisterVar(&cv_speed);
 	CV_RegisterVar(&cv_opflags);
 	CV_RegisterVar(&cv_ophoopflags);
@@ -3316,6 +3318,69 @@ static void Got_RunSOCcmd(UINT8 **cp, INT32 playernum)
 	G_SetGameModified(true);
 }
 
+// C++ would make this SO much simpler!
+typedef struct addedfile_s
+{
+	struct addedfile_s *next;
+	struct addedfile_s *prev;
+	char *value;
+} addedfile_t;
+
+static boolean AddedFileContains(addedfile_t *list, const char *value)
+{
+	addedfile_t *node;
+	for (node = list; node; node = node->next)
+	{
+		if (!strcmp(value, node->value))
+			return true;
+	}
+
+	return false;
+}
+
+static void AddedFilesAdd(addedfile_t **list, const char *value)
+{
+	addedfile_t *item = Z_Calloc(sizeof(addedfile_t), PU_STATIC, NULL);
+	item->value = Z_StrDup(value);
+	ListAdd(item, (listitem_t**)list);
+}
+
+static void AddedFilesRemove(void *pItem, addedfile_t **itemHead)
+{
+	addedfile_t *item = (addedfile_t *)pItem;
+
+	if (item == *itemHead) // Start of list
+	{
+		*itemHead = item->next;
+
+		if (*itemHead)
+			(*itemHead)->prev = NULL;
+	}
+	else if (item->next == NULL) // end of list
+	{
+		item->prev->next = NULL;
+	}
+	else // Somewhere in between
+	{
+		item->prev->next = item->next;
+		item->next->prev = item->prev;
+	}
+
+	Z_Free(item->value);
+	Z_Free(item);
+}
+
+static void AddedFilesClearList(addedfile_t **itemHead)
+{
+	addedfile_t *item;
+	addedfile_t *next;
+	for (item = *itemHead; item; item = next)
+	{
+		next = item->next;
+		AddedFilesRemove(item, itemHead);
+	}
+}
+
 /** Adds a pwad at runtime.
   * Searches for sounds, maps, music, new images.
   */
@@ -3324,8 +3389,7 @@ static void Command_Addfile(void)
 	size_t argc = COM_Argc(); // amount of arguments total
 	size_t curarg; // current argument index
 
-	const char *addedfiles[argc]; // list of filenames already processed
-	size_t numfilesadded = 0; // the amount of filenames processed
+	addedfile_t *addedfiles = NULL; // list of filenames already processed
 
 	if (argc < 2)
 	{
@@ -3340,25 +3404,14 @@ static void Command_Addfile(void)
 		char buf[256];
 		char *buf_p = buf;
 		INT32 i;
-		size_t ii;
 		int musiconly; // W_VerifyNMUSlumps isn't boolean
 		boolean fileadded = false;
 
 		fn = COM_Argv(curarg);
 
 		// For the amount of filenames previously processed...
-		for (ii = 0; ii < numfilesadded; ii++)
-		{
-			// If this is one of them, don't try to add it.
-			if (!strcmp(fn, addedfiles[ii]))
-			{
-				fileadded = true;
-				break;
-			}
-		}
-
-		// If we've added this one, skip to the next one.
-		if (fileadded)
+		fileadded = AddedFileContains(addedfiles, fn);
+		if (fileadded) // If this is one of them, don't try to add it.
 		{
 			CONS_Alert(CONS_WARNING, M_GetText("Already processed %s, skipping\n"), fn);
 			continue;
@@ -3367,13 +3420,16 @@ static void Command_Addfile(void)
 		// Disallow non-printing characters and semicolons.
 		for (i = 0; fn[i] != '\0'; i++)
 			if (!isprint(fn[i]) || fn[i] == ';')
+			{
+				AddedFilesClearList(&addedfiles);
 				return;
+			}
 
 		musiconly = W_VerifyNMUSlumps(fn, FILEHANDLE_STANDARD, false);
 
 		if (musiconly == -1)
 		{
-			addedfiles[numfilesadded++] = fn;
+			AddedFilesAdd(&addedfiles, fn);
 			continue;
 		}
 
@@ -3392,7 +3448,7 @@ static void Command_Addfile(void)
 		if (!(netgame || multiplayer) || musiconly)
 		{
 			P_AddWadFile(fn);
-			addedfiles[numfilesadded++] = fn;
+			AddedFilesAdd(&addedfiles, fn);
 			continue;
 		}
 
@@ -3407,6 +3463,7 @@ static void Command_Addfile(void)
 		if (numwadfiles >= MAX_WADFILES)
 		{
 			CONS_Alert(CONS_ERROR, M_GetText("Too many files loaded to add %s\n"), fn);
+			AddedFilesClearList(&addedfiles);
 			return;
 		}
 
@@ -3446,13 +3503,15 @@ static void Command_Addfile(void)
 			WRITEMEM(buf_p, md5sum, 16);
 		}
 
-		addedfiles[numfilesadded++] = fn;
+		AddedFilesAdd(&addedfiles, fn);
 
 		if (IsPlayerAdmin(consoleplayer) && (!server)) // Request to add file
 			SendNetXCmd(XD_REQADDFILE, buf, buf_p - buf);
 		else
 			SendNetXCmd(XD_ADDFILE, buf, buf_p - buf);
 	}
+
+	AddedFilesClearList(&addedfiles);
 }
 
 static void Command_Addfolder(void)
@@ -3460,8 +3519,7 @@ static void Command_Addfolder(void)
 	size_t argc = COM_Argc(); // amount of arguments total
 	size_t curarg; // current argument index
 
-	const char *addedfolders[argc]; // list of filenames already processed
-	size_t numfoldersadded = 0; // the amount of filenames processed
+	addedfile_t *addedfolders = NULL; // list of filenames already processed
 
 	if (argc < 2)
 	{
@@ -3477,24 +3535,13 @@ static void Command_Addfolder(void)
 		char buf[256];
 		char *buf_p = buf;
 		INT32 i, stat;
-		size_t ii;
 		boolean folderadded = false;
 
 		fn = COM_Argv(curarg);
 
 		// For the amount of filenames previously processed...
-		for (ii = 0; ii < numfoldersadded; ii++)
-		{
-			// If this is one of them, don't try to add it.
-			if (!strcmp(fn, addedfolders[ii]))
-			{
-				folderadded = true;
-				break;
-			}
-		}
-
-		// If we've added this one, skip to the next one.
-		if (folderadded)
+		folderadded = AddedFileContains(addedfolders, fn);
+		if (folderadded) // If we've added this one, skip to the next one.
 		{
 			CONS_Alert(CONS_WARNING, M_GetText("Already processed %s, skipping\n"), fn);
 			continue;
@@ -3503,13 +3550,16 @@ static void Command_Addfolder(void)
 		// Disallow non-printing characters and semicolons.
 		for (i = 0; fn[i] != '\0'; i++)
 			if (!isprint(fn[i]) || fn[i] == ';')
+			{
+				AddedFilesClearList(&addedfolders);
 				return;
+			}
 
 		// Add file on your client directly if you aren't in a netgame.
 		if (!(netgame || multiplayer))
 		{
 			P_AddFolder(fn);
-			addedfolders[numfoldersadded++] = fn;
+			AddedFilesAdd(&addedfolders, fn);
 			continue;
 		}
 
@@ -3531,6 +3581,7 @@ static void Command_Addfolder(void)
 		if (numwadfiles >= MAX_WADFILES)
 		{
 			CONS_Alert(CONS_ERROR, M_GetText("Too many files loaded to add %s\n"), fn);
+			AddedFilesClearList(&addedfolders);
 			return;
 		}
 
@@ -3576,7 +3627,7 @@ static void Command_Addfolder(void)
 
 		Z_Free(fullpath);
 
-		addedfolders[numfoldersadded++] = fn;
+		AddedFilesAdd(&addedfolders, fn);
 
 		WRITESTRINGN(buf_p,p,240);
 
@@ -4629,7 +4680,7 @@ void Command_Retry_f(void)
 		CONS_Printf(M_GetText("You must be in a level to use this.\n"));
 	else if (netgame || multiplayer)
 		CONS_Printf(M_GetText("This only works in single player.\n"));
-	else if (!&players[consoleplayer] || players[consoleplayer].lives <= 1)
+	else if (players[consoleplayer].lives <= 1)
 		CONS_Printf(M_GetText("You can't retry without any lives remaining!\n"));
 	else if (G_IsSpecialStage(gamemap))
 		CONS_Printf(M_GetText("You can't retry special stages!\n"));

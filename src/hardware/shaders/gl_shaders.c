@@ -11,6 +11,7 @@
 
 #include "gl_shaders.h"
 #include "../r_glcommon/r_glcommon.h"
+#include "../../r_local.h" // For rendertimefrac, used for the leveltime shader uniform
 
 boolean gl_shadersenabled = false;
 hwdshaderoption_t gl_allowshaders = HWD_SHADEROPTION_OFF;
@@ -79,7 +80,7 @@ gl_shaderstate_t gl_shaderstate;
 static GLRGBAFloat shader_defaultcolor = {1.0f, 1.0f, 1.0f, 1.0f};
 
 // Shader info
-static INT32 shader_leveltime = 0;
+static float shader_leveltime = 0;
 
 #ifdef HAVE_GLES2
 #include "shaders_gles2.h"
@@ -276,7 +277,7 @@ void Shader_SetInfo(hwdshaderinfo_t info, INT32 value)
 	switch (info)
 	{
 		case HWD_SHADERINFO_LEVELTIME:
-			shader_leveltime = value;
+			shader_leveltime = (((float)(value-1)) + FIXED_TO_FLOAT(rendertimefrac)) / TICRATE;
 			break;
 		default:
 			break;
@@ -716,12 +717,12 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 
 		if (Surface != NULL)
 		{
-			UNIFORM_1(shader->uniforms[gluniform_lighting], Surface->LightInfo.light_level, pglUniform1f);
-			UNIFORM_1(shader->uniforms[gluniform_fade_start], Surface->LightInfo.fade_start, pglUniform1f);
-			UNIFORM_1(shader->uniforms[gluniform_fade_end], Surface->LightInfo.fade_end, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_lighting], (GLfloat)Surface->LightInfo.light_level, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_start], (GLfloat)Surface->LightInfo.fade_start, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_end], (GLfloat)Surface->LightInfo.fade_end, pglUniform1f);
 		}
 
-		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
+		UNIFORM_1(shader->uniforms[gluniform_leveltime], shader_leveltime, pglUniform1f);
 
 #ifdef HAVE_GLES2
 		if (alpha_test)

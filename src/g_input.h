@@ -178,7 +178,8 @@ typedef enum
 	GC_SYSTEMMENU,
 	GC_SCREENSHOT,
 	GC_RECORDGIF,
-	GC_VIEWPOINT,
+	GC_VIEWPOINTNEXT,
+	GC_VIEWPOINTPREV,
 	GC_CUSTOM1, // Lua scriptable
 	GC_CUSTOM2, // Lua scriptable
 	GC_CUSTOM3, // Lua scriptable
@@ -276,7 +277,7 @@ void G_ResetMice(void);
 
 boolean G_HandlePauseKey(boolean ispausebreak);
 boolean G_CanRetryModeAttack(void);
-boolean G_DoViewpointSwitch(void);
+boolean G_DoViewpointSwitch(INT32 direction);
 boolean G_ToggleChaseCam(void);
 boolean G_ToggleChaseCam2(void);
 

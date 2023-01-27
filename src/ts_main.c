@@ -304,7 +304,8 @@ boolean TS_ButtonIsPlayerControl(INT32 gc)
 		case GC_SYSTEMMENU:
 		case GC_SCREENSHOT:
 		case GC_RECORDGIF:
-		case GC_VIEWPOINT:
+		case GC_VIEWPOINTNEXT:
+		case GC_VIEWPOINTPREV:
 		case GC_CAMTOGGLE:
 		case GC_CAMRESET:
 			return false;
@@ -329,8 +330,10 @@ static void HandleNonPlayerControlButton(INT32 gc)
 	else if (gc == GC_PAUSE && !modeattacking)
 		G_HandlePauseKey(true);
 	// Handle spy mode
-	else if (gc == GC_VIEWPOINT)
-		G_DoViewpointSwitch();
+	else if (gc == GC_VIEWPOINTNEXT)
+		G_DoViewpointSwitch(1);
+	else if (gc == GC_VIEWPOINTPREV)
+		G_DoViewpointSwitch(-1);
 	// Handle screenshot
 	else if (gc == GC_SCREENSHOT)
 		M_ScreenShot();
@@ -991,7 +994,8 @@ static touchbuttonname_t touchbuttonnames[] = {
 	{GC_SYSTEMMENU, "MENU", "MNU"},
 	{GC_SCREENSHOT, "SCRCAP", "SCR"},
 	{GC_RECORDGIF, "REC", NULL},
-	{GC_VIEWPOINT, "F12", NULL},
+	{GC_VIEWPOINTNEXT, "NEXT VIEW", "V.NTX"},
+	{GC_VIEWPOINTPREV, "PREV VIEW", "V.PRV"},
 	{GC_CUSTOM1, "CUSTOM1", "C1"},
 	{GC_CUSTOM2, "CUSTOM2", "C2"},
 	{GC_CUSTOM3, "CUSTOM3", "C3"},
@@ -1281,23 +1285,23 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 		controls[GC_PAUSE].hidden = true;
 
 	// Spy mode
-	controls[GC_VIEWPOINT].hidden = true;
-	controls[GC_VIEWPOINT].x = controls[GC_PAUSE].x;
-	controls[GC_VIEWPOINT].y = controls[GC_PAUSE].y;
+	controls[GC_VIEWPOINTNEXT].hidden = true;
+	controls[GC_VIEWPOINTNEXT].x = controls[GC_PAUSE].x;
+	controls[GC_VIEWPOINTNEXT].y = controls[GC_PAUSE].y;
 	if (status->canviewpointswitch)
 	{
-		controls[GC_VIEWPOINT].w = SCALECOORD(32 * FRACUNIT);
-		controls[GC_VIEWPOINT].h = SCALECOORD(24 * FRACUNIT);
-		controls[GC_VIEWPOINT].x -= (controls[GC_VIEWPOINT].w + SCALECOORD(4 * FRACUNIT));
-		controls[GC_VIEWPOINT].hidden = false;
+		controls[GC_VIEWPOINTNEXT].w = SCALECOORD(32 * FRACUNIT);
+		controls[GC_VIEWPOINTNEXT].h = SCALECOORD(24 * FRACUNIT);
+		controls[GC_VIEWPOINTNEXT].x -= (controls[GC_VIEWPOINTNEXT].w + SCALECOORD(4 * FRACUNIT));
+		controls[GC_VIEWPOINTNEXT].hidden = false;
 	}
 
 	// Align screenshot and movie mode buttons
 	w = SCALECOORD(40 * FRACUNIT);
 	h = SCALECOORD(24 * FRACUNIT);
 
-	bothvisible = ((!controls[GC_VIEWPOINT].hidden) && (!controls[GC_PAUSE].hidden));
-	eithervisible = (controls[GC_VIEWPOINT].hidden ^ controls[GC_PAUSE].hidden);
+	bothvisible = ((!controls[GC_VIEWPOINTNEXT].hidden) && (!controls[GC_PAUSE].hidden));
+	eithervisible = (controls[GC_VIEWPOINTNEXT].hidden ^ controls[GC_PAUSE].hidden);
 
 	if (bothvisible || eithervisible)
 	{
@@ -1308,10 +1312,10 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 		else if (bothvisible)
 			ref = &controls[GC_PAUSE];
 		else // only if one of either are visible, but not both
-			ref = (controls[GC_VIEWPOINT].hidden ? &controls[GC_PAUSE] : &controls[GC_VIEWPOINT]);
+			ref = (controls[GC_VIEWPOINTNEXT].hidden ? &controls[GC_PAUSE] : &controls[GC_VIEWPOINTNEXT]);
 
 		if (specialstage && !status->modeattacking
-		&& !(!controls[GC_VIEWPOINT].hidden || !controls[GC_PAUSE].hidden))
+		&& !(!controls[GC_VIEWPOINTNEXT].hidden || !controls[GC_PAUSE].hidden))
 		{
 			left = rightcorner;
 			top = ref->y + ref->h + SCALECOORD(4 * FRACUNIT);
@@ -1327,12 +1331,12 @@ void TS_BuildPreset(touchconfig_t *controls, touchconfigstatus_t *status,
 	}
 	else
 	{
-		boolean bothhidden = (controls[GC_PAUSE].hidden && controls[GC_VIEWPOINT].hidden);
+		boolean bothhidden = (controls[GC_PAUSE].hidden && controls[GC_VIEWPOINTNEXT].hidden);
 		boolean usemenupos = (specialstage && (!status->cantalk && bothhidden));
 		boolean usespecialstagepos = (!usemenupos) && (specialstage && !(status->cantalk && bothhidden));
 		fixed_t left, top;
 
-		ref = &controls[usemenupos ? GC_SYSTEMMENU : GC_VIEWPOINT];
+		ref = &controls[usemenupos ? GC_SYSTEMMENU : GC_VIEWPOINTNEXT];
 		left = usespecialstagepos ? rightcorner : ref->x;
 		top = usespecialstagepos ? ref->h + SCALECOORD(4 * FRACUNIT) : 0;
 

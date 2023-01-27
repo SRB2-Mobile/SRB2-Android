@@ -169,4 +169,6 @@ void I_HideSplashScreen(void);
 */
 void I_ReportProgress(int progress);
 
+UINT32 I_GetRefreshRate(void);
+
 #endif

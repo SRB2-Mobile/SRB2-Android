@@ -463,9 +463,6 @@ boolean GLExtension_LoadFunctions(void);
 
 #define FAR_CLIPPING_PLANE      32768.0f // Draw further! Tails 01-21-2001
 
-// shortcut for ((float)1/i)
-#define byte2float(x) (x / 255.0f)
-
 #define NULL_VBO_VERTEX ((gl_skyvertex_t*)NULL)
 #define sky_vbo_x (GLExtension_vertex_buffer_object ? &NULL_VBO_VERTEX->x : &sky->data[0].x)
 #define sky_vbo_u (GLExtension_vertex_buffer_object ? &NULL_VBO_VERTEX->u : &sky->data[0].u)

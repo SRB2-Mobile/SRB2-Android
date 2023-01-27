@@ -160,7 +160,7 @@ static void GLPerspective(GLfloat fovy, GLfloat aspect)
 	const GLfloat zNear = near_clipping_plane;
 	const GLfloat zFar = FAR_CLIPPING_PLANE;
 	const GLfloat radians = (GLfloat)(fovy / 2.0f * M_PIl / 180.0f);
-	const GLfloat sine = sin(radians);
+	const GLfloat sine = (GLfloat)sin(radians);
 	const GLfloat deltaZ = zFar - zNear;
 	GLfloat cotangent;
 
@@ -773,24 +773,24 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		// If the surface is either modulated or colormapped, or both
 		if (CurrentPolyFlags & (PF_Modulated | PF_ColorMapped))
 		{
-			poly.red   = byte2float(pSurf->PolyColor.s.red);
-			poly.green = byte2float(pSurf->PolyColor.s.green);
-			poly.blue  = byte2float(pSurf->PolyColor.s.blue);
-			poly.alpha = byte2float(pSurf->PolyColor.s.alpha);
+			poly.red   = (pSurf->PolyColor.s.red/255.0f);
+			poly.green = (pSurf->PolyColor.s.green/255.0f);
+			poly.blue  = (pSurf->PolyColor.s.blue/255.0f);
+			poly.alpha = (pSurf->PolyColor.s.alpha/255.0f);
 		}
 
 		// Only if the surface is colormapped
 		if (CurrentPolyFlags & PF_ColorMapped)
 		{
-			tint.red   = byte2float(pSurf->TintColor.s.red);
-			tint.green = byte2float(pSurf->TintColor.s.green);
-			tint.blue  = byte2float(pSurf->TintColor.s.blue);
-			tint.alpha = byte2float(pSurf->TintColor.s.alpha);
+			tint.red   = (pSurf->TintColor.s.red/255.0f);
+			tint.green = (pSurf->TintColor.s.green/255.0f);
+			tint.blue  = (pSurf->TintColor.s.blue/255.0f);
+			tint.alpha = (pSurf->TintColor.s.alpha/255.0f);
 
-			fade.red   = byte2float(pSurf->FadeColor.s.red);
-			fade.green = byte2float(pSurf->FadeColor.s.green);
-			fade.blue  = byte2float(pSurf->FadeColor.s.blue);
-			fade.alpha = byte2float(pSurf->FadeColor.s.alpha);
+			fade.red   = (pSurf->FadeColor.s.red/255.0f);
+			fade.green = (pSurf->FadeColor.s.green/255.0f);
+			fade.blue  = (pSurf->FadeColor.s.blue/255.0f);
+			fade.alpha = (pSurf->FadeColor.s.alpha/255.0f);
 		}
 	}
 
@@ -851,7 +851,7 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 		c[1] = pSurf->PolyColor.s.green;
 		c[2] = pSurf->PolyColor.s.blue;
 
-		alpha = byte2float(pSurf->PolyColor.s.alpha);
+		alpha = (pSurf->PolyColor.s.alpha/255.0f);
 		alpha *= scalef; // change the alpha value (it seems better than changing the size of the corona)
 		c[3] = (unsigned char)(alpha * 255);
 		pglColor4ubv(c);
@@ -1038,7 +1038,7 @@ static void CreateModelVBOs(model_t *model)
 // -----------------+
 // HWRAPI DrawModel : Draw a model
 // -----------------+
-static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
+static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
 	static GLRGBAFloat poly = {0,0,0,0};
 	static GLRGBAFloat tint = {0,0,0,0};
@@ -1065,11 +1065,11 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 	scaley = scale;
 	scalez = scale;
 
-	if (duration != 0 && duration != -1 && tics != -1) // don't interpolate if instantaneous or infinite in length
+	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
-		UINT32 newtime = (duration - tics); // + 1;
+		float newtime = (duration - tics); // + 1;
 
-		pol = (newtime)/(float)duration;
+		pol = newtime / duration;
 
 		if (pol > 1.0f)
 			pol = 1.0f;
@@ -1078,10 +1078,10 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 			pol = 0.0f;
 	}
 
-	poly.red    = byte2float(Surface->PolyColor.s.red);
-	poly.green  = byte2float(Surface->PolyColor.s.green);
-	poly.blue   = byte2float(Surface->PolyColor.s.blue);
-	poly.alpha  = byte2float(Surface->PolyColor.s.alpha);
+	poly.red    = (Surface->PolyColor.s.red/255.0f);
+	poly.green  = (Surface->PolyColor.s.green/255.0f);
+	poly.blue   = (Surface->PolyColor.s.blue/255.0f);
+	poly.alpha  = (Surface->PolyColor.s.alpha/255.0f);
 
 #ifdef GL_LIGHT_MODEL_AMBIENT
 	if (model_lighting)
@@ -1117,15 +1117,15 @@ static void DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 ti
 	else
 		pglColor4ubv((GLubyte*)&Surface->PolyColor.s);
 
-	tint.red   = byte2float(Surface->TintColor.s.red);
-	tint.green = byte2float(Surface->TintColor.s.green);
-	tint.blue  = byte2float(Surface->TintColor.s.blue);
-	tint.alpha = byte2float(Surface->TintColor.s.alpha);
+	tint.red   = (Surface->TintColor.s.red/255.0f);
+	tint.green = (Surface->TintColor.s.green/255.0f);
+	tint.blue  = (Surface->TintColor.s.blue/255.0f);
+	tint.alpha = (Surface->TintColor.s.alpha/255.0f);
 
-	fade.red   = byte2float(Surface->FadeColor.s.red);
-	fade.green = byte2float(Surface->FadeColor.s.green);
-	fade.blue  = byte2float(Surface->FadeColor.s.blue);
-	fade.alpha = byte2float(Surface->FadeColor.s.alpha);
+	fade.red   = (Surface->FadeColor.s.red/255.0f);
+	fade.green = (Surface->FadeColor.s.green/255.0f);
+	fade.blue  = (Surface->FadeColor.s.blue/255.0f);
+	fade.alpha = (Surface->FadeColor.s.alpha/255.0f);
 
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
@@ -1386,7 +1386,7 @@ static void SetTransform(FTransform *stransform)
 
 	if (special_splitscreen)
 	{
-		used_fov = atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI;
+		used_fov = (float)(atan(tan(used_fov*M_PI/360)*0.8)*360/M_PI);
 		GLPerspective(used_fov, 2*ASPECT_RATIO);
 	}
 	else
@@ -1548,7 +1548,6 @@ static void EndScreenWipe(void)
 
 	tex_downloaded = endScreenWipe;
 }
-
 
 // Draw the last scene under the intermission
 static void DrawIntermissionBG(void)

@@ -420,7 +420,16 @@ void TS_DrawControls(touchconfig_t *config, boolean drawgamecontrols, INT32 alph
 	const INT32 flags = (transflag | V_NOSCALESTART);
 	const INT32 accent = GetInputAccent();
 
-	const INT32 noncontrolbtns[] = {GC_SYSTEMMENU, GC_VIEWPOINT, GC_SCREENSHOT, GC_TALKKEY, GC_SCORES, GC_CAMTOGGLE, GC_CAMRESET};
+	const INT32 noncontrolbtns[] = { 
+		GC_SYSTEMMENU,
+		GC_VIEWPOINTNEXT,
+		GC_VIEWPOINTPREV,
+		GC_SCREENSHOT,
+		GC_TALKKEY,
+		GC_SCORES,
+		GC_CAMTOGGLE,
+		GC_CAMRESET
+	};
 	const INT32 numnoncontrolbtns = (INT32)(sizeof(noncontrolbtns) / sizeof(INT32));
 
 	INT32 i;
