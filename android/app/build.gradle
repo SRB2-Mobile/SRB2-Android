@@ -35,7 +35,7 @@ android {
         }
         applicationVariants.all { variant ->
             if (variant.getFlavorName() == 'gameNoAssets') {
-                variant.mergeAssets.doLast {
+                variant.mergeAssetsProvider.get().doLast {
                     println("Removing game assets from the application package")
                     delete(fileTree(
                         dir: outputDir,
