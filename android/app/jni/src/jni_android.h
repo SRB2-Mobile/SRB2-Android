@@ -1,7 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
-// Copyright (C) 2020-2021 by Jaime Ita Passos.
-// Copyright (C) 1997-2020 by Sam "Slouken" Lantinga.
+// Copyright (C) 1997-2020 by Sam "slouken" Lantinga.
+// Copyright (C) 2020-2023 by SRB2 Mobile Project.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.

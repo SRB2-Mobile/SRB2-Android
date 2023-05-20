@@ -5,7 +5,7 @@ This folder contains the files that will be packaged with the built APK.
     * srb2.pk3
     * zones.pk3
     * player.dta
-    * patch.pk3
+    * patch.pk3 (if it exists)
 
   NOTE: If they are missing, the app will look for them inside the following
   path, under either internal storage or external storage:
