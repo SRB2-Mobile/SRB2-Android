@@ -41,7 +41,6 @@
 #include "../p_tick.h"
 #include "../w_wad.h"
 #include "../w_handle.h"
-#include "../d_netfil.h" // findfile
 #include "hw_model.h"
 
 #include "hw_main.h"
@@ -80,51 +79,12 @@ md2_t md2_playermodels[MAXSKINS];
 
 static wadfile_t *modelpack = NULL;
 
-// TODO: move this into a better file
-static char *FindFile(const char *filename)
-{
-	static char filenamebuf[MAX_WADPATH];
-
-	strlcpy(filenamebuf, filename, sizeof filenamebuf);
-
-	// That was easy
-	if (FIL_FileExists(filenamebuf))
-		return filenamebuf;
-
-	// Look in these paths now
-	const char *paths[3] = {
-		srb2home,
-		srb2path,
-		"."
-	};
-
-	for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); i++)
-	{
-		snprintf(filenamebuf, sizeof filenamebuf, "%s" PATHSEP "%s", paths[i], filename);
-		if (FIL_FileExists(filenamebuf))
-			return filenamebuf;
-	}
-
-	// That didn't work. Let's just File_Open it directly and check if there's a handle
-	strlcpy(filenamebuf, filename, sizeof filenamebuf);
-
-	filehandle_t *handle = File_Open(filenamebuf, "rb", FILEHANDLE_SDL);
-	if (handle)
-	{
-		File_Close(handle);
-		return filenamebuf;
-	}
-
-	// Couldn't find anything
-	return NULL;
-}
-
 static model_t *md2_readModel(const char *filename)
 {
 	if (modelpack)
 		return LoadModel(filename, PU_STATIC, modelpack);
 
-	char *fn = FindFile(filename);
+	char *fn = M_FindFile(filename);
 	if (!fn)
 		return NULL;
 
@@ -269,7 +229,7 @@ static GLTextureFormat_t LoadTexture(const char *filename, int *w, int *h, GLPat
 	}
 	else
 	{
-		char *fn = FindFile(pngfilename);
+		char *fn = M_FindFile(pngfilename);
 		if (!fn)
 			return 0;
 
@@ -411,7 +371,7 @@ static char *GetModelDefFile(const char *filename, size_t *size)
 	if (nomd2s)
 		return NULL;
 
-	char *fn = FindFile(filename);
+	char *fn = M_FindFile(filename);
 	if (!fn)
 		return NULL;
 
@@ -554,12 +514,12 @@ boolean HWR_ModelPackExists(const char *filename)
 
 	strlcpy(buf, filename, sizeof buf);
 
-	return FindFile(buf) != NULL;
+	return M_FindFile(buf) != NULL;
 }
 
 static boolean LoadModelPack(char *filename)
 {
-	char *fn = FindFile(filename);
+	char *fn = M_FindFile(filename);
 	if (!fn)
 		return false;
 

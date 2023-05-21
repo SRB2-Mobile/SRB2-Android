@@ -42,15 +42,26 @@ fmatrix4_t modelMatrix;
 
 static GLint viewport[4];
 
-typedef void (R_GL_APIENTRY * PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
+typedef void (R_GL_APIENTRY * PFNglVertexAttribPointer) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
 static PFNglVertexAttribPointer pglVertexAttribPointer;
+
+#define CHECK_GL() CHECK_GL_ERROR("r_gles2.c")
+
+static void gl_VertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+{
+	if (pglVertexAttribPointer)
+	{
+		pglVertexAttribPointer(index, size, type, normalized, stride, pointer);
+		CHECK_GL();
+	}
+}
 
 static void VertexAttribPointerInternal(int attrib, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer, const char *function, const int line)
 {
 	int loc = Shader_AttribLoc(attrib);
 	if (loc == -1)
 		GL_MSG_Error("VertexAttribPointer: generic vertex attribute %s not bound to any attribute variable (from %s:%d)\n", Shader_AttribLocName(attrib), function, line);
-	pglVertexAttribPointer(loc, size, type, normalized, stride, pointer);
+	gl_VertexAttribPointer(loc, size, type, normalized, stride, pointer);
 }
 
 #define VertexAttribPointer(attrib, size, type, normalized, stride, pointer) VertexAttribPointerInternal(attrib, size, type, normalized, stride, pointer, __FUNCTION__, __LINE__)
@@ -68,6 +79,7 @@ boolean GLBackend_LoadFunctions(void)
 	GETOPENGLFUNC(DepthRangef)
 
 	Shader_LoadFunctions();
+	Shader_CleanPrograms();
 
 	return Shader_Compile();
 }
@@ -200,14 +212,14 @@ static void SetModelView(INT32 w, INT32 h)
 
 	if (RenderToFramebuffer)
 	{
-		pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		pglViewport(0, 0, w, h);
+		gl_Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		gl_Viewport(0, 0, w, h);
 		GLFramebuffer_Enable();
 	}
 #endif
 
-	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	pglViewport(0, 0, w, h);
+	gl_Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gl_Viewport(0, 0, w, h);
 
 	lzml_matrix4_identity(projMatrix);
 	lzml_matrix4_identity(viewMatrix);
@@ -233,16 +245,16 @@ static void SetStates(void)
 {
 	alpha_threshold = 0.0f;
 
-	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	gl_ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-	pglEnable(GL_DEPTH_TEST);    // check the depth buffer
-	pglDepthMask(GL_TRUE);             // enable writing to depth buffer
-	pglClearDepthf(1.0f);
-	pglDepthRangef(0.0f, 1.0f);
-	pglDepthFunc(GL_LEQUAL);
+	gl_Enable(GL_DEPTH_TEST);    // check the depth buffer
+	gl_DepthMask(GL_TRUE);             // enable writing to depth buffer
+	gl_ClearDepthf(1.0f);
+	gl_DepthRangef(0.0f, 1.0f);
+	gl_DepthFunc(GL_LEQUAL);
 
-	pglEnable(GL_BLEND);
-	pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	gl_Enable(GL_BLEND);
+	gl_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// this set CurrentPolyFlags to the actual configuration
 	CurrentPolyFlags = 0xffffffff;
@@ -270,7 +282,7 @@ static void DeleteTexture(GLMipmap_t *pTexInfo)
 	if (!pTexInfo)
 		return;
 	else if (pTexInfo->downloaded)
-		pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+		gl_DeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
 
 	while (head)
 	{
@@ -351,7 +363,7 @@ static void ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stri
 // -----------------+
 static void GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip)
 {
-	pglViewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
+	gl_Viewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
 	near_clipping_plane = nearclip;
 
 	lzml_matrix4_identity(projMatrix);
@@ -372,7 +384,7 @@ static void ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *Clea
 	if (ColorMask)
 	{
 		if (ClearColor)
-			pglClearColor(ClearColor->red,
+			gl_ClearColor(ClearColor->red,
 			              ClearColor->green,
 			              ClearColor->blue,
 			              ClearColor->alpha);
@@ -380,15 +392,15 @@ static void ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *Clea
 	}
 	if (DepthMask)
 	{
-		pglClearDepthf(1.0f);     //Hurdler: all that are permanen states
-		pglDepthRangef(0.0f, 1.0f);
-		pglDepthFunc(GL_LEQUAL);
+		gl_ClearDepthf(1.0f);     //Hurdler: all that are permanen states
+		gl_DepthRangef(0.0f, 1.0f);
+		gl_DepthFunc(GL_LEQUAL);
 		ClearMask |= GL_DEPTH_BUFFER_BIT;
 	}
 
 	SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
 
-	pglClear(ClearMask);
+	gl_Clear(ClearMask);
 
 	if (gl_shaderstate.current)
 	{
@@ -432,12 +444,12 @@ static void Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color)
 	Shader_SetUniforms(NULL, &fcolor, NULL, NULL);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, p);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 static void SetClamp(UINT32 clamp)
 {
-	pglTexParameteri(GL_TEXTURE_2D, (GLenum)clamp, GL_CLAMP_TO_EDGE);
+	gl_TexParameteri(GL_TEXTURE_2D, (GLenum)clamp, GL_CLAMP_TO_EDGE);
 }
 
 // -----------------+
@@ -459,7 +471,7 @@ static void UpdateTexture(GLMipmap_t *pTexInfo)
 	// Generate a new texture name.
 	if (!num)
 	{
-		pglGenTextures(1, &num);
+		gl_GenTextures(1, &num);
 		pTexInfo->downloaded = num;
 		update = false;
 	}
@@ -543,41 +555,41 @@ static void UpdateTexture(GLMipmap_t *pTexInfo)
 		}
 	}
 
-	pglBindTexture(GL_TEXTURE_2D, num);
+	gl_BindTexture(GL_TEXTURE_2D, num);
 	tex_downloaded = num;
 
 	// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
 	if (pTexInfo->flags & TF_TRANSPARENT)
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	}
 	else
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 	}
 
 	if (pTexInfo->flags & TF_WRAPX)
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	else
 		SetClamp(GL_TEXTURE_WRAP_S);
 
 	if (pTexInfo->flags & TF_WRAPY)
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	else
 		SetClamp(GL_TEXTURE_WRAP_T);
 
 	if (GLExtension_texture_filter_anisotropic)
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
 
 	if (update)
-		pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 	else
-		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
 
 	if (MipmapEnabled)
-		pglGenerateMipmap(GL_TEXTURE_2D);
+		gl_GenerateMipmap(GL_TEXTURE_2D);
 }
 
 // -----------------+
@@ -594,7 +606,7 @@ static void SetTexture(GLMipmap_t *pTexInfo)
 	{
 		if (pTexInfo->downloaded != tex_downloaded)
 		{
-			pglBindTexture(GL_TEXTURE_2D, pTexInfo->downloaded);
+			gl_BindTexture(GL_TEXTURE_2D, pTexInfo->downloaded);
 			tex_downloaded = pTexInfo->downloaded;
 		}
 	}
@@ -694,16 +706,16 @@ static void DrawPolygon_GLES2(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT 
 
 	PreparePolygon(pSurf, pOutVerts, PolyFlags, shader);
 
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
 	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
 		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
 
 	if (PolyFlags & PF_RemoveYWrap)
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	if (PolyFlags & PF_ForceWrapX)
 		SetClamp(GL_TEXTURE_WRAP_S);
@@ -729,13 +741,13 @@ static void DrawIndexedTriangles(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 
 	PreparePolygon(pSurf, pOutVerts, PolyFlags, 0);
 
-	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].x);
 	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
 		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
-	pglDrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
+	gl_DrawElements(GL_TRIANGLES, iNumPts, GL_UNSIGNED_INT, IndexArray);
 
 	// the DrawPolygon variant of this has some code about polyflags and wrapping here but havent noticed any problems from omitting it?
 }
@@ -754,35 +766,40 @@ static void RenderSkyDome(gl_sky_t *sky)
 	{
 		// delete VBO when already exists
 		if (sky->vbo)
-			pglDeleteBuffers(1, &sky->vbo);
+			gl_DeleteBuffers(1, &sky->vbo);
 
 		// generate a new VBO and get the associated ID
-		pglGenBuffers(1, &sky->vbo);
+		gl_GenBuffers(1, &sky->vbo);
 
 		// bind VBO in order to use
-		pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
+		gl_BindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 		// upload data to VBO
-		pglBufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
+		gl_BufferData(GL_ARRAY_BUFFER, sky->vertex_count * sizeof(sky->data[0]), sky->data, GL_STATIC_DRAW);
 
 		sky->rebuild = false;
 	}
 
 	if (gl_shaderstate.current == NULL)
 	{
-		pglBindBuffer(GL_ARRAY_BUFFER, 0);
+		gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 		return;
 	}
 
 	// bind VBO in order to use
-	pglBindBuffer(GL_ARRAY_BUFFER, sky->vbo);
+	gl_BindBuffer(GL_ARRAY_BUFFER, sky->vbo);
 
 	// activate and specify pointers to arrays
-	Shader_EnableVertexAttribArray(LOC_COLORS);
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_x);
 	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
 		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(sky->data[0]), sky_vbo_u);
-	VertexAttribPointer(LOC_COLORS, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
+
+	int attrib_colors = Shader_AttribLoc(LOC_COLORS);
+	if (attrib_colors != -1)
+	{
+		Shader_EnableVertexAttribArray(LOC_COLORS);
+		VertexAttribPointer(LOC_COLORS, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(sky->data[0]), sky_vbo_r);
+	}
 
 	// set transforms
 	scale[1] = (float)sky->height / 200.0f;
@@ -813,14 +830,14 @@ static void RenderSkyDome(gl_sky_t *sky)
 					continue;
 			}
 
-			pglDrawArrays(mode, loop->vertexindex, loop->vertexcount);
+			gl_DrawArrays(mode, loop->vertexindex, loop->vertexcount);
 		}
 	}
 
-	Shader_DisableVertexAttribArray(LOC_COLORS);
+	if (attrib_colors != -1)
+		Shader_DisableVertexAttribArray(LOC_COLORS);
 
-	// bind with 0, so, switch back to normal pointer operation
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 static void SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
@@ -859,9 +876,9 @@ static void SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 
 		case HWD_SET_DITHER:
 			if (Value)
-				pglEnable(GL_DITHER);
+				gl_Enable(GL_DITHER);
 			else
-				pglDisable(GL_DITHER);
+				gl_Disable(GL_DITHER);
 
 		default:
 			break;
@@ -953,7 +970,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 
 	Shader_SetUniforms(Surface, &poly, &tint, &fade);
 
-	pglEnable(GL_CULL_FACE);
+	gl_Enable(GL_CULL_FACE);
 
 #ifdef USE_FTRANSFORM_MIRROR
 	// flipped is if the object is vertically flipped
@@ -964,19 +981,19 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 	{
 		boolean reversecull = (flipped ^ hflipped ^ pos->flip ^ pos->mirror);
 		if (reversecull)
-			pglCullFace(GL_FRONT);
+			gl_CullFace(GL_FRONT);
 		else
-			pglCullFace(GL_BACK);
+			gl_CullFace(GL_BACK);
 	}
 #else
 	// pos->flip is if the screen is flipped too
 	if (flipped ^ hflipped ^ pos->flip) // If one or three of these are active, but not two, invert the model's culling
 	{
-		pglCullFace(GL_FRONT);
+		gl_CullFace(GL_FRONT);
 	}
 	else
 	{
-		pglCullFace(GL_BACK);
+		gl_CullFace(GL_BACK);
 	}
 #endif
 
@@ -1060,7 +1077,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 			{
 				if (useVBO)
 				{
-					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+					gl_BindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
 					VertexAttribPointer(LOC_POSITION, 3, GL_SHORT, GL_FALSE, sizeof(vbotiny_t), BUFFER_OFFSET(0));
 					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
@@ -1068,8 +1085,8 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 					if (useNormals)
 						VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, sizeof(vbotiny_t), BUFFER_OFFSET(sizeof(short)*3));
 
-					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
-					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					gl_DrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+					gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 				}
 				else
 				{
@@ -1079,7 +1096,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 					if (useNormals)
 						VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, 0, frame->normals);
 
-					pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+					gl_DrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 				}
 			}
 			else
@@ -1106,7 +1123,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_BYTE, GL_TRUE, 0, normTinyBuffer);
 
-				pglDrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
+				gl_DrawElements(GL_TRIANGLES, mesh->numTriangles * 3, GL_UNSIGNED_SHORT, mesh->indices);
 			}
 		}
 		else
@@ -1122,7 +1139,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 				if (useVBO)
 				{
 					// Zoom! Take advantage of just shoving the entire arrays to the GPU.
-					pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+					gl_BindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 
 					VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(0));
 					if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
@@ -1130,8 +1147,8 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 					if (useNormals)
 						VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(vbo64_t), BUFFER_OFFSET(sizeof(float) * 3));
 
-					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
-					pglBindBuffer(GL_ARRAY_BUFFER, 0);
+					gl_DrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+					gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 				}
 				else
 				{
@@ -1141,7 +1158,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 					if (useNormals)
 						VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, frame->normals);
 
-					pglDrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
+					gl_DrawArrays(GL_TRIANGLES, 0, mesh->numTriangles * 3);
 				}
 			}
 			else
@@ -1168,7 +1185,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 				if (useNormals)
 					VertexAttribPointer(LOC_NORMAL, 3, GL_FLOAT, GL_TRUE, 0, normBuffer);
 
-				pglDrawArrays(GL_TRIANGLES, 0, mesh->numVertices);
+				gl_DrawArrays(GL_TRIANGLES, 0, mesh->numVertices);
 			}
 		}
 	}
@@ -1179,7 +1196,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 	if (useNormals)
 		Shader_DisableVertexAttribArray(LOC_NORMAL);
 
-	pglDisable(GL_CULL_FACE);
+	gl_Disable(GL_CULL_FACE);
 }
 
 // -----------------+
@@ -1297,8 +1314,8 @@ static void PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 	xfix = (float)(texsize)/((float)((screen_width)/(float)(SCREENVERTS-1)));
 	yfix = (float)(texsize)/((float)((screen_height)/(float)(SCREENVERTS-1)));
 
-	pglDisable(GL_DEPTH_TEST);
-	pglDisable(GL_BLEND);
+	gl_Disable(GL_DEPTH_TEST);
+	gl_Disable(GL_BLEND);
 
 	Shader_DisableVertexAttribArray(LOC_TEXCOORD);
 
@@ -1306,7 +1323,7 @@ static void PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 	// so nothing shows through the edges
 	Shader_SetUniforms(NULL, &black, NULL, NULL);
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, blackBack);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	Shader_EnableVertexAttribArray(LOC_TEXCOORD);
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
@@ -1354,12 +1371,12 @@ static void PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 
 			VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
 
-			pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+			gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 		}
 	}
 
-	pglEnable(GL_DEPTH_TEST);
-	pglEnable(GL_BLEND);
+	gl_Enable(GL_DEPTH_TEST);
+	gl_Enable(GL_BLEND);
 }
 
 // Create Screen to fade from
@@ -1374,19 +1391,19 @@ static void StartScreenWipe(void)
 
 	// Create screen texture
 	if (firstTime)
-		pglGenTextures(1, &startScreenWipe);
-	pglBindTexture(GL_TEXTURE_2D, startScreenWipe);
+		gl_GenTextures(1, &startScreenWipe);
+	gl_BindTexture(GL_TEXTURE_2D, startScreenWipe);
 
 	if (firstTime)
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		SetClamp(GL_TEXTURE_WRAP_S);
 		SetClamp(GL_TEXTURE_WRAP_T);
-		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
+		gl_CopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
-		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
+		gl_CopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
 
 	tex_downloaded = startScreenWipe;
 }
@@ -1403,19 +1420,19 @@ static void EndScreenWipe(void)
 
 	// Create screen texture
 	if (firstTime)
-		pglGenTextures(1, &endScreenWipe);
-	pglBindTexture(GL_TEXTURE_2D, endScreenWipe);
+		gl_GenTextures(1, &endScreenWipe);
+	gl_BindTexture(GL_TEXTURE_2D, endScreenWipe);
 
 	if (firstTime)
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		SetClamp(GL_TEXTURE_WRAP_S);
 		SetClamp(GL_TEXTURE_WRAP_T);
-		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
+		gl_CopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
-		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
+		gl_CopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
 
 	tex_downloaded = endScreenWipe;
 }
@@ -1459,14 +1476,14 @@ static void DrawIntermissionBG(void)
 	fix[6] = xfix;
 	fix[7] = 0.0f;
 
-	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	gl_Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	pglBindTexture(GL_TEXTURE_2D, screentexture);
+	gl_BindTexture(GL_TEXTURE_2D, screentexture);
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
 	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = screentexture;
 }
@@ -1522,7 +1539,7 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	fix[6] = xfix;
 	fix[7] = 0.0f;
 
-	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	gl_Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
 	Shader_Set(tinted ? SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE : SHADER_FADEMASK);
@@ -1543,19 +1560,19 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 	Shader_SetTransform();
 
-	pglActiveTexture(GL_TEXTURE0 + 0);
-	pglBindTexture(GL_TEXTURE_2D, startScreenWipe);
-	pglActiveTexture(GL_TEXTURE0 + 1);
-	pglBindTexture(GL_TEXTURE_2D, endScreenWipe);
-	pglActiveTexture(GL_TEXTURE0 + 2);
-	pglBindTexture(GL_TEXTURE_2D, fademaskdownloaded);
+	gl_ActiveTexture(GL_TEXTURE0 + 0);
+	gl_BindTexture(GL_TEXTURE_2D, startScreenWipe);
+	gl_ActiveTexture(GL_TEXTURE0 + 1);
+	gl_BindTexture(GL_TEXTURE_2D, endScreenWipe);
+	gl_ActiveTexture(GL_TEXTURE0 + 2);
+	gl_BindTexture(GL_TEXTURE_2D, fademaskdownloaded);
 
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, screenVerts);
 	VertexAttribPointer(LOC_TEXCOORD0, 2, GL_FLOAT, GL_FALSE, 0, fix);
 	VertexAttribPointer(LOC_TEXCOORD1, 2, GL_FLOAT, GL_FALSE, 0, defaultST);
 
-	pglActiveTexture(GL_TEXTURE0);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	gl_ActiveTexture(GL_TEXTURE0);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	Shader_DisableVertexAttribArray(LOC_TEXCOORD1);
 
 	UnSetShader();
@@ -1584,19 +1601,19 @@ static void MakeScreenTexture(void)
 
 	// Create screen texture
 	if (firstTime)
-		pglGenTextures(1, &screentexture);
-	pglBindTexture(GL_TEXTURE_2D, screentexture);
+		gl_GenTextures(1, &screentexture);
+	gl_BindTexture(GL_TEXTURE_2D, screentexture);
 
 	if (firstTime)
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		SetClamp(GL_TEXTURE_WRAP_S);
 		SetClamp(GL_TEXTURE_WRAP_T);
-		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
+		gl_CopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
-		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
+		gl_CopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
 
 	tex_downloaded = screentexture;
 }
@@ -1612,19 +1629,19 @@ static void MakeFinalScreenTexture(void)
 
 	// Create screen texture
 	if (firstTime)
-		pglGenTextures(1, &finalScreenTexture);
-	pglBindTexture(GL_TEXTURE_2D, finalScreenTexture);
+		gl_GenTextures(1, &finalScreenTexture);
+	gl_BindTexture(GL_TEXTURE_2D, finalScreenTexture);
 
 	if (firstTime)
 	{
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		SetClamp(GL_TEXTURE_WRAP_S);
 		SetClamp(GL_TEXTURE_WRAP_T);
-		pglCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
+		gl_CopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, texsize, texsize, 0);
 	}
 	else
-		pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
+		gl_CopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, texsize, texsize);
 
 	tex_downloaded = finalScreenTexture;
 }
@@ -1687,19 +1704,19 @@ static void DrawFinalScreenTexture(int width, int height)
 	fix[6] = xfix;
 	fix[7] = 0.0f;
 
-	pglViewport(0, 0, width, height);
+	gl_Viewport(0, 0, width, height);
 
 	clearColour.red = clearColour.green = clearColour.blue = 0;
 	clearColour.alpha = 1;
 	ClearBuffer(true, false, &clearColour);
-	pglBindTexture(GL_TEXTURE_2D, finalScreenTexture);
+	gl_BindTexture(GL_TEXTURE_2D, finalScreenTexture);
 
 	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 	VertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, off);
 	VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, fix);
-	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	gl_DrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	tex_downloaded = finalScreenTexture;
 }

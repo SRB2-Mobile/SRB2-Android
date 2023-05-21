@@ -469,7 +469,7 @@ void SCR_ChangeFullscreen(void)
 			SCR_SetModeFromConfig();
 		else
 #endif
-		// Lactozilla: This only works with the preset video modes.
+		// This only works with the preset video modes
 		setmodeneeded = VID_GetModeForSize(vid.width, vid.height) + 1;
 	}
 	return;

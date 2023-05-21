@@ -107,13 +107,17 @@ boolean GLExtension_shaders; // Not an extension on its own, but it is set if mu
 static FExtensionList const ExtensionList[] = {
 	{"GL_ARB_multitexture", &GLExtension_multitexture},
 
+#ifndef HAVE_GLES2
 	{"GL_ARB_vertex_buffer_object", &GLExtension_vertex_buffer_object},
+#endif
 
 	{"GL_ARB_texture_filter_anisotropic", &GLExtension_texture_filter_anisotropic},
 	{"GL_EXT_texture_filter_anisotropic", &GLExtension_texture_filter_anisotropic},
 
+#ifndef HAVE_GLES2
 	{"GL_ARB_vertex_program", &GLExtension_vertex_program},
 	{"GL_ARB_fragment_program", &GLExtension_fragment_program},
+#endif
 
 #ifdef HAVE_GL_FRAMEBUFFER
 	{"GL_ARB_framebuffer_object", &GLExtension_framebuffer_object},
@@ -270,6 +274,661 @@ PFNglRenderbufferStorage pglRenderbufferStorage;
 PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
 #endif
 
+static const char *GetGLError(GLenum error)
+{
+	if (error == GL_NO_ERROR)
+		return "GL_NO_ERROR";
+
+	switch (error)
+	{
+		case GL_INVALID_ENUM:                  return "GL_INVALID_ENUM";
+		case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
+		case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
+		case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
+#ifdef HAVE_GL_FRAMEBUFFER
+		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+#endif
+		default:                               return "unknown error";
+	}
+}
+
+void GLBackend_CheckError(const char *func, const char *file, int line)
+{
+	GLenum error = pglGetError();
+	while (error != GL_NO_ERROR)
+	{
+		GL_DBG_Printf("%s (%s, line %d): %s\n", func, file, line, GetGLError(error));
+		error = pglGetError();
+	}
+}
+
+#define CHECK_GL() CHECK_GL_ERROR("r_glcommon.c")
+
+void gl_Clear(GLbitfield mask)
+{
+	if (pglClear)
+	{
+		pglClear(mask);
+		CHECK_GL();
+	}
+}
+void gl_GetFloatv(GLenum pname, GLfloat *params)
+{
+	if (pglGetFloatv)
+	{
+		pglGetFloatv(pname, params);
+		CHECK_GL();
+	}
+}
+void gl_GetIntegerv(GLenum pname, GLint *params)
+{
+	if (pglGetIntegerv)
+	{
+		pglGetIntegerv(pname, params);
+		CHECK_GL();
+	}
+}
+const GLubyte *gl_GetString(GLenum name)
+{
+	const GLubyte *result = NULL;
+	if (pglGetString)
+	{
+		result = pglGetString(name);
+		CHECK_GL();
+	}
+	return result;
+}
+void gl_ClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
+{
+	if (pglClearColor)
+	{
+		pglClearColor(red, green, blue, alpha);
+		CHECK_GL();
+	}
+}
+void gl_ColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
+{
+	if (pglColorMask)
+	{
+		pglColorMask(red, green, blue, alpha);
+		CHECK_GL();
+	}
+}
+void gl_AlphaFunc(GLenum func, GLclampf ref)
+{
+	if (pglAlphaFunc)
+	{
+		pglAlphaFunc(func, ref);
+		CHECK_GL();
+	}
+}
+void gl_BlendFunc(GLenum sfactor, GLenum dfactor)
+{
+	if (pglBlendFunc)
+	{
+		pglBlendFunc(sfactor, dfactor);
+		CHECK_GL();
+	}
+}
+void gl_CullFace(GLenum mode)
+{
+	if (pglCullFace)
+	{
+		pglCullFace(mode);
+		CHECK_GL();
+	}
+}
+void gl_PolygonOffset(GLfloat factor, GLfloat units)
+{
+	if (pglPolygonOffset)
+	{
+		pglPolygonOffset(factor, units);
+		CHECK_GL();
+	}
+}
+void gl_Enable(GLenum cap)
+{
+	if (pglEnable)
+	{
+		pglEnable(cap);
+		CHECK_GL();
+	}
+}
+void gl_Disable(GLenum cap)
+{
+	if (pglDisable)
+	{
+		pglDisable(cap);
+		CHECK_GL();
+	}
+}
+
+/* Depth buffer */
+void gl_DepthFunc(GLenum func)
+{
+	if (pglDepthFunc)
+	{
+		pglDepthFunc(func);
+		CHECK_GL();
+	}
+}
+void gl_DepthMask(GLboolean flag)
+{
+	if (pglDepthMask)
+	{
+		pglDepthMask(flag);
+		CHECK_GL();
+	}
+}
+
+/* Transformation */
+void gl_Viewport(GLint x, GLint y, GLsizei width, GLsizei height)
+{
+	if (pglViewport)
+	{
+		pglViewport(x, y, width, height);
+		CHECK_GL();
+	}
+}
+
+/* Raster functions */
+void gl_PixelStorei(GLenum pname, GLint param)
+{
+	if (pglPixelStorei)
+	{
+		pglPixelStorei(pname, param);
+		CHECK_GL();
+	}
+}
+void gl_ReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels)
+{
+	if (pglReadPixels)
+	{
+		pglReadPixels(x, y, width, height, format, type, pixels);
+		CHECK_GL();
+	}
+}
+
+/* Texture mapping */
+void gl_TexParameteri(GLenum target, GLenum pname, GLint param)
+{
+	if (pglTexParameteri)
+	{
+		pglTexParameteri(target, pname, param);
+		CHECK_GL();
+	}
+}
+void gl_TexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	if (pglTexImage2D)
+	{
+		pglTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels);
+		CHECK_GL();
+	}
+}
+void gl_TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	if (pglTexSubImage2D)
+	{
+		pglTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+		CHECK_GL();
+	}
+}
+
+/* Drawing functions */
+void gl_DrawArrays(GLenum mode, GLint first, GLsizei count)
+{
+	if (pglDrawArrays)
+	{
+		pglDrawArrays(mode, first, count);
+		CHECK_GL();
+	}
+}
+void gl_DrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
+{
+	if (pglDrawElements)
+	{
+		pglDrawElements(mode, count, type, indices);
+		CHECK_GL();
+	}
+}
+
+/* Texture objects */
+void gl_GenTextures(GLsizei n, const GLuint *textures)
+{
+	if (pglGenTextures)
+	{
+		pglGenTextures(n, textures);
+		CHECK_GL();
+	}
+}
+void gl_DeleteTextures(GLsizei n, const GLuint *textures)
+{
+	if (pglDeleteTextures)
+	{
+		pglDeleteTextures(n, textures);
+		CHECK_GL();
+	}
+}
+void gl_BindTexture(GLenum target, GLuint texture)
+{
+	if (pglBindTexture)
+	{
+		pglBindTexture(target, texture);
+		CHECK_GL();
+	}
+}
+
+/* Texture mapping */
+void gl_CopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
+{
+	if (pglCopyTexImage2D)
+	{
+		pglCopyTexImage2D(target, level, internalformat, x, y, width, height, border);
+		CHECK_GL();
+	}
+}
+void gl_CopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
+{
+	if (pglCopyTexSubImage2D)
+	{
+		pglCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);
+		CHECK_GL();
+	}
+}
+
+//
+// Multitexturing
+//
+
+void gl_ActiveTexture(GLenum texture)
+{
+	if (pglActiveTexture)
+	{
+		pglActiveTexture(texture);
+		CHECK_GL();
+	}
+}
+void gl_ClientActiveTexture(GLenum texture)
+{
+	if (pglClientActiveTexture)
+	{
+		pglClientActiveTexture(texture);
+		CHECK_GL();
+	}
+}
+
+//
+// Mipmapping
+//
+
+#ifdef HAVE_GLES
+void gl_GenerateMipmap(GLenum target)
+{
+	if (pglGenerateMipmap)
+	{
+		pglGenerateMipmap(target);
+		CHECK_GL();
+	}
+}
+#endif
+
+//
+// Depth functions
+//
+
+#ifndef HAVE_GLES
+void gl_ClearDepth(GLclampd depth)
+{
+	if (pglClearDepth)
+	{
+		pglClearDepth(depth);
+		CHECK_GL();
+	}
+}
+void gl_DepthRange(GLclampd near_val, GLclampd far_val)
+{
+	if (pglDepthRange)
+	{
+		pglDepthRange(near_val, far_val);
+		CHECK_GL();
+	}
+}
+#else
+void gl_ClearDepthf(GLclampf depth)
+{
+	if (pglClearDepthf)
+	{
+		pglClearDepthf(depth);
+		CHECK_GL();
+	}
+}
+void gl_DepthRangef(GLclampf near_val, GLclampf far_val)
+{
+	if (pglDepthRangef)
+	{
+		pglDepthRangef(near_val, far_val);
+		CHECK_GL();
+	}
+}
+#endif
+
+//
+// Legacy functions
+//
+
+#ifndef HAVE_GLES2
+void gl_MatrixMode(GLenum mode)
+{
+	if (pglMatrixMode)
+	{
+		pglMatrixMode(mode);
+		CHECK_GL();
+	}
+}
+void gl_PushMatrix(void)
+{
+	if (pglPushMatrix)
+	{
+		pglPushMatrix();
+		CHECK_GL();
+	}
+}
+void gl_PopMatrix(void)
+{
+	if (pglPopMatrix)
+	{
+		pglPopMatrix();
+		CHECK_GL();
+	}
+}
+void gl_LoadIdentity(void)
+{
+	if (pglLoadIdentity)
+	{
+		pglLoadIdentity();
+		CHECK_GL();
+	}
+}
+void gl_MultMatrixf(const GLfloat *m)
+{
+	if (pglMultMatrixf)
+	{
+		pglMultMatrixf(m);
+		CHECK_GL();
+	}
+}
+void gl_Rotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+{
+	if (pglRotatef)
+	{
+		pglRotatef(angle, x, y, z);
+		CHECK_GL();
+	}
+}
+void gl_Scalef(GLfloat x, GLfloat y, GLfloat z)
+{
+	if (pglScalef)
+	{
+		pglScalef(x, y, z);
+		CHECK_GL();
+	}
+}
+void gl_Translatef(GLfloat x, GLfloat y, GLfloat z)
+{
+	if (pglTranslatef)
+	{
+		pglTranslatef(x, y, z);
+		CHECK_GL();
+	}
+}
+
+/* Drawing Functions */
+void gl_VertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+{
+	if (pglVertexPointer)
+	{
+		pglVertexPointer(size, type, stride, pointer);
+		CHECK_GL();
+	}
+}
+void gl_NormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
+{
+	if (pglNormalPointer)
+	{
+		pglNormalPointer(type, stride, pointer);
+		CHECK_GL();
+	}
+}
+void gl_TexCoordPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+{
+	if (pglTexCoordPointer)
+	{
+		pglTexCoordPointer(size, type, stride, pointer);
+		CHECK_GL();
+	}
+}
+void gl_ColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+{
+	if (pglColorPointer)
+	{
+		pglColorPointer(size, type, stride, pointer);
+		CHECK_GL();
+	}
+}
+void gl_EnableClientState(GLenum cap)
+{
+	if (pglEnableClientState)
+	{
+		pglEnableClientState(cap);
+		CHECK_GL();
+	}
+}
+void gl_DisableClientState(GLenum cap)
+{
+	if (pglDisableClientState)
+	{
+		pglDisableClientState(cap);
+		CHECK_GL();
+	}
+}
+
+/* Lighting */
+void gl_ShadeModel(GLenum mode)
+{
+	if (pglShadeModel)
+	{
+		pglShadeModel(mode);
+		CHECK_GL();
+	}
+}
+void gl_Lightfv(GLenum light, GLenum pname, GLfloat *params)
+{
+	if (pglLightfv)
+	{
+		pglLightfv(light, pname, params);
+		CHECK_GL();
+	}
+}
+void gl_LightModelfv(GLenum pname, GLfloat *params)
+{
+	if (pglLightModelfv)
+	{
+		pglLightModelfv(pname, params);
+		CHECK_GL();
+	}
+}
+void gl_Materialfv(GLint face, GLenum pname, GLfloat *params)
+{
+	if (pglMaterialfv)
+	{
+		pglMaterialfv(face, pname, params);
+		CHECK_GL();
+	}
+}
+
+/* Texture mapping */
+void gl_TexEnvi(GLenum target, GLenum pname, GLint param)
+{
+	if (pglTexEnvi)
+	{
+		pglTexEnvi(target, pname, param);
+		CHECK_GL();
+	}
+}
+#endif // HAVE_GLES2
+
+// Color
+#ifdef HAVE_GLES
+void gl_Color4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+{
+	if (pglColor4f)
+	{
+		pglColor4f(red, green, blue, alpha);
+		CHECK_GL();
+	}
+}
+#else
+void gl_Color4ubv(const GLubyte *v)
+{
+	if (pglColor4ubv)
+	{
+		pglColor4ubv(v);
+		CHECK_GL();
+	}
+}
+#endif
+
+/* 1.5 functions for buffers */
+void gl_GenBuffers(GLsizei n, GLuint *buffers)
+{
+	if (pglGenBuffers)
+	{
+		pglGenBuffers(n, buffers);
+		CHECK_GL();
+	}
+}
+void gl_BindBuffer(GLenum target, GLuint buffer)
+{
+	if (pglBindBuffer)
+	{
+		pglBindBuffer(target, buffer);
+		CHECK_GL();
+	}
+}
+void gl_BufferData(GLenum target, GLsizei size, const GLvoid *data, GLenum usage)
+{
+	if (pglBufferData)
+	{
+		pglBufferData(target, size, data, usage);
+		CHECK_GL();
+	}
+}
+void gl_DeleteBuffers(GLsizei n, const GLuint *buffers)
+{
+	if (pglDeleteBuffers)
+	{
+		pglDeleteBuffers(n, buffers);
+		CHECK_GL();
+	}
+}
+
+/* 2.0 functions */
+void gl_BlendEquation(GLenum mode)
+{
+	if (pglBlendEquation)
+	{
+		pglBlendEquation(mode);
+		CHECK_GL();
+	}
+}
+
+#ifdef HAVE_GL_FRAMEBUFFER
+/* 3.0 functions for framebuffers and renderbuffers */
+void gl_GenFramebuffers(GLsizei n, GLuint *ids)
+{
+	if (pglGenFramebuffers)
+	{
+		pglGenFramebuffers(n, ids);
+		CHECK_GL();
+	}
+}
+void gl_BindFramebuffer(GLenum target, GLuint framebuffer)
+{
+	if (pglBindFramebuffer)
+	{
+		pglBindFramebuffer(target, framebuffer);
+		CHECK_GL();
+	}
+}
+void gl_DeleteFramebuffers(GLsizei n, GLuint *ids)
+{
+	if (pglDeleteFramebuffers)
+	{
+		pglDeleteFramebuffers(n, ids);
+		CHECK_GL();
+	}
+}
+void gl_FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	if (pglFramebufferTexture2D)
+	{
+		pglFramebufferTexture2D(target, attachment, textarget, texture, level);
+		CHECK_GL();
+	}
+}
+GLenum gl_CheckFramebufferStatus(GLenum target)
+{
+	GLenum result = 0;
+	if (pglCheckFramebufferStatus)
+	{
+		result = pglCheckFramebufferStatus(target);
+		CHECK_GL();
+	}
+	return result;
+}
+void gl_GenRenderbuffers(GLsizei n, GLuint *renderbuffers)
+{
+	if (pglGenRenderbuffers)
+	{
+		pglGenRenderbuffers(n, renderbuffers);
+		CHECK_GL();
+	}
+}
+void gl_BindRenderbuffer(GLenum target, GLuint renderbuffer)
+{
+	if (pglBindRenderbuffer)
+	{
+		pglBindRenderbuffer(target, renderbuffer);
+		CHECK_GL();
+	}
+}
+void gl_DeleteRenderbuffers(GLsizei n, GLuint *renderbuffers)
+{
+	if (pglDeleteRenderbuffers)
+	{
+		pglDeleteRenderbuffers(n, renderbuffers);
+		CHECK_GL();
+	}
+}
+void gl_RenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height)
+{
+	if (pglRenderbufferStorage)
+	{
+		pglRenderbufferStorage(target, internalformat, width, height);
+		CHECK_GL();
+	}
+}
+void gl_FramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLenum renderbuffer)
+{
+	if (pglFramebufferRenderbuffer)
+	{
+		pglFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
+		CHECK_GL();
+	}
+}
+#endif
+
 boolean GLBackend_LoadCommonFunctions(void)
 {
 	GETOPENGLFUNC(ClearColor)
@@ -338,37 +997,9 @@ boolean GLBackend_LoadLegacyFunctions(void)
 //                                                                  FUNCTIONS
 // ==========================================================================
 
-static const char *GetGLError(GLenum error)
-{
-	if (error == GL_NO_ERROR)
-		return "GL_NO_ERROR";
-
-	switch (error)
-	{
-		case GL_INVALID_ENUM:                  return "GL_INVALID_ENUM";
-		case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
-		case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
-		case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
-#ifdef HAVE_GL_FRAMEBUFFER
-		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
-#endif
-		default:                               return "unknown error";
-	}
-}
-
-#if 0
-static void CheckGLError(const char *from)
-{
-	GLenum error = pglGetError();
-	if (error != GL_NO_ERROR)
-		GL_DBG_Printf("%s: %s\n", from, GetGLError(error));
-}
-#endif
-
 static void SetBlendEquation(GLenum mode)
 {
-	if (pglBlendEquation)
-		pglBlendEquation(mode);
+	gl_BlendEquation(mode);
 }
 
 static void SetBlendMode(FBITFIELD flags)
@@ -377,32 +1008,32 @@ static void SetBlendMode(FBITFIELD flags)
 	switch (flags)
 	{
 		case PF_Translucent & PF_Blending:
-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
+			gl_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // alpha = level of transparency
 			break;
 		case PF_Masked & PF_Blending:
 			// Hurdler: does that mean lighting is only made by alpha src?
 			// it sounds ok, but not for polygonsmooth
-			pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
+			gl_BlendFunc(GL_SRC_ALPHA, GL_ZERO);                // 0 alpha = holes in texture
 			break;
 		case PF_Additive & PF_Blending:
 		case PF_Subtractive & PF_Blending:
 		case PF_ReverseSubtract & PF_Blending:
-			pglBlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
+			gl_BlendFunc(GL_SRC_ALPHA, GL_ONE); // src * alpha + dest
 			break;
 		case PF_Environment & PF_Blending:
-			pglBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			gl_BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 			break;
 		case PF_Multiplicative & PF_Blending:
-			pglBlendFunc(GL_DST_COLOR, GL_ZERO);
+			gl_BlendFunc(GL_DST_COLOR, GL_ZERO);
 			break;
 		case PF_Fog & PF_Fog:
 			// Sryder: Fog
 			// multiplies input colour by input alpha, and destination colour by input colour, then adds them
-			pglBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
+			gl_BlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
 			break;
 		default: // must be 0, otherwise it's an error
 			// No blending
-			pglBlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
+			gl_BlendFunc(GL_ONE, GL_ZERO);   // the same as no blending
 			break;
 	}
 
@@ -432,7 +1063,7 @@ static void SetBlendMode(FBITFIELD flags)
 	{
 		case PF_Masked & PF_Blending:
 #ifndef HAVE_GLES2
-			pglAlphaFunc(GL_GREATER, 0.5f);
+			gl_AlphaFunc(GL_GREATER, 0.5f);
 #endif
 			break;
 		case PF_Translucent & PF_Blending:
@@ -444,19 +1075,19 @@ static void SetBlendMode(FBITFIELD flags)
 #ifdef HAVE_GLES2
 			alpha_threshold = 0.0f;
 #else
-			pglAlphaFunc(GL_NOTEQUAL, 0.0f);
+			gl_AlphaFunc(GL_NOTEQUAL, 0.0f);
 #endif
 			break;
 		case PF_Fog & PF_Fog:
 #ifdef HAVE_GLES2
 			alpha_test = false;
 #else
-			pglAlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
+			gl_AlphaFunc(GL_ALWAYS, 0.0f); // Don't discard zero alpha fragments
 #endif
 			break;
 		default:
 #ifndef HAVE_GLES2
-			pglAlphaFunc(GL_GREATER, 0.5f);
+			gl_AlphaFunc(GL_GREATER, 0.5f);
 #endif
 			break;
 	}
@@ -478,26 +1109,26 @@ void GLBackend_SetBlend(FBITFIELD PolyFlags)
 		if (Xor & PF_NoAlphaTest)
 		{
 			if (PolyFlags & PF_NoAlphaTest)
-				pglDisable(GL_ALPHA_TEST);
+				gl_Disable(GL_ALPHA_TEST);
 			else
-				pglEnable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
+				gl_Enable(GL_ALPHA_TEST);      // discard 0 alpha pixels (holes in texture)
 		}
 #endif
 
 		if (Xor & PF_Decal)
 		{
 			if (PolyFlags & PF_Decal)
-				pglEnable(GL_POLYGON_OFFSET_FILL);
+				gl_Enable(GL_POLYGON_OFFSET_FILL);
 			else
-				pglDisable(GL_POLYGON_OFFSET_FILL);
+				gl_Disable(GL_POLYGON_OFFSET_FILL);
 		}
 
 		if (Xor & PF_NoDepthTest)
 		{
 			if (PolyFlags & PF_NoDepthTest)
-				pglDepthFunc(GL_ALWAYS);
+				gl_DepthFunc(GL_ALWAYS);
 			else
-				pglDepthFunc(GL_LEQUAL);
+				gl_DepthFunc(GL_LEQUAL);
 		}
 
 		if (Xor & PF_RemoveYWrap)
@@ -509,13 +1140,13 @@ void GLBackend_SetBlend(FBITFIELD PolyFlags)
 		if (Xor & PF_ForceWrapX)
 		{
 			if (PolyFlags & PF_ForceWrapX)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		}
 
 		if (Xor & PF_ForceWrapY)
 		{
 			if (PolyFlags & PF_ForceWrapY)
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		}
 
 #ifndef HAVE_GLES2
@@ -523,11 +1154,11 @@ void GLBackend_SetBlend(FBITFIELD PolyFlags)
 		{
 			if (PolyFlags & PF_Modulated)
 			{   // mix texture colour with Surface->PolyColor
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				gl_TexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			}
 			else
 			{   // colour from texture is unchanged before blending
-				pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+				gl_TexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 			}
 		}
 #endif
@@ -536,22 +1167,22 @@ void GLBackend_SetBlend(FBITFIELD PolyFlags)
 		{
 			if (PolyFlags&PF_Occlude)
 			{
-				pglDepthMask(1);
+				gl_DepthMask(1);
 			}
 			else
-				pglDepthMask(0);
+				gl_DepthMask(0);
 		}
 		////Hurdler: not used if we don't define POLYSKY
 		if (Xor & PF_Invisible)
 		{
 			if (PolyFlags&PF_Invisible)
-				pglBlendFunc(GL_ZERO, GL_ONE);         // transparent blending
+				gl_BlendFunc(GL_ZERO, GL_ONE);         // transparent blending
 			else
 			{   // big hack: (TODO: manage that better)
 				// we test only for PF_Masked because PF_Invisible is only used
 				// (for now) with it (yeah, that's crappy, sorry)
 				if ((PolyFlags&PF_Blending)==PF_Masked)
-					pglBlendFunc(GL_SRC_ALPHA, GL_ZERO);
+					gl_BlendFunc(GL_SRC_ALPHA, GL_ZERO);
 			}
 		}
 		if (PolyFlags & PF_NoTexture)
@@ -640,7 +1271,7 @@ void GLBackend_SetSurface(INT32 w, INT32 h)
 	GPU->SetModelView(w, h);
 	GPU->SetStates();
 
-	pglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gl_Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 static boolean version_checked = false;
@@ -652,8 +1283,8 @@ boolean GLBackend_InitContext(void)
 
 	if (!version_checked)
 	{
-		gl_version = pglGetString(GL_VERSION);
-		gl_renderer = pglGetString(GL_RENDERER);
+		gl_version = gl_GetString(GL_VERSION);
+		gl_renderer = gl_GetString(GL_RENDERER);
 
 		GL_DBG_Printf("OpenGL version: %s\n", gl_version);
 		GL_DBG_Printf("GPU: %s\n", gl_renderer);
@@ -708,7 +1339,7 @@ void GLBackend_RecreateContext(void)
 
 		if (pTexInfo->downloaded)
 		{
-			pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+			gl_DeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
 			pTexInfo->downloaded = 0;
 		}
 
@@ -722,7 +1353,7 @@ void GLBackend_RecreateContext(void)
 	TexCacheTail = TexCacheHead = NULL;
 
 	GLTexture_FlushScreen();
-	pglDeleteTextures(1, &blank_texture_num);
+	gl_DeleteTextures(1, &blank_texture_num);
 	blank_texture_num = 0;
 	tex_downloaded = 0;
 
@@ -730,8 +1361,8 @@ void GLBackend_RecreateContext(void)
 	if (GLExtension_framebuffer_object)
 	{
 		// Unbind the framebuffer and renderbuffer
-		pglBindFramebuffer(GL_FRAMEBUFFER, 0);
-		pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+		gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+		gl_BindRenderbuffer(GL_RENDERBUFFER, 0);
 
 		FramebufferObject = FramebufferTexture = 0;
 		RenderbufferObject = 0;
@@ -871,14 +1502,14 @@ static void CreateModelVBO(mesh_t *mesh, mdlframe_t *frame)
 		bufPtr++;
 	}
 
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
-	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
+	gl_GenBuffers(1, &frame->vboID);
+	gl_BindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+	gl_BufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
 	free(buffer);
 
 	// Don't leave the array buffer bound to the model,
 	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
@@ -916,14 +1547,14 @@ static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
 		bufPtr++;
 	}
 
-	pglGenBuffers(1, &frame->vboID);
-	pglBindBuffer(GL_ARRAY_BUFFER, frame->vboID);
+	gl_GenBuffers(1, &frame->vboID);
+	gl_BindBuffer(GL_ARRAY_BUFFER, frame->vboID);
 	pglBufferData(GL_ARRAY_BUFFER, bufferSize, buffer, GL_STATIC_DRAW);
 	free(buffer);
 
 	// Don't leave the array buffer bound to the model,
 	// since this is called mid-frame
-	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void GLModel_GenerateVBOs(model_t *model)
@@ -940,7 +1571,7 @@ void GLModel_GenerateVBOs(model_t *model)
 			{
 				mdlframe_t *frame = &mesh->frames[j];
 				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
+					gl_DeleteBuffers(1, &frame->vboID);
 				frame->vboID = 0;
 				CreateModelVBO(mesh, frame);
 			}
@@ -951,7 +1582,7 @@ void GLModel_GenerateVBOs(model_t *model)
 			{
 				tinyframe_t *frame = &mesh->tinyframes[j];
 				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
+					gl_DeleteBuffers(1, &frame->vboID);
 				frame->vboID = 0;
 				CreateModelVBOTiny(mesh, frame);
 			}
@@ -1019,7 +1650,7 @@ void GLModel_DeleteVBOs(model_t *model)
 			{
 				mdlframe_t *frame = &mesh->frames[j];
 				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
+					gl_DeleteBuffers(1, &frame->vboID);
 				frame->vboID = 0;
 			}
 		}
@@ -1029,7 +1660,7 @@ void GLModel_DeleteVBOs(model_t *model)
 			{
 				tinyframe_t *frame = &mesh->tinyframes[j];
 				if (frame->vboID)
-					pglDeleteBuffers(1, &frame->vboID);
+					gl_DeleteBuffers(1, &frame->vboID);
 				frame->vboID = 0;
 			}
 		}
@@ -1059,12 +1690,12 @@ void GLTexture_Disable(void)
 	{
 		// Generate a 1x1 white pixel as the blank texture
 		UINT8 whitepixel[4] = {255, 255, 255, 255};
-		pglGenTextures(1, &blank_texture_num);
-		pglBindTexture(GL_TEXTURE_2D, blank_texture_num);
-		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitepixel);
+		gl_GenTextures(1, &blank_texture_num);
+		gl_BindTexture(GL_TEXTURE_2D, blank_texture_num);
+		gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitepixel);
 	}
 	else
-		pglBindTexture(GL_TEXTURE_2D, blank_texture_num);
+		gl_BindTexture(GL_TEXTURE_2D, blank_texture_num);
 
 	tex_downloaded = blank_texture_num;
 }
@@ -1082,7 +1713,7 @@ void GLTexture_Flush(void)
 
 		if (pTexInfo->downloaded)
 		{
-			pglDeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
+			gl_DeleteTextures(1, (GLuint *)&pTexInfo->downloaded);
 			pTexInfo->downloaded = 0;
 		}
 
@@ -1107,13 +1738,13 @@ void GLTexture_Flush(void)
 void GLTexture_FlushScreen(void)
 {
 	if (screentexture)
-		pglDeleteTextures(1, &screentexture);
+		gl_DeleteTextures(1, &screentexture);
 	if (startScreenWipe)
-		pglDeleteTextures(1, &startScreenWipe);
+		gl_DeleteTextures(1, &startScreenWipe);
 	if (endScreenWipe)
-		pglDeleteTextures(1, &endScreenWipe);
+		gl_DeleteTextures(1, &endScreenWipe);
 	if (finalScreenTexture)
-		pglDeleteTextures(1, &finalScreenTexture);
+		gl_DeleteTextures(1, &finalScreenTexture);
 
 	screentexture = 0;
 	startScreenWipe = 0;
@@ -1207,9 +1838,9 @@ void GLFramebuffer_Generate(void)
 
 	// Generate the framebuffer
 	if (FramebufferObject == 0)
-		pglGenFramebuffers(1, &FramebufferObject);
+		gl_GenFramebuffers(1, &FramebufferObject);
 
-	if (pglCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+	if (gl_CheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
 		GLFramebuffer_GenerateAttachments();
 }
 
@@ -1219,11 +1850,11 @@ void GLFramebuffer_Delete(void)
 		return;
 
 	// Unbind the framebuffer and renderbuffer
-	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
-	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+	gl_BindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	if (FramebufferObject)
-		pglDeleteFramebuffers(1, &FramebufferObject);
+		gl_DeleteFramebuffers(1, &FramebufferObject);
 
 	GLFramebuffer_DeleteAttachments();
 	FramebufferObject = 0;
@@ -1244,7 +1875,7 @@ static boolean CheckRenderbuffer(void)
 	{
 		while (error != GL_NO_ERROR)
 		{
-			pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i++], screen_width, screen_height);
+			gl_RenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i++], screen_width, screen_height);
 			error = pglGetError();
 
 			if (i == NumRenderbufferFormats)
@@ -1262,7 +1893,7 @@ static boolean CheckRenderbuffer(void)
 
 		while (error != GL_NO_ERROR)
 		{
-			pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i--], screen_width, screen_height);
+			gl_RenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[i--], screen_width, screen_height);
 			error = pglGetError();
 
 			if (i < 0)
@@ -1279,34 +1910,34 @@ void GLFramebuffer_GenerateAttachments(void)
 		return;
 
 	// Bind the framebuffer
-	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
 
 	// Generate the framebuffer texture
 	if (FramebufferTexture == 0)
 	{
-		pglGenTextures(1, &FramebufferTexture);
-		pglBindTexture(GL_TEXTURE_2D, FramebufferTexture);
-		pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		pglBindTexture(GL_TEXTURE_2D, 0);
+		gl_GenTextures(1, &FramebufferTexture);
+		gl_BindTexture(GL_TEXTURE_2D, FramebufferTexture);
+		gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		gl_BindTexture(GL_TEXTURE_2D, 0);
 
 		// Attach the framebuffer texture to the framebuffer
-		pglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
+		gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
 	}
 
 	// Generate the renderbuffer
 	if (RenderbufferObject == 0)
 	{
-		pglGenRenderbuffers(1, &RenderbufferObject);
+		gl_GenRenderbuffers(1, &RenderbufferObject);
 
-		pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
-		pglRenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[RenderbufferDepthBits], screen_width, screen_height);
+		gl_BindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+		gl_RenderbufferStorage(GL_RENDERBUFFER, RenderbufferFormats[RenderbufferDepthBits], screen_width, screen_height);
 
 		if (CheckRenderbuffer())
 		{
 			// Attach the renderbuffer to the framebuffer
-			pglFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderbufferObject);
+			gl_FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderbufferObject);
 
 			// Clear the renderbuffer
 			GPU->ClearBuffer(true, true, NULL);
@@ -1314,11 +1945,11 @@ void GLFramebuffer_GenerateAttachments(void)
 		else
 			RenderToFramebuffer = GL_FALSE;
 
-		pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+		gl_BindRenderbuffer(GL_RENDERBUFFER, 0);
 	}
 
 	// Unbind the framebuffer
-	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GLFramebuffer_DeleteAttachments(void)
@@ -1327,14 +1958,14 @@ void GLFramebuffer_DeleteAttachments(void)
 		return;
 
 	// Unbind the framebuffer and renderbuffer
-	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
-	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+	gl_BindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	if (FramebufferTexture)
-		pglDeleteTextures(1, &FramebufferTexture);
+		gl_DeleteTextures(1, &FramebufferTexture);
 
 	if (RenderbufferObject)
-		pglDeleteRenderbuffers(1, &RenderbufferObject);
+		gl_DeleteRenderbuffers(1, &RenderbufferObject);
 
 	FramebufferTexture = 0;
 	RenderbufferObject = 0;
@@ -1348,7 +1979,7 @@ void GLFramebuffer_Enable(void)
 	if (RenderbufferDepthBits != LastRenderbufferDepthBits)
 	{
 		if (RenderbufferObject)
-			pglDeleteRenderbuffers(1, &RenderbufferObject);
+			gl_DeleteRenderbuffers(1, &RenderbufferObject);
 
 		RenderbufferObject = 0;
 		LastRenderbufferDepthBits = RenderbufferDepthBits;
@@ -1362,8 +1993,8 @@ void GLFramebuffer_Enable(void)
 	if (RenderToFramebuffer == GL_FALSE)
 		return;
 
-	pglBindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
-	pglBindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, FramebufferObject);
+	gl_BindRenderbuffer(GL_RENDERBUFFER, RenderbufferObject);
 }
 
 void GLFramebuffer_Disable(void)
@@ -1371,8 +2002,8 @@ void GLFramebuffer_Disable(void)
 	if (!GLExtension_framebuffer_object)
 		return;
 
-	pglBindFramebuffer(GL_FRAMEBUFFER, 0);
-	pglBindRenderbuffer(GL_RENDERBUFFER, 0);
+	gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+	gl_BindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
 void GLFramebuffer_SetDepth(INT32 depth)
@@ -1393,9 +2024,9 @@ void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_s
 		if (!row)
 			return;
 
-		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, dst_data);
-		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+		gl_ReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, dst_data);
+		gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		for (i = 0; i < height/2; i++)
 		{
@@ -1414,9 +2045,9 @@ void GLBackend_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_s
 		if (!image)
 			return;
 
-		pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-		pglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, image);
-		pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+		gl_ReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, image);
+		gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		for (i = height-1; i >= 0; i--)
 		{
@@ -1443,9 +2074,9 @@ void GLBackend_ReadRectRGBA(INT32 x, INT32 y, INT32 width, INT32 height, UINT32 
 	if (!src_data)
 		return;
 
-	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
-	pglReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (GLubyte *)src_data);
-	pglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+	gl_ReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (GLubyte *)src_data);
+	gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	for (i = height-1; i >= 0; i--)
 		memcpy(&dst_data[i * width], &src_data[(height-i-1) * width], row_width);
@@ -1457,10 +2088,16 @@ void GLExtension_Init(void)
 {
 	INT32 i = 0;
 
-	gl_extensions = pglGetString(GL_EXTENSIONS);
+	gl_extensions = gl_GetString(GL_EXTENSIONS);
 
 	GL_DBG_Printf("Extensions: ");
 	PrintExtensions(gl_extensions);
+
+#ifdef HAVE_GLES2
+	GLExtension_vertex_buffer_object = true;
+	GLExtension_vertex_program = true;
+	GLExtension_fragment_program = true;
+#endif
 
 	while (ExtensionList[i].name)
 	{
@@ -1489,7 +2126,7 @@ void GLExtension_Init(void)
 
 	if (GLExtension_texture_filter_anisotropic)
 	{
-		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
+		gl_GetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
 
 		if (!maximumAnisotropy)
 		{
@@ -1678,7 +2315,7 @@ static void PrintExtensions(const GLubyte *extensions)
 FILE *gllogstream;
 #endif
 
-//#define DEBUG_TO_CONSOLE
+#define DEBUG_TO_CONSOLE
 
 void GL_DBG_Printf(const char *format, ...)
 {

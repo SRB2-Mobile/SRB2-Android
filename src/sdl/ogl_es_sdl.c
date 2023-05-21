@@ -70,7 +70,6 @@ boolean GLBackend_Init(void)
 */
 boolean OglSdlSurface(INT32 w, INT32 h)
 {
-	// Lactozilla: Does exactly just that in ES :D
 	GLBackend_SetSurface(w, h);
 	return true;
 }

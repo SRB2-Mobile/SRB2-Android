@@ -386,6 +386,137 @@ typedef void (R_GL_APIENTRY * PFNglFramebufferRenderbuffer) (GLenum target, GLen
 extern PFNglFramebufferRenderbuffer pglFramebufferRenderbuffer;
 #endif
 
+void gl_Clear(GLbitfield mask);
+void gl_GetFloatv(GLenum pname, GLfloat *params);
+void gl_GetIntegerv(GLenum pname, GLint *params);
+const GLubyte *gl_GetString(GLenum name);
+void gl_ClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+void gl_ColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+void gl_AlphaFunc(GLenum func, GLclampf ref);
+void gl_BlendFunc(GLenum sfactor, GLenum dfactor);
+void gl_CullFace(GLenum mode);
+void gl_PolygonOffset(GLfloat factor, GLfloat units);
+void gl_Enable(GLenum cap);
+void gl_Disable(GLenum cap);
+
+/* Depth buffer */
+void gl_DepthFunc(GLenum func);
+void gl_DepthMask(GLboolean flag);
+
+/* Transformation */
+void gl_Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
+
+/* Raster functions */
+void gl_PixelStorei(GLenum pname, GLint param);
+void gl_ReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
+
+/* Texture mapping */
+void gl_TexParameteri(GLenum target, GLenum pname, GLint param);
+void gl_TexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
+void gl_TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+
+/* Drawing functions */
+void gl_DrawArrays(GLenum mode, GLint first, GLsizei count);
+void gl_DrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
+
+/* Texture objects */
+void gl_GenTextures(GLsizei n, const GLuint *textures);
+void gl_DeleteTextures(GLsizei n, const GLuint *textures);
+void gl_BindTexture(GLenum target, GLuint texture);
+
+/* Texture mapping */
+void gl_CopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
+void gl_CopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+
+//
+// Multitexturing
+//
+
+void gl_ActiveTexture(GLenum texture);
+void gl_ClientActiveTexture(GLenum texture);
+
+//
+// Mipmapping
+//
+
+#ifdef HAVE_GLES
+void gl_GenerateMipmap(GLenum target);
+#endif
+
+//
+// Depth functions
+//
+
+#ifndef HAVE_GLES
+void gl_ClearDepth(GLclampd depth);
+void gl_DepthRange(GLclampd near_val, GLclampd far_val);
+#else
+void gl_ClearDepthf(GLclampf depth);
+void gl_DepthRangef(GLclampf near_val, GLclampf far_val);
+#endif
+
+//
+// Legacy functions
+//
+
+#ifndef HAVE_GLES2
+void gl_MatrixMode(GLenum mode);
+void gl_PushMatrix(void);
+void gl_PopMatrix(void);
+void gl_LoadIdentity(void);
+void gl_MultMatrixf(const GLfloat *m);
+void gl_Rotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+void gl_Scalef(GLfloat x, GLfloat y, GLfloat z);
+void gl_Translatef(GLfloat x, GLfloat y, GLfloat z);
+
+/* Drawing Functions */
+void gl_VertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
+void gl_NormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer);
+void gl_TexCoordPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
+void gl_ColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
+void gl_EnableClientState(GLenum cap);
+void gl_DisableClientState(GLenum cap);
+
+/* Lighting */
+void gl_ShadeModel(GLenum mode);
+void gl_Lightfv(GLenum light, GLenum pname, GLfloat *params);
+void gl_LightModelfv(GLenum pname, GLfloat *params);
+void gl_Materialfv(GLint face, GLenum pname, GLfloat *params);
+
+/* Texture mapping */
+void gl_TexEnvi(GLenum target, GLenum pname, GLint param);
+#endif // HAVE_GLES2
+
+// Color
+#ifdef HAVE_GLES
+void gl_Color4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+#else
+void gl_Color4ubv(const GLubyte *v);
+#endif
+
+/* 1.5 functions for buffers */
+void gl_GenBuffers(GLsizei n, GLuint *buffers);
+void gl_BindBuffer(GLenum target, GLuint buffer);
+void gl_BufferData(GLenum target, GLsizei size, const GLvoid *data, GLenum usage);
+void gl_DeleteBuffers(GLsizei n, const GLuint *buffers);
+
+/* 2.0 functions */
+void gl_BlendEquation(GLenum mode);
+
+#ifdef HAVE_GL_FRAMEBUFFER
+/* 3.0 functions for framebuffers and renderbuffers */
+void gl_GenFramebuffers(GLsizei n, GLuint *ids);
+void gl_BindFramebuffer(GLenum target, GLuint framebuffer);
+void gl_DeleteFramebuffers(GLsizei n, GLuint *ids);
+void gl_FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+GLenum gl_CheckFramebufferStatus(GLenum target);
+void gl_GenRenderbuffers(GLsizei n, GLuint *renderbuffers);
+void gl_BindRenderbuffer(GLenum target, GLuint renderbuffer);
+void gl_DeleteRenderbuffers(GLsizei n, GLuint *renderbuffers);
+void gl_RenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+void gl_FramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLenum renderbuffer);
+#endif
+
 // ==========================================================================
 //                                                                  FUNCTIONS
 // ==========================================================================
@@ -422,6 +553,10 @@ boolean GLBackend_InitContext(void);
 void    GLBackend_RecreateContext(void);
 void    GLBackend_DeleteModelData(void);
 void    GLBackend_SetPalette(RGBA_t *palette);
+
+void    GLBackend_CheckError(const char *func, const char *file, int line);
+
+#define CHECK_GL_ERROR(file) GLBackend_CheckError(__FUNCTION__, file, __LINE__ - 1)
 
 boolean GLBackend_LoadFunctions(void);
 boolean GLBackend_LoadExtraFunctions(void);

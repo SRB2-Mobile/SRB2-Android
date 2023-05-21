@@ -110,9 +110,7 @@ static JNIEnv *JNI_GetEnv(void)
 	context = (*env)->CallStaticObjectMethod(env, activityClass, method); \
 }
 
-// Lactozilla: Portions from SDL2
-// https://github.com/libsdl-org/SDL/blob/main/src/core/android/SDL_android.c
-
+// Following portions from SDL source code
 static int s_active = 0;
 struct LocalReferenceHolder
 {

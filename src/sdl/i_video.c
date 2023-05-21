@@ -1969,14 +1969,12 @@ INT32 VID_CheckRenderer(void)
 		}
 	}
 
-	// FIXME: refactor so that a software buffer isn't needed at all times
-	Impl_SetupSoftwareBuffer();
-
 	if (rendererchanged)
 		vid.recalc = true;
 
 	if (rendermode == render_soft)
 	{
+		Impl_SetupSoftwareBuffer();
 		SCR_SetDrawFuncs();
 	}
 #ifdef HWRENDER

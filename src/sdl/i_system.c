@@ -1415,7 +1415,7 @@ void I_InitTouchScreen(void)
 #endif
 		SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
-	// Lactozilla: The touch screen depends on the joystick system.
+	// The touch screen depends on the joystick system
 	if (SDL_WasInit(SDL_INIT_JOYSTICK) == 0)
 	{
 		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == -1)

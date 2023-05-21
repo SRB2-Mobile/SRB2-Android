@@ -89,7 +89,7 @@
 
 static char filenamebuf[MAX_WADPATH];
 
-// Lactozilla: Preemptively store file handles for W_InitFile
+// Preemptively store file handles for W_InitFile
 // (File unpacking uses this)
 typedef struct
 {
@@ -669,7 +669,7 @@ void *W_OpenWadFile(const char **filename, fhandletype_t type, boolean useerrors
 		else
 		{
 #if defined(__ANDROID__)
-			// Lactozilla: Search inside the app package.
+			// Search inside the APK
 			handle = File_Open(*filename, "rb", type);
 			if (handle)
 				return handle;

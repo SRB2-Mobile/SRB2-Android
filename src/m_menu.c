@@ -12010,7 +12010,6 @@ static void M_SaveGameUltimateResponse(INT32 ch)
 	S_StartSound(NULL, sfx_menu1);
 	M_LoadSelect(saveSlotSelected);
 
-	// Lactozilla: Okay, this is cursed.
 	if (lastMenu == &MessageDef)
 	{
 		SP_PlayerDef.prevMenu = MessageDef.prevMenu;
@@ -15458,7 +15457,7 @@ static void M_ConnectIP(INT32 choice)
 	I_FinishUpdate(); // page flip or blit buffer
 }
 
-// Lactozilla: IPv4 textbox callback
+// IPv4 textbox callback
 static void M_IPv4TextboxInput(INT32 choice)
 {
 	// Rudimentary number and period enforcing - also allows letters so hostnames can be used instead

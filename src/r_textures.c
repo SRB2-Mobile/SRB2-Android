@@ -739,7 +739,6 @@ Rloadflats (INT32 i, INT32 w)
 	texpatch_t *patch;
 	UINT8 header[PNG_HEADER_SIZE];
 
-	// Yes
 	if (W_FileHasFolders(wadfiles[w]))
 	{
 		texstart = W_CheckNumForFolderStartPK3("flats/", (UINT16)w, 0);

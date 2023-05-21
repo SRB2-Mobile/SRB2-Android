@@ -155,6 +155,225 @@ static struct {
 	{NULL, NULL},
 };
 
+#define CHECK_GL() CHECK_GL_ERROR("gl_shaders.c")
+
+static GLuint gl_CreateShader(GLenum type)
+{
+	GLuint result = 0;
+	if (pglCreateShader)
+	{
+		result = pglCreateShader(type);
+		CHECK_GL();
+	}
+	return result;
+}
+static void gl_ShaderSource(GLuint shader, GLsizei count, const GLchar **string, GLint *length)
+{
+	if (pglShaderSource)
+	{
+		pglShaderSource(shader, count, string, length);
+		CHECK_GL();
+	}
+}
+static void gl_CompileShader(GLuint shader)
+{
+	if (pglCompileShader)
+	{
+		pglCompileShader(shader);
+		CHECK_GL();
+	}
+}
+static void gl_GetShaderiv(GLuint shader, GLenum pname, GLint *params)
+{
+	if (pglGetShaderiv)
+	{
+		pglGetShaderiv(shader, pname, params);
+		CHECK_GL();
+	}
+}
+static void gl_GetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
+{
+	if (pglGetShaderInfoLog)
+	{
+		pglGetShaderInfoLog(shader, bufSize, length, infoLog);
+		CHECK_GL();
+	}
+}
+static void gl_DeleteShader(GLuint shader)
+{
+	if (pglDeleteShader)
+	{
+		pglDeleteShader(shader);
+		CHECK_GL();
+	}
+}
+static GLuint gl_CreateProgram(void)
+{
+	GLuint result = 0;
+	if (pglCreateProgram)
+	{
+		result = pglCreateProgram();
+		CHECK_GL();
+	}
+	return result;
+}
+static void gl_DeleteProgram(GLuint program)
+{
+	if (pglDeleteProgram)
+	{
+		pglDeleteProgram(program);
+		CHECK_GL();
+	}
+}
+static void gl_AttachShader(GLuint program, GLuint shader)
+{
+	if (pglAttachShader)
+	{
+		pglAttachShader(program, shader);
+		CHECK_GL();
+	}
+}
+static void gl_LinkProgram(GLuint program)
+{
+	if (pglLinkProgram)
+	{
+		pglLinkProgram(program);
+		CHECK_GL();
+	}
+}
+static void gl_GetProgramiv(GLuint program, GLenum pname, GLint *params)
+{
+	if (pglGetProgramiv)
+	{
+		pglGetProgramiv(program, pname, params);
+		CHECK_GL();
+	}
+}
+static void gl_UseProgram(GLuint program)
+{
+	if (pglUseProgram)
+	{
+		pglUseProgram(program);
+		CHECK_GL();
+	}
+}
+static void gl_Uniform1i(GLint location, GLint v0)
+{
+	if (pglUniform1i)
+	{
+		pglUniform1i(location, v0);
+		CHECK_GL();
+	}
+}
+static void gl_Uniform1f(GLint location, GLfloat v0)
+{
+	if (pglUniform1f)
+	{
+		pglUniform1f(location, v0);
+		CHECK_GL();
+	}
+}
+#if 0
+static void gl_Uniform2f(GLint location, GLfloat v0, GLfloat v1)
+{
+	if (pglUniform2f)
+	{
+		pglUniform2f(location, v0, v1);
+		CHECK_GL();
+	}
+}
+static void gl_Uniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
+{
+	if (pglUniform3f)
+	{
+		pglUniform3f(location, v0, v1, v2);
+		CHECK_GL();
+	}
+}
+#endif
+static void gl_Uniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+{
+	if (pglUniform4f)
+	{
+		pglUniform4f(location, v0, v1, v2, v3);
+		CHECK_GL();
+	}
+}
+#if 0
+static void gl_Uniform1fv(GLint location, GLsizei count, const GLfloat *value)
+{
+	if (pglUniform1fv)
+	{
+		pglUniform1fv(location, count, value);
+		CHECK_GL();
+	}
+}
+static void gl_Uniform2fv(GLint location, GLsizei count, const GLfloat *value)
+{
+	if (pglUniform2fv)
+	{
+		pglUniform2fv(location, count, value);
+		CHECK_GL();
+	}
+}
+static void gl_Uniform3fv(GLint location, GLsizei count, const GLfloat *value)
+{
+	if (pglUniform3fv)
+	{
+		pglUniform3fv(location, count, value);
+		CHECK_GL();
+	}
+}
+#endif
+#ifdef HAVE_GLES2
+static void gl_UniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	if (pglUniformMatrix4fv)
+	{
+		pglUniformMatrix4fv(location, count, transpose, value);
+		CHECK_GL();
+	}
+}
+#endif
+static GLint gl_GetUniformLocation(GLuint program, const GLchar *name)
+{
+	GLint result = 0;
+	if (pglGetUniformLocation)
+	{
+		result = pglGetUniformLocation(program, name);
+		CHECK_GL();
+	}
+	return result;
+}
+#ifdef HAVE_GLES2
+static GLint gl_GetAttribLocation(GLuint program, const GLchar *name)
+{
+	GLint result = 0;
+	if (pglGetAttribLocation)
+	{
+		result = pglGetAttribLocation(program, name);
+		CHECK_GL();
+	}
+	return result;
+}
+static void gl_EnableVertexAttribArray(GLuint index)
+{
+	if (pglEnableVertexAttribArray)
+	{
+		pglEnableVertexAttribArray(index);
+		CHECK_GL();
+	}
+}
+static void gl_DisableVertexAttribArray(GLuint index)
+{
+	if (pglDisableVertexAttribArray)
+	{
+		pglDisableVertexAttribArray(index);
+		CHECK_GL();
+	}
+}
+#endif
+
 void Shader_LoadFunctions(void)
 {
 	pglCreateShader = GLBackend_GetFunction("glCreateShader");
@@ -239,7 +458,7 @@ boolean Shader_EnableVertexAttribArray(int attrib)
 
 	if (loc != -1)
 	{
-		pglEnableVertexAttribArray(loc);
+		gl_EnableVertexAttribArray(loc);
 		return true;
 	}
 
@@ -259,7 +478,7 @@ boolean Shader_DisableVertexAttribArray(int attrib)
 
 	if (loc != -1)
 	{
-		pglDisableVertexAttribArray(loc);
+		gl_DisableVertexAttribArray(loc);
 		return true;
 	}
 
@@ -382,7 +601,7 @@ void Shader_UnSet(void)
 	gl_shaderstate.program = 0;
 
 	if (GLExtension_shaders)
-		pglUseProgram(0);
+		gl_UseProgram(0);
 	gl_shadersenabled = false;
 #endif
 }
@@ -391,7 +610,7 @@ void Shader_SetIfChanged(gl_shader_t *shader)
 {
 	if (shader && gl_shaderstate.changed)
 	{
-		pglUseProgram(shader->program);
+		gl_UseProgram(shader->program);
 		gl_shaderstate.changed = false;
 	}
 }
@@ -436,12 +655,12 @@ static void Shader_CompileError(const char *message, GLuint program, INT32 shade
 	GLchar *infoLog = NULL;
 	GLint logLength;
 
-	pglGetShaderiv(program, GL_INFO_LOG_LENGTH, &logLength);
+	gl_GetShaderiv(program, GL_INFO_LOG_LENGTH, &logLength);
 
 	if (logLength)
 	{
 		infoLog = malloc(logLength);
-		pglGetShaderInfoLog(program, logLength, NULL, infoLog);
+		gl_GetShaderInfoLog(program, logLength, NULL, infoLog);
 	}
 
 	Shader_ErrorMessage("Shader_CompileProgram: %s (%s)\n%s\n", message, HWR_GetShaderName(shadernum), (infoLog ? infoLog : ""));
@@ -458,71 +677,77 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 	//
 	// Load and compile vertex shader
 	//
-	gl_vertShader = pglCreateShader(GL_VERTEX_SHADER);
+	gl_vertShader = gl_CreateShader(GL_VERTEX_SHADER);
 	if (!gl_vertShader)
 	{
 		Shader_ErrorMessage("Shader_CompileProgram: Error creating vertex shader %s\n", HWR_GetShaderName(i));
 		return false;
 	}
 
-	pglShaderSource(gl_vertShader, 1, &vert_shader, NULL);
-	pglCompileShader(gl_vertShader);
+	gl_ShaderSource(gl_vertShader, 1, &vert_shader, NULL);
+	gl_CompileShader(gl_vertShader);
 
 	// check for compile errors
-	pglGetShaderiv(gl_vertShader, GL_COMPILE_STATUS, &result);
+	gl_GetShaderiv(gl_vertShader, GL_COMPILE_STATUS, &result);
 	if (result == GL_FALSE)
 	{
 		Shader_CompileError("Error compiling vertex shader", gl_vertShader, i);
-		pglDeleteShader(gl_vertShader);
+		gl_DeleteShader(gl_vertShader);
 		return false;
 	}
 
 	//
 	// Load and compile fragment shader
 	//
-	gl_fragShader = pglCreateShader(GL_FRAGMENT_SHADER);
+	gl_fragShader = gl_CreateShader(GL_FRAGMENT_SHADER);
 	if (!gl_fragShader)
 	{
 		Shader_ErrorMessage("Shader_CompileProgram: Error creating fragment shader %s\n", HWR_GetShaderName(i));
-		pglDeleteShader(gl_vertShader);
-		pglDeleteShader(gl_fragShader);
+		gl_DeleteShader(gl_vertShader);
+		gl_DeleteShader(gl_fragShader);
 		return false;
 	}
 
-	pglShaderSource(gl_fragShader, 1, &frag_shader, NULL);
-	pglCompileShader(gl_fragShader);
+	gl_ShaderSource(gl_fragShader, 1, &frag_shader, NULL);
+	gl_CompileShader(gl_fragShader);
 
 	// check for compile errors
-	pglGetShaderiv(gl_fragShader, GL_COMPILE_STATUS, &result);
+	gl_GetShaderiv(gl_fragShader, GL_COMPILE_STATUS, &result);
 	if (result == GL_FALSE)
 	{
 		Shader_CompileError("Error compiling fragment shader", gl_fragShader, i);
-		pglDeleteShader(gl_vertShader);
-		pglDeleteShader(gl_fragShader);
+		gl_DeleteShader(gl_vertShader);
+		gl_DeleteShader(gl_fragShader);
 		return false;
 	}
 
-	shader->program = pglCreateProgram();
-	pglAttachShader(shader->program, gl_vertShader);
-	pglAttachShader(shader->program, gl_fragShader);
-	pglLinkProgram(shader->program);
+	shader->program = gl_CreateProgram();
+	if (shader->program == 0)
+	{
+		Shader_ErrorMessage("Shader_CompileProgram: Couldn't create program for shader %s\n", HWR_GetShaderName(i));
+		return false;
+	}
+
+	gl_AttachShader(shader->program, gl_vertShader);
+	gl_AttachShader(shader->program, gl_fragShader);
+	gl_LinkProgram(shader->program);
 
 	// check link status
-	pglGetProgramiv(shader->program, GL_LINK_STATUS, &result);
+	gl_GetProgramiv(shader->program, GL_LINK_STATUS, &result);
 
 	// delete the shader objects
-	pglDeleteShader(gl_vertShader);
-	pglDeleteShader(gl_fragShader);
+	gl_DeleteShader(gl_vertShader);
+	gl_DeleteShader(gl_fragShader);
 
 	// couldn't link?
 	if (result != GL_TRUE)
 	{
-		Shader_ErrorMessage("Shader_CompileProgram: Error linking shader program %s\n", HWR_GetShaderName(i));
-		pglDeleteProgram(shader->program);
+		Shader_ErrorMessage("Shader_CompileProgram: Error linking program for shader %s\n", HWR_GetShaderName(i));
+		gl_DeleteProgram(shader->program);
 		return false;
 	}
 
-#define GETUNI(uniform) pglGetUniformLocation(shader->program, uniform)
+#define GETUNI(uniform) gl_GetUniformLocation(shader->program, uniform)
 
 #ifdef HAVE_GLES2
 	memset(shader->projMatrix, 0x00, sizeof(fmatrix4_t));
@@ -561,7 +786,7 @@ static boolean Shader_CompileProgram(gl_shader_t *shader, GLint i, const GLchar 
 
 #ifdef HAVE_GLES2
 
-#define GETATTRIB(attribute) pglGetAttribLocation(shader->program, attribute)
+#define GETATTRIB(attribute) gl_GetAttribLocation(shader->program, attribute)
 
 	shader->attributes[glattribute_position]     = GETATTRIB("a_position");
 	shader->attributes[glattribute_texcoord]     = GETATTRIB("a_texcoord");
@@ -599,9 +824,9 @@ boolean Shader_Compile(void)
 		usershader = &gl_usershaders[i];
 
 		if (shader->program)
-			pglDeleteProgram(shader->program);
+			gl_DeleteProgram(shader->program);
 		if (usershader->program)
-			pglDeleteProgram(usershader->program);
+			gl_DeleteProgram(usershader->program);
 
 		shader->program = 0;
 		usershader->program = 0;
@@ -634,7 +859,7 @@ boolean Shader_Compile(void)
 
 #ifdef HAVE_GLES2
 	Shader_Set(SHADER_DEFAULT);
-	pglUseProgram(gl_shaderstate.program);
+	gl_UseProgram(gl_shaderstate.program);
 	gl_shaderstate.changed = false;
 #endif
 
@@ -653,19 +878,22 @@ void Shader_SetTransform(void)
 	if (memcmp(projMatrix, shader->projMatrix, sizeof(fmatrix4_t)))
 	{
 		memcpy(shader->projMatrix, projMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader->uniforms[gluniform_projection], 1, GL_FALSE, (float *)projMatrix);
+		if (shader->uniforms[gluniform_projection] != -1)
+			gl_UniformMatrix4fv(shader->uniforms[gluniform_projection], 1, GL_FALSE, (float *)projMatrix);
 	}
 
 	if (memcmp(viewMatrix, shader->viewMatrix, sizeof(fmatrix4_t)))
 	{
 		memcpy(shader->viewMatrix, viewMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader->uniforms[gluniform_view], 1, GL_FALSE, (float *)viewMatrix);
+		if (shader->uniforms[gluniform_view] != -1)
+			gl_UniformMatrix4fv(shader->uniforms[gluniform_view], 1, GL_FALSE, (float *)viewMatrix);
 	}
 
 	if (memcmp(modelMatrix, shader->modelMatrix, sizeof(fmatrix4_t)))
 	{
 		memcpy(shader->modelMatrix, modelMatrix, sizeof(fmatrix4_t));
-		pglUniformMatrix4fv(shader->uniforms[gluniform_model], 1, GL_FALSE, (float *)modelMatrix);
+		if (shader->uniforms[gluniform_model] != -1)
+			gl_UniformMatrix4fv(shader->uniforms[gluniform_model], 1, GL_FALSE, (float *)modelMatrix);
 	}
 }
 #endif
@@ -679,7 +907,7 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 		if (!shader->program)
 		{
 #ifndef HAVE_GLES2
-			pglUseProgram(0);
+			gl_UseProgram(0);
 #endif
 			return;
 		}
@@ -711,27 +939,27 @@ void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *t
 				function (uniform, a, b, c, d);
 
 		// polygon
-		UNIFORM_4(shader->uniforms[gluniform_poly_color], poly->red, poly->green, poly->blue, poly->alpha, pglUniform4f);
-		UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, pglUniform4f);
-		UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, pglUniform4f);
+		UNIFORM_4(shader->uniforms[gluniform_poly_color], poly->red, poly->green, poly->blue, poly->alpha, gl_Uniform4f);
+		UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, gl_Uniform4f);
+		UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, gl_Uniform4f);
 
 		if (Surface != NULL)
 		{
-			UNIFORM_1(shader->uniforms[gluniform_lighting], (GLfloat)Surface->LightInfo.light_level, pglUniform1f);
-			UNIFORM_1(shader->uniforms[gluniform_fade_start], (GLfloat)Surface->LightInfo.fade_start, pglUniform1f);
-			UNIFORM_1(shader->uniforms[gluniform_fade_end], (GLfloat)Surface->LightInfo.fade_end, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_lighting], (GLfloat)Surface->LightInfo.light_level, gl_Uniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_start], (GLfloat)Surface->LightInfo.fade_start, gl_Uniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_end], (GLfloat)Surface->LightInfo.fade_end, gl_Uniform1f);
 		}
 
-		UNIFORM_1(shader->uniforms[gluniform_leveltime], shader_leveltime, pglUniform1f);
+		UNIFORM_1(shader->uniforms[gluniform_leveltime], shader_leveltime, gl_Uniform1f);
 
 #ifdef HAVE_GLES2
 		if (alpha_test)
 		{
-			UNIFORM_1(shader->uniforms[gluniform_alphathreshold], alpha_threshold, pglUniform1f);
-			UNIFORM_1(shader->uniforms[gluniform_alphatest], true, pglUniform1i);
+			UNIFORM_1(shader->uniforms[gluniform_alphathreshold], alpha_threshold, gl_Uniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_alphatest], true, gl_Uniform1i);
 		}
 		else
-			UNIFORM_1(shader->uniforms[gluniform_alphatest], false, pglUniform1i);
+			UNIFORM_1(shader->uniforms[gluniform_alphatest], false, gl_Uniform1i);
 #endif
 
 		#undef UNIFORM_1
@@ -750,5 +978,5 @@ void Shader_SetSampler(gluniform_t uniform, GLint value)
 	Shader_SetIfChanged(shader);
 
 	if (shader->uniforms[uniform] != -1)
-		pglUniform1i(shader->uniforms[uniform], value);
+		gl_Uniform1i(shader->uniforms[uniform], value);
 }

@@ -1925,7 +1925,7 @@ static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, c
 
 static void D_AndroidSetupHome(const char *userhome)
 {
-	const char *homelist[3] = {0, 0, 0};
+	const char *homelist[2] = { NULL, NULL };
 	INT32 next = 0;
 
 	strlcpy(srb2home, userhome, sizeof(srb2home));

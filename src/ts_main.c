@@ -402,8 +402,7 @@ void TS_HandleFingerEvent(event_t *ev)
 			if (touchmotion && (finger->ignoremotion || (!TS_ButtonIsPlayerControl(gc))))
 				break;
 
-			// Lactozilla: Find every on-screen button and
-			// check if they are below your finger.
+			// Find every on-screen button and check if they are below your finger.
 			for (i = 0; i < NUM_GAMECONTROLS; i++)
 			{
 				touchconfig_t *btn = &touchcontrols[i];

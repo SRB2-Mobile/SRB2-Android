@@ -143,8 +143,7 @@
 		"gl_FragColor = mix(StartTexel, EndTexel, MaskTexel.r);\n" \
 	"}\0"
 
-// Lactozilla: Very simple shader that uses either additive
-// or subtractive blending depending on the wipe style.
+// Simple shader that uses either additive or subtractive blending depending on the wipe style
 #define GLSL_FADEMASK_ADDITIVEANDSUBTRACTIVE_FRAGMENT_SHADER \
 	GLSL_FADEMASK_BASE_IN \
 	"uniform bool is_fading_in;\n" \
