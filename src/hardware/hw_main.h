@@ -95,6 +95,8 @@ extern consvar_t cv_glcoronas;
 extern consvar_t cv_glcoronasize;
 #endif
 
+extern consvar_t cv_modelpack;
+
 extern consvar_t cv_glshaders, cv_glallowshaders;
 extern consvar_t cv_glmodels;
 extern consvar_t cv_glmodelinterpolation;

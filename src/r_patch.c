@@ -104,6 +104,9 @@ static void Patch_FreeData(patch_t *patch)
 
 void Patch_Free(patch_t *patch)
 {
+	if (!patch)
+		return;
+
 	Patch_FreeData(patch);
 	Z_Free(patch);
 }

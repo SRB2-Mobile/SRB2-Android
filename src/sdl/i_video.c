@@ -175,7 +175,6 @@ static      SDL_Color    localPalette[256];
 static       SDL_bool    mousegrabok = SDL_TRUE;
 static       SDL_bool    wrapmouseok = SDL_FALSE;
 #define HalfWarpMouse(x,y) if (wrapmouseok) SDL_WarpMouseInWindow(window, (Uint16)(x/2),(Uint16)(y/2))
-static       SDL_bool    renderinit = SDL_FALSE;
 static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 
@@ -191,6 +190,8 @@ SDL_Renderer *renderer;
 static SDL_Texture  *texture;
 static SDL_bool      havefocus = SDL_TRUE;
 
+static UINT32 refresh_rate;
+
 static boolean video_init = false;
 
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
@@ -198,10 +199,11 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen);
 static void Impl_VideoSetupSurfaces(int width, int height);
 static void Impl_VideoSetupBuffer(void);
 
+static void Impl_SetupSoftwareBuffer(void);
+
 static void Impl_BlitSurfaceRegion(void);
 
 static void Impl_InitOpenGL(void);
-static void Impl_SetGLContext(void);
 
 #ifdef SPLASH_SCREEN
 static struct SDLSplashScreen splashScreen;
@@ -249,6 +251,29 @@ static const char *fallback_resolution_name = "Fallback";
 		CONS_Printf(str "\n", SDL_GetError()); \
 }
 
+#if defined(__ANDROID__)
+static SDL_bool Impl_HasContext(void)
+{
+	if (window)
+	{
+#ifdef HWRENDER
+		if (rendermode == render_opengl)
+		{
+			if (sdlglcontext)
+				return SDL_TRUE;
+		}
+		else
+#endif
+		{
+			if (renderer)
+				return SDL_TRUE;
+		}
+	}
+
+	return SDL_FALSE;
+}
+#endif
+
 static SDL_bool Impl_RenderContextCreate(void)
 {
 	if (rendermode != render_opengl)
@@ -294,57 +319,63 @@ static SDL_bool Impl_RenderContextCreate(void)
 				return SDL_FALSE;
 			}
 		}
-
-		Impl_SetGLContext();
 	}
-#endif
-
-#ifdef DITHER
-	Impl_SetDither();
 #endif
 
 	return SDL_TRUE;
 }
 
-static void Impl_RenderContextDestroy(void)
-{
-	if (renderer)
-		SDL_DestroyRenderer(renderer);
-	renderer = NULL;
-}
-
-#if defined(__ANDROID__)
 static SDL_bool Impl_RenderContextReset(void)
 {
-	int w = realwidth;
-	int h = realheight;
-
-	Impl_RenderContextDestroy();
+	if (renderer)
+	{
+		SDL_DestroyRenderer(renderer);
+		texture = NULL; // Destroying a renderer also destroys all of its textures
+	}
+	renderer = NULL;
 
 	if (Impl_RenderContextCreate() == SDL_FALSE)
 		return SDL_FALSE;
 
-	SDL_DestroyTexture(texture);
-	texture = NULL;
-
-	SDL_RenderSetLogicalSize(renderer, w, h);
-
-	if (rendermode == render_soft)
-		Impl_VideoSetupSurfaces(w, h);
-	else if (rendermode == render_opengl)
+	if (vidSurface != NULL)
 	{
-		Impl_SetGLContext();
-		HWR_RecreateContext();
-		GLBackend_SetSurface(w, h);
+		SDL_FreeSurface(vidSurface);
+		vidSurface = NULL;
 	}
 
-	return SDL_TRUE;
-}
+	if (bufSurface != NULL)
+	{
+		SDL_FreeSurface(bufSurface);
+		bufSurface = NULL;
+	}
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+	{
+		SDL_GL_MakeCurrent(window, sdlglcontext);
+		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
+
+		OglSdlSurface(realwidth, realheight);
+		HWR_Startup();
+
+#if defined(__ANDROID__)
+		HWR_RecreateContext();
+#endif
+	}
+	else
+#endif
+	{
+		SDL_RenderClear(renderer);
+		SDL_RenderSetLogicalSize(renderer, realwidth, realheight);
+		Impl_VideoSetupSurfaces(realwidth, realheight);
+	}
+
+#ifdef DITHER
+	if (rendererchanged)
+		Impl_SetDither();
 #endif
 
-static void Impl_SetGLContext(void)
-{
-	SDL_GL_MakeCurrent(window, sdlglcontext);
+	return SDL_TRUE;
 }
 
 static void Impl_VideoSetupSurfaces(int width, int height)
@@ -380,13 +411,38 @@ static void Impl_VideoSetupSurfaces(int width, int height)
 	}
 }
 
+static void Impl_SetupSoftwareBuffer(void)
+{
+	// Set up game's software render buffer
+	size_t size;
+
+	vid.rowbytes = vid.width * vid.bpp;
+	vid.direct = NULL;
+
+	free(vid.buffer);
+
+	size = vid.rowbytes*vid.height * NUMSCREENS;
+	vid.buffer = malloc(size);
+
+	if (vid.buffer)
+	{
+		// Clear the buffer
+		// HACK: Wasn't sure where else to put this.
+		memset(vid.buffer, 31, size);
+	}
+	else
+		I_Error("%s", M_GetText("Not enough memory for video buffer\n"));
+}
+
+static SDL_Rect src_rect = { 0, 0, 0, 0 };
+
 static SDL_bool SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool reposition)
 {
 	static SDL_bool wasfullscreen = SDL_FALSE;
 	int fullscreen_type = SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-	realwidth = vid.width;
-	realheight = vid.height;
+	src_rect.w = realwidth = width;
+	src_rect.h = realheight = height;
 
 	if (window)
 	{
@@ -430,45 +486,13 @@ static SDL_bool SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_b
 			SDL_SetWindowFullscreen(window, fullscreen_type);
 	}
 
-	// FIXME: Windows is acting silly.
+	if (Impl_RenderContextReset() == SDL_FALSE)
+		I_Error("Couldn't create or reset rendering context");
 
-#ifdef HWRENDER
-	if (rendermode == render_opengl)
+	if (vid.buffer)
 	{
-		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
-		OglSdlSurface(realwidth, realheight);
-
-		if (!gl_init)
-			HWR_Startup();
-	}
-	else
-#endif
-	{
-		SDL_RenderClear(renderer);
-		SDL_RenderSetLogicalSize(renderer, width, height);
-
-		if (texture != NULL)
-		{
-			SDL_DestroyTexture(texture);
-			texture = NULL;
-		}
-
-		if (vidSurface != NULL)
-		{
-			SDL_FreeSurface(vidSurface);
-			vidSurface = NULL;
-		}
-
-		if (rendermode == render_soft)
-		{
-			free(vid.buffer);
-			vid.buffer = NULL;
-		}
-
-		realwidth = width;
-		realheight = height;
-
-		Impl_VideoSetupSurfaces(width, height);
+		free(vid.buffer);
+		vid.buffer = NULL;
 	}
 
 	return SDL_TRUE;
@@ -504,6 +528,26 @@ static void VidWaitChanged(void)
 		SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
 	}
 #endif
+}
+
+static UINT32 VID_GetRefreshRate(void)
+{
+	int index = SDL_GetWindowDisplayIndex(window);
+	SDL_DisplayMode m;
+
+	if (SDL_WasInit(SDL_INIT_VIDEO) == 0)
+	{
+		// Video not init yet.
+		return 0;
+	}
+
+	if (SDL_GetCurrentDisplayMode(index, &m) != 0)
+	{
+		// Error has occurred.
+		return 0;
+	}
+
+	return m.refresh_rate;
 }
 
 static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
@@ -1715,8 +1759,6 @@ void I_UpdateNoBlit(void)
 //
 // I_FinishUpdate
 //
-static SDL_Rect src_rect = { 0, 0, 0, 0 };
-
 void I_FinishUpdate(void)
 {
 	if (rendermode == render_none)
@@ -1879,14 +1921,13 @@ void VID_CheckGLLoaded(rendermode_t oldrender)
 
 INT32 VID_CheckRenderer(void)
 {
-	INT32 rendererchanged = 0;
-	boolean contextcreated = false;
-#if defined(__ANDROID__)
-	boolean modechanged = (renderinit == SDL_FALSE || vid.width != realwidth || vid.height != realheight);
-#endif
+	boolean rendererchanged = false;
+
 #ifdef HWRENDER
 	rendermode_t oldrenderer = rendermode;
 #endif
+
+	refresh_rate = VID_GetRefreshRate();
 
 	if (dedicated)
 		return 0;
@@ -1894,7 +1935,7 @@ INT32 VID_CheckRenderer(void)
 	if (setrenderneeded)
 	{
 		rendermode = setrenderneeded;
-		rendererchanged = 1;
+		rendererchanged = true;
 
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
@@ -1903,61 +1944,21 @@ INT32 VID_CheckRenderer(void)
 
 			// Initialize OpenGL before calling SDLSetMode, because it calls OglSdlSurface.
 			if (vid.glstate == VID_GL_LIBRARY_NOTLOADED)
-			{
 				Impl_InitOpenGL();
-
-#if !defined(__ANDROID__)
-				// Loaded successfully!
-				if (vid.glstate == VID_GL_LIBRARY_LOADED)
-				{
-					// Destroy the current window, if it exists.
-					if (window)
-					{
-						SDL_DestroyWindow(window);
-						window = NULL;
-					}
-
-					// Destroy the current window rendering context, if that also exists.
-					if (renderer)
-						Impl_RenderContextDestroy();
-
-					// Create a new window.
-					Impl_CreateWindow(USE_FULLSCREEN);
-
-					// From there, the OpenGL context was already created.
-					contextcreated = true;
-				}
-#endif
-			}
 			else if (vid.glstate == VID_GL_LIBRARY_ERROR)
 			{
-				renderswitcherror = render_opengl;
-				rendererchanged = 0;
+				renderswitcherror = rendermode;
+				rendererchanged = false;
 			}
 		}
-		else
-#endif
-
-#if !defined(__ANDROID__)
-		if (rendererchanged && !contextcreated)
-			Impl_RenderContextCreate();
 #endif
 
 		setrenderneeded = 0;
 	}
 
-	realwidth = vid.width;
-	realheight = vid.height;
+	SDL_bool center = setmodeneeded ? SDL_TRUE : SDL_FALSE;
 
-#if defined(__ANDROID__)
-	if (modechanged || rendererchanged)
-	{
-		if (Impl_RenderContextReset() == SDL_FALSE)
-			I_Error("Couldn't reset rendering context");
-	}
-#endif
-
-	if (SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (setmodeneeded ? SDL_TRUE : SDL_FALSE)) == SDL_FALSE)
+	if (SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, center) == SDL_FALSE)
 	{
 		if (!graphics_started)
 			I_Error("Couldn't initialize video");
@@ -1968,34 +1969,14 @@ INT32 VID_CheckRenderer(void)
 		}
 	}
 
+	// FIXME: refactor so that a software buffer isn't needed at all times
+	Impl_SetupSoftwareBuffer();
+
+	if (rendererchanged)
+		vid.recalc = true;
+
 	if (rendermode == render_soft)
 	{
-		// Set up game's software render buffer
-		size_t size;
-
-		vid.rowbytes = vid.width * vid.bpp;
-		vid.direct = NULL;
-
-		free(vid.buffer);
-
-		size = vid.rowbytes*vid.height * NUMSCREENS;
-		vid.buffer = malloc(size);
-
-		if (vid.buffer)
-		{
-			// Clear the buffer
-			// HACK: Wasn't sure where else to put this.
-			memset(vid.buffer, 31, size);
-		}
-		else
-			I_Error("%s", M_GetText("Not enough memory for video buffer\n"));
-
-		if (bufSurface)
-		{
-			SDL_FreeSurface(bufSurface);
-			bufSurface = NULL;
-		}
-
 		SCR_SetDrawFuncs();
 	}
 #ifdef HWRENDER
@@ -2006,14 +1987,7 @@ INT32 VID_CheckRenderer(void)
 	}
 #endif
 
-#ifdef DITHER
-	if (rendererchanged)
-		Impl_SetDither();
-#endif
-
-	renderinit = SDL_TRUE;
-
-	return rendererchanged;
+	return rendererchanged ? 1 : 0;
 }
 
 static void Impl_GetCurrentDisplayMode(INT32 *width, INT32 *height)
@@ -2060,32 +2034,11 @@ void VID_GetNativeResolution(INT32 *width, INT32 *height)
 	if (height) *height = h;
 }
 
-static UINT32 refresh_rate;
-static UINT32 VID_GetRefreshRate(void)
-{
-	int index = SDL_GetWindowDisplayIndex(window);
-	SDL_DisplayMode m;
-
-	if (SDL_WasInit(SDL_INIT_VIDEO) == 0)
-	{
-		// Video not init yet.
-		return 0;
-	}
-
-	if (SDL_GetCurrentDisplayMode(index, &m) != 0)
-	{
-		// Error has occurred.
-		return 0;
-	}
-
-	return m.refresh_rate;
-}
-
 INT32 VID_SetMode(INT32 modeNum)
 {
 	SDLdoUngrabMouse();
 
-	vid.recalc = 1;
+	vid.recalc = true;
 	vid.bpp = 1;
 
 #ifdef NATIVESCREENRES
@@ -2123,12 +2076,8 @@ INT32 VID_SetMode(INT32 modeNum)
 		vid.modenum = modeNum;
 	}
 
-	src_rect.w = vid.width;
-	src_rect.h = vid.height;
-
-	refresh_rate = VID_GetRefreshRate();
-
 	VID_CheckRenderer();
+
 	return SDL_TRUE;
 }
 
@@ -2155,10 +2104,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 		flags |= SDL_WINDOW_BORDERLESS;
 
 #ifdef HWRENDER
-#if !defined(__ANDROID__)
-	if (vid.glstate == VID_GL_LIBRARY_LOADED)
-#endif
-		flags |= SDL_WINDOW_OPENGL;
+	flags |= SDL_WINDOW_OPENGL;
 
 	// Without a 24-bit depth buffer many visuals are ruined by z-fighting.
 	// Some GPU drivers may give us a 16-bit depth buffer since the
@@ -2183,9 +2129,6 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 #ifdef USE_WINDOW_ICON
 	Impl_SetWindowIcon();
 #endif
-
-	if (Impl_RenderContextCreate() == SDL_FALSE)
-		return SDL_FALSE;
 
 	return SDL_TRUE;
 }
@@ -2295,10 +2238,12 @@ void Impl_InitVideoSubSystem(void)
 
 #if defined(__ANDROID__)
 	// render_none means the current renderer is undetermined, so we only use SDL's renderer and texture
+	vid.width = BASEVIDWIDTH;
+	vid.height = BASEVIDHEIGHT;
 	rendermode = render_none;
 
 	// Create the window now, so that the screen doesn't change orientation later
-	if (SDLSetMode(BASEVIDWIDTH, BASEVIDHEIGHT, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
+	if (SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
 		I_Error("Couldn't initialize video");
 #endif
 
@@ -2352,10 +2297,9 @@ void I_StartupGraphics(void)
 
 	keyboard_started = true;
 
-#if !defined(HAVE_TTF)
-	// Previously audio was init here for questionable reasons?
-	Impl_InitVideoSubSystem();
-#endif
+	// If it wasn't already initialized
+	if (!video_init)
+		Impl_InitVideoSubSystem();
 
 	const char *vd = SDL_GetCurrentVideoDriver();
 	if (vd)
@@ -2368,20 +2312,6 @@ void I_StartupGraphics(void)
 			strncasecmp(vd, "psl1ght", 8) == 0
 		)
 			framebuffer = SDL_TRUE;
-	}
-
-	// free last video surface
-	if (vidSurface)
-	{
-		SDL_FreeSurface(vidSurface);
-		vidSurface = NULL;
-	}
-
-	// free last buffer surface
-	if (bufSurface)
-	{
-		SDL_FreeSurface(bufSurface);
-		bufSurface = NULL;
 	}
 
 	rendermode = render_soft;
@@ -2463,9 +2393,6 @@ void I_StartupGraphics(void)
 
 	if (M_CheckParm("-nomousegrab"))
 		mousegrabok = SDL_FALSE;
-
-	realwidth = vid.width;
-	realheight = vid.height;
 
 	VID_Command_Info_f();
 	SDLdoUngrabMouse();
@@ -2569,7 +2496,6 @@ static UINT32 *SplashScreen_LoadImage(const UINT8 *source, size_t source_size, U
 	png_memcpy(png_jmpbuf(png_ptr), jmpbuf, sizeof jmp_buf);
 #endif
 
-	// set our own read function
 	png_io.buffer = source;
 	png_io.size = source_size;
 	png_io.position = 0;
@@ -2620,6 +2546,7 @@ static UINT32 *SplashScreen_LoadImage(const UINT8 *source, size_t source_size, U
 			*dest_img_p = R_PutRgbaRGBA((UINT8)px[0], (UINT8)px[1], (UINT8)px[2], (UINT8)px[3]);
 			dest_img_p++;
 		}
+		free(row_pointers[y]);
 	}
 
 	free(row_pointers);
@@ -2680,10 +2607,7 @@ static void Impl_LoadSplashScreen(void)
 	vid.height = sheight;
 	rendermode = render_none;
 
-	src_rect.w = vid.width;
-	src_rect.h = vid.height;
-
-	if (SDLSetMode(swidth, sheight, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
+	if (SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, SDL_TRUE) == SDL_FALSE)
 		return;
 
 	// create a surface from the image

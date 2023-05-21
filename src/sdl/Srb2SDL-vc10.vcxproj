@@ -466,6 +466,7 @@
     <ClCompile Include="..\m_menu.c" />
     <ClCompile Include="..\m_misc.c" />
     <ClCompile Include="..\m_perfstats.c" />
+    <ClCompile Include="..\m_textreader.c" />
     <ClCompile Include="..\m_queue.c" />
     <ClCompile Include="..\m_random.c" />
     <ClCompile Include="..\p_ceilng.c" />
@@ -533,6 +534,7 @@
     <ClCompile Include="..\v_video.c" />
     <ClCompile Include="..\win32\win_dbg.c" />
     <ClCompile Include="..\w_wad.c" />
+    <ClCompile Include="..\w_handle.c" />
     <ClCompile Include="..\y_inter.c" />
     <ClCompile Include="..\z_zone.c" />
     <ClCompile Include="dosstr.c" />

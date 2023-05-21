@@ -17,7 +17,37 @@
 #include "i_system.h"
 #include "console.h"
 
-#ifdef HAVE_WHANDLE
+size_t File_StandardSizeImpl(FILE *f)
+{
+	size_t cur, length;
+
+	cur = ftell(f);
+	fseek(f, 0, SEEK_END);
+	length = ftell(f);
+	fseek(f, cur, SEEK_SET);
+
+	return length;
+}
+
+#ifndef HAVE_WHANDLE
+
+void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
+{
+	(void)type;
+	return fopen(filename, filemode);
+}
+
+int File_Close(void *stream)
+{
+	return fclose(stream);
+}
+
+int File_CheckError(void *stream)
+{
+	return ferror(stream);
+}
+
+#else
 
 //
 // Standard library file operations
@@ -27,6 +57,7 @@
 size_t      File_StandardRead      (void *f, void *ptr, size_t size, size_t count);
 int         File_StandardSeek      (void *stream, long int offset, int origin);
 long int    File_StandardTell      (void *stream);
+size_t      File_StandardSize      (void *stream);
 int         File_StandardGetChar   (void *f);
 char       *File_StandardGetString (void *f, char *str, int num);
 
@@ -44,6 +75,8 @@ int         File_StandardEOF       (void *f);
 size_t      File_SDLRead      (void *f, void *ptr, size_t size, size_t count);
 int         File_SDLSeek      (void *stream, long int offset, int origin);
 long int    File_SDLTell      (void *stream);
+size_t      File_SDLSize      (void *f);
+
 int         File_SDLGetChar   (void *f);
 char       *File_SDLGetString (void *f, char *str, int num);
 
@@ -65,6 +98,7 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 		handle->read = &File_StandardRead;
 		handle->seek = &File_StandardSeek;
 		handle->tell = &File_StandardTell;
+		handle->size = &File_StandardSize;
 		handle->getchar = &File_StandardGetChar;
 		handle->getstring = &File_StandardGetString;
 		handle->close = &File_StandardClose;
@@ -78,6 +112,7 @@ void *File_Open(const char *filename, const char *filemode, fhandletype_t type)
 		handle->read = &File_SDLRead;
 		handle->seek = &File_SDLSeek;
 		handle->tell = &File_SDLTell;
+		handle->size = &File_SDLSize;
 		handle->getchar = &File_SDLGetChar;
 		handle->getstring = &File_SDLGetString;
 		handle->close = &File_SDLClose;
@@ -153,6 +188,13 @@ long int File_StandardTell(void *f)
 {
 	filehandle_t *handle = (filehandle_t *)f;
 	return ftell((FILE *)handle->file);
+}
+
+// Get the total size of the stream.
+size_t File_StandardSize(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	return (size_t)File_StandardSizeImpl((FILE *)handle->file);
 }
 
 // Read a single character from the file stream.
@@ -233,6 +275,15 @@ long int File_SDLTell(void *f)
 	long int position = (long int)SDL_RWtell((struct SDL_RWops *)handle->file);
 	File_SDLSetError(handle);
 	return position;
+}
+
+// Get the total size of the stream.
+size_t File_SDLSize(void *f)
+{
+	filehandle_t *handle = (filehandle_t *)f;
+	size_t sz = (size_t)SDL_RWsize((struct SDL_RWops *)handle->file);
+	File_SDLSetError(handle);
+	return sz;
 }
 
 // Read a single character from the file stream.

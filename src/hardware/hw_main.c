@@ -6515,6 +6515,7 @@ static CV_PossibleValue_t glrenderbufferdepth_cons_t[] = {{0, "Default"}, {1, "1
 static void CV_glframebuffer_OnChange(void);
 static void CV_glrenderbufferdepth_OnChange(void);
 #endif
+static void CV_modelpack_OnChange(void);
 static void CV_glfiltermode_OnChange(void);
 static void CV_glanisotropic_OnChange(void);
 
@@ -6525,6 +6526,8 @@ static CV_PossibleValue_t glfiltermode_cons_t[] = {{HWD_SET_TEXTUREFILTER_POINTS
 	{HWD_SET_TEXTUREFILTER_MIXED3, "Nearest_Mipmap"},
 	{0, NULL}};
 CV_PossibleValue_t glanisotropicmode_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
+
+consvar_t cv_modelpack = CVAR_INIT ("modelpack", "modelpacks/default.zip", CV_SAVE | CV_CALL | CV_NOINIT, NULL, CV_modelpack_OnChange);
 
 consvar_t cv_glshaders = CVAR_INIT ("gr_shaders", "On", CV_SAVE, glshaders_cons_t, NULL);
 consvar_t cv_glallowshaders = CVAR_INIT ("gr_allowclientshaders", "On", CV_NETVAR, CV_OnOff, NULL);
@@ -6571,6 +6574,16 @@ static void CV_glrenderbufferdepth_OnChange(void)
 }
 #endif
 
+static void CV_modelpack_OnChange(void)
+{
+	if (gl_init && HWR_ModelPackExists(cv_modelpack.string))
+	{
+		HWR_FreeModelData();
+		HWR_InitModels();
+		HWR_ReadModels();
+	}
+}
+
 static void CV_glfiltermode_OnChange(void)
 {
 	if (rendermode == render_opengl)
@@ -6594,6 +6607,8 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_glcoronasize);
 	CV_RegisterVar(&cv_glcoronas);
 #endif
+
+	CV_RegisterVar(&cv_modelpack);
 
 	CV_RegisterVar(&cv_glmodellighting);
 	CV_RegisterVar(&cv_glmodelinterpolation);
@@ -6640,6 +6655,7 @@ void HWR_Startup(void)
 	HWR_AddSessionCommands();
 	HWR_InitMapTextures();
 	HWR_InitModels();
+	HWR_ReadModels();
 
 #ifdef ALAM_LIGHTING
 	HWR_InitLight();
@@ -6651,6 +6667,14 @@ void HWR_Startup(void)
 
 	textureformat = patchformat = GL_TEXFMT_RGBA;
 	gl_init = true;
+
+	// Set special states from CVARs
+#ifdef HAVE_GL_FRAMEBUFFER
+	CV_glframebuffer_OnChange();
+	CV_glrenderbufferdepth_OnChange();
+#endif
+	CV_glfiltermode_OnChange();
+	CV_glanisotropic_OnChange();
 }
 
 // --------------------------------------------------------------------------
@@ -6691,6 +6715,7 @@ void HWR_Shutdown(void)
 	HWR_FreeExtraSubsectors();
 	HWR_FreePolyPool();
 	HWR_FreeMapTextures();
+	HWR_FreeModelData();
 	GPU->FlushScreenTextures();
 }
 

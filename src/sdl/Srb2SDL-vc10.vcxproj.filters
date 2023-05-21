@@ -831,6 +831,9 @@
     <ClCompile Include="..\m_perfstats.c">
       <Filter>M_Misc</Filter>
     </ClCompile>
+    <ClCompile Include="..\m_textreader.c">
+      <Filter>M_Misc</Filter>
+    </ClCompile>
     <ClCompile Include="..\m_queue.c">
       <Filter>M_Misc</Filter>
     </ClCompile>
@@ -970,6 +973,9 @@
       <Filter>W_Wad</Filter>
     </ClCompile>
     <ClCompile Include="..\w_wad.c">
+      <Filter>W_Wad</Filter>
+    </ClCompile>
+    <ClCompile Include="..\w_handle.c">
       <Filter>W_Wad</Filter>
     </ClCompile>
     <ClCompile Include="dosstr.c">

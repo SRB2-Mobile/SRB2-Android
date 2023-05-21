@@ -873,6 +873,16 @@ static void CreateModelVBOs(model_t *model)
 	GLModel_GenerateVBOs(model);
 }
 
+static void DeleteModelVBOs(model_t *model)
+{
+	GLModel_DeleteVBOs(model);
+}
+
+static void DeleteModelData(void)
+{
+	GLBackend_DeleteModelData();
+}
+
 #define BUFFER_OFFSET(i) ((void*)(i))
 
 // -----------------+

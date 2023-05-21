@@ -165,6 +165,12 @@ UINT16 W_InitFile(const char *filename, fhandletype_t handletype, boolean mainfi
 // Adds a folder as a file
 UINT16 W_InitFolder(const char *path, boolean mainfile, boolean startup);
 
+// Loads a wadfile, but doesn't add it to the active wad files.
+wadfile_t *W_LoadResourceFile(const char *filename, fhandletype_t handletype);
+
+// Deletes a wadfile.
+void W_DeleteResourceFile(wadfile_t *wad);
+
 // W_InitMultipleFiles exits if a file was not found, but not if all is okay.
 void W_InitMultipleFiles(addfilelist_t *list, fhandletype_t handletype);
 
@@ -211,6 +217,13 @@ void Command_Unpacktest_f(void);
 #endif
 
 #endif
+
+UINT16 Resource_CheckNumForName(wadfile_t *wad, const char *name);
+void *Resource_CacheLumpNum(wadfile_t *wad, UINT16 lump, INT32 tag);
+void *Resource_CacheLumpName(wadfile_t *wad, const char *name, INT32 tag);
+boolean Resource_LumpExists(wadfile_t *wad, const char *name);
+size_t Resource_LumpLength(wadfile_t *wad, UINT16 lump);
+size_t Resource_ReadLumpHeader(wadfile_t *wad, UINT16 lump, void *dest, size_t size, size_t offset);
 
 const char *W_CheckNameForNumPwad(UINT16 wad, UINT16 lump);
 const char *W_CheckNameForNum(lumpnum_t lumpnum);

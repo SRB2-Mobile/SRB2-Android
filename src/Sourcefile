@@ -35,6 +35,7 @@ m_fixed.c
 m_menu.c
 m_misc.c
 m_perfstats.c
+m_textreader.c
 m_random.c
 m_queue.c
 info.c
@@ -78,6 +79,7 @@ v_video.c
 s_sound.c
 sounds.c
 w_wad.c
+w_handle.c
 filesrch.c
 mserv.c
 http-mserv.c

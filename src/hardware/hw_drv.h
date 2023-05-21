@@ -49,6 +49,8 @@ typedef void API(ClearMipMapCache) (void);
 typedef void API(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
 typedef void API(DrawModel) (model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
 typedef void API(CreateModelVBOs) (model_t *model);
+typedef void API(DeleteModelVBOs) (model_t *model);
+typedef void API(DeleteModelData) (void);
 typedef void API(SetTransform) (FTransform *ptransform);
 typedef INT32 API(GetTextureUsed) (void);
 
@@ -104,6 +106,8 @@ typedef void API(LoadCustomShader) (int number, char *code, size_t size, boolean
 	X(GetTextureUsed)\
 	X(DrawModel)\
 	X(CreateModelVBOs)\
+	X(DeleteModelVBOs)\
+	X(DeleteModelData)\
 	X(SetTransform)\
 	X(PostImgRedraw)\
 	X(FlushScreenTextures)\

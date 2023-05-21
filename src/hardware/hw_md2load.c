@@ -14,6 +14,7 @@
 #include "hw_md2load.h"
 #include "hw_model.h"
 #include "../z_zone.h"
+#include "../w_handle.h"
 
 #define NUMVERTEXNORMALS 162
 
@@ -231,20 +232,12 @@ typedef struct
 } md2frame_t;
 
 // Load the model
-model_t *MD2_LoadModel(const char *fileName, int ztag, boolean useFloat)
+model_t *MD2_LoadModel(char *buffer, int ztag, boolean useFloat)
 {
-	FILE *f;
-
 	model_t *retModel = NULL;
 	md2header_t *header;
 
-	size_t fileLen;
 	int i, j;
-	size_t namelen;
-	char *texturefilename;
-	const char *texPos;
-
-	char *buffer;
 
 	const float WUNITS = 1.0f;
 	float dataScale = WUNITS;
@@ -271,48 +264,7 @@ model_t *MD2_LoadModel(const char *fileName, int ztag, boolean useFloat)
 
 	useFloat = true;
 
-	f = fopen(fileName, "rb");
-
-	if (!f)
-		return NULL;
-
 	retModel = (model_t*)Z_Calloc(sizeof(model_t), ztag, 0);
-
-	//size_t fileLen;
-
-	//int i, j;
-
-	//size_t namelen;
-	//char *texturefilename;
-	texPos = strchr(fileName, '/');
-
-	if (texPos)
-	{
-		texPos++;
-		namelen = strlen(texPos) + 1;
-		texturefilename = (char*)Z_Malloc(namelen, PU_CACHE, 0);
-		strcpy(texturefilename, texPos);
-	}
-	else
-	{
-		namelen = strlen(fileName) + 1;
-		texturefilename = (char*)Z_Malloc(namelen, PU_CACHE, 0);
-		strcpy(texturefilename, fileName);
-	}
-
-	texturefilename[namelen - 2] = 'z';
-	texturefilename[namelen - 3] = 'u';
-	texturefilename[namelen - 4] = 'b';
-
-	// find length of file
-	fseek(f, 0, SEEK_END);
-	fileLen = ftell(f);
-	fseek(f, 0, SEEK_SET);
-
-	// read in file
-	buffer = malloc(fileLen);
-	if (fread(buffer, fileLen, 1, f)) { } // squash ignored fread error
-	fclose(f);
 
 	// get pointer to file header
 	header = (md2header_t*)buffer;
@@ -367,47 +319,6 @@ model_t *MD2_LoadModel(const char *fileName, int ztag, boolean useFloat)
 		retModel->materials[t].specular[3] = 1.0f;
 		retModel->materials[t].shininess = 0.0f;
 		retModel->materials[t].spheremap = false;
-
-		/*		retModel->materials[t].texture = Texture::ReadTexture((char*)texturefilename, ZT_TEXTURE);
-
-				if (!systemSucks)
-				{
-					// Check for a normal map...??
-					char openfilename[1024];
-					char normalMapName[1024];
-					strcpy(normalMapName, texturefilename);
-					size_t len = strlen(normalMapName);
-					char *ptr = &normalMapName[len];
-					ptr--; // z
-					ptr--; // u
-					ptr--; // b
-					ptr--; // .
-					*ptr++ = '_';
-					*ptr++ = 'n';
-					*ptr++ = '.';
-					*ptr++ = 'b';
-					*ptr++ = 'u';
-					*ptr++ = 'z';
-					*ptr++ = '\0';
-
-					sprintf(openfilename, "%s/%s", "textures", normalMapName);
-					// Convert backslashes to forward slashes
-					for (int k = 0; k < 1024; k++)
-					{
-						if (openfilename[k] == '\0')
-							break;
-
-						if (openfilename[k] == '\\')
-							openfilename[k] = '/';
-					}
-
-					Resource::resource_t *res = Resource::Open(openfilename);
-					if (res)
-					{
-						Resource::Close(res);
-						retModel->materials[t].lightmap = Texture::ReadTexture(normalMapName, ZT_TEXTURE);
-					}
-				}*/
 	}
 
 	retModel->meshes[0].numTriangles = header->numTris;
@@ -571,6 +482,5 @@ model_t *MD2_LoadModel(const char *fileName, int ztag, boolean useFloat)
 		}
 	}
 
-	free(buffer);
 	return retModel;
 }

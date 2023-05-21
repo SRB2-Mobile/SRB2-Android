@@ -807,14 +807,13 @@ next_token:
 		skin_cons_t[numskins].strvalue = skin->name;
 #endif
 
-#ifdef HWRENDER
-		if (rendermode == render_opengl)
-			HWR_AddPlayerModel(numskins);
-#endif
-
 		numskins++;
 	}
-	return;
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+		HWR_ReadModels();
+#endif
 }
 
 //

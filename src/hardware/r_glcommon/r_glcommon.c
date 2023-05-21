@@ -683,6 +683,22 @@ boolean GLBackend_InitContext(void)
 	return true;
 }
 
+void GLBackend_DeleteModelData(void)
+{
+	while (ModelListHead)
+	{
+		GLModelList *pModel = ModelListHead;
+
+		if (pModel->model && pModel->model->meshes)
+			GLModel_DeleteVBOs(pModel->model);
+
+		ModelListHead = pModel->next;
+		free(pModel);
+	}
+
+	ModelListTail = ModelListHead = NULL;
+}
+
 void GLBackend_RecreateContext(void)
 {
 	while (TexCacheHead)
@@ -958,6 +974,9 @@ void GLModel_ClearVBOs(model_t *model)
 {
 	int i, j;
 
+	if (!model->hasVBOs)
+		return;
+
 	for (i = 0; i < model->numMeshes; i++)
 	{
 		mesh_t *mesh = &model->meshes[i];
@@ -975,6 +994,42 @@ void GLModel_ClearVBOs(model_t *model)
 			for (j = 0; j < model->meshes[i].numFrames; j++)
 			{
 				tinyframe_t *frame = &mesh->tinyframes[j];
+				frame->vboID = 0;
+			}
+		}
+	}
+
+	model->hasVBOs = false;
+}
+
+void GLModel_DeleteVBOs(model_t *model)
+{
+	int i, j;
+
+	if (!model->hasVBOs)
+		return;
+
+	for (i = 0; i < model->numMeshes; i++)
+	{
+		mesh_t *mesh = &model->meshes[i];
+
+		if (mesh->frames)
+		{
+			for (j = 0; j < model->meshes[i].numFrames; j++)
+			{
+				mdlframe_t *frame = &mesh->frames[j];
+				if (frame->vboID)
+					pglDeleteBuffers(1, &frame->vboID);
+				frame->vboID = 0;
+			}
+		}
+		else if (mesh->tinyframes)
+		{
+			for (j = 0; j < model->meshes[i].numFrames; j++)
+			{
+				tinyframe_t *frame = &mesh->tinyframes[j];
+				if (frame->vboID)
+					pglDeleteBuffers(1, &frame->vboID);
 				frame->vboID = 0;
 			}
 		}

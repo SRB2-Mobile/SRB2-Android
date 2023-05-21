@@ -478,10 +478,6 @@ void R_AddSpriteDefs(UINT16 wadnum)
 
 		if (R_AddSingleSpriteDef(sprnames[i], &sprites[i], wadnum, start, end))
 		{
-#ifdef HWRENDER
-			if (rendermode == render_opengl)
-				HWR_AddSpriteModel(i);
-#endif
 			// if a new sprite was added (not just replaced)
 			addsprites++;
 #ifndef ZDEBUG
@@ -489,6 +485,11 @@ void R_AddSpriteDefs(UINT16 wadnum)
 #endif
 		}
 	}
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+		HWR_ReadModels();
+#endif
 
 	nameonly(strcpy(wadname, wadfiles[wadnum]->filename));
 	CONS_Printf(M_GetText("%s added %d frames in %s sprites\n"), wadname, end-start, sizeu1(addsprites));

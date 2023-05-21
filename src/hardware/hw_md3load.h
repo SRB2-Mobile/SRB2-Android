@@ -14,6 +14,6 @@
 #include "../doomtype.h"
 
 // Load the Model
-model_t *MD3_LoadModel(const char *fileName, int ztag, boolean useFloat);
+model_t *MD3_LoadModel(char *buffer, int ztag, boolean useFloat);
 
 #endif

@@ -40,8 +40,11 @@ extern md2_t md2_models[NUMSPRITES];
 extern md2_t md2_playermodels[MAXSKINS];
 
 void HWR_InitModels(void);
-void HWR_AddPlayerModel(INT32 skin);
-void HWR_AddSpriteModel(size_t spritenum);
+void HWR_ReadModels(void);
+void HWR_FreeModelData(void);
+
+boolean HWR_ModelPackExists(const char *filename);
+
 boolean HWR_DrawModel(gl_vissprite_t *spr);
 
 #define PLAYERMODELPREFIX "PLAYER"

@@ -405,6 +405,7 @@ void GLFramebuffer_SetDepth(INT32 depth);
 
 void GLModel_GenerateVBOs(model_t *model);
 void GLModel_ClearVBOs(model_t *model);
+void GLModel_DeleteVBOs(model_t *model);
 
 void GLModel_AllocLerpBuffer(size_t size);
 void GLModel_AllocLerpTinyBuffer(size_t size);
@@ -419,6 +420,7 @@ INT32 GLTexture_GetMemoryUsage(FTextureInfo *head);
 boolean GLBackend_Init(void);
 boolean GLBackend_InitContext(void);
 void    GLBackend_RecreateContext(void);
+void    GLBackend_DeleteModelData(void);
 void    GLBackend_SetPalette(RGBA_t *palette);
 
 boolean GLBackend_LoadFunctions(void);

@@ -44,7 +44,8 @@ android {
                             'zones.pk3',
                             'player.dta',
                             'patch.pk3', 'patch_music.pk3',
-                            'music.dta']
+                            'music.dta',
+                            'modelpacks/default.zip']
                     ))
                 }
             }
