@@ -292,12 +292,72 @@ static const char *GetGLError(GLenum error)
 	}
 }
 
+struct GLError
+{
+	char *func;
+	char *file;
+	int line;
+	GLenum error;
+};
+
+static struct GLError *gl_past_errors_list = NULL;
+static size_t gl_past_errors_list_size = 0;
+
+static boolean FindPastError(const char *func, const char *file, int line, GLenum error)
+{
+	size_t i = 0;
+
+	if (gl_past_errors_list)
+	{
+		for (; i < gl_past_errors_list_size; i++)
+		{
+			if (!gl_past_errors_list[i].func || !gl_past_errors_list[i].file)
+				break;
+			if (strcmp(gl_past_errors_list[i].func, func))
+				break;
+			if (strcmp(gl_past_errors_list[i].file, file))
+				break;
+			if (gl_past_errors_list[i].line != line)
+				break;
+			if (gl_past_errors_list[i].error != error)
+				break;
+			return true;
+		}
+	}
+
+	gl_past_errors_list_size++;
+	gl_past_errors_list = realloc(gl_past_errors_list, sizeof(struct GLError) * gl_past_errors_list_size);
+
+	if (!gl_past_errors_list)
+	{
+		i = 0;
+		gl_past_errors_list_size = 1;
+		gl_past_errors_list = malloc(sizeof(struct GLError));
+		if (!gl_past_errors_list)
+			return false;
+	}
+
+	struct GLError *err = &gl_past_errors_list[i];
+	err->func = malloc(strlen(func) + 1);
+	err->file = malloc(strlen(file) + 1);
+	err->line = line;
+	err->error = error;
+
+	if (err->func)
+		memcpy(err->func, func, strlen(func) + 1);
+	if (err->file)
+		memcpy(err->file, file, strlen(file) + 1);
+
+	return false;
+}
+
 void GLBackend_CheckError(const char *func, const char *file, int line)
 {
 	GLenum error = pglGetError();
 	while (error != GL_NO_ERROR)
 	{
-		GL_DBG_Printf("%s (%s, line %d): %s\n", func, file, line, GetGLError(error));
+		if (!FindPastError(func, file, line, error))
+			GL_DBG_Printf("%s (%s, line %d): %s\n", func, file, line, GetGLError(error));
 		error = pglGetError();
 	}
 }
