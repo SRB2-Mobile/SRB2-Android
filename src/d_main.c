@@ -1911,9 +1911,7 @@ void D_MakeSaveGamePaths(const char *home)
 #if defined(__ANDROID__)
 static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, const char **homelist, char *defpath)
 {
-	INT32 i;
-
-	for (i = 0; homelist[i]; i++)
+	for (INT32 i = 0; homelist[i]; i++)
 	{
 		snprintf(dest, destsize, "%s" PATHSEP "%s", homelist[i], path);
 		if (FIL_ReadFileOK(dest))
@@ -1925,7 +1923,7 @@ static void FindUsableStorageLocation(char *dest, size_t destsize, char *path, c
 
 static void D_AndroidSetupHome(const char *userhome)
 {
-	const char *homelist[2] = { NULL, NULL };
+	const char *homelist[3] = { NULL, NULL, NULL };
 	INT32 next = 0;
 
 	strlcpy(srb2home, userhome, sizeof(srb2home));
