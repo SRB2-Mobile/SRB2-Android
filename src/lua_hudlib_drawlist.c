@@ -103,7 +103,7 @@ huddrawlist_h LUA_HUD_CreateDrawList(void)
 {
 	huddrawlist_h drawlist;
 
-	drawlist = (huddrawlist_h) Z_CallocAlign(sizeof(struct huddrawlist_s), PU_STATIC, NULL, 64);
+	drawlist = (huddrawlist_h) ZZ_Alloc(sizeof(struct huddrawlist_s));
 	drawlist->items = NULL;
 	drawlist->items_capacity = 0;
 	drawlist->items_len = 0;

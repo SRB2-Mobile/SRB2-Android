@@ -369,12 +369,9 @@ static void AddInterpolator(levelinterpolator_t* interpolator)
 			levelinterpolators_size *= 2;
 		}
 
-		levelinterpolators = Z_ReallocAlign(
+		levelinterpolators = ZZ_Realloc(
 			(void*) levelinterpolators,
-			sizeof(levelinterpolator_t*) * levelinterpolators_size,
-			PU_LEVEL,
-			NULL,
-			sizeof(levelinterpolator_t*) * 8
+			sizeof(levelinterpolator_t*) * levelinterpolators_size
 		);
 	}
 
@@ -384,12 +381,7 @@ static void AddInterpolator(levelinterpolator_t* interpolator)
 
 static levelinterpolator_t *CreateInterpolator(levelinterpolator_type_e type, thinker_t *thinker)
 {
-	levelinterpolator_t *ret = (levelinterpolator_t*) Z_CallocAlign(
-		sizeof(levelinterpolator_t),
-		PU_LEVEL,
-		NULL,
-		sizeof(levelinterpolator_t) * 8
-	);
+	levelinterpolator_t *ret = (levelinterpolator_t*) ZZ_Callocb(sizeof(levelinterpolator_t));
 
 	ret->type = type;
 	ret->thinker = thinker;
@@ -445,9 +437,9 @@ void R_CreateInterpolator_Polyobj(thinker_t *thinker, polyobj_t *polyobj)
 	interp->polyobj.polyobj = polyobj;
 	interp->polyobj.vertices_size = polyobj->numVertices;
 
-	interp->polyobj.oldvertices = Z_CallocAlign(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL, 32);
-	interp->polyobj.bakvertices = Z_CallocAlign(sizeof(fixed_t) * 2 * polyobj->numVertices, PU_LEVEL, NULL, 32);
-	for (size_t i = 0; i < polyobj->numVertices; i++)
+	interp->polyobj.bakvertices = ZZ_Calloc(sizeof(fixed_t) * 2 * polyobj->numVertices);
+    interp->polyobj.oldvertices = ZZ_Calloc(sizeof(fixed_t) * 2 * polyobj->numVertices);
+    for (size_t i = 0; i < polyobj->numVertices; i++)
 	{
 		interp->polyobj.oldvertices[i * 2    ] = interp->polyobj.bakvertices[i * 2    ] = polyobj->vertices[i]->x;
 		interp->polyobj.oldvertices[i * 2 + 1] = interp->polyobj.bakvertices[i * 2 + 1] = polyobj->vertices[i]->y;
@@ -703,12 +695,9 @@ void R_AddMobjInterpolator(mobj_t *mobj)
 			interpolated_mobjs_capacity *= 2;
 		}
 
-		interpolated_mobjs = Z_ReallocAlign(
+		interpolated_mobjs = ZZ_Realloc(
 			interpolated_mobjs,
-			sizeof(mobj_t *) * interpolated_mobjs_capacity,
-			PU_LEVEL,
-			NULL,
-			64
+			sizeof(mobj_t *) * interpolated_mobjs_capacity
 		);
 	}
 

@@ -508,7 +508,6 @@ void COM_AddCommand(const char *name, com_func_t func, com_flags_t flags)
 			return;
 		}
 	}
-
 	cmd = ZZ_Alloc(sizeof *cmd);
 	cmd->name = name;
 	cmd->function = func;

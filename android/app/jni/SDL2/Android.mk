@@ -12,7 +12,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
 
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)
 
-LOCAL_SRC_FILES := libs/$(TARGET_ARCH_ABI)/libSDL2.so
+LOCAL_SRC_FILES := libs/armeabi-v7a/libSDL2.so
 
 LOCAL_MODULE := SDL2
 LOCAL_LDLIBS := -ldl -lGLESv1_CM -lGLESv2 -lOpenSLES -llog -landroid

@@ -597,6 +597,10 @@ extern boolean capslock;
 #define ZZ_Alloc(x) Z_Malloc(x, PU_STATIC, NULL)
 #define ZZ_Calloc(x) Z_Calloc(x, PU_STATIC, NULL)
 
+// bitten's temp code
+#define ZZ_Realloc(x,y) Z_Realloc(x, y, PU_LEVEL, NULL)
+#define ZZ_Callocb(x) Z_Malloc(x, PU_LEVEL, NULL)
+
 // i_system.c, replace getchar() once the keyboard has been appropriated
 INT32 I_GetKey(void);
 

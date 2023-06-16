@@ -17,6 +17,7 @@ endif
 MAKE_DIR := $(LOCAL_PATH)/$(SRC_MAIN)/Makefile.d
 
 ANDROID := 1
+DEBUG := 1
 
 include $(MAKE_DIR)/platform.mk
 include $(MAKE_DIR)/util.mk
