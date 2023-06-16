@@ -371,7 +371,8 @@ static void AddInterpolator(levelinterpolator_t* interpolator)
 
 		levelinterpolators = ZZ_Realloc(
 			(void*) levelinterpolators,
-			sizeof(levelinterpolator_t*) * levelinterpolators_size
+			sizeof(levelinterpolator_t*) * levelinterpolators_size,
+            PU_LEVEL
 		);
 	}
 
@@ -697,7 +698,8 @@ void R_AddMobjInterpolator(mobj_t *mobj)
 
 		interpolated_mobjs = ZZ_Realloc(
 			interpolated_mobjs,
-			sizeof(mobj_t *) * interpolated_mobjs_capacity
+			sizeof(mobj_t *) * interpolated_mobjs_capacity,
+            PU_LEVEL
 		);
 	}
 
