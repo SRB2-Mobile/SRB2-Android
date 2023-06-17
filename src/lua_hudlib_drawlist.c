@@ -160,7 +160,7 @@ static size_t AllocateDrawItem(huddrawlist_h list)
 	{
 		if (list->items_capacity == 0) list->items_capacity = 128;
 		else list->items_capacity *= 2;
-		list->items = (drawitem_t *) Z_ReallocAlign(list->items, sizeof(struct drawitem_s) * list->items_capacity, PU_STATIC, NULL, 64);
+		list->items = (drawitem_t *) ZZ_Realloc(list->items, sizeof(struct drawitem_s) * list->items_capacity, PU_STATIC);
 	}
 
 	return list->items_len++;
