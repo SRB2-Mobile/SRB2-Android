@@ -211,11 +211,12 @@ static GLTextureFormat_t PNG_Load(const UINT8 *source, size_t source_size, int *
 static GLTextureFormat_t LoadTexture(const char *filename, int *w, int *h, GLPatch_t *grpatch)
 {
 	GLTextureFormat_t fmt = 0;
-	char *pngfilename;
+	char pngfilename[4096];
 	UINT8 *buffer = NULL;
 	size_t fileLen = 0;
 
-	pngfilename = va("models"PATHSEP"%s", filename);
+	snprintf(pngfilename, sizeof pngfilename, "models/%s", filename);
+
 	FIL_ForceExtension(pngfilename, ".png");
 
 	if (modelpack)
@@ -233,7 +234,7 @@ static GLTextureFormat_t LoadTexture(const char *filename, int *w, int *h, GLPat
 		if (!fn)
 			return 0;
 
-		filehandle_t *f = File_Open(pngfilename, "rb", FILEHANDLE_SDL);
+		filehandle_t *f = File_Open(fn, "rb", FILEHANDLE_SDL);
 		if (!f) // still couldn't open it somehow
 			return 0;
 
@@ -376,7 +377,7 @@ static char *GetModelDefFile(const char *filename, size_t *size)
 		return NULL;
 
 	// read the models.dat file
-	filehandle_t *f = File_Open(fn, "rb", FILEHANDLE_SDL);
+	filehandle_t *f = File_Open(fn, "rt", FILEHANDLE_SDL);
 
 	if (!f)
 	{
@@ -510,7 +511,7 @@ modelfound:
 
 boolean HWR_ModelPackExists(const char *filename)
 {
-	char buf[MAX_WADPATH];
+	char buf[4096];
 
 	strlcpy(buf, filename, sizeof buf);
 
@@ -537,12 +538,23 @@ void HWR_ReadModels(void)
 	char *text = NULL;
 	size_t size = 0;
 
+	if (!cv_usemodelpack.value)
+	{
+		text = GetModelDefFile("models.dat", &size);
+		if (text)
+		{
+			ReadModelDefs(text, size);
+			Z_Free(text);
+		}
+		return;
+	}
+
 	if (strcmp(cv_modelpack.string, cv_modelpack.defaultvalue) == 0)
 		text = GetModelDefFile("models.dat", &size);
 
 	if (!text)
 	{
-		char buf[MAX_WADPATH];
+		char buf[4096];
 
 		strlcpy(buf, cv_modelpack.string, sizeof buf);
 

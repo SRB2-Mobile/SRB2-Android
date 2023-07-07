@@ -448,7 +448,7 @@ boolean FIL_CheckExtension(const char *in)
 //   (possibly) Android assets
 char *M_FindFile(const char *filename)
 {
-	static char filenamebuf[MAX_WADPATH];
+	static char filenamebuf[4096];
 
 	strlcpy(filenamebuf, filename, sizeof filenamebuf);
 

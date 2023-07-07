@@ -6527,6 +6527,7 @@ static CV_PossibleValue_t glfiltermode_cons_t[] = {{HWD_SET_TEXTUREFILTER_POINTS
 	{0, NULL}};
 CV_PossibleValue_t glanisotropicmode_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
 
+consvar_t cv_usemodelpack = CVAR_INIT ("usemodelpack", "On", CV_SAVE | CV_CALL | CV_NOINIT, CV_OnOff, CV_modelpack_OnChange);
 consvar_t cv_modelpack = CVAR_INIT ("modelpack", "modelpacks/default.zip", CV_SAVE | CV_CALL | CV_NOINIT, NULL, CV_modelpack_OnChange);
 
 consvar_t cv_glshaders = CVAR_INIT ("gr_shaders", "On", CV_SAVE, glshaders_cons_t, NULL);
@@ -6576,7 +6577,7 @@ static void CV_glrenderbufferdepth_OnChange(void)
 
 static void CV_modelpack_OnChange(void)
 {
-	if (gl_init && HWR_ModelPackExists(cv_modelpack.string))
+	if (gl_init && (!cv_usemodelpack.value || (cv_usemodelpack.value && HWR_ModelPackExists(cv_modelpack.string))))
 	{
 		HWR_FreeModelData();
 		HWR_InitModels();
@@ -6608,6 +6609,7 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_glcoronas);
 #endif
 
+	CV_RegisterVar(&cv_usemodelpack);
 	CV_RegisterVar(&cv_modelpack);
 
 	CV_RegisterVar(&cv_glmodellighting);
