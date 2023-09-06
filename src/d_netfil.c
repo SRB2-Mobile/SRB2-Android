@@ -528,7 +528,7 @@ INT32 CL_CheckFiles(void)
 #endif
 
 		// Check in already loaded files
-		for (j = mainwads; wadfiles[j]; j++)
+		for (j = mainwads; j < numwadfiles; j++)
 		{
 			nameonly(strcpy(wadfilename, wadfiles[j]->filename));
 			if (!stricmp(wadfilename, fileneeded[i].filename) &&

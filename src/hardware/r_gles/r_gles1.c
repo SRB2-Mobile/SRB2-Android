@@ -793,7 +793,7 @@ static void DeleteModelData(void)
 // -----------------+
 // HWRAPI DrawModel : Draw a model
 // -----------------+
-static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
+static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float hscale, float vscale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
 	static GLRGBAFloat poly = {0,0,0,0};
 	static GLRGBAFloat tint = {0,0,0,0};
@@ -816,10 +816,11 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 #endif
 
 	// Affect input model scaling
-	scale *= 0.5f;
-	scalex = scale;
-	scaley = scale;
-	scalez = scale;
+	hscale *= 0.5f;
+	vscale *= 0.5f;
+	scalex = hscale;
+	scaley = vscale;
+	scalez = hscale;
 
 	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
@@ -883,7 +884,6 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 	gl_Enable(GL_CULL_FACE);
 	gl_Enable(GL_NORMALIZE);
 
-#ifdef USE_FTRANSFORM_MIRROR
 	// flipped is if the object is vertically flipped
 	// hflipped is if the object is horizontally flipped
 	// pos->flip is if the screen is flipped vertically
@@ -896,17 +896,6 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 		else
 			gl_CullFace(GL_BACK);
 	}
-#else
-	// pos->flip is if the screen is flipped too
-	if (flipped ^ hflipped ^ pos->flip) // If one or three of these are active, but not two, invert the model's culling
-	{
-		gl_CullFace(GL_FRONT);
-	}
-	else
-	{
-		gl_CullFace(GL_BACK);
-	}
-#endif
 
 	gl_PushMatrix(); // should be the same as glLoadIdentity
 	//Hurdler: now it seems to work
@@ -916,22 +905,14 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 	if (hflipped)
 		scalez = -scalez;
 
-#ifdef USE_FTRANSFORM_ANGLEZ
-	gl_Rotatef(pos->anglez, 0.0f, 0.0f, -1.0f); // rotate by slope from Kart
-#endif
-	gl_Rotatef(pos->angley, 0.0f, -1.0f, 0.0f);
+	gl_Rotatef(pos->anglez, 0.0f, 0.0f, -1.0f);
 	gl_Rotatef(pos->anglex, 1.0f, 0.0f, 0.0f);
+	gl_Rotatef(pos->angley, 0.0f, -1.0f, 0.0f);
 
 	if (pos->roll)
 	{
-		float roll = (1.0f * pos->rollflip);
 		gl_Translatef(pos->centerx, pos->centery, 0);
-		if (pos->rotaxis == 2) // Z
-			gl_Rotatef(pos->rollangle, 0.0f, 0.0f, roll);
-		else if (pos->rotaxis == 1) // Y
-			gl_Rotatef(pos->rollangle, 0.0f, roll, 0.0f);
-		else // X
-			gl_Rotatef(pos->rollangle, roll, 0.0f, 0.0f);
+		gl_Rotatef(pos->rollangle, pos->rollx, 0.0f, pos->rollz);
 		gl_Translatef(-pos->centerx, -pos->centery, 0);
 	}
 
@@ -1095,13 +1076,9 @@ static void SetTransform(FTransform *stransform)
 	if (stransform)
 	{
 		used_fov = stransform->fovxangle;
-#ifdef USE_FTRANSFORM_MIRROR
-		// mirroring from Kart
 		if (stransform->mirror)
 			gl_Scalef(-stransform->scalex, stransform->scaley, -stransform->scalez);
-		else
-#endif
-		if (stransform->flip)
+		else if (stransform->flip)
 			gl_Scalef(stransform->scalex, -stransform->scaley, -stransform->scalez);
 		else
 			gl_Scalef(stransform->scalex, stransform->scaley, -stransform->scalez);

@@ -47,7 +47,7 @@ typedef void API(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 d
 typedef void API(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
 typedef void API(ClearMipMapCache) (void);
 typedef void API(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
-typedef void API(DrawModel) (model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
+typedef void API(DrawModel) (model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float hscale, float vscale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface);
 typedef void API(CreateModelVBOs) (model_t *model);
 typedef void API(DeleteModelVBOs) (model_t *model);
 typedef void API(DeleteModelData) (void);
@@ -142,4 +142,3 @@ extern struct hwdriver_s GPU_API_OpenGLES;
 #define GPU hwdriver
 
 #endif //__HWR_DRV_H__
-

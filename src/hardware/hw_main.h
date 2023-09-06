@@ -130,6 +130,7 @@ extern boolean gl_powersoftwo;
 // BP: big hack for a test in lighting ref : 1249753487AB
 extern fixed_t *hwbbox;
 extern FTransform atransform;
+extern float gl_viewsin, gl_viewcos;
 
 // Render stats
 extern ps_metric_t ps_hw_skyboxtime;

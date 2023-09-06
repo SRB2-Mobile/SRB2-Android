@@ -49,11 +49,6 @@
 // SRB2Kart
 #include "r_fps.h" // R_GetFramerateCap
 
-
-#if defined (USEASM) && !defined (NORUSEASM)//&& (!defined (_MSC_VER) || (_MSC_VER <= 1200))
-#define RUSEASM //MSC.NET can't patch itself
-#endif
-
 // --------------------------------------------
 // assembly or c drawer routines for 8bpp/16bpp
 // --------------------------------------------
@@ -77,6 +72,8 @@ static CV_PossibleValue_t scr_depth_cons_t[] = {{8, "8 bits"}, {16, "16 bits"}, 
 //added : 03-02-98: default screen mode, as loaded/saved in config
 consvar_t cv_scr_width = CVAR_INIT ("scr_width", "1280", CV_SAVE, CV_Unsigned, NULL);
 consvar_t cv_scr_height = CVAR_INIT ("scr_height", "800", CV_SAVE, CV_Unsigned, NULL);
+consvar_t cv_scr_width_w = CVAR_INIT ("scr_width_w", "640", CV_SAVE, CV_Unsigned, NULL);
+consvar_t cv_scr_height_w = CVAR_INIT ("scr_height_w", "400", CV_SAVE, CV_Unsigned, NULL);
 consvar_t cv_scr_depth = CVAR_INIT ("scr_depth", "16 bits", CV_SAVE, scr_depth_cons_t, NULL);
 
 consvar_t cv_renderview = CVAR_INIT ("renderview", "On", 0, CV_OnOff, NULL);
@@ -89,9 +86,9 @@ static void SCR_NativeResAutoChanged(void);
 static CV_PossibleValue_t nativeresdiv_cons_t[] = {{FRACUNIT, "MIN"}, {20 * FRACUNIT, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t nativerescompare_cons_t[] = {{0, "Width"}, {1, "Height"}, {0, NULL}};
 
-#define NATIVERESCVAR_FLAGS(name, default, possiblevalue, func, flags) CVAR_INIT (name, default, (CV_CALL | CV_SAVE | CV_NOINIT | flags), possiblevalue, func)
-#define NATIVERESCVAR_CALL(name, default, possiblevalue, func) NATIVERESCVAR_FLAGS(name, default, possiblevalue, func, 0)
-#define NATIVERESCVAR(name, default, possiblevalue) NATIVERESCVAR_CALL(name, default, possiblevalue, SCR_ToggleNativeRes)
+#define NATIVERESCVAR_FLAGS(name, def, possiblevalue, func, flags) CVAR_INIT (name, def, (CV_CALL | CV_SAVE | CV_NOINIT | flags), possiblevalue, func)
+#define NATIVERESCVAR_CALL(name, def, possiblevalue, func) NATIVERESCVAR_FLAGS(name, def, possiblevalue, func, 0)
+#define NATIVERESCVAR(name, def, possiblevalue) NATIVERESCVAR_CALL(name, def, possiblevalue, SCR_ToggleNativeRes)
 
 consvar_t cv_nativeres = NATIVERESCVAR("nativeres", "On", CV_OnOff);
 consvar_t cv_nativeresdiv = NATIVERESCVAR_FLAGS("nativeresdiv", "1", nativeresdiv_cons_t, SCR_NativeResDivChanged, CV_FLOAT);
@@ -135,7 +132,6 @@ float scr_resdiv = 1.0f;
 //  Short and Tall sky drawer, for the current color mode
 void (*walldrawerfunc)(void);
 
-boolean R_ASM = true;
 boolean R_486 = false;
 boolean R_586 = false;
 boolean R_MMX = false;
@@ -146,101 +142,56 @@ boolean R_SSE2 = false;
 
 void SCR_SetDrawFuncs(void)
 {
-	//
-	//  setup the right draw routines for either 8bpp or 16bpp
-	//
-	if (true)//vid.bpp == 1) //Always run in 8bpp. todo: remove all 16bpp code?
-	{
-		colfuncs[BASEDRAWFUNC] = R_DrawColumn_8;
-		spanfuncs[BASEDRAWFUNC] = R_DrawSpan_8;
+	colfuncs[BASEDRAWFUNC] = R_DrawColumn_8;
+	spanfuncs[BASEDRAWFUNC] = R_DrawSpan_8;
 
-		colfunc = colfuncs[BASEDRAWFUNC];
-		spanfunc = spanfuncs[BASEDRAWFUNC];
+	colfunc = colfuncs[BASEDRAWFUNC];
+	spanfunc = spanfuncs[BASEDRAWFUNC];
 
-		colfuncs[COLDRAWFUNC_FUZZY] = R_DrawTranslucentColumn_8;
-		colfuncs[COLDRAWFUNC_TRANS] = R_DrawTranslatedColumn_8;
-		colfuncs[COLDRAWFUNC_SHADE] = R_DrawShadeColumn_8;
-		colfuncs[COLDRAWFUNC_SHADOWED] = R_DrawColumnShadowed_8;
-		colfuncs[COLDRAWFUNC_TRANSTRANS] = R_DrawTranslatedTranslucentColumn_8;
-		colfuncs[COLDRAWFUNC_TWOSMULTIPATCH] = R_Draw2sMultiPatchColumn_8;
-		colfuncs[COLDRAWFUNC_TWOSMULTIPATCHTRANS] = R_Draw2sMultiPatchTranslucentColumn_8;
-		colfuncs[COLDRAWFUNC_FOG] = R_DrawFogColumn_8;
+	colfuncs[COLDRAWFUNC_FUZZY] = R_DrawTranslucentColumn_8;
+	colfuncs[COLDRAWFUNC_TRANS] = R_DrawTranslatedColumn_8;
+	colfuncs[COLDRAWFUNC_SHADE] = R_DrawShadeColumn_8;
+	colfuncs[COLDRAWFUNC_SHADOWED] = R_DrawColumnShadowed_8;
+	colfuncs[COLDRAWFUNC_TRANSTRANS] = R_DrawTranslatedTranslucentColumn_8;
+	colfuncs[COLDRAWFUNC_TWOSMULTIPATCH] = R_Draw2sMultiPatchColumn_8;
+	colfuncs[COLDRAWFUNC_TWOSMULTIPATCHTRANS] = R_Draw2sMultiPatchTranslucentColumn_8;
+	colfuncs[COLDRAWFUNC_FOG] = R_DrawFogColumn_8;
 
-		spanfuncs[SPANDRAWFUNC_TRANS] = R_DrawTranslucentSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTED] = R_DrawTiltedSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDTRANS] = R_DrawTiltedTranslucentSpan_8;
-		spanfuncs[SPANDRAWFUNC_SPLAT] = R_DrawSplat_8;
-		spanfuncs[SPANDRAWFUNC_TRANSSPLAT] = R_DrawTranslucentSplat_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDSPLAT] = R_DrawTiltedSplat_8;
-		spanfuncs[SPANDRAWFUNC_SPRITE] = R_DrawFloorSprite_8;
-		spanfuncs[SPANDRAWFUNC_TRANSSPRITE] = R_DrawTranslucentFloorSprite_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDSPRITE] = R_DrawTiltedFloorSprite_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDTRANSSPRITE] = R_DrawTiltedTranslucentFloorSprite_8;
-		spanfuncs[SPANDRAWFUNC_WATER] = R_DrawWaterSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDWATER] = R_DrawTiltedWaterSpan_8;
-		spanfuncs[SPANDRAWFUNC_SOLID] = R_DrawSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_TRANSSOLID] = R_DrawTransSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDSOLID] = R_DrawTiltedSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDTRANSSOLID] = R_DrawTiltedTransSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_WATERSOLID] = R_DrawWaterSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDWATERSOLID] = R_DrawTiltedWaterSolidColorSpan_8;
-		spanfuncs[SPANDRAWFUNC_FOG] = R_DrawFogSpan_8;
-		spanfuncs[SPANDRAWFUNC_TILTEDFOG] = R_DrawTiltedFogSpan_8;
+	spanfuncs[SPANDRAWFUNC_TRANS] = R_DrawTranslucentSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTED] = R_DrawTiltedSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDTRANS] = R_DrawTiltedTranslucentSpan_8;
+	spanfuncs[SPANDRAWFUNC_SPLAT] = R_DrawSplat_8;
+	spanfuncs[SPANDRAWFUNC_TRANSSPLAT] = R_DrawTranslucentSplat_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDSPLAT] = R_DrawTiltedSplat_8;
+	spanfuncs[SPANDRAWFUNC_SPRITE] = R_DrawFloorSprite_8;
+	spanfuncs[SPANDRAWFUNC_TRANSSPRITE] = R_DrawTranslucentFloorSprite_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDSPRITE] = R_DrawTiltedFloorSprite_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDTRANSSPRITE] = R_DrawTiltedTranslucentFloorSprite_8;
+	spanfuncs[SPANDRAWFUNC_WATER] = R_DrawWaterSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDWATER] = R_DrawTiltedWaterSpan_8;
+	spanfuncs[SPANDRAWFUNC_SOLID] = R_DrawSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_TRANSSOLID] = R_DrawTransSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDSOLID] = R_DrawTiltedSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDTRANSSOLID] = R_DrawTiltedTransSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_WATERSOLID] = R_DrawWaterSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDWATERSOLID] = R_DrawTiltedWaterSolidColorSpan_8;
+	spanfuncs[SPANDRAWFUNC_FOG] = R_DrawFogSpan_8;
+	spanfuncs[SPANDRAWFUNC_TILTEDFOG] = R_DrawTiltedFogSpan_8;
 
-		// Lactozilla: Non-powers-of-two
-		spanfuncs_npo2[BASEDRAWFUNC] = R_DrawSpan_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TRANS] = R_DrawTranslucentSpan_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTED] = R_DrawTiltedSpan_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTEDTRANS] = R_DrawTiltedTranslucentSpan_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_SPLAT] = R_DrawSplat_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TRANSSPLAT] = R_DrawTranslucentSplat_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTEDSPLAT] = R_DrawTiltedSplat_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_SPRITE] = R_DrawFloorSprite_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TRANSSPRITE] = R_DrawTranslucentFloorSprite_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTEDSPRITE] = R_DrawTiltedFloorSprite_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTEDTRANSSPRITE] = R_DrawTiltedTranslucentFloorSprite_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_WATER] = R_DrawWaterSpan_NPO2_8;
-		spanfuncs_npo2[SPANDRAWFUNC_TILTEDWATER] = R_DrawTiltedWaterSpan_NPO2_8;
-
-#ifdef RUSEASM
-		if (R_ASM)
-		{
-			if (R_MMX)
-			{
-				colfuncs[BASEDRAWFUNC] = R_DrawColumn_8_MMX;
-				//colfuncs[COLDRAWFUNC_SHADE] = R_DrawShadeColumn_8_ASM;
-				//colfuncs[COLDRAWFUNC_FUZZY] = R_DrawTranslucentColumn_8_ASM;
-				colfuncs[COLDRAWFUNC_TWOSMULTIPATCH] = R_Draw2sMultiPatchColumn_8_MMX;
-				spanfuncs[BASEDRAWFUNC] = R_DrawSpan_8_MMX;
-			}
-			else
-			{
-				colfuncs[BASEDRAWFUNC] = R_DrawColumn_8_ASM;
-				//colfuncs[COLDRAWFUNC_SHADE] = R_DrawShadeColumn_8_ASM;
-				//colfuncs[COLDRAWFUNC_FUZZY] = R_DrawTranslucentColumn_8_ASM;
-				colfuncs[COLDRAWFUNC_TWOSMULTIPATCH] = R_Draw2sMultiPatchColumn_8_ASM;
-			}
-		}
-#endif
-	}
-/*	else if (vid.bpp > 1)
-	{
-		I_OutputMsg("using highcolor mode\n");
-		spanfunc = basespanfunc = R_DrawSpan_16;
-		transcolfunc = R_DrawTranslatedColumn_16;
-		transtransfunc = R_DrawTranslucentColumn_16; // No 16bit operation for this function
-
-		colfunc = basecolfunc = R_DrawColumn_16;
-		shadecolfunc = NULL; // detect error if used somewhere..
-		fuzzcolfunc = R_DrawTranslucentColumn_16;
-		walldrawerfunc = R_DrawWallColumn_16;
-	}*/
-	else
-		I_Error("unknown bytes per pixel mode %d\n", vid.bpp);
-/*
-	if (SCR_IsAspectCorrect(vid.width, vid.height))
-		CONS_Alert(CONS_WARNING, M_GetText("Resolution is not aspect-correct!\nUse a multiple of %dx%d\n"), BASEVIDWIDTH, BASEVIDHEIGHT);
-*/
+	// Lactozilla: Non-powers-of-two
+	spanfuncs_npo2[BASEDRAWFUNC] = R_DrawSpan_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TRANS] = R_DrawTranslucentSpan_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTED] = R_DrawTiltedSpan_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTEDTRANS] = R_DrawTiltedTranslucentSpan_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_SPLAT] = R_DrawSplat_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TRANSSPLAT] = R_DrawTranslucentSplat_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTEDSPLAT] = R_DrawTiltedSplat_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_SPRITE] = R_DrawFloorSprite_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TRANSSPRITE] = R_DrawTranslucentFloorSprite_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTEDSPRITE] = R_DrawTiltedFloorSprite_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTEDTRANSSPRITE] = R_DrawTiltedTranslucentFloorSprite_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_WATER] = R_DrawWaterSpan_NPO2_8;
+	spanfuncs_npo2[SPANDRAWFUNC_TILTEDWATER] = R_DrawTiltedWaterSpan_NPO2_8;
 }
 
 void SCR_SetMode(void)
@@ -304,8 +255,6 @@ void SCR_Startup(void)
 		CONS_Printf("CPU Info: 486: %i, 586: %i, MMX: %i, 3DNow: %i, MMXExt: %i, SSE2: %i\n", R_486, R_586, R_MMX, R_3DNow, R_MMXExt, R_SSE2);
 	}
 
-	if (M_CheckParm("-noASM"))
-		R_ASM = false;
 	if (M_CheckParm("-486"))
 		R_486 = true;
 	if (M_CheckParm("-586"))
@@ -419,10 +368,14 @@ void SCR_CheckDefaultMode(void)
 	}
 	else
 	{
-		CONS_Printf(M_GetText("Default resolution: %d x %d (%d bits)\n"), cv_scr_width.value,
-			cv_scr_height.value, cv_scr_depth.value);
-		// see note above
+		CONS_Printf(M_GetText("Default resolution: %d x %d\n"), cv_scr_width.value, cv_scr_height.value);
+		CONS_Printf(M_GetText("Windowed resolution: %d x %d\n"), cv_scr_width_w.value, cv_scr_height_w.value);
+		CONS_Printf(M_GetText("Default bit depth: %d bits\n"), cv_scr_depth.value);
+		
 		SCR_SetModeFromConfig();
+
+		if (setmodeneeded <= 0)
+			CONS_Alert(CONS_WARNING, "Invalid resolution given, defaulting to base resolution\n");
 	}
 
 	if (cv_renderer.value != (signed)rendermode)
@@ -440,15 +393,17 @@ void SCR_CheckDefaultMode(void)
 // sets the modenum as the new default video mode to be saved in the config file
 void SCR_SetDefaultMode(void)
 {
-	// remember the default screen size
-	CV_SetValue(&cv_scr_width, vid.width);
-	CV_SetValue(&cv_scr_height, vid.height);
+	CV_SetValue(cv_fullscreen.value ? &cv_scr_width : &cv_scr_width_w, vid.width);
+	CV_SetValue(cv_fullscreen.value ? &cv_scr_height : &cv_scr_height_w, vid.height);
 }
 
 // Set the mode number based on the resolution saved in the config
 void SCR_SetModeFromConfig(void)
 {
-	setmodeneeded = max(0, VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value)) + 1;
+	if (cv_fullscreen.value)
+		setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1; // see note above
+	else
+		setmodeneeded = VID_GetModeForSize(cv_scr_width_w.value, cv_scr_height_w.value) + 1; // see note above
 }
 
 // Change fullscreen on/off according to cv_fullscreen
@@ -469,8 +424,15 @@ void SCR_ChangeFullscreen(void)
 			SCR_SetModeFromConfig();
 		else
 #endif
-		// This only works with the preset video modes
-		setmodeneeded = VID_GetModeForSize(vid.width, vid.height) + 1;
+		{
+			SCR_SetModeFromConfig();
+
+			if (setmodeneeded <= 0) // hacky safeguard
+			{
+				CONS_Alert(CONS_WARNING, "Invalid resolution given, defaulting to base resolution.\n");
+				setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
+			}
+		}
 	}
 	return;
 #endif
@@ -581,7 +543,12 @@ static void SCR_NativeResAutoChanged(void)
 		SCR_ResetNativeResDivider();
 
 	if (cv_nativeres.value)
+	{
 		SCR_SetModeFromConfig();
+
+		if (setmodeneeded <= 0)
+			setmodeneeded = VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT) + 1;
+	}
 }
 
 #define RESDIVFACTOR (1.0f / 16.0f)
@@ -669,11 +636,11 @@ double averageFPS = 0.0f;
 #define USE_FPS_SAMPLES
 
 #ifdef USE_FPS_SAMPLES
-#define FPS_SAMPLE_RATE (0.05) // How often to update FPS samples, in seconds
+#define MAX_FRAME_TIME 0.05
 #define NUM_FPS_SAMPLES (16) // Number of samples to store
 
-static double fps_samples[NUM_FPS_SAMPLES];
-static double updateElapsed = 0.0;
+static double total_frame_time = 0.0;
+static int frame_index;
 #endif
 
 static boolean fps_init = false;
@@ -696,34 +663,12 @@ void SCR_CalculateFPS(void)
 	fps_enter = fps_finish;
 
 #ifdef USE_FPS_SAMPLES
-	updateElapsed += frameElapsed;
-
-	if (updateElapsed >= FPS_SAMPLE_RATE)
+	total_frame_time += frameElapsed;
+	if (frame_index++ >= NUM_FPS_SAMPLES || total_frame_time >= MAX_FRAME_TIME)
 	{
-		static int sampleIndex = 0;
-		int i;
-
-		fps_samples[sampleIndex] = frameElapsed;
-
-		sampleIndex++;
-		if (sampleIndex >= NUM_FPS_SAMPLES)
-			sampleIndex = 0;
-
-		averageFPS = 0.0;
-		for (i = 0; i < NUM_FPS_SAMPLES; i++)
-		{
-			averageFPS += fps_samples[i];
-		}
-
-		if (averageFPS > 0.0)
-		{
-			averageFPS = 1.0 / (averageFPS / NUM_FPS_SAMPLES);
-		}
-	}
-
-	while (updateElapsed >= FPS_SAMPLE_RATE)
-	{
-		updateElapsed -= FPS_SAMPLE_RATE;
+		averageFPS = 1.0 / (total_frame_time / frame_index);
+		total_frame_time = 0.0;
+		frame_index = 0;
 	}
 #else
 	// Direct, unsampled counter.

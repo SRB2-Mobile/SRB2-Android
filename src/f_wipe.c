@@ -622,6 +622,8 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 skipframe:
 		if (moviemode)
 			M_SaveFrame();
+
+		NetKeepAlive(); // Update the network so we don't cause timeouts
 	}
 
 	WipeInAction = false;

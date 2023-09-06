@@ -70,6 +70,8 @@
 #include "filesrch.h" // refreshdirmenu
 #include "g_input.h" // tutorial mode control scheming
 #include "m_perfstats.h"
+#include "m_random.h"
+#include "command.h"
 
 #ifdef CMAKECONFIG
 #include "config.h"
@@ -492,6 +494,13 @@ static void D_Display(void)
 
 		case GS_WAITINGPLAYERS:
 			// The clientconnect drawer is independent...
+			if (netgame)
+			{
+				// I don't think HOM from nothing drawing is independent...
+				F_WaitingPlayersDrawer();
+				HU_Erase();
+				HU_Drawer();
+			}
 		case GS_DEDICATEDSERVER:
 		case GS_NULL:
 			break;
@@ -1325,6 +1334,15 @@ D_ConvertVersionNumbers (void)
 #endif
 }
 
+static void Command_assert(void)
+{
+#if !defined(NDEBUG) || defined(PARANOIA)
+	CONS_Printf("Yes, assertions are enabled.\n");
+#else
+	CONS_Printf("No, assertions are NOT enabled.\n");
+#endif
+}
+
 //
 // D_SRB2Main
 //
@@ -1337,6 +1355,11 @@ void D_SRB2Main(void)
 
 	/* break the version string into version numbers, for netplay */
 	D_ConvertVersionNumbers();
+
+	if (!strcmp(compbranch, ""))
+	{
+		compbranch = "detached HEAD";
+	}
 
 	// Print GPL notice for our console users (Linux)
 	CONS_Printf(
@@ -1408,11 +1431,12 @@ void D_SRB2Main(void)
 	snprintf(addonsdir, sizeof addonsdir, "%s%s%s", srb2home, PATHSEP, "addons");
 	I_mkdir(addonsdir, 0755);
 
-	// rand() needs seeded regardless of password
-	srand((unsigned int)time(NULL));
-	rand();
-	rand();
-	rand();
+	// seed M_Random because it is necessary; seed P_Random for scripts that
+	// might want to use random numbers immediately at start
+	if (!M_RandomSeedFromOS())
+		M_RandomSeed((UINT32)time(NULL)); // less good but serviceable
+
+	P_SetRandSeed(M_RandomizedSeed());
 
 	if (M_CheckParm("-password") && M_IsNextParm())
 		D_SetPassword(M_GetNextParm());
@@ -1424,8 +1448,13 @@ void D_SRB2Main(void)
 	CONS_Printf("Z_Init(): Init zone memory allocation daemon. \n");
 	Z_Init();
 
+	clientGamedata = M_NewGameDataStruct();
+	serverGamedata = M_NewGameDataStruct();
+
 	// Do this up here so that WADs loaded through the command line can use ExecCfg
 	COM_Init();
+
+	COM_AddCommand("assert", Command_assert, COM_LUA);
 
 	// Add any files specified on the command line with
 	// "-file <file>" or "-folder <folder>" to the add-on list
@@ -1564,7 +1593,15 @@ void D_SRB2Main(void)
 	//--------------------------------------------------------- CONFIG.CFG
 	M_FirstLoadConfig(); // WARNING : this do a "COM_BufExecute()"
 
-	G_LoadGameData();
+	if (M_CheckParm("-gamedata") && M_IsNextParm())
+	{
+		// Moved from G_LoadGameData itself, as it would cause some crazy
+		// confusion issues when loading mods.
+		strlcpy(gamedatafilename, M_GetNextParm(), sizeof gamedatafilename);
+	}
+
+	G_LoadGameData(clientGamedata);
+	M_CopyGameData(serverGamedata, clientGamedata);
 
 #ifdef TOUCHINPUTS
 	TS_InitLayouts();
@@ -1596,7 +1633,7 @@ void D_SRB2Main(void)
 		else
 		{
 			if (!M_CheckParm("-server"))
-				G_SetGameModified(true);
+				G_SetUsedCheats(true);
 			autostart = true;
 		}
 	}
@@ -1800,14 +1837,15 @@ void D_SRB2Main(void)
 			// Prevent warping to nonexistent levels
 			if (W_CheckNumForName(G_BuildMapName(pstartmap)) == LUMPERROR)
 				I_Error("Could not warp to %s (map not found)\n", G_BuildMapName(pstartmap));
-			// Prevent warping to locked levels
-			// ... unless you're in a dedicated server.  Yes, technically this means you can view any level by
-			// running a dedicated server and joining it yourself, but that's better than making dedicated server's
-			// lives hell.
-			else if (!dedicated && M_MapLocked(pstartmap))
-				I_Error("You need to unlock this level before you can warp to it!\n");
 			else
 			{
+				if (M_CampaignWarpIsCheat(gametype, pstartmap, serverGamedata))
+				{
+					// If you're warping via command line, you know what you're doing.
+					// No need to I_Error over this.
+					G_SetUsedCheats(false);
+				}
+
 				D_MapChange(pstartmap, gametype, ultimatemode, true, 0, false, false);
 			}
 		}

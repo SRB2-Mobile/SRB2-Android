@@ -20,13 +20,6 @@ sources+=$(call List,hardware/Sourcefile)
 sources+=hardware/r_opengl/r_opengl.c
 endif
 
-ifndef NOASM
-ifndef NONX86
-sources+=tmap.nas tmap_mmx.nas
-opts+=-DUSEASM
-endif
-endif
-
 ifndef NOMD5
 sources+=md5.c
 endif

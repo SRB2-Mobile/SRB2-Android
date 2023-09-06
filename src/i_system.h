@@ -60,7 +60,7 @@ INT32 I_OnAppleTV(void);
 
 	\return	free memory in the system
 */
-UINT32 I_GetFreeMem(UINT32 *total);
+size_t I_GetFreeMem(size_t *total);
 
 /**	\brief	Returns precise time value for performance measurement. The precise
             time should be a monotonically increasing counter, and will wrap.
@@ -68,6 +68,10 @@ UINT32 I_GetFreeMem(UINT32 *total);
 			integer arithmetic may be used directly between values of precise_t.
   */
 precise_t I_GetPreciseTime(void);
+
+/**	\brief	Fills a buffer with random data, returns amount of data obtained.
+  */
+size_t I_GetRandomBytes(char *destination, size_t count);
 
 /** \brief  Get the precision of precise_t in units per second. Invocations of
             this function for the program's duration MUST return the same value.

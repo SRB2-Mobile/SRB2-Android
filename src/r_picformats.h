@@ -94,7 +94,6 @@ typedef enum
 typedef struct
 {
 	INT32 x, y;
-	rotaxis_t rotaxis;
 } spriteframepivot_t;
 
 typedef struct

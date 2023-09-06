@@ -101,6 +101,12 @@ boolean GLBackend_LoadExtraFunctions(void)
 
 static void SetShader(int type)
 {
+	if (type == SHADER_NONE)
+	{
+		Shader_UnSet();
+		return;
+	}
+
 	Shader_Set(GLBackend_GetShaderType(type));
 }
 
@@ -712,7 +718,7 @@ static void DrawPolygon_GLES2(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT 
 	if (Shader_AttribLoc(LOC_TEXCOORD) != -1)
 		VertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(FOutVector), &pOutVerts[0].s);
 
-	gl_DrawArrays(GL_TRIANGLE_FAN, 0, iNumPts);
+	gl_DrawArrays(PolyFlags & PF_WireFrame ? GL_LINES : GL_TRIANGLE_FAN, 0, iNumPts);
 
 	if (PolyFlags & PF_RemoveYWrap)
 		gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -905,7 +911,7 @@ static void DeleteModelData(void)
 // -----------------+
 // HWRAPI DrawModel : Draw a model
 // -----------------+
-static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
+static void DrawModel(model_t *model, INT32 frameIndex, float duration, float tics, INT32 nextFrameIndex, FTransform *pos, float hscale, float vscale, UINT8 flipped, UINT8 hflipped, FSurfaceInfo *Surface)
 {
 	static GLRGBAFloat poly = {1.0f, 1.0f, 1.0f, 1.0f};
 	static GLRGBAFloat tint = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -933,8 +939,11 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 		return;
 
 	// Affect input model scaling
-	scale *= 0.5f;
-	v_scale[0] = v_scale[1] = v_scale[2] = scale;
+	hscale *= 0.5f;
+	vscale *= 0.5f;
+	v_scale[0] = hscale;
+	v_scale[1] = vscale;
+	v_scale[2] = hscale;
 
 	if (duration > 0.0 && tics >= 0.0) // don't interpolate if instantaneous or infinite in length
 	{
@@ -972,7 +981,6 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 
 	gl_Enable(GL_CULL_FACE);
 
-#ifdef USE_FTRANSFORM_MIRROR
 	// flipped is if the object is vertically flipped
 	// hflipped is if the object is horizontally flipped
 	// pos->flip is if the screen is flipped vertically
@@ -985,17 +993,6 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 		else
 			gl_CullFace(GL_BACK);
 	}
-#else
-	// pos->flip is if the screen is flipped too
-	if (flipped ^ hflipped ^ pos->flip) // If one or three of these are active, but not two, invert the model's culling
-	{
-		gl_CullFace(GL_FRONT);
-	}
-	else
-	{
-		gl_CullFace(GL_BACK);
-	}
-#endif
 
 	lzml_matrix4_identity(modelMatrix);
 
@@ -1009,24 +1006,21 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 	if (hflipped)
 		v_scale[2] = -v_scale[2];
 
+	lzml_matrix4_rotate_z(modelMatrix, -Deg2Rad(pos->anglez));
+	lzml_matrix4_rotate_x(modelMatrix, Deg2Rad(pos->anglex));
+	lzml_matrix4_rotate_y(modelMatrix, -Deg2Rad(pos->angley));
+
 	if (pos->roll)
 	{
-		float roll = (1.0f * pos->rollflip);
-		fvector3_t rotate;
-
 		translate[0] = pos->centerx;
 		translate[1] = pos->centery;
 		translate[2] = 0.0f;
 		lzml_matrix4_translate(modelMatrix, translate);
 
-		rotate[0] = rotate[1] = rotate[2] = 0.0f;
-
-		if (pos->rotaxis == 2) // Z
-			rotate[2] = roll;
-		else if (pos->rotaxis == 1) // Y
-			rotate[1] = roll;
-		else // X
-			rotate[0] = roll;
+		fvector3_t rotate;
+		rotate[0] = pos->rollx;
+		rotate[1] = 0.0f;
+		rotate[2] = pos->rollz;
 
 		lzml_matrix4_rotate_by_vector(modelMatrix, rotate, Deg2Rad(pos->rollangle));
 
@@ -1034,12 +1028,6 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 		translate[1] = -translate[1];
 		lzml_matrix4_translate(modelMatrix, translate);
 	}
-
-#ifdef USE_FTRANSFORM_ANGLEZ
-	lzml_matrix4_rotate_z(modelMatrix, -Deg2Rad(pos->anglez)); // rotate by slope from Kart
-#endif
-	lzml_matrix4_rotate_y(modelMatrix, -Deg2Rad(pos->angley));
-	lzml_matrix4_rotate_x(modelMatrix, Deg2Rad(pos->anglex));
 
 	lzml_matrix4_scale(modelMatrix, v_scale);
 
@@ -1208,26 +1196,22 @@ static void SetTransform(FTransform *stransform)
 	boolean shearing = false;
 	float used_fov;
 
-	fvector3_t scale;
-
 	lzml_matrix4_identity(viewMatrix);
 	lzml_matrix4_identity(modelMatrix);
 
 	if (stransform)
 	{
+		fvector3_t scale;
+
 		used_fov = stransform->fovxangle;
 
-#ifdef USE_FTRANSFORM_MIRROR
-		// mirroring from Kart
 		if (stransform->mirror)
 		{
 			scale[0] = -stransform->scalex;
-			scale[1] = -stransform->scaley;
+			scale[1] = stransform->scaley;
 			scale[2] = -stransform->scalez;
 		}
-		else
-#endif
-		if (stransform->flip)
+		else if (stransform->flip)
 		{
 			scale[0] = stransform->scalex;
 			scale[1] = -stransform->scaley;

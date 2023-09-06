@@ -327,9 +327,9 @@ boolean G_HandlePauseKey(boolean ispausebreak)
 		if (menuactive || pausedelay < 0 || leveltime < 2)
 			return true;
 
-		if (pausedelay < 1+(NEWTICRATE/2))
+		if (!cv_instantretry.value && pausedelay < 1+(NEWTICRATE/2))
 			pausedelay = 1+(NEWTICRATE/2);
-		else if (++pausedelay > 1+(NEWTICRATE/2)+(NEWTICRATE/3))
+		else if (cv_instantretry.value || ++pausedelay > 1+(NEWTICRATE/2)+(NEWTICRATE/3))
 		{
 			G_SetModeAttackRetryFlag();
 			return true;
@@ -353,7 +353,7 @@ boolean G_HandlePauseKey(boolean ispausebreak)
 
 boolean G_CanRetryModeAttack(void)
 {
-	return (modeattacking && !demoplayback && (gamestate == GS_LEVEL));
+	return modeattacking && !demoplayback && (gamestate == GS_LEVEL);
 }
 
 // Handles the camera toggle key being pressed.

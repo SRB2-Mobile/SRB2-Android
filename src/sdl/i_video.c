@@ -2392,7 +2392,7 @@ void I_StartupGraphics(void)
 	if (M_CheckParm("-nomousegrab"))
 		mousegrabok = SDL_FALSE;
 
-	VID_Command_Info_f();
+	//VID_Command_Info_f();
 	SDLdoUngrabMouse();
 
 	SDL_RaiseWindow(window);
