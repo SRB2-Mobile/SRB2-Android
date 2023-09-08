@@ -276,34 +276,31 @@ static SDL_bool Impl_HasContext(void)
 
 static SDL_bool Impl_RenderContextCreate(void)
 {
-	if (rendermode != render_opengl)
+	int flags = 0; // Use this to set SDL_RENDERER_* flags now
+
+	if (usesdl2soft)
+		flags |= SDL_RENDERER_SOFTWARE;
+	else if (cv_vidwait.value)
 	{
-		int flags = 0; // Use this to set SDL_RENDERER_* flags now
-
-		if (usesdl2soft)
-			flags |= SDL_RENDERER_SOFTWARE;
-		else if (cv_vidwait.value)
-		{
 #if SDL_VERSION_ATLEAST(2, 0, 18)
-			// If SDL is new enough, we can turn off vsync later.
-			flags |= SDL_RENDERER_PRESENTVSYNC;
+		// If SDL is new enough, we can turn off vsync later.
+		flags |= SDL_RENDERER_PRESENTVSYNC;
 #else
-			// However, if it isn't, we should just silently turn vid_wait off
-			// This is because the renderer will be created before the config
-			// is read and vid_wait is set from the user's preferences, and thus
-			// vid_wait will have no effect.
-			CV_StealthSetValue(&cv_vidwait, 0);
+		// However, if it isn't, we should just silently turn vid_wait off
+		// This is because the renderer will be created before the config
+		// is read and vid_wait is set from the user's preferences, and thus
+		// vid_wait will have no effect.
+		CV_StealthSetValue(&cv_vidwait, 0);
 #endif
-		}
+	}
 
-		if (!renderer)
-			renderer = SDL_CreateRenderer(window, -1, flags);
+	if (!renderer)
+		renderer = SDL_CreateRenderer(window, -1, flags);
 
-		if (renderer == NULL)
-		{
-			VIDEO_INIT_ERROR("Couldn't create rendering context: %s");
-			return SDL_FALSE;
-		}
+	if (renderer == NULL)
+	{
+		VIDEO_INIT_ERROR("Couldn't create rendering context: %s");
+		return SDL_FALSE;
 	}
 
 #ifdef HWRENDER
@@ -349,6 +346,9 @@ static SDL_bool Impl_RenderContextReset(void)
 		bufSurface = NULL;
 	}
 
+	SDL_RenderClear(renderer);
+	SDL_RenderSetLogicalSize(renderer, realwidth, realheight);
+
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 	{
@@ -365,8 +365,6 @@ static SDL_bool Impl_RenderContextReset(void)
 	else
 #endif
 	{
-		SDL_RenderClear(renderer);
-		SDL_RenderSetLogicalSize(renderer, realwidth, realheight);
 		Impl_VideoSetupSurfaces(realwidth, realheight);
 	}
 
