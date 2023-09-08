@@ -175,6 +175,7 @@ void G_MapEventsToControls(event_t *ev)
 	switch (ev->type)
 	{
 		case ev_keydown:
+			if (ev->key < NUMINPUTS)
 			{
 				gamekeydown[ev->key] = 1;
 				if (G_KeyAssignedToControl(ev->key)) // Unnecessary?

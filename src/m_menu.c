@@ -15623,7 +15623,7 @@ static void VirtualKeyboard_IPv4Textbox(char *text, size_t length)
 {
 	for (size_t i = 0; i < length; i++)
 	{
-		if (l >= CONNIP_LEN-1)
+		if (i >= CONNIP_LEN-1)
 			return;
 		M_IPv4TextboxInput(text[i]);
 	}

@@ -12,7 +12,7 @@ This folder contains the files that will be packaged with the built APK.
 
     /Android/data/org.stjr.srb2/files/
 
-  These files must be bundled with the application package:
+  These files MUST be bundled with the application package:
 
     * android.pk3
     * splash.png
@@ -21,4 +21,4 @@ This folder contains the files that will be packaged with the built APK.
   package or not, and the app may launch without their presence:
 
     * music.dta
-    * patch_music.pk3
+    * patch_music.pk3 (if it exists)
