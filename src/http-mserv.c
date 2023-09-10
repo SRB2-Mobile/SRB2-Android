@@ -31,6 +31,7 @@ Documentation available here.
 #include "d_main.h" // srb2path
 #include "i_system.h" // I_mkdir
 #include "z_zone.h"
+#include "md5.h"
 #endif
 
 /* reasonable default I guess?? */
@@ -157,36 +158,54 @@ HMS_open_ca_bundle (void)
 static void
 HMS_set_cert (CURL *curl)
 {
-	void *handle = NULL;
-	void *ca = NULL;
+	void *saved_ca = NULL;
+	void *needed_ca = NULL;
+
+	boolean should_unpack = false;
 
 	HMS_get_cert();
 
-	if ((handle = File_Open(hms_cert_path, "rb", FILEHANDLE_SDL)) == NULL)
-		ca = HMS_open_ca_bundle();
+	if ((saved_ca = File_Open(hms_cert_path, "rb", FILEHANDLE_SDL)) == NULL)
+	{
+		needed_ca = HMS_open_ca_bundle();
+		should_unpack = true;
+	}
 	else
 	{
-		size_t size;
+		needed_ca = HMS_open_ca_bundle();
 
-		File_Seek(handle, 0, SEEK_END);
-		size = File_Tell(handle);
+#ifndef NOMD5
+		UINT8 saved_md5[16];
+		UINT8 needed_md5[16];
 
-		if (! size)
-			ca = HMS_open_ca_bundle();
+		memset(saved_md5, 0x00, 16);
+		memset(needed_md5, 0x00, 16);
 
-		File_Close(handle);
+		int statusA = md5_stream_whandle(saved_ca, saved_md5);
+		int statusB = md5_stream_whandle(needed_ca, needed_md5);
+
+		if (statusA == 0 && statusB == 0 && memcmp(saved_md5, needed_md5, 16) != 0)
+#endif
+		{
+			should_unpack = true;
+		}
+
+		File_Close(saved_ca);
 	}
 
-	if (ca)
+	if (needed_ca)
 	{
-		CONS_Printf("HMS: unpacking CA bundle '%s'... ", hms_ca_bundle);
+		if (should_unpack)
+		{
+			CONS_Printf("HMS: saving CA bundle '%s'... ", hms_ca_bundle);
 
-		if (W_UnpackFile(hms_cert_path, ca))
-			CONS_Printf("succeeded\n");
-		else
-			CONS_Printf("failed\n");
+			if (W_UnpackFile(hms_cert_path, needed_ca))
+				CONS_Printf("succeeded\n");
+			else
+				CONS_Printf("failed\n");
+		}
 
-		File_Close(ca);
+		File_Close(needed_ca);
 	}
 
 	curl_easy_setopt(curl, CURLOPT_CAINFO, hms_cert_path);
