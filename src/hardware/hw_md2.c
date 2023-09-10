@@ -449,6 +449,8 @@ static void ReadModelDefs(char *data, size_t size)
 	char *line = NULL;
 
 	size_t l = TextReader_GetLineLength(r);
+	size_t prefix_len = strlen(PLAYERMODELPREFIX);
+
 	while (l)
 	{
 		line = Z_Realloc(line, l, PU_STATIC, NULL);
@@ -461,9 +463,9 @@ static void ReadModelDefs(char *data, size_t size)
 		size_t len = strlen(name);
 
 		// Check for the player model prefix
-		if (len > sizeof(PLAYERMODELPREFIX) && !strnicmp(name, PLAYERMODELPREFIX, sizeof(PLAYERMODELPREFIX)))
+		if (len > prefix_len && !strncasecmp(name, PLAYERMODELPREFIX, prefix_len))
 		{
-			skinname += sizeof(PLAYERMODELPREFIX);
+			skinname += prefix_len;
 			goto addskinmodel;
 		}
 
