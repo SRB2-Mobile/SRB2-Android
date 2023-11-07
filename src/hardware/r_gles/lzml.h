@@ -833,7 +833,7 @@ void lzml_matrix4_rotation(float rot[4][4], float vec[3], float angle)
     lzml_vector3_normalize_into(normalized, vec);
     x = normalized[0];
     y = normalized[1];
-    z = normalized[2];
+    z = -normalized[2];
 
     rot[0][0] = cosine + x * x * (1.0f - cosine);
     rot[0][1] = x * y * (1.0f - cosine) - z * sine;

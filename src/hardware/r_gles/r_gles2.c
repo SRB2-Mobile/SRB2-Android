@@ -1018,7 +1018,7 @@ static void DrawModel(model_t *model, INT32 frameIndex, float duration, float ti
 		lzml_matrix4_translate(modelMatrix, translate);
 
 		fvector3_t rotate;
-		rotate[0] = pos->rollx;
+		rotate[0] = -pos->rollx;
 		rotate[1] = 0.0f;
 		rotate[2] = pos->rollz;
 
