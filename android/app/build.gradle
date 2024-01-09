@@ -16,7 +16,7 @@ android {
 
         minSdkVersion 14
         targetSdkVersion 26
-        versionCode 22130
+        versionCode 22131
         versionName "2.2.13"
         externalNativeBuild {
             ndkBuild {
