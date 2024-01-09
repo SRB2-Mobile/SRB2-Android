@@ -6657,7 +6657,7 @@ static CV_PossibleValue_t glfiltermode_cons_t[] = {{HWD_SET_TEXTUREFILTER_POINTS
 	{0, NULL}};
 CV_PossibleValue_t glanisotropicmode_cons_t[] = {{1, "MIN"}, {16, "MAX"}, {0, NULL}};
 
-consvar_t cv_usemodelpack = CVAR_INIT ("usemodelpack", "On", CV_SAVE | CV_CALL | CV_NOINIT, CV_OnOff, CV_modelpack_OnChange);
+consvar_t cv_usemodelpack = CVAR_INIT ("usemodelpack", "Off", CV_SAVE | CV_CALL | CV_NOINIT, CV_OnOff, CV_modelpack_OnChange);
 consvar_t cv_modelpack = CVAR_INIT ("modelpack", "modelpacks/default.zip", CV_SAVE | CV_CALL | CV_NOINIT, NULL, CV_modelpack_OnChange);
 
 consvar_t cv_glshaders = CVAR_INIT ("gr_shaders", "On", CV_SAVE, glshaders_cons_t, NULL);
