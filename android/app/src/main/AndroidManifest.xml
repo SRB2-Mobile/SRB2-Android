@@ -45,7 +45,7 @@
         android:icon="@mipmap/ic_launcher"
         android:isGame="true"
         android:allowBackup="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:theme="@style/AppTheme"
         android:hardwareAccelerated="true" >
 
         <activity android:name="SRB2Game"
