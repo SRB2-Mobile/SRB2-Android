@@ -8,7 +8,7 @@ else {
 }
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 31
     defaultConfig {
         if (buildAsApplication) {
             applicationId "org.stjr.srb2"

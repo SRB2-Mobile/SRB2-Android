@@ -1794,6 +1794,7 @@ static menuitem_t OP_OpenGLOptionsMenu[] =
 	{IT_STRING|IT_CVAR,         NULL, "Models",               &cv_glmodels,             6},
 	{IT_STRING|IT_CVAR,         NULL, "Frame interpolation",  &cv_glmodelinterpolation, 11},
 	{IT_STRING|IT_CVAR,         NULL, "Ambient lighting",     &cv_glmodellighting,      16},
+	{IT_STRING|IT_CVAR,         NULL, "Use modelpacks",     &cv_usemodelpack,      21},
 
 	{IT_HEADER, NULL, "General", NULL, 25},
 	{IT_STRING|IT_CVAR,         NULL, "Shaders",              &cv_glshaders,            31},
